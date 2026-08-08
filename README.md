@@ -1,5 +1,7 @@
 # Zoop
 
+![Zoop Direct Connectivity Platform](docs/assets/banner.png)
+
 Zoop is a direct connectivity platform designed to let authorized devices
 share and use network connectivity through secure, fast, and reliable
 device-to-device connections.
