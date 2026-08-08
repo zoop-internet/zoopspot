@@ -190,55 +190,6 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [ ] **Milestone 22: Complete System Validation** (End-to-end verification across all layers)
 
 
-## Development Status
-
-Zoop is currently in the **architecture and system-understanding phase**.
-
-The purpose of this phase is to understand and define the complete system
-before implementation.
-
-We are intentionally not building every component at once.
-
-The architecture is being defined first so that implementation decisions
-are based on clear requirements and boundaries.
-
-
-## Design Principles
-
-### Direct First
-
-Prefer:
-
-    Device ↔ Device
-
-over unnecessary centralized traffic routing.
-
-### Control Plane ≠ Data Plane
-
-The Control Plane coordinates.
-
-The Data Plane carries traffic.
-
-### Security First
-
-Identity, authorization, and encrypted communication are fundamental parts
-of the architecture.
-
-### Established Technology
-
-Zoop should build on proven networking and cryptographic technologies
-instead of reinventing them.
-
-### Simple Core
-
-Do not introduce complexity before the system requires it.
-
-### Platform Independent
-
-The same Zoop architecture should work across supported platforms while
-using native platform capabilities where necessary.
-
-
 ## What Zoop Is Not
 
 Zoop is not designed around a centralized VPN gateway through which all
