@@ -173,9 +173,18 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			if s.tunnelManager != nil {
 				// Provider gets its own info
 				replyPayload.WireGuardPublicKey = s.tunnelManager.PublicKey().String()
-				replyPayload.EndpointIP = "127.0.0.1" // Hardcoded for local testing (NAT traversal is M10)
+				
 				port, _ := s.tunnelManager.GetListenPort()
 				replyPayload.EndpointPort = port
+
+				// Discover Public IP via STUN
+				publicIP, _, err := tunnel.DiscoverPublicEndpoint(port)
+				if err != nil {
+					s.Logger.Error("stun discovery failed, falling back to local IP", "error", err)
+					replyPayload.EndpointIP = "127.0.0.1"
+				} else {
+					replyPayload.EndpointIP = publicIP
+				}
 
 				if payload.WireGuardPublicKey != "" {
 					s.Logger.Info("received peer wireguard public key, configuring tunnel")

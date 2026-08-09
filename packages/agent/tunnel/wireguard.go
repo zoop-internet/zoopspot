@@ -1,28 +1,20 @@
 package tunnel
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
-	"time"
+	"strings"
 
-	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // ConfigureDevice sets the local private key and listen port for the WireGuard device.
 func (m *DeviceManager) ConfigureDevice(privKey wgtypes.Key, listenPort int) error {
-	client, err := wgctrl.New()
-	if err != nil {
-		return fmt.Errorf("failed to open wgctrl: %w", err)
-	}
-	defer client.Close()
+	privKeyHex := hex.EncodeToString(privKey[:])
+	uapi := fmt.Sprintf("private_key=%s\nlisten_port=%d\nreplace_peers=false\n", privKeyHex, listenPort)
 
-	cfg := wgtypes.Config{
-		PrivateKey: &privKey,
-		ListenPort: &listenPort, // 0 for dynamic/ephemeral port
-	}
-
-	if err := client.ConfigureDevice(m.ifName, cfg); err != nil {
+	if err := m.wgDev.IpcSet(uapi); err != nil {
 		return fmt.Errorf("failed to configure wireguard device: %w", err)
 	}
 
@@ -33,41 +25,28 @@ func (m *DeviceManager) ConfigureDevice(privKey wgtypes.Key, listenPort int) err
 
 // AddPeer adds a remote peer to the WireGuard configuration.
 func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpointPort int, allowedIPs []string) error {
-	client, err := wgctrl.New()
-	if err != nil {
-		return fmt.Errorf("failed to open wgctrl: %w", err)
-	}
-	defer client.Close()
-
-	var parsedAllowedIPs []net.IPNet
-	for _, aip := range allowedIPs {
-		_, ipNet, err := net.ParseCIDR(aip)
-		if err != nil {
-			return fmt.Errorf("failed to parse allowed IP %s: %w", aip, err)
+	peerKeyHex := hex.EncodeToString(peerPubKey[:])
+	
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("public_key=%s\n", peerKeyHex))
+	
+	if endpointIP != "" && endpointPort != 0 {
+		// IPv6 needs brackets
+		ip := net.ParseIP(endpointIP)
+		if ip != nil && ip.To4() == nil {
+			sb.WriteString(fmt.Sprintf("endpoint=[%s]:%d\n", endpointIP, endpointPort))
+		} else {
+			sb.WriteString(fmt.Sprintf("endpoint=%s:%d\n", endpointIP, endpointPort))
 		}
-		parsedAllowedIPs = append(parsedAllowedIPs, *ipNet)
 	}
 
-	endpointAddr := &net.UDPAddr{
-		IP:   net.ParseIP(endpointIP),
-		Port: endpointPort,
+	sb.WriteString("replace_allowed_ips=true\n")
+	for _, aip := range allowedIPs {
+		sb.WriteString(fmt.Sprintf("allowed_ip=%s\n", aip))
 	}
+	sb.WriteString("persistent_keepalive_interval=25\n")
 
-	keepalive := 25 * time.Second
-
-	peerCfg := wgtypes.PeerConfig{
-		PublicKey:                   peerPubKey,
-		Endpoint:                    endpointAddr,
-		AllowedIPs:                  parsedAllowedIPs,
-		PersistentKeepaliveInterval: &keepalive,
-		ReplaceAllowedIPs:           true,
-	}
-
-	cfg := wgtypes.Config{
-		Peers: []wgtypes.PeerConfig{peerCfg},
-	}
-
-	if err := client.ConfigureDevice(m.ifName, cfg); err != nil {
+	if err := m.wgDev.IpcSet(sb.String()); err != nil {
 		return fmt.Errorf("failed to add peer to wireguard device: %w", err)
 	}
 	return nil
@@ -75,23 +54,12 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 
 // RemovePeer removes a remote peer from the WireGuard configuration.
 func (m *DeviceManager) RemovePeer(peerPubKey wgtypes.Key) error {
-	client, err := wgctrl.New()
-	if err != nil {
-		return fmt.Errorf("failed to open wgctrl: %w", err)
-	}
-	defer client.Close()
+	peerKeyHex := hex.EncodeToString(peerPubKey[:])
+	uapi := fmt.Sprintf("public_key=%s\nremove=true\n", peerKeyHex)
 
-	peerCfg := wgtypes.PeerConfig{
-		PublicKey: peerPubKey,
-		Remove:    true,
-	}
-
-	cfg := wgtypes.Config{
-		Peers: []wgtypes.PeerConfig{peerCfg},
-	}
-
-	if err := client.ConfigureDevice(m.ifName, cfg); err != nil {
+	if err := m.wgDev.IpcSet(uapi); err != nil {
 		return fmt.Errorf("failed to remove peer from wireguard device: %w", err)
 	}
 	return nil
 }
+

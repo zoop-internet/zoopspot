@@ -1,13 +1,21 @@
-time=2026-08-09T21:09:34.889+03:00 level=INFO msg="Starting Zoop Agent" version=0.1.0-alpha
-time=2026-08-09T21:09:34.891+03:00 level=INFO msg="starting zoop agent"
-time=2026-08-09T21:09:34.891+03:00 level=INFO msg="loading identity" path=./test-data/recipient/identity.key
-time=2026-08-09T21:09:34.893+03:00 level=INFO msg="identity loaded" endpoint_id=06645c74-956f-5739-92d4-2581919f974f
-time=2026-08-09T21:09:34.893+03:00 level=ERROR msg="failed to create tunnel manager" error="failed to create TUN device: operation not permitted"
-time=2026-08-09T21:09:34.893+03:00 level=INFO msg="wireguard keys generated" public_key="29dzyHjqk9xSrtKkk9CQpwwnVDvoVPj2NTKXWsIADjk="
-time=2026-08-09T21:09:34.893+03:00 level=INFO msg="registering device with cloud" url=http://localhost:8080
-time=2026-08-09T21:09:34.895+03:00 level=INFO msg="device successfully registered"
-time=2026-08-09T21:09:34.895+03:00 level=INFO msg="Agent started successfully"
-time=2026-08-09T21:09:34.897+03:00 level=INFO msg="signaling connected to cloud"
-time=2026-08-09T21:09:34.897+03:00 level=INFO msg="signaling resyncing missed connection states"
-time=2026-08-09T21:09:37.894+03:00 level=INFO msg="received signaling message" type=connection_accepted sender=eaa38375-ccb1-5973-a0a9-b4abdb57b7b8 payload="{\"connection_id\":[94,21,204,69,28,163,66,159,146,254,235,60,247,124,110,246],\"provider_ip\":\"100.64.0.1\",\"recipient_ip\":\"100.64.0.2\"}"
-time=2026-08-09T21:09:37.894+03:00 level=INFO msg="connection accepted by peer" sender_id=eaa38375-ccb1-5973-a0a9-b4abdb57b7b8
+time=2026-08-10T01:30:22.943+03:00 level=INFO msg="Starting Zoop Agent" version=0.1.0-alpha
+time=2026-08-10T01:30:22.944+03:00 level=INFO msg="starting zoop agent"
+time=2026-08-10T01:30:22.944+03:00 level=INFO msg="loading identity" path=./test-data/recipient/identity.key
+time=2026-08-10T01:30:22.946+03:00 level=INFO msg="identity loaded" endpoint_id=796d9d91-9a01-5975-821b-51fd7a9fe892
+time=2026-08-10T01:30:22.946+03:00 level=ERROR msg="failed to create tunnel manager" error="failed to create TUN device: operation not permitted"
+time=2026-08-10T01:30:22.947+03:00 level=INFO msg="wireguard keys generated" public_key="uo65VerwCiM3CECgbbpHUJak7OS+UvUWek/FgBd9dQ4="
+time=2026-08-10T01:30:22.947+03:00 level=INFO msg="registering device with cloud" url=http://localhost:8080
+time=2026-08-10T01:30:22.948+03:00 level=INFO msg="device successfully registered"
+time=2026-08-10T01:30:22.948+03:00 level=INFO msg="Agent started successfully"
+time=2026-08-10T01:30:22.949+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-10T01:30:22.949+03:00 level=INFO msg="signaling resyncing missed connection states"
+time=2026-08-10T01:30:25.957+03:00 level=INFO msg="received signaling message" type=connection_accepted sender=8aa9fb26-0215-54ea-b808-3dba73ff6c9c payload="{\"connection_id\":[103,238,83,2,214,136,70,169,185,15,145,16,245,184,8,130],\"provider_ip\":\"100.64.0.1\",\"recipient_ip\":\"100.64.0.2\"}"
+time=2026-08-10T01:30:25.957+03:00 level=INFO msg="connection accepted by peer" sender_id=8aa9fb26-0215-54ea-b808-3dba73ff6c9c
+time=2026-08-10T01:31:25.961+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-10T01:31:25.961+03:00 level=INFO msg="signaling resyncing missed connection states"
+time=2026-08-10T01:32:25.991+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-10T01:32:25.991+03:00 level=INFO msg="signaling resyncing missed connection states"
+time=2026-08-10T01:33:26.051+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-10T01:33:26.051+03:00 level=INFO msg="signaling resyncing missed connection states"
+time=2026-08-10T01:34:26.110+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-10T01:34:26.110+03:00 level=INFO msg="signaling resyncing missed connection states"
