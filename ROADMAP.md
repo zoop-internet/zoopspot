@@ -44,20 +44,20 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 ## 3. Zoop Agent
 
-- [ ] Create Agent executable
-- [ ] Agent configuration
-- [ ] Agent startup/shutdown
-- [ ] Agent lifecycle
-- [ ] Device identity creation
-- [ ] Secure local identity storage
-- [ ] Agent state
-- [ ] Agent status
-- [ ] Logging
-- [ ] Error handling
-- [ ] Health checks
-- [ ] Agent tests
+- [x] Create Agent executable
+- [x] Agent configuration
+- [x] Agent startup/shutdown
+- [x] Agent lifecycle
+- [x] Device identity creation
+- [x] Secure local identity storage
+- [x] Agent state
+- [x] Agent status
+- [x] Logging
+- [x] Error handling
+- [x] Health checks
+- [x] Agent tests
 
-**Done when:** An endpoint can run a Zoop Agent and maintain its own identity/state.
+**Done when:** An endpoint can run a Zoop Agent and maintain its own identity/state. (COMPLETED)
 
 ---
 
