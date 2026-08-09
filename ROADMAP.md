@@ -63,21 +63,21 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 ## 4. Control Plane
 
-- [ ] Create Go Cloud service
-- [ ] Create API
-- [ ] Create user model
-- [ ] Create device model
-- [ ] Device registration
-- [ ] Device authentication
-- [ ] Device lookup
-- [ ] Device discovery
-- [ ] Basic signaling
-- [ ] Store public keys
-- [ ] Store connection metadata
-- [ ] Basic authorization
-- [ ] Control Plane tests
+- [x] Create Go Cloud service
+- [x] Create API
+- [x] Create user model
+- [x] Create device model
+- [x] Device registration
+- [x] Device authentication
+- [x] Device lookup
+- [x] Device discovery
+- [x] Basic signaling
+- [x] Store public keys
+- [x] Store connection metadata
+- [x] Basic authorization
+- [x] Control Plane tests
 
-**Done when:** Zoop Cloud can manage and coordinate registered devices.
+**Done when:** Zoop Cloud can manage and coordinate registered devices. (COMPLETED)
 
 ---
 
