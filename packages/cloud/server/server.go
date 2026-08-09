@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/services"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -16,23 +17,43 @@ import (
 )
 
 type Server struct {
-	cfg     config.Config
-	logger  *slog.Logger
-	store   store.Store
-	devices *services.DeviceService
-	users   *services.UserService
-	mux     *http.ServeMux
-	server  *http.Server
+	cfg         config.Config
+	logger      *slog.Logger
+	store       store.Store
+	devices     *services.DeviceService
+	users       *services.UserService
+	shares      *services.ShareService
+	connections *services.ConnectionService
+	mux         *http.ServeMux
+	server      *http.Server
+	upgrader    websocket.Upgrader
 }
 
-func NewServer(cfg config.Config, logger *slog.Logger, st store.Store, ds *services.DeviceService, us *services.UserService) *Server {
+func NewServer(
+	cfg config.Config,
+	logger *slog.Logger,
+	st store.Store,
+	ds *services.DeviceService,
+	us *services.UserService,
+	ss *services.ShareService,
+	cs *services.ConnectionService,
+) *Server {
 	s := &Server{
-		cfg:     cfg,
-		logger:  logger,
-		store:   st,
-		devices: ds,
-		users:   us,
-		mux:     http.NewServeMux(),
+		cfg:         cfg,
+		logger:      logger,
+		store:       st,
+		devices:     ds,
+		users:       us,
+		shares:      ss,
+		connections: cs,
+		mux:         http.NewServeMux(),
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true // allow all origins for now
+			},
+		},
 	}
 	s.routes()
 	return s
@@ -46,6 +67,14 @@ func (s *Server) routes() {
 
 	// Authenticated routes
 	s.mux.Handle("GET /v1/devices/{id}", authMw(http.HandlerFunc(s.handleGetDevice())))
+	s.mux.Handle("GET /v1/devices/{id}/endpoints", authMw(http.HandlerFunc(s.handleGetEndpoints())))
+
+	s.mux.Handle("POST /v1/shares", authMw(http.HandlerFunc(s.handleCreateShare())))
+	s.mux.Handle("GET /v1/shares/{id}", authMw(http.HandlerFunc(s.handleGetShare())))
+
+	s.mux.Handle("POST /v1/connections", authMw(http.HandlerFunc(s.handleCreateConnection())))
+	s.mux.Handle("GET /v1/connections/{id}", authMw(http.HandlerFunc(s.handleGetConnection())))
+
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
 }
 
@@ -71,11 +100,6 @@ func (s *Server) handleRegisterDevice() http.HandlerFunc {
 func (s *Server) handleGetDevice() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		idStr := r.PathValue("id")
-		if idStr == "" {
-			api.WriteError(w, "invalid_request", "missing device id", http.StatusBadRequest)
-			return
-		}
-
 		parsedUUID, err := uuid.Parse(idStr)
 		if err != nil {
 			api.WriteError(w, "invalid_request", "invalid device id format", http.StatusBadRequest)
@@ -97,14 +121,170 @@ func (s *Server) handleGetDevice() http.HandlerFunc {
 	}
 }
 
+func (s *Server) handleGetEndpoints() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id format", http.StatusBadRequest)
+			return
+		}
+
+		// Retrieve device identity to get public key
+		ident, err := s.store.GetIdentity(r.Context(), types.ID(parsedUUID))
+		if err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "device identity not found", http.StatusNotFound)
+				return
+			}
+			api.WriteError(w, "internal_error", "failed to lookup device identity", http.StatusInternalServerError)
+			return
+		}
+
+		resp := api.EndpointsResponse{
+			DeviceID:  ident.EndpointID,
+			PublicKey: string(ident.PublicKey), // Should be encoded appropriately in production
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleCreateShare() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req api.CreateShareRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.shares.CreateShare(r.Context(), req)
+		if err != nil {
+			s.logger.Error("failed to create share", "error", err)
+			api.WriteError(w, "internal_error", "failed to create share", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleGetShare() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid share id format", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.shares.GetShare(r.Context(), types.ID(parsedUUID))
+		if err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "share not found", http.StatusNotFound)
+				return
+			}
+			api.WriteError(w, "internal_error", "failed to lookup share", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleCreateConnection() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		var req api.CreateConnectionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.connections.CreateConnection(r.Context(), req, callerID)
+		if err != nil {
+			if err == services.ErrUnauthorized {
+				api.WriteError(w, "authorization_denied", err.Error(), http.StatusForbidden)
+				return
+			}
+			s.logger.Error("failed to create connection", "error", err)
+			api.WriteError(w, "internal_error", "failed to create connection", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleGetConnection() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid connection id format", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.connections.GetConnection(r.Context(), types.ID(parsedUUID), callerID)
+		if err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "connection not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrUnauthorized {
+				api.WriteError(w, "authorization_denied", err.Error(), http.StatusForbidden)
+				return
+			}
+			api.WriteError(w, "internal_error", "failed to lookup connection", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
 func (s *Server) handleSignaling() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// For Milestone 4, we establish the endpoint for the WebSocket upgrade.
-		// The actual WebSocket signaling implementation (upgrader, message pumping) 
-		// will be built out in the upcoming signaling milestone.
-		// For now, we return 101 Switching Protocols placeholder or simply 501 Not Implemented
-		// until the Gorilla Websocket or x/net/websocket logic is added.
-		api.WriteError(w, "not_implemented", "signaling websocket upgrade not yet implemented", http.StatusNotImplemented)
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		conn, err := s.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			s.logger.Error("failed to upgrade to websocket", "error", err)
+			return
+		}
+		defer conn.Close()
+
+		s.logger.Info("signaling channel established", "caller_id", callerID)
+
+		// Basic echo/handshake for Milestone 4
+		for {
+			messageType, p, err := conn.ReadMessage()
+			if err != nil {
+				s.logger.Info("signaling channel closed", "caller_id", callerID, "error", err)
+				return
+			}
+			
+			// Echo it back to prove bidirectional communication
+			if err := conn.WriteMessage(messageType, p); err != nil {
+				s.logger.Error("failed to write message", "error", err)
+				return
+			}
+		}
 	}
 }
 

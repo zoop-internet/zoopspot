@@ -26,9 +26,11 @@ func main() {
 	// Initialize services
 	deviceService := services.NewDeviceService(st)
 	userService := services.NewUserService(st)
+	shareService := services.NewShareService(st)
+	connService := services.NewConnectionService(st)
 
 	// Initialize server
-	srv := server.NewServer(cfg, logger, st, deviceService, userService)
+	srv := server.NewServer(cfg, logger, st, deviceService, userService, shareService, connService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

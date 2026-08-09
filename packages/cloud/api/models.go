@@ -25,3 +25,38 @@ type DeviceResponse struct {
 	ID        types.ID `json:"id"`
 	Status    string   `json:"status"`
 }
+
+// CreateShareRequest is the payload for POST /v1/shares
+type CreateShareRequest struct {
+	ProviderID  types.ID `json:"provider_id"`
+	RecipientID types.ID `json:"recipient_id"`
+}
+
+// ShareResponse is returned for share lookups and creations.
+type ShareResponse struct {
+	ID          types.ID `json:"id"`
+	ProviderID  types.ID `json:"provider_id"`
+	RecipientID types.ID `json:"recipient_id"`
+	IsActive    bool     `json:"is_active"`
+}
+
+// CreateConnectionRequest is the payload for POST /v1/connections
+type CreateConnectionRequest struct {
+	ProviderID  types.ID `json:"provider_id"`
+	RecipientID types.ID `json:"recipient_id"`
+}
+
+// ConnectionResponse is returned for connection lookups and creations.
+type ConnectionResponse struct {
+	ID          types.ID              `json:"id"`
+	ProviderID  types.ID              `json:"provider_id"`
+	RecipientID types.ID              `json:"recipient_id"`
+	State       types.ConnectionState `json:"state"`
+}
+
+// EndpointsResponse is returned for GET /v1/devices/{id}/endpoints
+type EndpointsResponse struct {
+	DeviceID  types.ID `json:"device_id"`
+	PublicKey string   `json:"public_key"`
+	// In the future this will hold STUN/TURN candidates, LAN addresses, etc.
+}

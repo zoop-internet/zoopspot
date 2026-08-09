@@ -65,3 +65,61 @@ func TestInMemoryStore_Identity(t *testing.T) {
 		t.Errorf("expected endpoint id match")
 	}
 }
+
+func TestInMemoryStore_SharingRelationship(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	share := &types.SharingRelationship{
+		ID:          types.NewID(),
+		ProviderID:  types.NewID(),
+		RecipientID: types.NewID(),
+		IsActive:    true,
+	}
+
+	err := s.SaveSharingRelationship(ctx, share)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	retrieved, err := s.GetSharingRelationship(ctx, share.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrieved.ProviderID != share.ProviderID {
+		t.Errorf("expected provider id match")
+	}
+
+	retrievedByEndpoints, err := s.GetSharingRelationshipByEndpoints(ctx, share.ProviderID, share.RecipientID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrievedByEndpoints.ID != share.ID {
+		t.Errorf("expected share id match")
+	}
+}
+
+func TestInMemoryStore_Connection(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	conn := &types.Connection{
+		ID:          types.NewID(),
+		ProviderID:  types.NewID(),
+		RecipientID: types.NewID(),
+		State:       types.ConnectionStateConnected,
+	}
+
+	err := s.SaveConnection(ctx, conn)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	retrieved, err := s.GetConnection(ctx, conn.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrieved.State != conn.State {
+		t.Errorf("expected state match")
+	}
+}

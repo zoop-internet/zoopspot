@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
@@ -73,7 +74,13 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			// Attach identity to context
+			ctx := context.WithValue(r.Context(), CallerIdentityKey, identity.EndpointID)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
+
+type ContextKey string
+
+const CallerIdentityKey ContextKey = "caller_identity"
