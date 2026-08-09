@@ -63,8 +63,13 @@ func TestSignalingClient_Connect(t *testing.T) {
 	// Run connect loop in background
 	go c.Connect(ctx)
 
-	// Wait for connection to succeed
-	time.Sleep(100 * time.Millisecond)
+	// Wait for connection to succeed (up to 2 seconds)
+	for i := 0; i < 20; i++ {
+		if atomic.LoadInt32(&connected) == 1 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	if atomic.LoadInt32(&connected) != 1 {
 		t.Errorf("expected websocket connection to be established")
