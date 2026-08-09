@@ -32,8 +32,13 @@ func TestServerLifecycle(t *testing.T) {
 		errCh <- srv.Start(ctx, keyPath)
 	}()
 
-	// Give it a moment to start
-	time.Sleep(100 * time.Millisecond)
+	// Wait for state to be RUNNING (up to 2 seconds)
+	for i := 0; i < 20; i++ {
+		if sm.Get() == state.StateRunning {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	if sm.Get() != state.StateRunning {
 		t.Errorf("expected state RUNNING, got %s", sm.Get())
