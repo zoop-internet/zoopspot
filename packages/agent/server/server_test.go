@@ -21,7 +21,7 @@ func TestServerLifecycle(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	srv := server.NewServer(cfg, sm, im, logger)
+	srv := server.NewServer(cfg, sm, im, logger, "zoop0", 9090)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	dir := t.TempDir()
