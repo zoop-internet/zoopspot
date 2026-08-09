@@ -24,6 +24,7 @@ type Server struct {
 	users       *services.UserService
 	shares      *services.ShareService
 	connections *services.ConnectionService
+	signaling   *services.SignalingHub
 	mux         *http.ServeMux
 	server      *http.Server
 	upgrader    websocket.Upgrader
@@ -37,6 +38,7 @@ func NewServer(
 	us *services.UserService,
 	ss *services.ShareService,
 	cs *services.ConnectionService,
+	sh *services.SignalingHub,
 ) *Server {
 	s := &Server{
 		cfg:         cfg,
@@ -46,6 +48,7 @@ func NewServer(
 		users:       us,
 		shares:      ss,
 		connections: cs,
+		signaling:   sh,
 		mux:         http.NewServeMux(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -270,19 +273,27 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 		defer conn.Close()
 
 		s.logger.Info("signaling channel established", "caller_id", callerID)
+		
+		s.signaling.Register(callerID, conn)
+		defer s.signaling.Unregister(callerID)
 
-		// Basic echo/handshake for Milestone 4
+		// Parse JSON signaling messages and route them
 		for {
-			messageType, p, err := conn.ReadMessage()
-			if err != nil {
-				s.logger.Info("signaling channel closed", "caller_id", callerID, "error", err)
+			var msg types.SignalingMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					s.logger.Error("signaling read error", "error", err)
+				}
 				return
 			}
 			
-			// Echo it back to prove bidirectional communication
-			if err := conn.WriteMessage(messageType, p); err != nil {
-				s.logger.Error("failed to write message", "error", err)
-				return
+			// Overwrite sender ID to ensure it is the authenticated caller
+			msg.SenderID = callerID
+			
+			// Route to the intended recipient
+			if err := s.signaling.SendTo(msg.RecipientID, msg); err != nil {
+				s.logger.Warn("failed to route signaling message", "recipient", msg.RecipientID, "error", err)
+				// Optionally send an error message back to the sender
 			}
 		}
 	}

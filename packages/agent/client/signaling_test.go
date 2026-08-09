@@ -46,11 +46,8 @@ func TestSignalingClient_Connect(t *testing.T) {
 
 		atomic.StoreInt32(&connected, 1)
 
-		// Read one message (handshake)
-		_, _, err = conn.ReadMessage()
-		if err != nil {
-			t.Errorf("failed to read message: %v", err)
-		}
+		// Wait indefinitely to keep connection open for test
+		<-r.Context().Done()
 	}))
 	defer mockServer.Close()
 

@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
@@ -28,7 +29,8 @@ func TestServer_RegisterDevice(t *testing.T) {
 	ss := services.NewShareService(st)
 	cs := services.NewConnectionService(st)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs)
+	hub := services.NewSignalingHub()
+	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
 
 	_, pub, _ := ed25519.GenerateKey(rand.Reader)
 	pubStr := base64.StdEncoding.EncodeToString(pub)
@@ -66,7 +68,8 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	ss := services.NewShareService(st)
 	cs := services.NewConnectionService(st)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs)
+	hub := services.NewSignalingHub()
+	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
 
 	// Create Identity
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
@@ -84,12 +87,15 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	// Make request
 	req := httptest.NewRequest(http.MethodGet, "/v1/devices/"+endpointID.String(), nil)
 	
-	// Create signature
-	sig := ed25519.Sign(priv, []byte("zoop-m4-auth"))
+	// Create signature with timestamp
+	ts := time.Now().Format(time.RFC3339)
+	payload := []byte("zoop-auth|" + ts)
+	sig := ed25519.Sign(priv, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	req.Header.Set("X-Zoop-Identity", endpointID.String())
 	req.Header.Set("X-Zoop-Signature", sigStr)
+	req.Header.Set("X-Zoop-Timestamp", ts)
 
 	w := httptest.NewRecorder()
 	srv.mux.ServeHTTP(w, req)

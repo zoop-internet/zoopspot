@@ -30,7 +30,8 @@ func main() {
 	connService := services.NewConnectionService(st)
 
 	// Initialize server
-	srv := server.NewServer(cfg, logger, st, deviceService, userService, shareService, connService)
+	hub := services.NewSignalingHub()
+	srv := server.NewServer(cfg, logger, st, deviceService, userService, shareService, connService, hub)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

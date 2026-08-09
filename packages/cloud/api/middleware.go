@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -41,9 +42,10 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			identityStr := r.Header.Get("X-Zoop-Identity")
 			sigStr := r.Header.Get("X-Zoop-Signature")
+			timestampStr := r.Header.Get("X-Zoop-Timestamp")
 
-			if identityStr == "" || sigStr == "" {
-				WriteError(w, "unauthenticated", "missing identity or signature headers", http.StatusUnauthorized)
+			if identityStr == "" || sigStr == "" || timestampStr == "" {
+				WriteError(w, "unauthenticated", "missing identity, signature, or timestamp headers", http.StatusUnauthorized)
 				return
 			}
 
@@ -64,12 +66,21 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				WriteError(w, "unauthenticated", "identity not found", http.StatusUnauthorized)
 				return
 			}
-
-			// In a real implementation, we would verify the signature over the request path, body, and a timestamp/nonce.
-			// For M4, we verify against a simple known payload to establish the architectural pattern.
-			dummyPayload := []byte("zoop-m4-auth")
 			
-			if !ed25519.Verify(identity.PublicKey, dummyPayload, sigBytes) {
+			// Parse timestamp and prevent replay attacks (allow 5 minute window)
+			timestamp, err := time.Parse(time.RFC3339, timestampStr)
+			if err != nil {
+				WriteError(w, "unauthenticated", "invalid timestamp format", http.StatusUnauthorized)
+				return
+			}
+			if time.Since(timestamp) > 5*time.Minute || time.Until(timestamp) > 5*time.Minute {
+				WriteError(w, "unauthenticated", "request timestamp expired", http.StatusUnauthorized)
+				return
+			}
+
+			payload := []byte("zoop-auth|" + timestampStr)
+			
+			if !ed25519.Verify(identity.PublicKey, payload, sigBytes) {
 				WriteError(w, "unauthenticated", "signature verification failed", http.StatusUnauthorized)
 				return
 			}
