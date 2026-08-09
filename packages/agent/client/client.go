@@ -118,3 +118,13 @@ func (c *APIClient) RequestConnection(ctx context.Context, providerID types.ID) 
 	err := c.do(ctx, http.MethodPost, "/v1/connections", req, &resp)
 	return &resp, err
 }
+
+// UpdateConnectionState tells the Cloud to update the state of an existing connection.
+func (c *APIClient) UpdateConnectionState(ctx context.Context, connID types.ID, state types.ConnectionState) error {
+	req := api.UpdateConnectionStateRequest{
+		State: state,
+	}
+	
+	path := fmt.Sprintf("/v1/connections/%s/state", connID.String())
+	return c.do(ctx, http.MethodPut, path, req, nil)
+}

@@ -77,6 +77,7 @@ func (s *Server) routes() {
 
 	s.mux.Handle("POST /v1/connections", authMw(http.HandlerFunc(s.handleCreateConnection())))
 	s.mux.Handle("GET /v1/connections/{id}", authMw(http.HandlerFunc(s.handleGetConnection())))
+	s.mux.Handle("PUT /v1/connections/{id}/state", authMw(http.HandlerFunc(s.handleUpdateConnectionState())))
 
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
 }
@@ -254,6 +255,46 @@ func (s *Server) handleGetConnection() http.HandlerFunc {
 		}
 
 		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleUpdateConnectionState() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid connection id format", http.StatusBadRequest)
+			return
+		}
+
+		var req api.UpdateConnectionStateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		err = s.connections.UpdateConnectionState(r.Context(), types.ID(parsedUUID), callerID, req.State)
+		if err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "connection not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrUnauthorized {
+				api.WriteError(w, "authorization_denied", err.Error(), http.StatusForbidden)
+				return
+			}
+			s.logger.Error("failed to update connection state", "error", err)
+			api.WriteError(w, "internal_error", "failed to update connection state", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 	}
 }
 

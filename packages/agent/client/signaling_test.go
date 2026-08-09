@@ -52,7 +52,8 @@ func TestSignalingClient_Connect(t *testing.T) {
 	defer mockServer.Close()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	c := NewSignalingClient(mockServer.URL, ident, priv, logger)
+	apiClient := NewAPIClient(mockServer.URL, ident, priv)
+	c := NewSignalingClient(apiClient, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

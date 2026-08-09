@@ -15,21 +15,17 @@ import (
 
 // SignalingClient manages the persistent WebSocket connection to the Control Plane.
 type SignalingClient struct {
-	BaseURL    string
-	Identity   types.Identity
-	PrivateKey ed25519.PrivateKey
-	Logger     *slog.Logger
+	apiClient *APIClient
+	Logger    *slog.Logger
 
 	conn *websocket.Conn
 }
 
 // NewSignalingClient creates a new WebSocket client.
-func NewSignalingClient(baseURL string, ident types.Identity, priv ed25519.PrivateKey, logger *slog.Logger) *SignalingClient {
+func NewSignalingClient(apiClient *APIClient, logger *slog.Logger) *SignalingClient {
 	return &SignalingClient{
-		BaseURL:    baseURL,
-		Identity:   ident,
-		PrivateKey: priv,
-		Logger:     logger,
+		apiClient: apiClient,
+		Logger:    logger,
 	}
 }
 
@@ -37,7 +33,7 @@ func NewSignalingClient(baseURL string, ident types.Identity, priv ed25519.Priva
 // It runs a reconnect loop until the context is canceled.
 func (s *SignalingClient) Connect(ctx context.Context) {
 	// Convert http(s):// to ws(s)://
-	wsURL := strings.Replace(s.BaseURL, "http://", "ws://", 1)
+	wsURL := strings.Replace(s.apiClient.BaseURL, "http://", "ws://", 1)
 	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
 	wsURL = wsURL + "/v1/signaling"
 
@@ -76,6 +72,8 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 		// Reset backoff on successful connect
 		backoff = 1 * time.Second
 		
+		s.resync(ctx)
+
 		// Run the read/write loop until it breaks
 		s.pump(ctx)
 	}
@@ -85,11 +83,11 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)
 	
-	sig := ed25519.Sign(s.PrivateKey, payload)
+	sig := ed25519.Sign(s.apiClient.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	headers := http.Header{}
-	headers.Set("X-Zoop-Identity", s.Identity.EndpointID.String())
+	headers.Set("X-Zoop-Identity", s.apiClient.Identity.EndpointID.String())
 	headers.Set("X-Zoop-Signature", sigStr)
 	headers.Set("X-Zoop-Timestamp", ts)
 
@@ -105,6 +103,11 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	s.conn = conn
 	s.Logger.Info("signaling connected to cloud")
 	return nil
+}
+
+func (s *SignalingClient) resync(ctx context.Context) {
+	s.Logger.Info("signaling resyncing missed connection states")
+	// Future: Fetch pending connections from Cloud API when the endpoint exists.
 }
 
 func (s *SignalingClient) pump(ctx context.Context) {
@@ -133,6 +136,42 @@ func (s *SignalingClient) pump(ctx context.Context) {
 			"payload", string(msg.Payload),
 		)
 		
-		// Here we will handle connection requests/responses in future milestones
+		s.handleMessage(ctx, msg)
 	}
 }
+
+func (s *SignalingClient) handleMessage(ctx context.Context, msg types.SignalingMessage) {
+	switch msg.Type {
+	case types.SignalingTypeConnectionRequest:
+		s.Logger.Info("processing connection request", "sender_id", msg.SenderID)
+		
+		// Local Peer Authorization: for M5, we accept all requests for testing.
+		// In production, this would validate against local policy.
+		authorized := true
+		
+		if authorized {
+			s.Logger.Info("connection request authorized locally")
+			
+			// We need the connection ID to update state. 
+			// Assuming the payload contains it, or we reply via signaling.
+			reply := types.SignalingMessage{
+				Type:        types.SignalingTypeConnectionAccepted,
+				SenderID:    s.apiClient.Identity.EndpointID,
+				RecipientID: msg.SenderID,
+			}
+			
+			if err := s.conn.WriteJSON(reply); err != nil {
+				s.Logger.Error("failed to send accepted signaling response", "error", err)
+			}
+		} else {
+			s.Logger.Info("connection request denied locally")
+			reply := types.SignalingMessage{
+				Type:        types.SignalingTypeConnectionRejected,
+				SenderID:    s.apiClient.Identity.EndpointID,
+				RecipientID: msg.SenderID,
+			}
+			s.conn.WriteJSON(reply)
+		}
+	}
+}
+
