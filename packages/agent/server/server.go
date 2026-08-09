@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -15,10 +16,11 @@ import (
 
 // Server orchestrates the Zoop Agent lifecycle.
 type Server struct {
-	config   config.Config
-	state    *state.Manager
-	identity identity.Manager
-	logger   *slog.Logger
+	config    config.Config
+	state     *state.Manager
+	identity  identity.Manager
+	logger    *slog.Logger
+	apiClient *client.APIClient
 
 	ident types.Identity
 }
@@ -55,7 +57,7 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	}
 
 	// 2. Initialize Clients
-	apiClient := client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
+	s.apiClient = client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
 	sigClient := client.NewSignalingClient(s.config.ControlPlaneURL, ident, privKey, s.logger)
 
 	// 3. Register Device with Cloud
@@ -70,7 +72,7 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	regCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	
-	if _, err := apiClient.RegisterDevice(regCtx, hostname); err != nil {
+	if _, err := s.apiClient.RegisterDevice(regCtx, hostname); err != nil {
 		s.logger.Error("failed to register device with cloud", "error", err)
 		// We can still proceed, it might just be offline
 	} else {
@@ -90,5 +92,26 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 
 	s.logger.Info("agent shutting down")
 	s.state.Set(state.StateStopped)
+	return nil
+}
+
+// ConnectToPeer initiates a connection to a target provider device via the Zoop Cloud.
+func (s *Server) ConnectToPeer(ctx context.Context, providerID types.ID) error {
+	if s.apiClient == nil {
+		return fmt.Errorf("agent server is not running")
+	}
+
+	s.logger.Info("requesting connection to peer", "provider_id", providerID)
+	
+	resp, err := s.apiClient.RequestConnection(ctx, providerID)
+	if err != nil {
+		return fmt.Errorf("failed to request connection: %w", err)
+	}
+	
+	s.logger.Info("connection authorized by cloud", 
+		"connection_id", resp.ID, 
+		"state", resp.State)
+		
+	// Future milestones will handle the Data Plane connection here.
 	return nil
 }

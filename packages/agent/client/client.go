@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/core/types"
@@ -51,13 +52,15 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 	req.Header.Set("Content-Type", "application/json")
 
 	// Inject Zoop Authentication Headers
-	// The dummy payload used in M4 is "zoop-m4-auth".
-	// In production, this would be a signature over the URL path, body, and timestamp.
-	sig := ed25519.Sign(c.PrivateKey, []byte("zoop-m4-auth"))
+	ts := time.Now().Format(time.RFC3339)
+	payload := []byte("zoop-auth|" + ts)
+	
+	sig := ed25519.Sign(c.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	req.Header.Set("X-Zoop-Identity", c.Identity.EndpointID.String())
 	req.Header.Set("X-Zoop-Signature", sigStr)
+	req.Header.Set("X-Zoop-Timestamp", ts)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

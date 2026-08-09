@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -83,12 +82,16 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 }
 
 func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
-	sig := ed25519.Sign(s.PrivateKey, []byte("zoop-m4-auth"))
+	ts := time.Now().Format(time.RFC3339)
+	payload := []byte("zoop-auth|" + ts)
+	
+	sig := ed25519.Sign(s.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	headers := http.Header{}
 	headers.Set("X-Zoop-Identity", s.Identity.EndpointID.String())
 	headers.Set("X-Zoop-Signature", sigStr)
+	headers.Set("X-Zoop-Timestamp", ts)
 
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
@@ -107,13 +110,6 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 func (s *SignalingClient) pump(ctx context.Context) {
 	defer s.conn.Close()
 
-	// Send an initial handshake/echo for Milestone 5
-	msg := fmt.Sprintf("hello from agent %s", s.Identity.EndpointID)
-	if err := s.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-		s.Logger.Error("failed to write signaling handshake", "error", err)
-		return
-	}
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -122,12 +118,21 @@ func (s *SignalingClient) pump(ctx context.Context) {
 		}
 
 		s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		_, p, err := s.conn.ReadMessage()
-		if err != nil {
-			s.Logger.Info("signaling disconnected", "error", err)
+		
+		var msg types.SignalingMessage
+		if err := s.conn.ReadJSON(&msg); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				s.Logger.Info("signaling disconnected", "error", err)
+			}
 			return // Break out to trigger reconnect loop
 		}
 
-		s.Logger.Debug("received signaling message", "payload", string(p))
+		s.Logger.Info("received signaling message", 
+			"type", msg.Type, 
+			"sender", msg.SenderID,
+			"payload", string(msg.Payload),
+		)
+		
+		// Here we will handle connection requests/responses in future milestones
 	}
 }
