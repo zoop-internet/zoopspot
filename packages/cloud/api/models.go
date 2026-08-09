@@ -60,3 +60,8 @@ type EndpointsResponse struct {
 	PublicKey string   `json:"public_key"`
 	// In the future this will hold STUN/TURN candidates, LAN addresses, etc.
 }
+
+// UpdateConnectionStateRequest is the payload for PUT /v1/connections/{id}/state
+type UpdateConnectionStateRequest struct {
+	State types.ConnectionState `json:"state"`
+}

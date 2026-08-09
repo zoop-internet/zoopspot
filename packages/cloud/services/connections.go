@@ -77,3 +77,18 @@ func (s *ConnectionService) GetConnection(ctx context.Context, id types.ID, call
 		State:       conn.State,
 	}, nil
 }
+
+func (s *ConnectionService) UpdateConnectionState(ctx context.Context, id types.ID, callerIdentity types.ID, newState types.ConnectionState) error {
+	conn, err := s.store.GetConnection(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Basic Authorization: Only Provider or Recipient can update their connection.
+	if callerIdentity != conn.ProviderID && callerIdentity != conn.RecipientID {
+		return ErrUnauthorized
+	}
+
+	conn.State = newState
+	return s.store.SaveConnection(ctx, conn)
+}

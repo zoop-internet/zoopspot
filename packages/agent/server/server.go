@@ -58,7 +58,7 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 
 	// 2. Initialize Clients
 	s.apiClient = client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
-	sigClient := client.NewSignalingClient(s.config.ControlPlaneURL, ident, privKey, s.logger)
+	sigClient := client.NewSignalingClient(s.apiClient, s.logger)
 
 	// 3. Register Device with Cloud
 	hostname, _ := os.Hostname()
