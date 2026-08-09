@@ -25,20 +25,20 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 ## 2. Go Core
 
-- [ ] Create core Go packages
-- [ ] Define common types
-- [ ] Define Device
-- [ ] Define Provider
-- [ ] Define Recipient
-- [ ] Define Identity
-- [ ] Define Connection
-- [ ] Define Connection State
-- [ ] Define network interfaces/abstractions
-- [ ] Define configuration structures
-- [ ] Define common errors
-- [ ] Add unit tests
+- [x] Create core Go packages
+- [x] Define common types
+- [x] Define Device
+- [x] Define Provider
+- [x] Define Recipient
+- [x] Define Identity
+- [x] Define Connection
+- [x] Define Connection State
+- [x] Define network interfaces/abstractions
+- [x] Define configuration structures
+- [x] Define common errors
+- [x] Add unit tests
 
-**Done when:** The core provides stable primitives for the rest of Zoop.
+**Done when:** The core provides stable primitives for the rest of Zoop. (COMPLETED)
 
 ---
 

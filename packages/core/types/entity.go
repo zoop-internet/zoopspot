@@ -1,0 +1,28 @@
+package types
+
+import "github.com/google/uuid"
+
+// ID represents a unique identifier in the Zoop system.
+type ID uuid.UUID
+
+// Account represents the identity and ownership context of a Zoop participant.
+type Account struct {
+	ID   ID
+	Name string
+}
+
+// Organization represents a group that manages participants, devices, networks, or policies.
+type Organization struct {
+	ID   ID
+	Name string
+}
+
+// NewID generates a new random ID.
+func NewID() ID {
+	return ID(uuid.New())
+}
+
+// String returns the string representation of the ID.
+func (id ID) String() string {
+	return uuid.UUID(id).String()
+}
