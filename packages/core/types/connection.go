@@ -13,16 +13,16 @@ const (
 
 // Connection represents an active or attempted network relationship between endpoints.
 type Connection struct {
-	ID          ID
-	ProviderID  ID
-	RecipientID ID
-	State       ConnectionState
+	ID          ID              `json:"id"`
+	ProviderID  ID              `json:"provider_id"`
+	RecipientID ID              `json:"recipient_id"`
+	State       ConnectionState `json:"state"`
 }
 
 // SharingRelationship represents the Control Plane relationship between a Provider and Recipient.
 type SharingRelationship struct {
-	ID          ID
-	ProviderID  ID
-	RecipientID ID
-	IsActive    bool
+	ID          ID   `json:"id"`
+	ProviderID  ID   `json:"provider_id"`
+	RecipientID ID   `json:"recipient_id"`
+	IsActive    bool `json:"is_active"`
 }

@@ -10,10 +10,10 @@ const (
 
 // Provider represents the configuration and state of an endpoint acting as a Provider.
 type Provider struct {
-	EndpointID ID
+	EndpointID ID `json:"endpoint_id"`
 }
 
 // Recipient represents the configuration and state of an endpoint acting as a Recipient.
 type Recipient struct {
-	EndpointID ID
+	EndpointID ID `json:"endpoint_id"`
 }

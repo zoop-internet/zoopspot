@@ -16,14 +16,20 @@ import (
 )
 
 func main() {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = "."
+	}
+	defaultKeyPath := configDir + "/zoop/identity.key"
+
 	var keyPath string
-	flag.StringVar(&keyPath, "identity", "identity.key", "path to the identity private key file")
+	flag.StringVar(&keyPath, "identity", defaultKeyPath, "path to the identity private key file")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	logger.Info("Starting Zoop Agent", "version", core.Version())
 
-	cfg := config.DefaultConfig()
+	cfg := config.LoadConfig()
 	sm := state.NewManager()
 	im := identity.NewManager()
 

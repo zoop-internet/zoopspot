@@ -7,14 +7,14 @@ type ID uuid.UUID
 
 // Account represents the identity and ownership context of a Zoop participant.
 type Account struct {
-	ID   ID
-	Name string
+	ID   ID     `json:"id"`
+	Name string `json:"name"`
 }
 
 // Organization represents a group that manages participants, devices, networks, or policies.
 type Organization struct {
-	ID   ID
-	Name string
+	ID   ID     `json:"id"`
+	Name string `json:"name"`
 }
 
 // NewID generates a new random ID.

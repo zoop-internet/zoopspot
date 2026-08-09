@@ -15,7 +15,7 @@ import (
 )
 
 func TestServerLifecycle(t *testing.T) {
-	cfg := config.DefaultConfig()
+	cfg := config.LoadConfig()
 	sm := state.NewManager()
 	im := identity.NewManager()
 
