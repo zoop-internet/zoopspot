@@ -20,12 +20,12 @@ func NewShareService(s store.Store) *ShareService {
 
 func (s *ShareService) CreateShare(ctx context.Context, req api.CreateShareRequest) (*api.ShareResponse, error) {
 	// Verify Provider exists
-	if _, err := s.store.GetDevice(ctx, req.ProviderID); err != nil {
+	if _, err := s.store.GetIdentity(ctx, req.ProviderID); err != nil {
 		return nil, err
 	}
-	
+
 	// Verify Recipient exists
-	if _, err := s.store.GetDevice(ctx, req.RecipientID); err != nil {
+	if _, err := s.store.GetIdentity(ctx, req.RecipientID); err != nil {
 		return nil, err
 	}
 

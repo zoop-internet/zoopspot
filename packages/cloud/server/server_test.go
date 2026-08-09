@@ -78,7 +78,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 		EndpointID: endpointID,
 		PublicKey:  pub,
 	})
-	
+
 	// Create device so GET doesn't return 404
 	st.SaveDevice(context.Background(), &types.Device{
 		ID: endpointID,
@@ -86,7 +86,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 
 	// Make request
 	req := httptest.NewRequest(http.MethodGet, "/v1/devices/"+endpointID.String(), nil)
-	
+
 	// Create signature with timestamp
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)

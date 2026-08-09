@@ -54,7 +54,7 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 	// Inject Zoop Authentication Headers
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)
-	
+
 	sig := ed25519.Sign(c.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
@@ -125,7 +125,7 @@ func (c *APIClient) UpdateConnectionState(ctx context.Context, connID types.ID, 
 	req := api.UpdateConnectionStateRequest{
 		State: state,
 	}
-	
+
 	path := fmt.Sprintf("/v1/connections/%s/state", connID.String())
 	return c.do(ctx, http.MethodPut, path, req, nil)
 }

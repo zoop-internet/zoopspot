@@ -314,7 +314,7 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 		defer conn.Close()
 
 		s.logger.Info("signaling channel established", "caller_id", callerID)
-		
+
 		s.signaling.Register(callerID, conn)
 		defer s.signaling.Unregister(callerID)
 
@@ -327,10 +327,10 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 				}
 				return
 			}
-			
+
 			// Overwrite sender ID to ensure it is the authenticated caller
 			msg.SenderID = callerID
-			
+
 			// Route to the intended recipient
 			if err := s.signaling.SendTo(msg.RecipientID, msg); err != nil {
 				s.logger.Warn("failed to route signaling message", "recipient", msg.RecipientID, "error", err)

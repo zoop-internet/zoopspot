@@ -5,12 +5,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/google/uuid"
 
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/server"
@@ -20,43 +21,63 @@ import (
 )
 
 func main() {
-	configDir, err := os.UserConfigDir()
+	configDirDefault, err := os.UserConfigDir()
 	if err != nil {
-		configDir = "."
+		configDirDefault = "."
 	}
-	defaultKeyPath := configDir + "/zoop/identity.key"
 
-	var keyPath string
-	flag.StringVar(&keyPath, "identity", defaultKeyPath, "path to the identity private key file")
-	var connectProvider string
-	flag.StringVar(&connectProvider, "connect", "", "provider ID to connect to")
+	identityPath := flag.String("identity", configDirDefault+"/zoop/identity.key", "path to the identity private key file")
+	connectTo := flag.String("connect", "", "provider ID to connect to")
+	configDirFlag := flag.String("config-dir", "", "override configuration directory (mostly for testing)")
+	tunName := flag.String("tun", "zoop0", "wireguard interface name")
+	apiPort := flag.Int("api-port", 9090, "local API listen port")
 	flag.Parse()
 
-	if connectProvider != "" {
-		reqBody := fmt.Sprintf(`{"provider_id": "%s"}`, connectProvider)
-		resp, err := http.Post("http://127.0.0.1:9090/connect", "application/json", bytes.NewBufferString(reqBody))
+	// If connect flag is provided, run the CLI client instead of the server
+	if *connectTo != "" {
+		providerID, err := uuid.Parse(*connectTo)
 		if err != nil {
-			fmt.Printf("failed to connect: %v\n", err)
+			fmt.Printf("Invalid provider ID format: %v\n", err)
+			os.Exit(1)
+		}
+
+		payload := []byte(fmt.Sprintf(`{"provider_id": "%s"}`, providerID.String()))
+		apiURL := fmt.Sprintf("http://127.0.0.1:%d/connect", *apiPort)
+		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(payload))
+		if err != nil {
+			fmt.Printf("Failed to connect to local agent API (is the agent running?): %v\n", err)
 			os.Exit(1)
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode >= 400 {
-			b, _ := io.ReadAll(resp.Body)
-			fmt.Printf("failed to connect, status: %s, body: %s\n", resp.Status, string(b))
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Agent returned an error: status %d\n", resp.StatusCode)
 			os.Exit(1)
 		}
-		fmt.Println("Connection request sent successfully.")
-		return
+
+		fmt.Println("Connection request submitted successfully!")
+		os.Exit(0)
 	}
 
+	keyPath := *identityPath
+	if *configDirFlag != "" {
+		keyPath = *configDirFlag + "/identity.key"
+	}
+
+	// 1. Setup Configuration
+	cfg := config.LoadConfig()
+
+	// 2. Setup Logging
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 	logger.Info("Starting Zoop Agent", "version", core.Version())
 
-	cfg := config.LoadConfig()
-	sm := state.NewManager()
-	im := identity.NewManager()
+	// 3. Setup Components
+	stateManager := state.NewManager()
+	identityManager := identity.NewManager()
 
-	srv := server.NewServer(cfg, sm, im, logger)
+	// 4. Create and start server
+	srv := server.NewServer(cfg, stateManager, identityManager, logger, *tunName, *apiPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -32,7 +32,7 @@ func TestAPIClient_RegisterDevice(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST method, got %s", r.Method)
 		}
-		
+
 		// Check headers
 		if r.Header.Get("X-Zoop-Identity") != endpointID.String() {
 			t.Errorf("missing or incorrect X-Zoop-Identity header")
@@ -53,7 +53,7 @@ func TestAPIClient_RegisterDevice(t *testing.T) {
 
 	// Run test
 	c := NewAPIClient(mockServer.URL, ident, priv)
-	
+
 	reqCtx, cancelReq := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelReq()
 	resp, err := c.RegisterDevice(reqCtx, "test-device", "")

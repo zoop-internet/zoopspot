@@ -99,7 +99,7 @@ func saveKey(path string, priv ed25519.PrivateKey) error {
 }
 
 func deriveKey(passphrase string, salt []byte) []byte {
-	// Using a simple SHA256 derivation for M5 prototype. 
+	// Using a simple SHA256 derivation for M5 prototype.
 	// In production, PBKDF2 or Argon2 should be used.
 	hash := sha256.Sum256(append([]byte(passphrase), salt...))
 	return hash[:]
@@ -124,7 +124,7 @@ func encryptKey(data []byte, passphrase string) ([]byte, error) {
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	
+
 	ciphertext := aesGCM.Seal(nonce, nonce, data, nil)
 	return append(salt, ciphertext...), nil
 }
@@ -135,7 +135,7 @@ func decryptKey(data []byte, passphrase string) ([]byte, error) {
 	}
 	salt := data[:16]
 	ciphertextWithNonce := data[16:]
-	
+
 	key := deriveKey(passphrase, salt)
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -145,15 +145,14 @@ func decryptKey(data []byte, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	nonceSize := aesGCM.NonceSize()
 	if len(ciphertextWithNonce) < nonceSize {
 		return nil, errors.New("ciphertext too short")
 	}
-	
+
 	nonce := ciphertextWithNonce[:nonceSize]
 	ciphertext := ciphertextWithNonce[nonceSize:]
-	
+
 	return aesGCM.Open(nil, nonce, ciphertext, nil)
 }
-

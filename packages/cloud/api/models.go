@@ -23,8 +23,8 @@ type RegisterDeviceRequest struct {
 
 // DeviceResponse is returned for device lookups and registrations.
 type DeviceResponse struct {
-	ID        types.ID `json:"id"`
-	Status    string   `json:"status"`
+	ID     types.ID `json:"id"`
+	Status string   `json:"status"`
 }
 
 // CreateShareRequest is the payload for POST /v1/shares

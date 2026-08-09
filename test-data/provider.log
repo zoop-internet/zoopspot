@@ -1,0 +1,14 @@
+time=2026-08-09T21:09:31.885+03:00 level=INFO msg="Starting Zoop Agent" version=0.1.0-alpha
+time=2026-08-09T21:09:31.885+03:00 level=INFO msg="starting zoop agent"
+time=2026-08-09T21:09:31.885+03:00 level=INFO msg="loading identity" path=./test-data/provider/identity.key
+time=2026-08-09T21:09:31.887+03:00 level=INFO msg="identity loaded" endpoint_id=eaa38375-ccb1-5973-a0a9-b4abdb57b7b8
+time=2026-08-09T21:09:31.887+03:00 level=ERROR msg="failed to create tunnel manager" error="failed to create TUN device: operation not permitted"
+time=2026-08-09T21:09:31.887+03:00 level=INFO msg="wireguard keys generated" public_key="iL64PVEWz0tD+zInztmNeLFa/1nHcieMQ/eAqkVjLw4="
+time=2026-08-09T21:09:31.887+03:00 level=INFO msg="registering device with cloud" url=http://localhost:8080
+time=2026-08-09T21:09:31.889+03:00 level=INFO msg="device successfully registered"
+time=2026-08-09T21:09:31.889+03:00 level=INFO msg="Agent started successfully"
+time=2026-08-09T21:09:31.890+03:00 level=INFO msg="signaling connected to cloud"
+time=2026-08-09T21:09:31.890+03:00 level=INFO msg="signaling resyncing missed connection states"
+time=2026-08-09T21:09:37.894+03:00 level=INFO msg="received signaling message" type=connection_request sender=06645c74-956f-5739-92d4-2581919f974f payload="{\"connection_id\":[94,21,204,69,28,163,66,159,146,254,235,60,247,124,110,246],\"wireguard_public_key\":\"29dzyHjqk9xSrtKkk9CQpwwnVDvoVPj2NTKXWsIADjk=\",\"provider_ip\":\"100.64.0.1\",\"recipient_ip\":\"100.64.0.2\"}"
+time=2026-08-09T21:09:37.894+03:00 level=INFO msg="processing connection request" sender_id=06645c74-956f-5739-92d4-2581919f974f
+time=2026-08-09T21:09:37.894+03:00 level=INFO msg="connection request authorized locally"

@@ -76,18 +76,18 @@ func (s *InMemoryStore) GetDevice(ctx context.Context, id types.ID) (*types.Devi
 func (s *InMemoryStore) SaveIdentity(ctx context.Context, identity *types.Identity) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.identities[identity.EndpointID] = identity
 	encodedKey := base64.StdEncoding.EncodeToString(identity.PublicKey)
 	s.identitiesByKey[encodedKey] = identity.EndpointID
-	
+
 	return nil
 }
 
 func (s *InMemoryStore) GetIdentity(ctx context.Context, endpointID types.ID) (*types.Identity, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	i, ok := s.identities[endpointID]
 	if !ok {
 		return nil, ErrNotFound
@@ -98,7 +98,7 @@ func (s *InMemoryStore) GetIdentity(ctx context.Context, endpointID types.ID) (*
 func (s *InMemoryStore) GetIdentityByPublicKey(ctx context.Context, pubKey []byte) (*types.Identity, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	encodedKey := base64.StdEncoding.EncodeToString(pubKey)
 	id, ok := s.identitiesByKey[encodedKey]
 	if !ok {

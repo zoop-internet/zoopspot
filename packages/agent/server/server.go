@@ -27,17 +27,21 @@ type Server struct {
 	identity  identity.Manager
 	logger    *slog.Logger
 	apiClient *client.APIClient
+	tunName   string
+	apiPort   int
 
 	ident types.Identity
 }
 
 // NewServer initializes a new agent server.
-func NewServer(cfg config.Config, sm *state.Manager, im identity.Manager, logger *slog.Logger) *Server {
+func NewServer(cfg config.Config, sm *state.Manager, im identity.Manager, logger *slog.Logger, tunName string, apiPort int) *Server {
 	return &Server{
 		config:   cfg,
 		state:    sm,
 		identity: im,
 		logger:   logger,
+		tunName:  tunName,
+		apiPort:  apiPort,
 	}
 }
 
@@ -64,14 +68,14 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 
 	// 2. Initialize Clients
 	s.apiClient = client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
-	
+
 	// Create WireGuard device manager (Linux/macOS user-space)
-	tunnelManager, err := tunnel.NewDeviceManager("zoop0", nil)
+	tunnelManager, err := tunnel.NewDeviceManager(s.tunName, nil)
 	if err != nil {
 		s.logger.Error("failed to create tunnel manager", "error", err)
 		// We can decide whether to fail hard or proceed without tunnel for testing
 	} else {
-		s.logger.Info("tunnel manager initialized", "interface", "zoop0")
+		s.logger.Info("tunnel manager initialized", "interface", s.tunName)
 		defer tunnelManager.Close()
 	}
 
@@ -90,13 +94,13 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	if hostname == "" {
 		hostname = "zoop-device"
 	}
-	
+
 	s.logger.Info("registering device with cloud", "url", s.config.ControlPlaneURL)
-	
+
 	// Create a short timeout context for registration
 	regCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	
+
 	if _, err := s.apiClient.RegisterDevice(regCtx, hostname, wgKeys.EncodePublicKey()); err != nil {
 		s.logger.Error("failed to register device with cloud", "error", err)
 		// We can still proceed, it might just be offline
@@ -126,16 +130,16 @@ func (s *Server) ConnectToPeer(ctx context.Context, providerID types.ID) error {
 	}
 
 	s.logger.Info("requesting connection to peer", "provider_id", providerID)
-	
+
 	resp, err := s.apiClient.RequestConnection(ctx, providerID)
 	if err != nil {
 		return fmt.Errorf("failed to request connection: %w", err)
 	}
-	
-	s.logger.Info("connection authorized by cloud", 
-		"connection_id", resp.ID, 
+
+	s.logger.Info("connection authorized by cloud",
+		"connection_id", resp.ID,
 		"state", resp.State)
-		
+
 	// Future milestones will handle the Data Plane connection here.
 	return nil
 }
@@ -150,7 +154,7 @@ func (s *Server) startLocalAPI(ctx context.Context) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		
+
 		providerUUID, err := uuid.Parse(req.ProviderID)
 		if err != nil {
 			http.Error(w, "invalid provider id", http.StatusBadRequest)
@@ -167,7 +171,7 @@ func (s *Server) startLocalAPI(ctx context.Context) {
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	server := &http.Server{Addr: "127.0.0.1:9090", Handler: mux}
+	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", s.apiPort), Handler: mux}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			s.logger.Error("local api failed", "error", err)

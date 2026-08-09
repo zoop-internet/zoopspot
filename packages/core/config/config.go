@@ -8,11 +8,11 @@ import (
 
 // Config represents high-level configuration for Zoop agents and clouds.
 type Config struct {
-	ControlPlaneURL   string
-	AgentListenAddr   string
-	LogLevel          string
-	IdentityPath      string
-	SignalingTimeout  time.Duration
+	ControlPlaneURL  string
+	AgentListenAddr  string
+	LogLevel         string
+	IdentityPath     string
+	SignalingTimeout time.Duration
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.

@@ -62,7 +62,7 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 	if recipientIdent != nil && len(recipientIdent.WireGuardPublicKey) > 0 {
 		wgPubKeyStr = base64.StdEncoding.EncodeToString(recipientIdent.WireGuardPublicKey)
 	}
-	
+
 	payloadBytes, _ := json.Marshal(types.ConnectionPayload{
 		ConnectionID:       conn.ID,
 		ProviderIP:         conn.ProviderIP,

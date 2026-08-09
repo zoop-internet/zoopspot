@@ -25,9 +25,9 @@ func (m *DeviceManager) ConfigureDevice(privKey wgtypes.Key, listenPort int) err
 	if err := client.ConfigureDevice(m.ifName, cfg); err != nil {
 		return fmt.Errorf("failed to configure wireguard device: %w", err)
 	}
-	
+
 	m.wgPubKey = privKey.PublicKey()
-	
+
 	return nil
 }
 

@@ -1,0 +1,4 @@
+time=2026-08-09T21:09:29.886+03:00 level=INFO msg="Starting Zoop Cloud" version=0.1.0-alpha
+time=2026-08-09T21:09:29.886+03:00 level=INFO msg="Starting Zoop Cloud API" addr=:8080
+time=2026-08-09T21:09:31.890+03:00 level=INFO msg="signaling channel established" caller_id=eaa38375-ccb1-5973-a0a9-b4abdb57b7b8
+time=2026-08-09T21:09:34.897+03:00 level=INFO msg="signaling channel established" caller_id=06645c74-956f-5739-92d4-2581919f974f
