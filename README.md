@@ -109,6 +109,9 @@ WireGuard is the current direction for the secure tunnel layer.
     │   ├── platforms.md
     │   ├── organizations.md
     │   ├── technology.md
+    │   ├── api.md
+    │   ├── abuse-and-safety.md
+    │   ├── ipam-and-relays.md
     │   └── future.md
     │
     ├── cloud/
@@ -159,6 +162,9 @@ Then:
 - [Platforms](docs/platforms.md)
 - [Organizations](docs/organizations.md)
 - [Technology](docs/technology.md)
+- [API Specification](docs/api.md)
+- [Abuse & Safety](docs/abuse-and-safety.md)
+- [IPAM & Relays](docs/ipam-and-relays.md)
 
 For future direction:
 - [Future Ideas](docs/future.md)
@@ -168,7 +174,7 @@ For future direction:
 
 Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status of our 22 implementation milestones:
 
-- [ ] **Milestone 1: Repository Foundation** (Clean build, CI, linting, directory structure)
+- [x] **Milestone 1: Repository Foundation** (Clean build, CI, linting, directory structure)
 - [ ] **Milestone 2: Go Core** (Core types, Device, Provider, Recipient, Identity, Connection primitives)
 - [ ] **Milestone 3: Zoop Agent** (Agent CLI, lifecycle, identity creation, local storage, status)
 - [ ] **Milestone 4: Control Plane** (Go Cloud service, API, Registration, Auth, Discovery, Signaling)
@@ -246,4 +252,4 @@ The documents in `docs/` describe the architecture in detail, and [ROADMAP.md](R
 
 This README intentionally stays high-level.
 
-When implementation begins, work through tasks sequentially starting at **Iteration 1: Repository Foundation**.
+When implementation begins, work through tasks sequentially starting at **Milestone 1: Repository Foundation**.

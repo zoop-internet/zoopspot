@@ -8,18 +8,18 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 ## 1. Repository Foundation
 
-- [ ] Create Git repository
-- [ ] Create directory structure
-- [ ] Initialize Go modules
-- [ ] Set up `.gitignore`
-- [ ] Set up GitHub Actions CI
-- [ ] Add formatting/linting
-- [ ] Add basic test framework
-- [ ] Add development configuration
-- [ ] Add contribution/development conventions
-- [ ] Verify clean build and test
+- [x] Create Git repository
+- [x] Create directory structure
+- [x] Initialize Go modules
+- [x] Set up `.gitignore`
+- [x] Set up GitHub Actions CI
+- [x] Add formatting/linting
+- [x] Add basic test framework
+- [x] Add development configuration
+- [x] Add contribution/development conventions
+- [x] Verify clean build and test
 
-**Done when:** The repository is clean, builds, tests, and CI passes.
+**Done when:** The repository is clean, builds, tests, and CI passes. (COMPLETED)
 
 ---
 
