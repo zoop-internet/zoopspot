@@ -14,6 +14,7 @@ import (
 // Manager handles the creation and secure local storage of the agent's identity.
 type Manager interface {
 	LoadOrGenerate(path string) (types.Identity, error)
+	GetPrivateKey(path string) (ed25519.PrivateKey, error)
 }
 
 type manager struct{}
@@ -48,6 +49,10 @@ func (m *manager) LoadOrGenerate(path string) (types.Identity, error) {
 		EndpointID: id,
 		PublicKey:  pub,
 	}, nil
+}
+
+func (m *manager) GetPrivateKey(path string) (ed25519.PrivateKey, error) {
+	return loadKey(path)
 }
 
 func loadKey(path string) (ed25519.PrivateKey, error) {

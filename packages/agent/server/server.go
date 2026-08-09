@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"log/slog"
+	"os"
+	"time"
 
+	"github.com/zoop-internet/zoop/packages/agent/client"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/state"
 	"github.com/zoop-internet/zoop/packages/core/config"
@@ -45,11 +48,44 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	s.ident = ident
 	s.logger.Info("identity loaded", "endpoint_id", ident.EndpointID)
 
-	// 2. Transition to Running
+	privKey, err := s.identity.GetPrivateKey(keyPath)
+	if err != nil {
+		s.logger.Error("failed to get private key", "error", err)
+		return err
+	}
+
+	// 2. Initialize Clients
+	apiClient := client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
+	sigClient := client.NewSignalingClient(s.config.ControlPlaneURL, ident, privKey, s.logger)
+
+	// 3. Register Device with Cloud
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "zoop-device"
+	}
+	
+	s.logger.Info("registering device with cloud", "url", s.config.ControlPlaneURL)
+	
+	// Create a short timeout context for registration
+	regCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	
+	if _, err := apiClient.RegisterDevice(regCtx, hostname); err != nil {
+		s.logger.Error("failed to register device with cloud", "error", err)
+		// We can still proceed, it might just be offline
+	} else {
+		s.logger.Info("device successfully registered")
+	}
+
+	// 4. Connect to Signaling Channel
+	s.logger.Info("connecting to signaling channel")
+	go sigClient.Connect(ctx)
+
+	// 5. Transition to Running
 	s.state.Set(state.StateRunning)
 	s.logger.Info("agent is running")
 
-	// 3. Block until context is canceled (simulating running indefinitely)
+	// 6. Block until context is canceled
 	<-ctx.Done()
 
 	s.logger.Info("agent shutting down")

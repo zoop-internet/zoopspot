@@ -12,7 +12,7 @@ type Config struct {
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
 func LoadConfig() Config {
 	cfg := Config{
-		ControlPlaneURL: "https://api.zoop.io",
+		ControlPlaneURL: "http://localhost:8080",
 		AgentListenAddr: "127.0.0.1:8080",
 		LogLevel:        "info",
 	}
