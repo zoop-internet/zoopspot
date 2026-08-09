@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,7 +28,26 @@ func main() {
 
 	var keyPath string
 	flag.StringVar(&keyPath, "identity", defaultKeyPath, "path to the identity private key file")
+	var connectProvider string
+	flag.StringVar(&connectProvider, "connect", "", "provider ID to connect to")
 	flag.Parse()
+
+	if connectProvider != "" {
+		reqBody := fmt.Sprintf(`{"provider_id": "%s"}`, connectProvider)
+		resp, err := http.Post("http://127.0.0.1:9090/connect", "application/json", bytes.NewBufferString(reqBody))
+		if err != nil {
+			fmt.Printf("failed to connect: %v\n", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 400 {
+			b, _ := io.ReadAll(resp.Body)
+			fmt.Printf("failed to connect, status: %s, body: %s\n", resp.Status, string(b))
+			os.Exit(1)
+		}
+		fmt.Println("Connection request sent successfully.")
+		return
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	logger.Info("Starting Zoop Agent", "version", core.Version())

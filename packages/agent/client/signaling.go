@@ -4,28 +4,34 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/gorilla/websocket"
+	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
 // SignalingClient manages the persistent WebSocket connection to the Control Plane.
 type SignalingClient struct {
-	apiClient *APIClient
-	Logger    *slog.Logger
+	apiClient     *APIClient
+	Logger        *slog.Logger
+	tunnelManager *tunnel.DeviceManager
 
 	conn *websocket.Conn
 }
 
 // NewSignalingClient creates a new WebSocket client.
-func NewSignalingClient(apiClient *APIClient, logger *slog.Logger) *SignalingClient {
+func NewSignalingClient(apiClient *APIClient, tunnelManager *tunnel.DeviceManager, logger *slog.Logger) *SignalingClient {
 	return &SignalingClient{
-		apiClient: apiClient,
-		Logger:    logger,
+		apiClient:     apiClient,
+		tunnelManager: tunnelManager,
+		Logger:        logger,
 	}
 }
 
@@ -145,19 +151,64 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 	case types.SignalingTypeConnectionRequest:
 		s.Logger.Info("processing connection request", "sender_id", msg.SenderID)
 		
-		// Local Peer Authorization: for M5, we accept all requests for testing.
-		// In production, this would validate against local policy.
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal connection payload", "error", err)
+				return
+			}
+		}
+
+		// Local Peer Authorization: for M5/M6, we accept all requests for testing.
 		authorized := true
 		
 		if authorized {
 			s.Logger.Info("connection request authorized locally")
 			
-			// We need the connection ID to update state. 
-			// Assuming the payload contains it, or we reply via signaling.
+			var replyPayload types.ConnectionPayload
+			replyPayload.ConnectionID = payload.ConnectionID
+			replyPayload.ProviderIP = payload.ProviderIP
+			replyPayload.RecipientIP = payload.RecipientIP
+
+			if s.tunnelManager != nil {
+				// Provider gets its own info
+				replyPayload.WireGuardPublicKey = s.tunnelManager.PublicKey().String()
+				replyPayload.EndpointIP = "127.0.0.1" // Hardcoded for local testing (NAT traversal is M10)
+				port, _ := s.tunnelManager.GetListenPort()
+				replyPayload.EndpointPort = port
+
+				if payload.WireGuardPublicKey != "" {
+					s.Logger.Info("received peer wireguard public key, configuring tunnel")
+					peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
+					if err == nil {
+						// For testing, route the peer's IP
+						allowedIPs := []string{payload.RecipientIP + "/32"}
+						
+						// In a real scenario we'd use STUN to get EndpointIP. Here we don't have the Recipient's EndpointIP yet,
+						// WireGuard handles this well if the Recipient initiates packets to us. 
+						// But if the Recipient sent EndpointIP/Port, we'd use it. For now, empty string is fine.
+						err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+						if err != nil {
+							s.Logger.Error("failed to configure wireguard peer", "error", err)
+						} else {
+							s.Logger.Info("wireguard peer configured successfully on provider")
+						}
+					}
+				}
+				
+				// Assign ProviderIP to the TUN interface
+				if payload.ProviderIP != "" {
+					s.tunnelManager.AssignIP(payload.ProviderIP)
+				}
+			}
+
+			replyBytes, _ := json.Marshal(replyPayload)
+
 			reply := types.SignalingMessage{
 				Type:        types.SignalingTypeConnectionAccepted,
 				SenderID:    s.apiClient.Identity.EndpointID,
 				RecipientID: msg.SenderID,
+				Payload:     replyBytes,
 			}
 			
 			if err := s.conn.WriteJSON(reply); err != nil {
@@ -171,6 +222,41 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				RecipientID: msg.SenderID,
 			}
 			s.conn.WriteJSON(reply)
+		}
+	case types.SignalingTypeConnectionAccepted:
+		s.Logger.Info("connection accepted by peer", "sender_id", msg.SenderID)
+		
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal connection payload", "error", err)
+				return
+			}
+		}
+
+		if s.tunnelManager != nil && payload.WireGuardPublicKey != "" {
+			peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
+			if err != nil {
+				s.Logger.Error("failed to parse peer wireguard public key", "error", err)
+				return
+			}
+
+			allowedIPs := []string{"0.0.0.0/0"} // For testing, route everything or just ProviderIP
+			if payload.ProviderIP != "" {
+				allowedIPs = []string{payload.ProviderIP + "/32"}
+			}
+
+			err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+			if err != nil {
+				s.Logger.Error("failed to configure wireguard peer", "error", err)
+			} else {
+				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", payload.EndpointIP, payload.EndpointPort))
+			}
+			
+			// Assign RecipientIP to the TUN interface
+			if payload.RecipientIP != "" {
+				s.tunnelManager.AssignIP(payload.RecipientIP)
+			}
 		}
 	}
 }

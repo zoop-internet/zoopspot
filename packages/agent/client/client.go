@@ -86,10 +86,11 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 }
 
 // RegisterDevice registers this agent's identity with the Zoop Cloud.
-func (c *APIClient) RegisterDevice(ctx context.Context, name string) (*api.DeviceResponse, error) {
+func (c *APIClient) RegisterDevice(ctx context.Context, name, wgPubKey string) (*api.DeviceResponse, error) {
 	req := api.RegisterDeviceRequest{
-		Name:      name,
-		PublicKey: base64.StdEncoding.EncodeToString(c.Identity.PublicKey),
+		Name:               name,
+		PublicKey:          base64.StdEncoding.EncodeToString(c.Identity.PublicKey),
+		WireGuardPublicKey: wgPubKey,
 	}
 
 	var resp api.DeviceResponse

@@ -11,7 +11,8 @@ import (
 
 func TestConnectionService_Authorization(t *testing.T) {
 	st := store.NewInMemoryStore()
-	connSvc := NewConnectionService(st)
+	hub := NewSignalingHub()
+	connSvc := NewConnectionService(st, hub)
 	shareSvc := NewShareService(st)
 	ctx := context.Background()
 

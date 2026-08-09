@@ -43,10 +43,19 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 		return nil, err
 	}
 
+	var wgPubKeyBytes []byte
+	if req.WireGuardPublicKey != "" {
+		wgPubKeyBytes, err = base64.StdEncoding.DecodeString(req.WireGuardPublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid wireguard public key encoding: %w", err)
+		}
+	}
+
 	// Create and save Identity mapping to this device
 	identity := &types.Identity{
-		EndpointID: endpointID,
-		PublicKey:  pubKeyBytes,
+		EndpointID:         endpointID,
+		PublicKey:          pubKeyBytes,
+		WireGuardPublicKey: wgPubKeyBytes,
 	}
 
 	if err := s.store.SaveIdentity(ctx, identity); err != nil {

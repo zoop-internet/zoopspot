@@ -2,15 +2,21 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/zoop-internet/zoop/packages/agent/client"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/state"
+	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/config"
+
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
@@ -58,9 +64,28 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 
 	// 2. Initialize Clients
 	s.apiClient = client.NewAPIClient(s.config.ControlPlaneURL, ident, privKey)
-	sigClient := client.NewSignalingClient(s.apiClient, s.logger)
+	
+	// Create WireGuard device manager (Linux/macOS user-space)
+	tunnelManager, err := tunnel.NewDeviceManager("zoop0", nil)
+	if err != nil {
+		s.logger.Error("failed to create tunnel manager", "error", err)
+		// We can decide whether to fail hard or proceed without tunnel for testing
+	} else {
+		s.logger.Info("tunnel manager initialized", "interface", "zoop0")
+		defer tunnelManager.Close()
+	}
 
-	// 3. Register Device with Cloud
+	sigClient := client.NewSignalingClient(s.apiClient, tunnelManager, s.logger)
+
+	// 3. Generate WireGuard Keys
+	wgKeys, err := tunnel.GenerateKeyPair()
+	if err != nil {
+		s.logger.Error("failed to generate wireguard keys", "error", err)
+		return err
+	}
+	s.logger.Info("wireguard keys generated", "public_key", wgKeys.EncodePublicKey())
+
+	// 4. Register Device with Cloud
 	hostname, _ := os.Hostname()
 	if hostname == "" {
 		hostname = "zoop-device"
@@ -72,22 +97,21 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	regCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	
-	if _, err := s.apiClient.RegisterDevice(regCtx, hostname); err != nil {
+	if _, err := s.apiClient.RegisterDevice(regCtx, hostname, wgKeys.EncodePublicKey()); err != nil {
 		s.logger.Error("failed to register device with cloud", "error", err)
 		// We can still proceed, it might just be offline
 	} else {
 		s.logger.Info("device successfully registered")
 	}
 
-	// 4. Connect to Signaling Channel
-	s.logger.Info("connecting to signaling channel")
+	// 4. Start local command API
+	go s.startLocalAPI(ctx)
+
+	// 5. Connect Signaling
 	go sigClient.Connect(ctx)
 
-	// 5. Transition to Running
 	s.state.Set(state.StateRunning)
-	s.logger.Info("agent is running")
-
-	// 6. Block until context is canceled
+	s.logger.Info("Agent started successfully")
 	<-ctx.Done()
 
 	s.logger.Info("agent shutting down")
@@ -114,4 +138,41 @@ func (s *Server) ConnectToPeer(ctx context.Context, providerID types.ID) error {
 		
 	// Future milestones will handle the Data Plane connection here.
 	return nil
+}
+
+func (s *Server) startLocalAPI(ctx context.Context) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /connect", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			ProviderID string `json:"provider_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		
+		providerUUID, err := uuid.Parse(req.ProviderID)
+		if err != nil {
+			http.Error(w, "invalid provider id", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.apiClient.RequestConnection(r.Context(), types.ID(providerUUID))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	server := &http.Server{Addr: "127.0.0.1:9090", Handler: mux}
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			s.logger.Error("local api failed", "error", err)
+		}
+	}()
+	<-ctx.Done()
+	server.Shutdown(context.Background())
 }

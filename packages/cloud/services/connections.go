@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
@@ -14,12 +16,14 @@ var (
 )
 
 type ConnectionService struct {
-	store store.Store
+	store     store.Store
+	signaling *SignalingHub
 }
 
-func NewConnectionService(s store.Store) *ConnectionService {
+func NewConnectionService(s store.Store, sh *SignalingHub) *ConnectionService {
 	return &ConnectionService{
-		store: s,
+		store:     s,
+		signaling: sh,
 	}
 }
 
@@ -45,17 +49,42 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		ProviderID:  req.ProviderID,
 		RecipientID: req.RecipientID,
 		State:       types.ConnectionStateRequested,
+		ProviderIP:  "100.64.0.1",
+		RecipientIP: "100.64.0.2",
 	}
 
 	if err := s.store.SaveConnection(ctx, conn); err != nil {
 		return nil, err
 	}
 
+	recipientIdent, _ := s.store.GetIdentity(ctx, req.RecipientID)
+	var wgPubKeyStr string
+	if recipientIdent != nil && len(recipientIdent.WireGuardPublicKey) > 0 {
+		wgPubKeyStr = base64.StdEncoding.EncodeToString(recipientIdent.WireGuardPublicKey)
+	}
+	
+	payloadBytes, _ := json.Marshal(types.ConnectionPayload{
+		ConnectionID:       conn.ID,
+		ProviderIP:         conn.ProviderIP,
+		RecipientIP:        conn.RecipientIP,
+		WireGuardPublicKey: wgPubKeyStr,
+	})
+
+	sigMsg := types.SignalingMessage{
+		Type:        types.SignalingTypeConnectionRequest,
+		SenderID:    req.RecipientID,
+		RecipientID: req.ProviderID,
+		Payload:     payloadBytes,
+	}
+	s.signaling.SendTo(req.ProviderID, sigMsg)
+
 	return &api.ConnectionResponse{
 		ID:          conn.ID,
 		ProviderID:  conn.ProviderID,
 		RecipientID: conn.RecipientID,
 		State:       conn.State,
+		ProviderIP:  conn.ProviderIP,
+		RecipientIP: conn.RecipientIP,
 	}, nil
 }
 
@@ -75,6 +104,8 @@ func (s *ConnectionService) GetConnection(ctx context.Context, id types.ID, call
 		ProviderID:  conn.ProviderID,
 		RecipientID: conn.RecipientID,
 		State:       conn.State,
+		ProviderIP:  conn.ProviderIP,
+		RecipientIP: conn.RecipientIP,
 	}, nil
 }
 

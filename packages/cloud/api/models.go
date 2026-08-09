@@ -14,10 +14,11 @@ type ErrorDetail struct {
 
 // RegisterDeviceRequest is the payload for POST /v1/devices
 type RegisterDeviceRequest struct {
-	Name         string   `json:"name"`
-	Platform     string   `json:"platform,omitempty"`
-	PublicKey    string   `json:"public_key"` // Base64 or Hex encoded
-	Capabilities []string `json:"capabilities,omitempty"`
+	Name               string   `json:"name"`
+	Platform           string   `json:"platform,omitempty"`
+	PublicKey          string   `json:"public_key"`           // Base64 Ed25519 Control Plane Identity
+	WireGuardPublicKey string   `json:"wireguard_public_key"` // Base64 WireGuard Public Key
+	Capabilities       []string `json:"capabilities,omitempty"`
 }
 
 // DeviceResponse is returned for device lookups and registrations.
@@ -52,6 +53,8 @@ type ConnectionResponse struct {
 	ProviderID  types.ID              `json:"provider_id"`
 	RecipientID types.ID              `json:"recipient_id"`
 	State       types.ConnectionState `json:"state"`
+	ProviderIP  string                `json:"provider_ip"`
+	RecipientIP string                `json:"recipient_ip"`
 }
 
 // EndpointsResponse is returned for GET /v1/devices/{id}/endpoints
