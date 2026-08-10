@@ -129,3 +129,19 @@ func (c *APIClient) UpdateConnectionState(ctx context.Context, connID types.ID, 
 	path := fmt.Sprintf("/v1/connections/%s/state", connID.String())
 	return c.do(ctx, http.MethodPut, path, req, nil)
 }
+
+// GetConnection fetches a specific connection by ID.
+func (c *APIClient) GetConnection(ctx context.Context, connID types.ID) (*api.ConnectionResponse, error) {
+	var resp api.ConnectionResponse
+	path := fmt.Sprintf("/v1/connections/%s", connID.String())
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return &resp, err
+}
+
+// GetPendingConnections fetches all pending connections for a device.
+func (c *APIClient) GetPendingConnections(ctx context.Context, deviceID types.ID) ([]api.ConnectionResponse, error) {
+	var resp []api.ConnectionResponse
+	path := fmt.Sprintf("/v1/devices/%s/connections/pending", deviceID.String())
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return resp, err
+}

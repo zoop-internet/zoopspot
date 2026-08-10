@@ -117,12 +117,39 @@ func main() {
 	fmt.Println("\n=== Test Environment Ready ===")
 	fmt.Println("Provider Overlay IP:  100.64.0.1 (Interface: zoop0)")
 	fmt.Println("Recipient Overlay IP: 100.64.0.2 (Interface: zoop1)")
-	fmt.Println("\nYou can now manually verify traffic (Requires BypassSandbox):")
-	fmt.Println("1. ping -c 3 100.64.0.1 -I zoop1")
-	fmt.Println("2. python3 -m http.server 8000 --bind 100.64.0.1 (then curl from zoop1)")
-	fmt.Println("Press Ctrl+C to terminate the test environment.")
+
+	fmt.Println("\n[6] Automating Traffic Validation...")
 	
-	select {}
+	// Start an HTTP server on the Provider's zoop0 interface
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "ZOOP_TUNNEL_SUCCESS")
+		})
+		server := &http.Server{Addr: "100.64.0.1:8000", Handler: mux}
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Provider HTTP server error: %v\n", err)
+		}
+	}()
+	time.Sleep(2 * time.Second) // wait for server to start
+
+	// Use curl bound to Recipient's zoop1 interface to fetch from Provider
+	curlCmd := exec.Command("curl", "--interface", "zoop1", "--fail", "--max-time", "5", "http://100.64.0.1:8000/")
+	curlOut, err := curlCmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("\n[FAIL] Packet Forwarding Test Failed: %v\nOutput: %s\n", err, string(curlOut))
+		os.Exit(1)
+	}
+
+	if string(curlOut) == "ZOOP_TUNNEL_SUCCESS" {
+		fmt.Printf("\n[SUCCESS] Successfully sent HTTP request over Zoop tunnel!\nOutput: %s\n", string(curlOut))
+	} else {
+		fmt.Printf("\n[FAIL] Unexpected response: %s\n", string(curlOut))
+		os.Exit(1)
+	}
+
+	fmt.Println("\nAll Milestone 1-7 Requirements Validated.")
+	os.Exit(0)
 }
 
 func loadIdentity(path string) (types.Identity, ed25519.PrivateKey, error) {

@@ -59,8 +59,9 @@ type ConnectionResponse struct {
 
 // EndpointsResponse is returned for GET /v1/devices/{id}/endpoints
 type EndpointsResponse struct {
-	DeviceID  types.ID `json:"device_id"`
-	PublicKey string   `json:"public_key"`
+	DeviceID           types.ID `json:"device_id"`
+	PublicKey          string   `json:"public_key"`
+	WireGuardPublicKey string   `json:"wireguard_public_key,omitempty"`
 	// In the future this will hold STUN/TURN candidates, LAN addresses, etc.
 }
 

@@ -32,6 +32,7 @@ type Store interface {
 
 	SaveConnection(ctx context.Context, conn *types.Connection) error
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
+	GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
 }
 
 // InMemoryStore is a thread-safe, ephemeral implementation of Store.
@@ -167,4 +168,17 @@ func (s *InMemoryStore) GetConnection(ctx context.Context, id types.ID) (*types.
 		return nil, ErrNotFound
 	}
 	return c, nil
+}
+
+func (s *InMemoryStore) GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var pending []*types.Connection
+	for _, conn := range s.connections {
+		if (conn.ProviderID == endpointID || conn.RecipientID == endpointID) && conn.State == types.ConnectionStateRequested {
+			pending = append(pending, conn)
+		}
+	}
+	return pending, nil
 }

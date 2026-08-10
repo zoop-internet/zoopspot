@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -78,6 +79,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /v1/connections", authMw(http.HandlerFunc(s.handleCreateConnection())))
 	s.mux.Handle("GET /v1/connections/{id}", authMw(http.HandlerFunc(s.handleGetConnection())))
 	s.mux.Handle("PUT /v1/connections/{id}/state", authMw(http.HandlerFunc(s.handleUpdateConnectionState())))
+	s.mux.Handle("GET /v1/devices/{id}/connections/pending", authMw(http.HandlerFunc(s.handleGetPendingConnections())))
 
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
 }
@@ -145,9 +147,15 @@ func (s *Server) handleGetEndpoints() http.HandlerFunc {
 			return
 		}
 
+		var wgPubKeyStr string
+		if len(ident.WireGuardPublicKey) > 0 {
+			wgPubKeyStr = base64.StdEncoding.EncodeToString(ident.WireGuardPublicKey)
+		}
+
 		resp := api.EndpointsResponse{
-			DeviceID:  ident.EndpointID,
-			PublicKey: string(ident.PublicKey), // Should be encoded appropriately in production
+			DeviceID:           ident.EndpointID,
+			PublicKey:          base64.StdEncoding.EncodeToString(ident.PublicKey),
+			WireGuardPublicKey: wgPubKeyStr,
 		}
 
 		api.WriteJSON(w, http.StatusOK, resp)
@@ -295,6 +303,55 @@ func (s *Server) handleUpdateConnectionState() http.HandlerFunc {
 		}
 
 		api.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+	}
+}
+
+func (s *Server) handleGetPendingConnections() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id format", http.StatusBadRequest)
+			return
+		}
+
+		deviceID := types.ID(parsedUUID)
+
+		if callerID != deviceID {
+			api.WriteError(w, "authorization_denied", "authorization denied", http.StatusForbidden)
+			return
+		}
+
+		pending, err := s.store.GetPendingConnections(r.Context(), deviceID)
+		if err != nil {
+			s.logger.Error("failed to get pending connections", "error", err)
+			api.WriteError(w, "internal_error", "failed to lookup pending connections", http.StatusInternalServerError)
+			return
+		}
+
+		var resp []api.ConnectionResponse
+		for _, conn := range pending {
+			resp = append(resp, api.ConnectionResponse{
+				ID:          conn.ID,
+				ProviderID:  conn.ProviderID,
+				RecipientID: conn.RecipientID,
+				State:       conn.State,
+				ProviderIP:  conn.ProviderIP,
+				RecipientIP: conn.RecipientIP,
+			})
+		}
+		
+		if resp == nil {
+			resp = []api.ConnectionResponse{}
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 

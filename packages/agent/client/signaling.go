@@ -113,7 +113,39 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 
 func (s *SignalingClient) resync(ctx context.Context) {
 	s.Logger.Info("signaling resyncing missed connection states")
-	// Future: Fetch pending connections from Cloud API when the endpoint exists.
+	
+	pending, err := s.apiClient.GetPendingConnections(ctx, s.apiClient.Identity.EndpointID)
+	if err != nil {
+		s.Logger.Error("failed to fetch pending connections during resync", "error", err)
+		return
+	}
+
+	for _, conn := range pending {
+		if conn.ProviderID == s.apiClient.Identity.EndpointID {
+			s.Logger.Info("found pending connection request, simulating signaling message", "connection_id", conn.ID)
+			
+			endpoints, err := s.apiClient.DiscoverEndpoints(ctx, conn.RecipientID)
+			var wgKey string
+			if err == nil && endpoints != nil {
+				wgKey = endpoints.WireGuardPublicKey
+			}
+			
+			payloadBytes, _ := json.Marshal(types.ConnectionPayload{
+				ConnectionID:       conn.ID,
+				ProviderIP:         conn.ProviderIP,
+				RecipientIP:        conn.RecipientIP,
+				WireGuardPublicKey: wgKey,
+			})
+
+			msg := types.SignalingMessage{
+				Type:        types.SignalingTypeConnectionRequest,
+				SenderID:    conn.RecipientID,
+				RecipientID: s.apiClient.Identity.EndpointID,
+				Payload:     payloadBytes,
+			}
+			s.handleMessage(ctx, msg)
+		}
+	}
 }
 
 func (s *SignalingClient) pump(ctx context.Context) {
@@ -159,8 +191,16 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			}
 		}
 
-		// Local Peer Authorization: for M5/M6, we accept all requests for testing.
-		authorized := true
+		authorized := false
+		connResp, err := s.apiClient.GetConnection(ctx, payload.ConnectionID)
+		if err == nil && connResp != nil {
+			if connResp.RecipientID == msg.SenderID && connResp.State == types.ConnectionStateRequested {
+				authorized = true
+			}
+		}
+		if err != nil {
+			s.Logger.Error("failed to verify connection authorization", "error", err)
+		}
 
 		if authorized {
 			s.Logger.Info("connection request authorized locally")
