@@ -17,6 +17,8 @@ type Connection struct {
 	ProviderID  ID              `json:"provider_id"`
 	RecipientID ID              `json:"recipient_id"`
 	State       ConnectionState `json:"state"`
+	ProviderIP  string          `json:"provider_ip"`
+	RecipientIP string          `json:"recipient_ip"`
 }
 
 // SharingRelationship represents the Control Plane relationship between a Provider and Recipient.

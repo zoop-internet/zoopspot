@@ -26,12 +26,12 @@ func NewSignalingHub() *SignalingHub {
 func (h *SignalingHub) Register(id types.ID, conn *websocket.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	// Close any existing connection for this ID
 	if existing, ok := h.connections[id]; ok {
 		existing.Close()
 	}
-	
+
 	h.connections[id] = conn
 }
 

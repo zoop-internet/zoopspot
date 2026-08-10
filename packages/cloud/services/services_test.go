@@ -11,7 +11,8 @@ import (
 
 func TestConnectionService_Authorization(t *testing.T) {
 	st := store.NewInMemoryStore()
-	connSvc := NewConnectionService(st)
+	hub := NewSignalingHub()
+	connSvc := NewConnectionService(st, hub)
 	shareSvc := NewShareService(st)
 	ctx := context.Background()
 
@@ -19,10 +20,10 @@ func TestConnectionService_Authorization(t *testing.T) {
 	recipientID := types.NewID()
 	otherRecipientID := types.NewID()
 
-	// Setup fake devices so ShareService allows creating the share
-	st.SaveDevice(ctx, &types.Device{ID: providerID})
-	st.SaveDevice(ctx, &types.Device{ID: recipientID})
-	st.SaveDevice(ctx, &types.Device{ID: otherRecipientID})
+	// Setup fake identities so ShareService allows creating the share
+	st.SaveIdentity(ctx, &types.Identity{EndpointID: providerID})
+	st.SaveIdentity(ctx, &types.Identity{EndpointID: recipientID})
+	st.SaveIdentity(ctx, &types.Identity{EndpointID: otherRecipientID})
 
 	// Create Share
 	_, err := shareSvc.CreateShare(ctx, api.CreateShareRequest{

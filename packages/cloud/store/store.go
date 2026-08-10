@@ -32,6 +32,7 @@ type Store interface {
 
 	SaveConnection(ctx context.Context, conn *types.Connection) error
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
+	GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
 }
 
 // InMemoryStore is a thread-safe, ephemeral implementation of Store.
@@ -76,18 +77,18 @@ func (s *InMemoryStore) GetDevice(ctx context.Context, id types.ID) (*types.Devi
 func (s *InMemoryStore) SaveIdentity(ctx context.Context, identity *types.Identity) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.identities[identity.EndpointID] = identity
 	encodedKey := base64.StdEncoding.EncodeToString(identity.PublicKey)
 	s.identitiesByKey[encodedKey] = identity.EndpointID
-	
+
 	return nil
 }
 
 func (s *InMemoryStore) GetIdentity(ctx context.Context, endpointID types.ID) (*types.Identity, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	i, ok := s.identities[endpointID]
 	if !ok {
 		return nil, ErrNotFound
@@ -98,7 +99,7 @@ func (s *InMemoryStore) GetIdentity(ctx context.Context, endpointID types.ID) (*
 func (s *InMemoryStore) GetIdentityByPublicKey(ctx context.Context, pubKey []byte) (*types.Identity, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	encodedKey := base64.StdEncoding.EncodeToString(pubKey)
 	id, ok := s.identitiesByKey[encodedKey]
 	if !ok {
@@ -167,4 +168,17 @@ func (s *InMemoryStore) GetConnection(ctx context.Context, id types.ID) (*types.
 		return nil, ErrNotFound
 	}
 	return c, nil
+}
+
+func (s *InMemoryStore) GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var pending []*types.Connection
+	for _, conn := range s.connections {
+		if (conn.ProviderID == endpointID || conn.RecipientID == endpointID) && conn.State == types.ConnectionStateRequested {
+			pending = append(pending, conn)
+		}
+	}
+	return pending, nil
 }

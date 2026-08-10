@@ -33,6 +33,13 @@ func TestSignalingClient_Connect(t *testing.T) {
 	// Mock websocket server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/signaling" {
+			// Mock the resync fetch
+			if r.Method == "GET" && len(r.URL.Path) > 12 && r.URL.Path[len(r.URL.Path)-20:] == "/connections/pending" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[]`))
+				return
+			}
 			t.Errorf("expected path /v1/signaling, got %s", r.URL.Path)
 			return
 		}
@@ -53,7 +60,7 @@ func TestSignalingClient_Connect(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	apiClient := NewAPIClient(mockServer.URL, ident, priv)
-	c := NewSignalingClient(apiClient, logger)
+	c := NewSignalingClient(apiClient, nil, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

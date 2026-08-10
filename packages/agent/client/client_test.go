@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
@@ -31,7 +32,7 @@ func TestAPIClient_RegisterDevice(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST method, got %s", r.Method)
 		}
-		
+
 		// Check headers
 		if r.Header.Get("X-Zoop-Identity") != endpointID.String() {
 			t.Errorf("missing or incorrect X-Zoop-Identity header")
@@ -52,10 +53,12 @@ func TestAPIClient_RegisterDevice(t *testing.T) {
 
 	// Run test
 	c := NewAPIClient(mockServer.URL, ident, priv)
-	
-	resp, err := c.RegisterDevice(context.Background(), "test-device")
+
+	reqCtx, cancelReq := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelReq()
+	resp, err := c.RegisterDevice(reqCtx, "test-device", "")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("RegisterDevice failed: %v", err)
 	}
 
 	if resp.ID != endpointID {

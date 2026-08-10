@@ -27,9 +27,9 @@ func TestServer_RegisterDevice(t *testing.T) {
 	ds := services.NewDeviceService(st)
 	us := services.NewUserService(st)
 	ss := services.NewShareService(st)
-	cs := services.NewConnectionService(st)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
 
 	_, pub, _ := ed25519.GenerateKey(rand.Reader)
@@ -66,9 +66,9 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	ds := services.NewDeviceService(st)
 	us := services.NewUserService(st)
 	ss := services.NewShareService(st)
-	cs := services.NewConnectionService(st)
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
 
 	// Create Identity
@@ -78,7 +78,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 		EndpointID: endpointID,
 		PublicKey:  pub,
 	})
-	
+
 	// Create device so GET doesn't return 404
 	st.SaveDevice(context.Background(), &types.Device{
 		ID: endpointID,
@@ -86,7 +86,7 @@ func TestServer_AuthMiddleware(t *testing.T) {
 
 	// Make request
 	req := httptest.NewRequest(http.MethodGet, "/v1/devices/"+endpointID.String(), nil)
-	
+
 	// Create signature with timestamp
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)

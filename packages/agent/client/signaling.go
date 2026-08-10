@@ -4,28 +4,34 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/gorilla/websocket"
+	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
 // SignalingClient manages the persistent WebSocket connection to the Control Plane.
 type SignalingClient struct {
-	apiClient *APIClient
-	Logger    *slog.Logger
+	apiClient     *APIClient
+	Logger        *slog.Logger
+	tunnelManager *tunnel.DeviceManager
 
 	conn *websocket.Conn
 }
 
 // NewSignalingClient creates a new WebSocket client.
-func NewSignalingClient(apiClient *APIClient, logger *slog.Logger) *SignalingClient {
+func NewSignalingClient(apiClient *APIClient, tunnelManager *tunnel.DeviceManager, logger *slog.Logger) *SignalingClient {
 	return &SignalingClient{
-		apiClient: apiClient,
-		Logger:    logger,
+		apiClient:     apiClient,
+		tunnelManager: tunnelManager,
+		Logger:        logger,
 	}
 }
 
@@ -53,7 +59,7 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 		err := s.dial(ctx, wsURL)
 		if err != nil {
 			s.Logger.Error("signaling connection failed", "error", err, "retry_in", backoff)
-			
+
 			// Wait before reconnecting
 			select {
 			case <-ctx.Done():
@@ -71,7 +77,7 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 
 		// Reset backoff on successful connect
 		backoff = 1 * time.Second
-		
+
 		s.resync(ctx)
 
 		// Run the read/write loop until it breaks
@@ -82,7 +88,7 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)
-	
+
 	sig := ed25519.Sign(s.apiClient.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
@@ -107,7 +113,39 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 
 func (s *SignalingClient) resync(ctx context.Context) {
 	s.Logger.Info("signaling resyncing missed connection states")
-	// Future: Fetch pending connections from Cloud API when the endpoint exists.
+	
+	pending, err := s.apiClient.GetPendingConnections(ctx, s.apiClient.Identity.EndpointID)
+	if err != nil {
+		s.Logger.Error("failed to fetch pending connections during resync", "error", err)
+		return
+	}
+
+	for _, conn := range pending {
+		if conn.ProviderID == s.apiClient.Identity.EndpointID {
+			s.Logger.Info("found pending connection request, simulating signaling message", "connection_id", conn.ID)
+			
+			endpoints, err := s.apiClient.DiscoverEndpoints(ctx, conn.RecipientID)
+			var wgKey string
+			if err == nil && endpoints != nil {
+				wgKey = endpoints.WireGuardPublicKey
+			}
+			
+			payloadBytes, _ := json.Marshal(types.ConnectionPayload{
+				ConnectionID:       conn.ID,
+				ProviderIP:         conn.ProviderIP,
+				RecipientIP:        conn.RecipientIP,
+				WireGuardPublicKey: wgKey,
+			})
+
+			msg := types.SignalingMessage{
+				Type:        types.SignalingTypeConnectionRequest,
+				SenderID:    conn.RecipientID,
+				RecipientID: s.apiClient.Identity.EndpointID,
+				Payload:     payloadBytes,
+			}
+			s.handleMessage(ctx, msg)
+		}
+	}
 }
 
 func (s *SignalingClient) pump(ctx context.Context) {
@@ -121,7 +159,7 @@ func (s *SignalingClient) pump(ctx context.Context) {
 		}
 
 		s.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		
+
 		var msg types.SignalingMessage
 		if err := s.conn.ReadJSON(&msg); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -130,12 +168,12 @@ func (s *SignalingClient) pump(ctx context.Context) {
 			return // Break out to trigger reconnect loop
 		}
 
-		s.Logger.Info("received signaling message", 
-			"type", msg.Type, 
+		s.Logger.Info("received signaling message",
+			"type", msg.Type,
 			"sender", msg.SenderID,
 			"payload", string(msg.Payload),
 		)
-		
+
 		s.handleMessage(ctx, msg)
 	}
 }
@@ -144,22 +182,84 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 	switch msg.Type {
 	case types.SignalingTypeConnectionRequest:
 		s.Logger.Info("processing connection request", "sender_id", msg.SenderID)
-		
-		// Local Peer Authorization: for M5, we accept all requests for testing.
-		// In production, this would validate against local policy.
-		authorized := true
-		
+
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal connection payload", "error", err)
+				return
+			}
+		}
+
+		authorized := false
+		connResp, err := s.apiClient.GetConnection(ctx, payload.ConnectionID)
+		if err == nil && connResp != nil {
+			if connResp.RecipientID == msg.SenderID && connResp.State == types.ConnectionStateRequested {
+				authorized = true
+			}
+		}
+		if err != nil {
+			s.Logger.Error("failed to verify connection authorization", "error", err)
+		}
+
 		if authorized {
 			s.Logger.Info("connection request authorized locally")
-			
-			// We need the connection ID to update state. 
-			// Assuming the payload contains it, or we reply via signaling.
+
+			var replyPayload types.ConnectionPayload
+			replyPayload.ConnectionID = payload.ConnectionID
+			replyPayload.ProviderIP = payload.ProviderIP
+			replyPayload.RecipientIP = payload.RecipientIP
+
+			if s.tunnelManager != nil {
+				// Provider gets its own info
+				replyPayload.WireGuardPublicKey = s.tunnelManager.PublicKey().String()
+				
+				port, _ := s.tunnelManager.GetListenPort()
+				replyPayload.EndpointPort = port
+
+				// Discover Public IP via STUN
+				publicIP, _, err := tunnel.DiscoverPublicEndpoint(port)
+				if err != nil {
+					s.Logger.Error("stun discovery failed, falling back to local IP", "error", err)
+					replyPayload.EndpointIP = "127.0.0.1"
+				} else {
+					replyPayload.EndpointIP = publicIP
+				}
+
+				if payload.WireGuardPublicKey != "" {
+					s.Logger.Info("received peer wireguard public key, configuring tunnel")
+					peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
+					if err == nil {
+						// For testing, route the peer's IP
+						allowedIPs := []string{payload.RecipientIP + "/32"}
+
+						// In a real scenario we'd use STUN to get EndpointIP. Here we don't have the Recipient's EndpointIP yet,
+						// WireGuard handles this well if the Recipient initiates packets to us.
+						// But if the Recipient sent EndpointIP/Port, we'd use it. For now, empty string is fine.
+						err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+						if err != nil {
+							s.Logger.Error("failed to configure wireguard peer", "error", err)
+						} else {
+							s.Logger.Info("wireguard peer configured successfully on provider")
+						}
+					}
+				}
+
+				// Assign ProviderIP to the TUN interface
+				if payload.ProviderIP != "" {
+					s.tunnelManager.AssignIP(payload.ProviderIP)
+				}
+			}
+
+			replyBytes, _ := json.Marshal(replyPayload)
+
 			reply := types.SignalingMessage{
 				Type:        types.SignalingTypeConnectionAccepted,
 				SenderID:    s.apiClient.Identity.EndpointID,
 				RecipientID: msg.SenderID,
+				Payload:     replyBytes,
 			}
-			
+
 			if err := s.conn.WriteJSON(reply); err != nil {
 				s.Logger.Error("failed to send accepted signaling response", "error", err)
 			}
@@ -172,6 +272,40 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			}
 			s.conn.WriteJSON(reply)
 		}
+	case types.SignalingTypeConnectionAccepted:
+		s.Logger.Info("connection accepted by peer", "sender_id", msg.SenderID)
+
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal connection payload", "error", err)
+				return
+			}
+		}
+
+		if s.tunnelManager != nil && payload.WireGuardPublicKey != "" {
+			peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
+			if err != nil {
+				s.Logger.Error("failed to parse peer wireguard public key", "error", err)
+				return
+			}
+
+			allowedIPs := []string{"0.0.0.0/0"} // For testing, route everything or just ProviderIP
+			if payload.ProviderIP != "" {
+				allowedIPs = []string{payload.ProviderIP + "/32"}
+			}
+
+			err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+			if err != nil {
+				s.Logger.Error("failed to configure wireguard peer", "error", err)
+			} else {
+				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", payload.EndpointIP, payload.EndpointPort))
+			}
+
+			// Assign RecipientIP to the TUN interface
+			if payload.RecipientIP != "" {
+				s.tunnelManager.AssignIP(payload.RecipientIP)
+			}
+		}
 	}
 }
-

@@ -54,7 +54,7 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 	// Inject Zoop Authentication Headers
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)
-	
+
 	sig := ed25519.Sign(c.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
@@ -86,10 +86,11 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 }
 
 // RegisterDevice registers this agent's identity with the Zoop Cloud.
-func (c *APIClient) RegisterDevice(ctx context.Context, name string) (*api.DeviceResponse, error) {
+func (c *APIClient) RegisterDevice(ctx context.Context, name, wgPubKey string) (*api.DeviceResponse, error) {
 	req := api.RegisterDeviceRequest{
-		Name:      name,
-		PublicKey: base64.StdEncoding.EncodeToString(c.Identity.PublicKey),
+		Name:               name,
+		PublicKey:          base64.StdEncoding.EncodeToString(c.Identity.PublicKey),
+		WireGuardPublicKey: wgPubKey,
 	}
 
 	var resp api.DeviceResponse
@@ -124,7 +125,23 @@ func (c *APIClient) UpdateConnectionState(ctx context.Context, connID types.ID, 
 	req := api.UpdateConnectionStateRequest{
 		State: state,
 	}
-	
+
 	path := fmt.Sprintf("/v1/connections/%s/state", connID.String())
 	return c.do(ctx, http.MethodPut, path, req, nil)
+}
+
+// GetConnection fetches a specific connection by ID.
+func (c *APIClient) GetConnection(ctx context.Context, connID types.ID) (*api.ConnectionResponse, error) {
+	var resp api.ConnectionResponse
+	path := fmt.Sprintf("/v1/connections/%s", connID.String())
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return &resp, err
+}
+
+// GetPendingConnections fetches all pending connections for a device.
+func (c *APIClient) GetPendingConnections(ctx context.Context, deviceID types.ID) ([]api.ConnectionResponse, error) {
+	var resp []api.ConnectionResponse
+	path := fmt.Sprintf("/v1/devices/%s/connections/pending", deviceID.String())
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return resp, err
 }

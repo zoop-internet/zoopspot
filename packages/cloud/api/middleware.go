@@ -18,14 +18,14 @@ import (
 func WriteError(w http.ResponseWriter, code string, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	resp := ErrorResponse{
 		Error: ErrorDetail{
 			Code:    code,
 			Message: message,
 		},
 	}
-	
+
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -66,7 +66,7 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				WriteError(w, "unauthenticated", "identity not found", http.StatusUnauthorized)
 				return
 			}
-			
+
 			// Parse timestamp and prevent replay attacks (allow 5 minute window)
 			timestamp, err := time.Parse(time.RFC3339, timestampStr)
 			if err != nil {
@@ -79,7 +79,7 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 			}
 
 			payload := []byte("zoop-auth|" + timestampStr)
-			
+
 			if !ed25519.Verify(identity.PublicKey, payload, sigBytes) {
 				WriteError(w, "unauthenticated", "signature verification failed", http.StatusUnauthorized)
 				return
