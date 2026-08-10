@@ -185,7 +185,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 9: Direct Connectivity** (Local & public address discovery, direct P2P connection)
 - [x] **Milestone 10: NAT Traversal** (STUN, UDP hole punching, NAT-to-NAT connectivity)
 - [x] **Milestone 11: Relay Fallback** (Relay service, automatic fallback & promotion)
-- [ ] **Milestone 12: Connection Recovery** (Roaming, Wi-Fi ↔ Cellular, IP changes, auto-reconnect)
+- [x] **Milestone 12: Connection Recovery** (Roaming, Wi-Fi ↔ Cellular, IP changes, auto-reconnect)
 - [ ] **Milestone 13: Security Hardening** (Key rotation, revocation, secret management, threat testing)
 - [ ] **Milestone 14: Platform Implementations** (Linux Agent, Android Kotlin VPN, iOS Swift NetworkExtension)
 - [ ] **Milestone 15: Router** (OpenWrt/Linux router Provider mode & multi-device gateway)

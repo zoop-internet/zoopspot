@@ -238,21 +238,21 @@ Direct becomes available
 
 ## 12. Connection Recovery
 
-- [ ] Detect connection failure
-- [ ] Reconnect
-- [ ] Network-change detection
-- [ ] Wi-Fi → Cellular
-- [ ] Cellular → Wi-Fi
-- [ ] IP address changes
-- [ ] NAT mapping changes
-- [ ] Tunnel restart
-- [ ] Provider restart
-- [ ] Recipient restart
-- [ ] Control Plane interruption
-- [ ] Relay recovery
-- [ ] State synchronization
+- [x] Detect connection failure
+- [x] Reconnect
+- [x] Network-change detection
+- [x] Wi-Fi → Cellular
+- [x] Cellular → Wi-Fi
+- [x] IP address changes
+- [x] NAT mapping changes
+- [x] Tunnel restart
+- [x] Provider restart
+- [x] Recipient restart
+- [x] Control Plane interruption
+- [x] Relay recovery
+- [x] State synchronization
 
-**Done when:** Normal network failures don't permanently break a Zoop connection.
+**Done when:** Normal network failures don't permanently break a Zoop connection. (COMPLETED)
 
 ---
 
