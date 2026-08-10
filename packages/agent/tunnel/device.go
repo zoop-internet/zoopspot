@@ -87,6 +87,12 @@ func (m *DeviceManager) PublicKey() wgtypes.Key {
 	return m.wgPubKey
 }
 
+// RotateKeyPair updates the local WireGuard device with a new private key.
+func (m *DeviceManager) RotateKeyPair(newPrivKey wgtypes.Key) error {
+	port, _ := m.GetListenPort()
+	return m.ConfigureDevice(newPrivKey, port)
+}
+
 // DisableForwarding disables IP forwarding and tears down iptables NAT rules.
 func (m *DeviceManager) DisableForwarding() error {
 	return platformDisableForwarding(m.ifName)

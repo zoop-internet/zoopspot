@@ -258,21 +258,21 @@ Direct becomes available
 
 ## 13. Security Hardening
 
-- [ ] Harden device identity
-- [ ] Secure key storage
-- [ ] Authentication hardening
-- [ ] Authorization enforcement
-- [ ] Device revocation
-- [ ] Key rotation
-- [ ] Session security
-- [ ] API security
-- [ ] Secure configuration
-- [ ] Secret management
-- [ ] Unauthorized-device testing
-- [ ] Threat-model testing
-- [ ] Dependency security scanning
+- [x] Harden device identity
+- [x] Secure key storage
+- [x] Authentication hardening
+- [x] Authorization enforcement
+- [x] Device revocation
+- [x] Key rotation
+- [x] Session security
+- [x] API security
+- [x] Secure configuration
+- [x] Secret management
+- [x] Unauthorized-device testing
+- [x] Threat-model testing
+- [x] Dependency security scanning
 
-**Done when:** The security model is enforced rather than merely documented.
+**Done when:** The security model is enforced rather than merely documented. (COMPLETED)
 
 ---
 

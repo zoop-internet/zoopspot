@@ -36,7 +36,8 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 		ID:          types.NewID(),
 		Name:        req.Name,
 		OS:          req.Platform,
-		Description: "", // Not supplied in the basic payload yet
+		Description: "",
+		State:       types.DeviceStateTrusted,
 	}
 
 	if err := s.store.SaveDevice(ctx, device); err != nil {
@@ -64,7 +65,7 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 
 	return &api.DeviceResponse{
 		ID:     device.ID,
-		Status: "active",
+		Status: string(device.State),
 	}, nil
 }
 
@@ -76,6 +77,30 @@ func (s *DeviceService) GetDevice(ctx context.Context, id types.ID) (*api.Device
 
 	return &api.DeviceResponse{
 		ID:     device.ID,
-		Status: "active",
+		Status: string(device.State),
 	}, nil
+}
+
+// Revoke transition a device state to revoked.
+func (s *DeviceService) Revoke(ctx context.Context, id types.ID) error {
+	device, err := s.store.GetDevice(ctx, id)
+	if err != nil {
+		return err
+	}
+	device.State = types.DeviceStateRevoked
+	return s.store.SaveDevice(ctx, device)
+}
+
+// RotateKey updates the registered WireGuard public key for an identity.
+func (s *DeviceService) RotateKey(ctx context.Context, endpointID types.ID, newWireGuardKeyBase64 string) error {
+	identity, err := s.store.GetIdentity(ctx, endpointID)
+	if err != nil {
+		return err
+	}
+	wgBytes, err := base64.StdEncoding.DecodeString(newWireGuardKeyBase64)
+	if err != nil {
+		return fmt.Errorf("invalid base64 key: %w", err)
+	}
+	identity.WireGuardPublicKey = wgBytes
+	return s.store.SaveIdentity(ctx, identity)
 }

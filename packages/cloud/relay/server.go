@@ -22,6 +22,7 @@ type RelayServer struct {
 	mu          sync.RWMutex
 	connections map[types.ID]*websocket.Conn
 	logger      *slog.Logger
+	revokedIDs  map[types.ID]bool
 }
 
 // NewServer creates a new RelayServer instance.
@@ -32,6 +33,18 @@ func NewServer(logger *slog.Logger) *RelayServer {
 	return &RelayServer{
 		connections: make(map[types.ID]*websocket.Conn),
 		logger:      logger,
+		revokedIDs:  make(map[types.ID]bool),
+	}
+}
+
+// RevokeDevice marks a device ID as revoked on the relay server.
+func (s *RelayServer) RevokeDevice(id types.ID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.revokedIDs[id] = true
+	if conn, ok := s.connections[id]; ok {
+		_ = conn.Close()
+		delete(s.connections, id)
 	}
 }
 
@@ -73,6 +86,16 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	senderID, err := types.ParseID(identStr)
 	if err != nil {
 		http.Error(w, "invalid identity ID", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	isRevoked := s.revokedIDs[senderID]
+	s.mu.RUnlock()
+
+	if isRevoked {
+		s.logger.Warn("rejected connection attempt from revoked device", "sender_id", senderID)
+		http.Error(w, "device identity revoked", http.StatusForbidden)
 		return
 	}
 

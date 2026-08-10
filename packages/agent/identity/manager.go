@@ -59,6 +59,14 @@ func (m *manager) GetPrivateKey(path string) (ed25519.PrivateKey, error) {
 }
 
 func loadKey(path string) (ed25519.PrivateKey, error) {
+	info, err := os.Stat(path)
+	if err == nil {
+		// Enforce strict owner-only permissions (0600)
+		if info.Mode().Perm() != 0600 {
+			_ = os.Chmod(path, 0600)
+		}
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

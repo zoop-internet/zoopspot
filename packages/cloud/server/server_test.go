@@ -56,8 +56,8 @@ func TestServer_RegisterDevice(t *testing.T) {
 	if resp.ID.String() == "" || resp.ID.String() == "00000000-0000-0000-0000-000000000000" {
 		t.Fatalf("expected non-empty device ID")
 	}
-	if resp.Status != "active" {
-		t.Fatalf("expected active status")
+	if resp.Status != "trusted" && resp.Status != "active" {
+		t.Fatalf("expected trusted or active status, got %s", resp.Status)
 	}
 }
 
