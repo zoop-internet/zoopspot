@@ -175,12 +175,12 @@ For future direction:
 Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status of our 22 implementation milestones:
 
 - [x] **Milestone 1: Repository Foundation** (Clean build, CI, linting, directory structure)
-- [ ] **Milestone 2: Go Core** (Core types, Device, Provider, Recipient, Identity, Connection primitives)
-- [ ] **Milestone 3: Zoop Agent** (Agent CLI, lifecycle, identity creation, local storage, status)
-- [ ] **Milestone 4: Control Plane** (Go Cloud service, API, Registration, Auth, Discovery, Signaling)
-- [ ] **Milestone 5: Agent ↔ Control Plane** (Agent-Cloud sync, peer lookup, signaling)
-- [ ] **Milestone 6: Secure Tunnel** (WireGuard integration, key management, peer configuration)
-- [ ] **Milestone 7: Real Packet Forwarding** (Data Plane: packet routing, TCP/UDP forwarding)
+- [x] **Milestone 2: Go Core** (Core types, Device, Provider, Recipient, Identity, Connection primitives)
+- [x] **Milestone 3: Zoop Agent** (Agent CLI, lifecycle, identity creation, local storage, status)
+- [x] **Milestone 4: Control Plane** (Go Cloud service, API, Registration, Auth, Discovery, Signaling)
+- [x] **Milestone 5: Agent ↔ Control Plane** (Agent-Cloud sync, peer lookup, signaling)
+- [x] **Milestone 6: Secure Tunnel** (WireGuard integration, key management, peer configuration)
+- [x] **Milestone 7: Real Packet Forwarding** (Data Plane: packet routing, TCP/UDP forwarding)
 - [ ] **Milestone 8: Real Internet Traffic** (Provider NAT, DNS, HTTP/HTTPS browsing via Provider)
 - [ ] **Milestone 9: Direct Connectivity** (Local & public address discovery, direct P2P connection)
 - [ ] **Milestone 10: NAT Traversal** (STUN, UDP hole punching, NAT-to-NAT connectivity)
