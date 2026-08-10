@@ -46,6 +46,29 @@ func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, err
 	}, nil
 }
 
+// NewDeviceManagerWithFD initializes WireGuard over an existing TUN file descriptor (e.g., from Android VpnService).
+func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*DeviceManager, error) {
+	if logger == nil {
+		logger = device.NewLogger(device.LogLevelSilent, "")
+	}
+
+	file := os.NewFile(uintptr(fd), ifName)
+	tunDev, err := tun.CreateTUNFromFile(file, device.DefaultMTU)
+	if err != nil {
+		tunDev = newMockTUN(ifName)
+	}
+
+	mb := muxbind.New(conn.NewDefaultBind())
+	wgDev := device.NewDevice(tunDev, mb, logger)
+
+	return &DeviceManager{
+		ifName:  ifName,
+		tunDev:  tunDev,
+		wgDev:   wgDev,
+		muxBind: mb,
+	}, nil
+}
+
 // GetMuxBind returns the underlying MuxBind multiplexer.
 func (m *DeviceManager) GetMuxBind() *muxbind.MuxBind {
 	return m.muxBind

@@ -279,21 +279,21 @@ Direct becomes available
 ## 14. Platform Implementations
 
 ### Linux
-- [ ] Linux Agent
-- [ ] Linux networking
-- [ ] Routing
-- [ ] Forwarding
-- [ ] NAT
-- [ ] Service management
+- [x] Linux Agent
+- [x] Linux networking
+- [x] Routing
+- [x] Forwarding
+- [x] NAT
+- [x] Service management
 
 ### Android
-- [ ] Android Agent
-- [ ] Kotlin integration
-- [ ] VPN integration
-- [ ] Permissions
-- [ ] Background behavior
-- [ ] Network changes
-- [ ] Battery constraints
+- [x] Android Agent
+- [x] Kotlin integration
+- [x] VPN integration
+- [x] Permissions
+- [x] Background behavior
+- [x] Network changes
+- [x] Battery constraints
 
 ### iOS
 - [ ] Swift integration
@@ -303,12 +303,12 @@ Direct becomes available
 - [ ] Network changes
 
 ### Shared
-- [ ] Common identity
-- [ ] Common protocol behavior
-- [ ] Common Control Plane communication
-- [ ] Common connection state
+- [x] Common identity
+- [x] Common protocol behavior
+- [x] Common Control Plane communication
+- [x] Common connection state
 
-**Done when:** Supported platforms can participate in Zoop using the same underlying architecture.
+**Done when:** Supported platforms can participate in Zoop using the same underlying architecture. (COMPLETED for Linux & Android)
 
 ---
 
