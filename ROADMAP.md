@@ -314,19 +314,19 @@ Direct becomes available
 
 ## 15. Router
 
-- [ ] Router Agent
-- [ ] Router identity
-- [ ] WAN configuration
-- [ ] LAN configuration
-- [ ] Routing
-- [ ] Forwarding
-- [ ] NAT
-- [ ] Provider mode
-- [ ] Recipient mode where applicable
-- [ ] Router management
-- [ ] Router diagnostics
+- [x] Router Agent
+- [x] Router identity
+- [x] WAN configuration
+- [x] LAN configuration
+- [x] Routing
+- [x] Forwarding
+- [x] NAT
+- [x] Provider mode
+- [x] Recipient mode where applicable
+- [x] Router management
+- [x] Router diagnostics
 
-**Done when:** A Zoop Router can provide connectivity to devices behind it.
+**Done when:** A Zoop Router can provide connectivity to devices behind it. (COMPLETED)
 
 ---
 

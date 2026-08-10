@@ -188,7 +188,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 12: Connection Recovery** (Roaming, Wi-Fi ↔ Cellular, IP changes, auto-reconnect)
 - [x] **Milestone 13: Security Hardening** (Key rotation, revocation, secret management, threat testing)
 - [x] **Milestone 14: Platform Implementations** (Linux Agent, Android Kotlin VPN, iOS Swift NetworkExtension)
-- [ ] **Milestone 15: Router** (OpenWrt/Linux router Provider mode & multi-device gateway)
+- [x] **Milestone 15: Router** (OpenWrt/Linux router Provider mode & multi-device gateway)
 - [ ] **Milestone 16: Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
 - [ ] **Milestone 17: Observability** (Agent/Cloud logs, connection health, user diagnostics)
 - [ ] **Milestone 18: Real-Network Validation** (Cross-network testing: Wi-Fi, Cellular, NAT, IPv4/IPv6)
