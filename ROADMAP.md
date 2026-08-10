@@ -205,16 +205,18 @@ INTERNET
 
 ## 11. Relay Fallback
 
-- [ ] Create relay service
-- [ ] Relay authentication
-- [ ] Relay connection
-- [ ] Forward encrypted packets
-- [ ] Detect direct-path failure
-- [ ] Switch to relay
-- [ ] Monitor relay
-- [ ] Attempt direct recovery
-- [ ] Switch relay → direct
-- [ ] Relay failure handling
+- [x] Create relay service
+- [x] Relay authentication
+- [x] Relay connection
+- [x] Forward encrypted packets
+- [x] Detect direct-path failure
+- [x] Switch to relay
+- [x] Monitor relay
+- [x] Attempt direct recovery
+- [x] Switch relay → direct
+- [x] Relay failure handling
+
+**Done when:** Traffic reliably falls back to relay when direct connectivity fails, and upgrades when direct connectivity becomes available. (COMPLETED)
 
 ```text
 Direct available

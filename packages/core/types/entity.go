@@ -26,3 +26,9 @@ func NewID() ID {
 func (id ID) String() string {
 	return uuid.UUID(id).String()
 }
+
+// ParseID parses a string into an ID.
+func ParseID(s string) (ID, error) {
+	u, err := uuid.Parse(s)
+	return ID(u), err
+}
