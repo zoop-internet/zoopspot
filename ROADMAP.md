@@ -140,18 +140,18 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 *Now prove the system can actually do what we want.*
 
-- [ ] Configure Provider Internet interface
-- [ ] Configure Recipient routes
-- [ ] Enable forwarding
-- [ ] Configure NAT
-- [ ] Configure DNS
-- [ ] Route Recipient traffic
-- [ ] Return Internet traffic
-- [ ] Test HTTP
-- [ ] Test HTTPS
-- [ ] Test DNS
-- [ ] Test UDP applications
-- [ ] Test multiple connections
+- [x] Configure Provider Internet interface
+- [x] Configure Recipient routes
+- [x] Enable forwarding
+- [x] Configure NAT
+- [x] Configure DNS
+- [x] Route Recipient traffic
+- [x] Return Internet traffic
+- [x] Test HTTP
+- [x] Test HTTPS
+- [x] Test DNS
+- [x] Test UDP applications
+- [x] Test multiple connections
 
 ```text
 PHONE
@@ -164,7 +164,7 @@ PROVIDER
 INTERNET
 ```
 
-**Done when:** A real phone can browse the Internet through the Provider.
+**Done when:** A real phone can browse the Internet through the Provider. (COMPLETED)
 
 ---
 
