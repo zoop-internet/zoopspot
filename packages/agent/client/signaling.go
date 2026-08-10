@@ -211,19 +211,26 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			replyPayload.RecipientIP = payload.RecipientIP
 
 			if s.tunnelManager != nil {
-				// Provider gets its own info
+				// Provider gets its own info and candidates
 				replyPayload.WireGuardPublicKey = s.tunnelManager.PublicKey().String()
 				
 				port, _ := s.tunnelManager.GetListenPort()
 				replyPayload.EndpointPort = port
 
-				// Discover Public IP via STUN
-				publicIP, _, err := tunnel.DiscoverPublicEndpoint(port)
-				if err != nil {
-					s.Logger.Error("stun discovery failed, falling back to local IP", "error", err)
-					replyPayload.EndpointIP = "127.0.0.1"
+				// Gather candidates (host LAN + srflx STUN)
+				cands, err := tunnel.GatherCandidates(port)
+				if err == nil && len(cands) > 0 {
+					replyPayload.Candidates = cands
+					replyPayload.EndpointIP = cands[0].IP
 				} else {
-					replyPayload.EndpointIP = publicIP
+					// Fallback to STUN / 127.0.0.1
+					publicIP, _, err := tunnel.DiscoverPublicEndpoint(port)
+					if err != nil {
+						s.Logger.Error("stun discovery failed, falling back to local IP", "error", err)
+						replyPayload.EndpointIP = "127.0.0.1"
+					} else {
+						replyPayload.EndpointIP = publicIP
+					}
 				}
 
 				// Assign ProviderIP to the TUN interface first so it is UP before adding routes
@@ -245,17 +252,29 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					s.Logger.Info("received peer wireguard public key, configuring tunnel")
 					peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
 					if err == nil {
-						// For testing, route the peer's IP
 						allowedIPs := []string{payload.RecipientIP + "/32"}
 
-						// In a real scenario we'd use STUN to get EndpointIP. Here we don't have the Recipient's EndpointIP yet,
-						// WireGuard handles this well if the Recipient initiates packets to us.
-						// But if the Recipient sent EndpointIP/Port, we'd use it. For now, empty string is fine.
-						err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+						targetIP := payload.EndpointIP
+						targetPort := payload.EndpointPort
+
+						// Execute UDP candidate probing if candidates provided
+						if len(payload.Candidates) > 0 {
+							s.Logger.Info("probing peer candidates for direct connectivity", "candidate_count", len(payload.Candidates))
+							bestCand, err := tunnel.ProbeCandidates(ctx, payload.Candidates, payload.ConnectionID.String(), port)
+							if err == nil && bestCand != nil {
+								s.Logger.Info("selected optimal direct path candidate", "ip", bestCand.IP, "port", bestCand.Port, "type", bestCand.Type)
+								targetIP = bestCand.IP
+								targetPort = bestCand.Port
+							} else {
+								s.Logger.Warn("candidate probing yielded no direct response, using default endpoint", "error", err)
+							}
+						}
+
+						err = s.tunnelManager.AddPeer(peerKey, targetIP, targetPort, allowedIPs)
 						if err != nil {
 							s.Logger.Error("failed to configure wireguard peer", "error", err)
 						} else {
-							s.Logger.Info("wireguard peer configured successfully on provider")
+							s.Logger.Info("wireguard peer configured successfully on provider", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
 						}
 					}
 				}
@@ -314,11 +333,28 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				allowedIPs = append(allowedIPs, payload.ProviderIP+"/32")
 			}
 
-			err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)
+			targetIP := payload.EndpointIP
+			targetPort := payload.EndpointPort
+
+			// Execute UDP candidate probing if candidates provided
+			if len(payload.Candidates) > 0 {
+				s.Logger.Info("probing peer candidates for direct connectivity", "candidate_count", len(payload.Candidates))
+				listenPort, _ := s.tunnelManager.GetListenPort()
+				bestCand, err := tunnel.ProbeCandidates(ctx, payload.Candidates, payload.ConnectionID.String(), listenPort)
+				if err == nil && bestCand != nil {
+					s.Logger.Info("selected optimal direct path candidate", "ip", bestCand.IP, "port", bestCand.Port, "type", bestCand.Type)
+					targetIP = bestCand.IP
+					targetPort = bestCand.Port
+				} else {
+					s.Logger.Warn("candidate probing yielded no direct response, using default endpoint", "error", err)
+				}
+			}
+
+			err = s.tunnelManager.AddPeer(peerKey, targetIP, targetPort, allowedIPs)
 			if err != nil {
 				s.Logger.Error("failed to configure wireguard peer", "error", err)
 			} else {
-				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", payload.EndpointIP, payload.EndpointPort))
+				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
 			}
 		}
 	}

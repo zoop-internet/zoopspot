@@ -172,17 +172,17 @@ INTERNET
 
 *Now make the connection truly **device-to-device**.*
 
-- [ ] Discover local addresses
-- [ ] Discover public addresses
-- [ ] Exchange endpoint information
-- [ ] Test direct UDP connectivity
-- [ ] Establish direct path
-- [ ] Verify direct path
-- [ ] Detect path type
-- [ ] Prefer direct connection
-- [ ] Monitor direct connection
+- [x] Discover local addresses
+- [x] Discover public addresses
+- [x] Exchange endpoint information
+- [x] Test direct UDP connectivity
+- [x] Establish direct path
+- [x] Verify direct path
+- [x] Detect path type
+- [x] Prefer direct connection
+- [x] Monitor direct connection
 
-**Done when:** Endpoints can establish a direct connection without sending traffic through Zoop Cloud.
+**Done when:** Endpoints can establish a direct connection without sending traffic through Zoop Cloud. (COMPLETED)
 
 ---
 
