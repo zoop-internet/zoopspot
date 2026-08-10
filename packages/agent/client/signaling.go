@@ -232,6 +232,12 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 						s.Logger.Error("failed to assign provider IP to interface", "ip", payload.ProviderIP, "error", err)
 					} else {
 						s.Logger.Info("assigned provider IP to interface", "ip", payload.ProviderIP)
+						// Enable IP forwarding and NAT on provider
+						if err := s.tunnelManager.EnableForwarding(); err != nil {
+							s.Logger.Error("failed to enable IP forwarding on provider", "error", err)
+						} else {
+							s.Logger.Info("enabled IP forwarding and NAT on provider")
+						}
 					}
 				}
 
@@ -303,9 +309,9 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				}
 			}
 
-			allowedIPs := []string{"0.0.0.0/0"} // For testing, route everything or just ProviderIP
+			allowedIPs := []string{"0.0.0.0/0"}
 			if payload.ProviderIP != "" {
-				allowedIPs = []string{payload.ProviderIP + "/32"}
+				allowedIPs = append(allowedIPs, payload.ProviderIP+"/32")
 			}
 
 			err = s.tunnelManager.AddPeer(peerKey, payload.EndpointIP, payload.EndpointPort, allowedIPs)

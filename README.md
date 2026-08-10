@@ -181,7 +181,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 5: Agent ↔ Control Plane** (Agent-Cloud sync, peer lookup, signaling)
 - [x] **Milestone 6: Secure Tunnel** (WireGuard integration, key management, peer configuration)
 - [x] **Milestone 7: Real Packet Forwarding** (Data Plane: packet routing, TCP/UDP forwarding)
-- [ ] **Milestone 8: Real Internet Traffic** (Provider NAT, DNS, HTTP/HTTPS browsing via Provider)
+- [x] **Milestone 8: Real Internet Traffic** (Provider NAT, DNS, HTTP/HTTPS browsing via Provider)
 - [ ] **Milestone 9: Direct Connectivity** (Local & public address discovery, direct P2P connection)
 - [ ] **Milestone 10: NAT Traversal** (STUN, UDP hole punching, NAT-to-NAT connectivity)
 - [ ] **Milestone 11: Relay Fallback** (Relay service, automatic fallback & promotion)
