@@ -332,19 +332,19 @@ Direct becomes available
 
 ## 16. Web Application
 
-- [x] React + TypeScript setup
-- [x] Authentication UI
-- [x] Device management
-- [x] Provider management
-- [x] Recipient management
-- [x] Sharing management
-- [x] Connection status
-- [x] Network status
-- [x] Security settings
-- [x] Organization management
-- [x] Diagnostics
+- [ ] React + TypeScript setup
+- [ ] Authentication UI
+- [ ] Device management
+- [ ] Provider management
+- [ ] Recipient management
+- [ ] Sharing management
+- [ ] Connection status
+- [ ] Network status
+- [ ] Security settings
+- [ ] Organization management
+- [ ] Diagnostics
 
-**Done when:** Users can manage Zoop without manually manipulating the underlying system. (COMPLETED)
+**Done when:** Users can manage Zoop without manually manipulating the underlying system.
 
 ---
 
