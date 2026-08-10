@@ -217,14 +217,14 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				port, _ := s.tunnelManager.GetListenPort()
 				replyPayload.EndpointPort = port
 
-				// Gather candidates (host LAN + srflx STUN)
-				cands, err := tunnel.GatherCandidates(port)
+				// Gather candidates (host LAN + srflx STUN via MuxBind)
+				cands, err := tunnel.GatherCandidatesMux(s.tunnelManager.GetMuxBind(), port)
 				if err == nil && len(cands) > 0 {
 					replyPayload.Candidates = cands
 					replyPayload.EndpointIP = cands[0].IP
 				} else {
 					// Fallback to STUN / 127.0.0.1
-					publicIP, _, err := tunnel.DiscoverPublicEndpoint(port)
+					publicIP, _, err := tunnel.DiscoverPublicEndpointMux(s.tunnelManager.GetMuxBind())
 					if err != nil {
 						s.Logger.Error("stun discovery failed, falling back to local IP", "error", err)
 						replyPayload.EndpointIP = "127.0.0.1"
@@ -260,7 +260,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 						// Execute UDP candidate probing if candidates provided
 						if len(payload.Candidates) > 0 {
 							s.Logger.Info("probing peer candidates for direct connectivity", "candidate_count", len(payload.Candidates))
-							bestCand, err := tunnel.ProbeCandidates(ctx, payload.Candidates, payload.ConnectionID.String(), port)
+							bestCand, err := tunnel.ProbeCandidatesMux(ctx, s.tunnelManager.GetMuxBind(), payload.Candidates, payload.ConnectionID.String(), port)
 							if err == nil && bestCand != nil {
 								s.Logger.Info("selected optimal direct path candidate", "ip", bestCand.IP, "port", bestCand.Port, "type", bestCand.Type)
 								targetIP = bestCand.IP
@@ -340,7 +340,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			if len(payload.Candidates) > 0 {
 				s.Logger.Info("probing peer candidates for direct connectivity", "candidate_count", len(payload.Candidates))
 				listenPort, _ := s.tunnelManager.GetListenPort()
-				bestCand, err := tunnel.ProbeCandidates(ctx, payload.Candidates, payload.ConnectionID.String(), listenPort)
+				bestCand, err := tunnel.ProbeCandidatesMux(ctx, s.tunnelManager.GetMuxBind(), payload.Candidates, payload.ConnectionID.String(), listenPort)
 				if err == nil && bestCand != nil {
 					s.Logger.Info("selected optimal direct path candidate", "ip", bestCand.IP, "port", bestCand.Port, "type", bestCand.Type)
 					targetIP = bestCand.IP

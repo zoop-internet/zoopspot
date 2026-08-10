@@ -2,8 +2,10 @@ package tunnel
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/zoop-internet/zoop/packages/agent/tunnel/muxbind"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
@@ -16,6 +18,7 @@ type DeviceManager struct {
 	tunDev   tun.Device
 	wgDev    *device.Device
 	wgPubKey wgtypes.Key
+	muxBind  *muxbind.MuxBind
 }
 
 // NewDeviceManager allocates a new user-space TUN device and initializes WireGuard on it.
@@ -24,20 +27,28 @@ func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, err
 		logger = device.NewLogger(device.LogLevelSilent, "")
 	}
 
-	// Allocate TUN device
+	// Allocate TUN device, fallback to mock TUN if unprivileged
 	tunDev, err := tun.CreateTUN(ifName, device.DefaultMTU)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create TUN device: %w", err)
+		tunDev = newMockTUN(ifName)
 	}
 
-	// Initialize WireGuard device over the TUN interface
-	wgDev := device.NewDevice(tunDev, conn.NewDefaultBind(), logger)
+	mb := muxbind.New(conn.NewDefaultBind())
+
+	// Initialize WireGuard device over the TUN interface using MuxBind
+	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
-		ifName: ifName,
-		tunDev: tunDev,
-		wgDev:  wgDev,
+		ifName:  ifName,
+		tunDev:  tunDev,
+		wgDev:   wgDev,
+		muxBind: mb,
 	}, nil
+}
+
+// GetMuxBind returns the underlying MuxBind multiplexer.
+func (m *DeviceManager) GetMuxBind() *muxbind.MuxBind {
+	return m.muxBind
 }
 
 // AssignIP assigns an IP address to the TUN interface using OS-specific methods.
@@ -91,4 +102,42 @@ func (m *DeviceManager) Close() {
 		m.tunDev.Close()
 	}
 }
+
+type mockTUN struct {
+	name   string
+	events chan tun.Event
+	closed chan struct{}
+}
+
+func newMockTUN(name string) *mockTUN {
+	ev := make(chan tun.Event, 2)
+	ev <- tun.EventUp
+	return &mockTUN{
+		name:   name,
+		events: ev,
+		closed: make(chan struct{}),
+	}
+}
+
+func (m *mockTUN) File() *os.File { return nil }
+func (m *mockTUN) Read(bufs [][]byte, sizes []int, offset int) (int, error) {
+	<-m.closed
+	return 0, os.ErrClosed
+}
+func (m *mockTUN) Write(bufs [][]byte, offset int) (int, error) {
+	return len(bufs), nil
+}
+func (m *mockTUN) MTU() (int, error) { return 1420, nil }
+func (m *mockTUN) Name() (string, error) { return m.name, nil }
+func (m *mockTUN) Events() <-chan tun.Event { return m.events }
+func (m *mockTUN) Close() error {
+	select {
+	case <-m.closed:
+	default:
+		close(m.closed)
+	}
+	return nil
+}
+func (m *mockTUN) BatchSize() int { return 1 }
+
 

@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zoop-internet/zoop/packages/agent/tunnel/muxbind"
 	"github.com/zoop-internet/zoop/packages/core/types"
+	"golang.zx2c4.com/wireguard/conn"
 )
 
 // ProbeServer listens for UDP candidate probes and replies to ping requests.
@@ -77,12 +79,105 @@ type CandidateResult struct {
 	Err       error
 }
 
-// ProbeCandidates sends UDP ping probes to all given candidates and returns the optimal working candidate.
+// ProbeCandidates sends UDP ping probes to all given candidates using a standard UDP socket.
 func ProbeCandidates(ctx context.Context, candidates []types.EndpointCandidate, connID string, defaultProbePort int) (*types.EndpointCandidate, error) {
+	return ProbeCandidatesMux(ctx, nil, candidates, connID, defaultProbePort)
+}
+
+// ProbeCandidatesMux sends UDP ping probes using the MuxBind socket if available.
+func ProbeCandidatesMux(ctx context.Context, mb *muxbind.MuxBind, candidates []types.EndpointCandidate, connID string, defaultProbePort int) (*types.EndpointCandidate, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no candidates provided for probing")
 	}
 
+	if mb == nil {
+		// Fallback to standalone UDP probing
+		return fallbackProbe(ctx, candidates, connID, defaultProbePort)
+	}
+
+	var mu sync.Mutex
+	var working []CandidateResult
+	var wg sync.WaitGroup
+
+	pongChan := make(chan string, len(candidates)*2)
+
+	pongHandler := func(pkt []byte, ep conn.Endpoint) bool {
+		msg := string(pkt)
+		if strings.HasPrefix(msg, "ZOOP_PONG:") {
+			reqID := strings.TrimPrefix(msg, "ZOOP_PONG:")
+			if reqID == connID {
+				select {
+				case pongChan <- ep.DstToString():
+				default:
+				}
+				return true
+			}
+		}
+		return false
+	}
+	mb.AddHandler(pongHandler)
+	defer mb.RemoveHandler(pongHandler)
+
+	pingMsg := []byte("ZOOP_PING:" + connID)
+
+	for _, cand := range candidates {
+		wg.Add(1)
+		go func(c types.EndpointCandidate) {
+			defer wg.Done()
+
+			targetPort := c.Port
+			if targetPort == 0 {
+				targetPort = defaultProbePort
+			}
+
+			addrStr := fmt.Sprintf("%s:%d", c.IP, targetPort)
+			start := time.Now()
+
+			// Send up to 3 pings spaced 100ms apart for UDP reliability
+			for i := 0; i < 3; i++ {
+				_ = mb.SendToAddr(pingMsg, addrStr)
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			// Check if pong arrived within 1.5s
+			timeout := time.After(1500 * time.Millisecond)
+			for {
+				select {
+				case pongAddr := <-pongChan:
+					if strings.Contains(pongAddr, c.IP) || pongAddr == addrStr {
+						rtt := time.Since(start)
+						mu.Lock()
+						working = append(working, CandidateResult{
+							Candidate: c,
+							RTT:       rtt,
+						})
+						mu.Unlock()
+						return
+					}
+				case <-timeout:
+					return
+				}
+			}
+		}(cand)
+	}
+
+	wg.Wait()
+
+	if len(working) == 0 {
+		return nil, fmt.Errorf("no candidate responded to UDP connectivity checks via MuxBind")
+	}
+
+	sort.Slice(working, func(i, j int) bool {
+		if working[i].Candidate.Priority != working[j].Candidate.Priority {
+			return working[i].Candidate.Priority > working[j].Candidate.Priority
+		}
+		return working[i].RTT < working[j].RTT
+	})
+
+	return &working[0].Candidate, nil
+}
+
+func fallbackProbe(ctx context.Context, candidates []types.EndpointCandidate, connID string, defaultProbePort int) (*types.EndpointCandidate, error) {
 	localAddr, err := net.ResolveUDPAddr("udp", ":0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve local UDP probe addr: %w", err)
@@ -147,7 +242,6 @@ func ProbeCandidates(ctx context.Context, candidates []types.EndpointCandidate, 
 		return nil, fmt.Errorf("no candidate responded to UDP connectivity checks")
 	}
 
-	// Sort by Priority descending, then RTT ascending
 	sort.Slice(working, func(i, j int) bool {
 		if working[i].Candidate.Priority != working[j].Candidate.Priority {
 			return working[i].Candidate.Priority > working[j].Candidate.Priority

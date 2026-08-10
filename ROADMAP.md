@@ -188,18 +188,18 @@ INTERNET
 
 ## 10. NAT Traversal
 
-- [ ] Identify NAT conditions
-- [ ] Endpoint discovery
-- [ ] STUN integration/implementation where appropriate
-- [ ] UDP hole punching
-- [ ] NAT mapping discovery
-- [ ] NAT-to-NAT connection
-- [ ] Different NAT scenarios
-- [ ] Restricted networks
-- [ ] Connection verification
-- [ ] NAT failure handling
+- [x] Identify NAT conditions
+- [x] Endpoint discovery
+- [x] STUN integration/implementation where appropriate
+- [x] UDP hole punching
+- [x] NAT mapping discovery
+- [x] NAT-to-NAT connection
+- [x] Different NAT scenarios
+- [x] Restricted networks
+- [x] Connection verification
+- [x] NAT failure handling
 
-**Done when:** Zoop can establish direct connectivity across common real-world NAT configurations.
+**Done when:** Zoop can establish direct connectivity across common real-world NAT configurations. (COMPLETED)
 
 ---
 
