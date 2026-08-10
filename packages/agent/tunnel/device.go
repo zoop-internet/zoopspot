@@ -20,6 +20,10 @@ type DeviceManager struct {
 
 // NewDeviceManager allocates a new user-space TUN device and initializes WireGuard on it.
 func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, error) {
+	if logger == nil {
+		logger = device.NewLogger(device.LogLevelSilent, "")
+	}
+
 	// Allocate TUN device
 	tunDev, err := tun.CreateTUN(ifName, device.DefaultMTU)
 	if err != nil {
