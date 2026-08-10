@@ -76,8 +76,14 @@ func (m *DeviceManager) PublicKey() wgtypes.Key {
 	return m.wgPubKey
 }
 
+// DisableForwarding disables IP forwarding and tears down iptables NAT rules.
+func (m *DeviceManager) DisableForwarding() error {
+	return platformDisableForwarding(m.ifName)
+}
+
 // Close tears down the WireGuard device and the underlying TUN interface.
 func (m *DeviceManager) Close() {
+	_ = platformDisableForwarding(m.ifName)
 	if m.wgDev != nil {
 		m.wgDev.Close()
 	}
