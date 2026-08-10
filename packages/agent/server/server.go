@@ -89,6 +89,13 @@ func (s *Server) Start(ctx context.Context, keyPath string) error {
 	}
 	s.logger.Info("wireguard keys generated", "public_key", wgKeys.EncodePublicKey())
 
+	if tunnelManager != nil {
+		if err := tunnelManager.ConfigureDevice(wgKeys.PrivateKey, 0); err != nil {
+			s.logger.Error("failed to configure wireguard device", "error", err)
+			return err
+		}
+	}
+
 	// 4. Register Device with Cloud
 	hostname, _ := os.Hostname()
 	if hostname == "" {

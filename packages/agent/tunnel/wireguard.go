@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"os/exec"
 	"strings"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -12,7 +13,7 @@ import (
 // ConfigureDevice sets the local private key and listen port for the WireGuard device.
 func (m *DeviceManager) ConfigureDevice(privKey wgtypes.Key, listenPort int) error {
 	privKeyHex := hex.EncodeToString(privKey[:])
-	uapi := fmt.Sprintf("private_key=%s\nlisten_port=%d\nreplace_peers=false\n", privKeyHex, listenPort)
+	uapi := fmt.Sprintf("private_key=%s\nlisten_port=%d\n", privKeyHex, listenPort)
 
 	if err := m.wgDev.IpcSet(uapi); err != nil {
 		return fmt.Errorf("failed to configure wireguard device: %w", err)
@@ -49,6 +50,15 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 	if err := m.wgDev.IpcSet(sb.String()); err != nil {
 		return fmt.Errorf("failed to add peer to wireguard device: %w", err)
 	}
+
+	// Add routes for the allowed IPs to the OS routing table using ip route
+	for _, aip := range allowedIPs {
+		out, err := exec.Command("ip", "route", "add", aip, "dev", m.ifName).CombinedOutput()
+		if err != nil && !strings.Contains(string(out), "File exists") {
+			return fmt.Errorf("failed to add route for %s: %v, out: %s", aip, err, string(out))
+		}
+	}
+
 	return nil
 }
 

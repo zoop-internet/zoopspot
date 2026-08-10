@@ -226,6 +226,15 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					replyPayload.EndpointIP = publicIP
 				}
 
+				// Assign ProviderIP to the TUN interface first so it is UP before adding routes
+				if payload.ProviderIP != "" {
+					if err := s.tunnelManager.AssignIP(payload.ProviderIP); err != nil {
+						s.Logger.Error("failed to assign provider IP to interface", "ip", payload.ProviderIP, "error", err)
+					} else {
+						s.Logger.Info("assigned provider IP to interface", "ip", payload.ProviderIP)
+					}
+				}
+
 				if payload.WireGuardPublicKey != "" {
 					s.Logger.Info("received peer wireguard public key, configuring tunnel")
 					peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
@@ -243,11 +252,6 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 							s.Logger.Info("wireguard peer configured successfully on provider")
 						}
 					}
-				}
-
-				// Assign ProviderIP to the TUN interface
-				if payload.ProviderIP != "" {
-					s.tunnelManager.AssignIP(payload.ProviderIP)
 				}
 			}
 
@@ -290,6 +294,15 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				return
 			}
 
+			// Assign RecipientIP to the TUN interface first so it is UP before adding routes
+			if payload.RecipientIP != "" {
+				if err := s.tunnelManager.AssignIP(payload.RecipientIP); err != nil {
+					s.Logger.Error("failed to assign recipient IP to interface", "ip", payload.RecipientIP, "error", err)
+				} else {
+					s.Logger.Info("assigned recipient IP to interface", "ip", payload.RecipientIP)
+				}
+			}
+
 			allowedIPs := []string{"0.0.0.0/0"} // For testing, route everything or just ProviderIP
 			if payload.ProviderIP != "" {
 				allowedIPs = []string{payload.ProviderIP + "/32"}
@@ -300,11 +313,6 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				s.Logger.Error("failed to configure wireguard peer", "error", err)
 			} else {
 				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", payload.EndpointIP, payload.EndpointPort))
-			}
-
-			// Assign RecipientIP to the TUN interface
-			if payload.RecipientIP != "" {
-				s.tunnelManager.AssignIP(payload.RecipientIP)
 			}
 		}
 	}

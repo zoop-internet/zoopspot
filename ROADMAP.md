@@ -83,36 +83,36 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 ## 5. Agent ↔ Control Plane
 
-- [ ] Agent connects to Cloud
-- [ ] Agent authenticates
-- [ ] Device registration
-- [ ] Device synchronization
-- [ ] Device discovery
-- [ ] Peer lookup
-- [ ] Peer authorization
-- [ ] Exchange connection information
-- [ ] Signaling
-- [ ] Connection state synchronization
-- [ ] Handle Cloud disconnects
+- [x] Agent connects to Cloud
+- [x] Agent authenticates
+- [x] Device registration
+- [x] Device synchronization
+- [x] Device discovery
+- [x] Peer lookup
+- [x] Peer authorization
+- [x] Exchange connection information
+- [x] Signaling
+- [x] Connection state synchronization
+- [x] Handle Cloud disconnects
 
-**Done when:** Two real Agents can discover and authorize each other through Zoop Cloud.
+**Done when:** Two real Agents can discover and authorize each other through Zoop Cloud. (COMPLETED)
 
 ---
 
 ## 6. Secure Tunnel
 
-- [ ] Integrate WireGuard
-- [ ] Generate/manage tunnel keys
-- [ ] Create tunnel configuration
-- [ ] Create tunnel interface
-- [ ] Configure peers
-- [ ] Establish Provider ↔ Recipient tunnel
-- [ ] Bring tunnel up/down
-- [ ] Detect tunnel state
-- [ ] Remove tunnel
-- [ ] Tunnel tests
+- [x] Integrate WireGuard
+- [x] Generate/manage tunnel keys
+- [x] Create tunnel configuration
+- [x] Create tunnel interface
+- [x] Configure peers
+- [x] Establish Provider ↔ Recipient tunnel
+- [x] Bring tunnel up/down
+- [x] Detect tunnel state
+- [x] Remove tunnel
+- [x] Tunnel tests
 
-**Done when:** Two endpoints can establish an authenticated encrypted tunnel.
+**Done when:** Two endpoints can establish an authenticated encrypted tunnel. (COMPLETED)
 
 ---
 
@@ -120,19 +120,19 @@ Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can 
 
 *This is the first major **real Data Plane** milestone.*
 
-- [ ] Connect tunnel interface to networking
-- [ ] Receive packets
-- [ ] Forward packets
-- [ ] Route packets
-- [ ] Return packets
-- [ ] Configure forwarding
-- [ ] Handle packet addresses
-- [ ] Test TCP
-- [ ] Test UDP
-- [ ] Test bidirectional traffic
-- [ ] Verify packet integrity
+- [x] Connect tunnel interface to networking
+- [x] Receive packets
+- [x] Forward packets
+- [x] Route packets
+- [x] Return packets
+- [x] Configure forwarding
+- [x] Handle packet addresses
+- [x] Test TCP
+- [x] Test UDP
+- [x] Test bidirectional traffic
+- [x] Verify packet integrity
 
-**Done when:** Actual packets travel through Zoop between two endpoints.
+**Done when:** Actual packets travel through Zoop between two endpoints. (COMPLETED)
 
 ---
 

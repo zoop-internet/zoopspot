@@ -34,3 +34,5 @@ mobile/ios/DerivedData/
 .env
 .env.local
 *.local
+test-data/
+test_tuns.sh
