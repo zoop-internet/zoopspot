@@ -99,17 +99,14 @@ func main() {
 	pRelayClient := agentrelay.NewClient(relayURL, pIdent, privP, logger)
 	rRelayClient := agentrelay.NewClient(relayURL, rIdent, privR, logger)
 
-	if err := pRelayClient.Connect(ctx); err != nil {
-		fmt.Printf("FAILED provider relay connect: %v\n", err)
-		os.Exit(1)
-	}
-	defer pRelayClient.Close()
+	go pRelayClient.Start(ctx)
+	go rRelayClient.Start(ctx)
+	time.Sleep(200 * time.Millisecond)
 
-	if err := rRelayClient.Connect(ctx); err != nil {
-		fmt.Printf("FAILED recipient relay connect: %v\n", err)
+	if !pRelayClient.IsConnected() || !rRelayClient.IsConnected() {
+		fmt.Printf("FAILED: relay clients failed to connect via Start loop\n")
 		os.Exit(1)
 	}
-	defer rRelayClient.Close()
 
 	fmt.Printf("✓ Provider & Recipient connected to Relay (Active connections: %d)\n", relaySrv.ActiveConnections())
 

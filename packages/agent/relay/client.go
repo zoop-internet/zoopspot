@@ -83,6 +83,56 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Start maintains a persistent connection to the Relay server with exponential backoff reconnects.
+func (c *RelayClient) Start(ctx context.Context) {
+	backoff := 1 * time.Second
+	maxBackoff := 30 * time.Second
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-c.stopCh:
+			return
+		default:
+		}
+
+		err := c.Connect(ctx)
+		if err != nil {
+			c.logger.Error("relay server connection failed", "error", err, "retry_in", backoff)
+			select {
+			case <-ctx.Done():
+				return
+			case <-c.stopCh:
+				return
+			case <-time.After(backoff):
+			}
+
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+			continue
+		}
+
+		backoff = 1 * time.Second
+
+		for {
+			select {
+			case <-ctx.Done():
+				_ = c.Close()
+				return
+			case <-c.stopCh:
+				return
+			case <-time.After(1 * time.Second):
+			}
+			if !c.IsConnected() {
+				break
+			}
+		}
+	}
+}
+
 // Send encodes and transmits a frame to a destination device via the relay server.
 func (c *RelayClient) Send(destID types.ID, payload []byte) error {
 	c.mu.RLock()
