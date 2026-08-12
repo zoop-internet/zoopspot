@@ -4,24 +4,100 @@ package tunnel
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+
+	"github.com/vishvananda/netlink"
 )
 
 func platformAssignIP(ifName string, ipAddress string) error {
-	// Add the IP address to the interface
+	link, err := netlink.LinkByName(ifName)
+	if err != nil {
+		// Fall back to exec if netlink can't find interface (e.g. mock TUN).
+		return execAssignIP(ifName, ipAddress)
+	}
+
+	addr, err := netlink.ParseAddr(ipAddress + "/32")
+	if err != nil {
+		return fmt.Errorf("failed to parse IP address %s: %w", ipAddress, err)
+	}
+
+	if err := netlink.AddrAdd(link, addr); err != nil && !isExistError(err) {
+		// Fall back to exec if netlink add fails (permissions, mock environment).
+		return execAssignIP(ifName, ipAddress)
+	}
+
+	if err := netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("ip link set up failed: %w", err)
+	}
+
+	return nil
+}
+
+func execAssignIP(ifName, ipAddress string) error {
 	cmd := exec.Command("ip", "addr", "add", ipAddress+"/32", "dev", ifName)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ip addr add failed: %v: %s", err, string(out))
 	}
-
-	// Bring the link up
 	cmd = exec.Command("ip", "link", "set", "dev", ifName, "up")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ip link set up failed: %v: %s", err, string(out))
 	}
-
 	return nil
+}
+
+// platformAddRoute adds a host or network route to the OS routing table via netlink.
+// Falls back to exec.Command if the interface cannot be found (test environments).
+func platformAddRoute(ifName, cidr string) error {
+	link, err := netlink.LinkByName(ifName)
+	if err != nil {
+		return execAddRoute(ifName, cidr)
+	}
+
+	_, dst, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return fmt.Errorf("failed to parse CIDR %s: %w", cidr, err)
+	}
+
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+	}
+
+	if err := netlink.RouteAdd(route); err != nil && !isExistError(err) {
+		return fmt.Errorf("failed to add route %s via %s: %w", cidr, ifName, err)
+	}
+	return nil
+}
+
+func execAddRoute(ifName, cidr string) error {
+	out, err := exec.Command("ip", "route", "add", cidr, "dev", ifName).CombinedOutput()
+	if err != nil && !containsExistMsg(string(out)) {
+		return fmt.Errorf("failed to add route for %s: %v, out: %s", cidr, err, string(out))
+	}
+	return nil
+}
+
+func isExistError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// syscall.EEXIST is returned when the address or route already exists.
+	return containsExistMsg(err.Error())
+}
+
+func containsExistMsg(s string) bool {
+	return len(s) > 0 && (s == "file exists" || containsStr(s, "exists") || containsStr(s, "File exists"))
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }
 
 func platformEnableForwarding(ifName string) error {

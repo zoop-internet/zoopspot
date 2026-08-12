@@ -20,22 +20,22 @@ func main() {
 
 	cfg := config.LoadConfig()
 
-	// Initialize the data store (in-memory for M4)
+	// Initialize the data store (in-memory for M4; PostgreSQL in M20).
 	st := store.NewInMemoryStore()
 
-	// Initialize services
+	// Initialize services.
 	deviceService := services.NewDeviceService(st)
 	userService := services.NewUserService(st)
 	shareService := services.NewShareService(st)
 	hub := services.NewSignalingHub()
 	connService := services.NewConnectionService(st, hub)
 
-	// Initialize server
+	// Initialize server (relay server shares the store for auth).
 	srv := server.NewServer(cfg, logger, st, deviceService, userService, shareService, connService, hub)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Handle OS signals for graceful shutdown
+	// Handle OS signals for graceful shutdown.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 

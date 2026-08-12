@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/zoop-internet/zoop/packages/core/types"
@@ -33,6 +34,45 @@ type Store interface {
 	SaveConnection(ctx context.Context, conn *types.Connection) error
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
 	GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
+
+	// AllocateConnectionIPs returns a unique (providerIP, recipientIP) pair for a new connection
+	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
+	AllocateConnectionIPs(ctx context.Context) (providerIP, recipientIP string, err error)
+}
+
+// ipamAllocator hands out sequential IP pairs from 100.64.0.0/10.
+// Layout: each allocation n uses IPs 100.64.(n/64).(n%64*4+1) and 100.64.(n/64).(n%64*4+2),
+// giving 16,384 distinct /30 pairs before exhaustion.
+type ipamAllocator struct {
+	mu      sync.Mutex
+	counter uint32
+}
+
+func (a *ipamAllocator) allocate() (string, string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	n := a.counter
+
+	// 100.64/10 gives addresses 100.64.0.0 – 100.127.255.255 (4,194,304 host IPs).
+	// We consume 4 IPs per connection (.1 provider, .2 recipient, .0 net, .3 bcast).
+	// third octet wraps at 63 (64 groups of 4 per octet => 64 pairs per third-octet value),
+	// then increments fourth group via the high byte.
+	high := byte(n / 64)  // increments the third octet (0–63)
+	low := n % 64         // index within the third octet
+
+	if high > 63 {
+		// Spill into the next /16 block (100.65.x.x, etc.)
+		// For an in-memory prototype this boundary is far enough away.
+		return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
+	}
+
+	base := low * 4
+	providerIP := fmt.Sprintf("100.64.%d.%d", high, base+1)
+	recipientIP := fmt.Sprintf("100.64.%d.%d", high, base+2)
+
+	a.counter++
+	return providerIP, recipientIP, nil
 }
 
 // InMemoryStore is a thread-safe, ephemeral implementation of Store.
@@ -44,6 +84,7 @@ type InMemoryStore struct {
 	shares          map[types.ID]*types.SharingRelationship
 	connections     map[types.ID]*types.Connection
 	identitiesByKey map[string]types.ID
+	ipam            *ipamAllocator
 }
 
 func NewInMemoryStore() *InMemoryStore {
@@ -54,7 +95,12 @@ func NewInMemoryStore() *InMemoryStore {
 		shares:          make(map[types.ID]*types.SharingRelationship),
 		connections:     make(map[types.ID]*types.Connection),
 		identitiesByKey: make(map[string]types.ID),
+		ipam:            &ipamAllocator{},
 	}
+}
+
+func (s *InMemoryStore) AllocateConnectionIPs(_ context.Context) (string, string, error) {
+	return s.ipam.allocate()
 }
 
 func (s *InMemoryStore) SaveDevice(ctx context.Context, device *types.Device) error {

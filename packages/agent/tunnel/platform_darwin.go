@@ -31,3 +31,25 @@ func platformEnableForwarding(ifName string) error {
 	// In a real implementation we would dynamically configure pf (packet filter) for NAT
 	return nil
 }
+func platformDisableForwarding(ifName string) error {
+	// Tear down pf rules if any were added
+	return nil
+}
+
+// platformAddRoute adds a host or network route using the macOS route command.
+func platformAddRoute(ifName, cidr string) error {
+	out, err := exec.Command("route", "-q", "add", "-net", cidr, "-interface", ifName).CombinedOutput()
+	if err != nil && string(out) != "" && !containsExistStr(string(out)) {
+		return fmt.Errorf("route add failed: %v: %s", err, string(out))
+	}
+	return nil
+}
+
+func containsExistStr(s string) bool {
+	for i := 0; i+6 <= len(s); i++ {
+		if s[i:i+6] == "exists" {
+			return true
+		}
+	}
+	return false
+}

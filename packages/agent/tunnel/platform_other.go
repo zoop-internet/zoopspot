@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin && !windows
 
 package tunnel
 
@@ -17,4 +17,8 @@ func platformEnableForwarding(ifName string) error {
 
 func platformDisableForwarding(ifName string) error {
 	return nil
+}
+
+func platformAddRoute(ifName, cidr string) error {
+	return fmt.Errorf("route management not implemented on %s", runtime.GOOS)
 }

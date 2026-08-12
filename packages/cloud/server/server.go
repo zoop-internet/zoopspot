@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
+	"github.com/zoop-internet/zoop/packages/cloud/relay"
 	"github.com/zoop-internet/zoop/packages/cloud/services"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
 	"github.com/zoop-internet/zoop/packages/core/config"
@@ -26,6 +27,7 @@ type Server struct {
 	shares      *services.ShareService
 	connections *services.ConnectionService
 	signaling   *services.SignalingHub
+	relayServer *relay.RelayServer
 	mux         *http.ServeMux
 	server      *http.Server
 	upgrader    websocket.Upgrader
@@ -50,6 +52,8 @@ func NewServer(
 		shares:      ss,
 		connections: cs,
 		signaling:   sh,
+		// Relay server uses the store for Ed25519 auth of incoming relay connections.
+		relayServer: relay.NewServer(logger, st),
 		mux:         http.NewServeMux(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -82,6 +86,9 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/devices/{id}/connections/pending", authMw(http.HandlerFunc(s.handleGetPendingConnections())))
 
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
+
+	// Relay endpoint: the relay server performs its own Ed25519 authentication.
+	s.mux.HandleFunc("GET /v1/relay", s.relayServer.HandleWebSocket)
 }
 
 func (s *Server) handleRegisterDevice() http.HandlerFunc {
@@ -295,6 +302,10 @@ func (s *Server) handleUpdateConnectionState() http.HandlerFunc {
 			}
 			if err == services.ErrUnauthorized {
 				api.WriteError(w, "authorization_denied", err.Error(), http.StatusForbidden)
+				return
+			}
+			if err == services.ErrInvalidState {
+				api.WriteError(w, "invalid_state_transition", err.Error(), http.StatusConflict)
 				return
 			}
 			s.logger.Error("failed to update connection state", "error", err)
