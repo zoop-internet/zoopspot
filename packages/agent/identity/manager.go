@@ -12,6 +12,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/core/types"
+	"golang.org/x/crypto/pbkdf2"
+)
+
+// keyFormatVersion is a single byte written at the start of every encrypted key file.
+// Version 1 uses PBKDF2-SHA256 with 100,000 iterations.
+const keyFormatVersion byte = 1
+
+const (
+	pbkdf2Iterations = 100_000
+	pbkdf2KeyLen     = 32 // AES-256
+	pbkdf2SaltLen    = 16
 )
 
 // Manager handles the creation and secure local storage of the agent's identity.
@@ -45,7 +56,7 @@ func (m *manager) LoadOrGenerate(path string) (types.Identity, error) {
 
 	pub := priv.Public().(ed25519.PublicKey)
 
-	// Derive a deterministic Endpoint ID from the public key
+	// Derive a deterministic Endpoint ID from the public key.
 	id := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub))
 
 	return types.Identity{
@@ -61,7 +72,7 @@ func (m *manager) GetPrivateKey(path string) (ed25519.PrivateKey, error) {
 func loadKey(path string) (ed25519.PrivateKey, error) {
 	info, err := os.Stat(path)
 	if err == nil {
-		// Enforce strict owner-only permissions (0600)
+		// Enforce strict owner-only permissions (0600).
 		if info.Mode().Perm() != 0600 {
 			_ = os.Chmod(path, 0600)
 		}
@@ -102,19 +113,21 @@ func saveKey(path string, priv ed25519.PrivateKey) error {
 		}
 	}
 
-	// 0600 ensures only the owner can read/write the private key
+	// 0600 ensures only the owner can read/write the private key.
 	return os.WriteFile(path, data, 0600)
 }
 
+// deriveKey produces a 256-bit AES key using PBKDF2-SHA256.
+// Using 100,000 iterations makes brute-force attacks significantly more expensive
+// compared to the previous single SHA256 round.
 func deriveKey(passphrase string, salt []byte) []byte {
-	// Using a simple SHA256 derivation for M5 prototype.
-	// In production, PBKDF2 or Argon2 should be used.
-	hash := sha256.Sum256(append([]byte(passphrase), salt...))
-	return hash[:]
+	return pbkdf2.Key([]byte(passphrase), salt, pbkdf2Iterations, pbkdf2KeyLen, sha256.New)
 }
 
+// encryptKey encrypts the raw private key bytes with AES-256-GCM using a PBKDF2-derived key.
+// Output format: [version(1)][salt(16)][nonce(12)][ciphertext+tag]
 func encryptKey(data []byte, passphrase string) ([]byte, error) {
-	salt := make([]byte, 16)
+	salt := make([]byte, pbkdf2SaltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
@@ -134,15 +147,35 @@ func encryptKey(data []byte, passphrase string) ([]byte, error) {
 	}
 
 	ciphertext := aesGCM.Seal(nonce, nonce, data, nil)
-	return append(salt, ciphertext...), nil
+
+	// Prepend version byte and salt.
+	result := make([]byte, 0, 1+pbkdf2SaltLen+len(ciphertext))
+	result = append(result, keyFormatVersion)
+	result = append(result, salt...)
+	result = append(result, ciphertext...)
+	return result, nil
 }
 
+// decryptKey decrypts a key file produced by encryptKey.
+// Supports format version 1 (PBKDF2-SHA256 + AES-GCM).
 func decryptKey(data []byte, passphrase string) ([]byte, error) {
-	if len(data) < 16 {
-		return nil, errors.New("ciphertext too short")
+	if len(data) < 1 {
+		return nil, errors.New("encrypted key data too short")
 	}
-	salt := data[:16]
-	ciphertextWithNonce := data[16:]
+
+	version := data[0]
+	switch version {
+	case keyFormatVersion: // 1 — PBKDF2-SHA256
+		data = data[1:] // strip version byte
+	default:
+		return nil, errors.New("unknown key format version — key may have been encrypted with an older Zoop version")
+	}
+
+	if len(data) < pbkdf2SaltLen {
+		return nil, errors.New("encrypted key data too short (missing salt)")
+	}
+	salt := data[:pbkdf2SaltLen]
+	ciphertextWithNonce := data[pbkdf2SaltLen:]
 
 	key := deriveKey(passphrase, salt)
 	block, err := aes.NewCipher(key)
@@ -156,7 +189,7 @@ func decryptKey(data []byte, passphrase string) ([]byte, error) {
 
 	nonceSize := aesGCM.NonceSize()
 	if len(ciphertextWithNonce) < nonceSize {
-		return nil, errors.New("ciphertext too short")
+		return nil, errors.New("encrypted key data too short (missing nonce)")
 	}
 
 	nonce := ciphertextWithNonce[:nonceSize]

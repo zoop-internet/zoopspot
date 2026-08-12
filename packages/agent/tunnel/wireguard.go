@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -51,11 +50,10 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 		return fmt.Errorf("failed to add peer to wireguard device: %w", err)
 	}
 
-	// Add routes for the allowed IPs to the OS routing table using ip route
+	// Add routes for the allowed IPs to the OS routing table using the platform-appropriate method.
 	for _, aip := range allowedIPs {
-		out, err := exec.Command("ip", "route", "add", aip, "dev", m.ifName).CombinedOutput()
-		if err != nil && !strings.Contains(string(out), "File exists") {
-			return fmt.Errorf("failed to add route for %s: %v, out: %s", aip, err, string(out))
+		if err := platformAddRoute(m.ifName, aip); err != nil {
+			return fmt.Errorf("failed to add route for %s: %w", aip, err)
 		}
 	}
 

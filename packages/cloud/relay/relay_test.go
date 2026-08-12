@@ -13,7 +13,7 @@ import (
 )
 
 func TestRelayServer_Forwarding(t *testing.T) {
-	srv := relay.NewServer(nil)
+	srv := relay.NewServer(nil, nil)
 	ts := httptest.NewServer(http.HandlerFunc(srv.HandleWebSocket))
 	defer ts.Close()
 

@@ -15,7 +15,7 @@ import (
 )
 
 func TestRelayClient_Integration(t *testing.T) {
-	srv := cloudrelay.NewServer(nil)
+	srv := cloudrelay.NewServer(nil, nil)
 	ts := httptest.NewServer(http.HandlerFunc(srv.HandleWebSocket))
 	defer ts.Close()
 

@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/google/uuid"
+	"github.com/zoop-internet/zoop/packages/agent/client"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-
 	"github.com/zoop-internet/zoop/packages/core/config"
+	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
 const defaultSocketPath = "/var/run/zoopd.sock"
@@ -36,9 +38,8 @@ func main() {
 	logger.Info("Starting Zoop Linux System Daemon (zoopd)")
 
 	cfg := config.LoadConfig()
-	_ = cfg
 
-	// Setup local identity
+	// Setup local identity.
 	homeDir, _ := os.UserHomeDir()
 	if homeDir == "" {
 		homeDir = "/var/lib/zoop"
@@ -52,7 +53,16 @@ func main() {
 	}
 	logger.Info("loaded local device identity", "endpoint_id", ident.EndpointID.String())
 
-	// Initialize WireGuard device manager
+	privKey, err := idMgr.GetPrivateKey(keyPath)
+	if err != nil {
+		logger.Error("failed to load private key", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize API client for communicating with the Zoop Cloud.
+	apiClient := client.NewAPIClient(cfg.ControlPlaneURL, ident, privKey)
+
+	// Initialize WireGuard device manager.
 	devMgr, err := tunnel.NewDeviceManager("zoop0", nil)
 	if err != nil {
 		logger.Error("failed to initialize TUN device", "error", err)
@@ -63,7 +73,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Socket listener setup
+	// Socket listener setup.
 	_ = os.Remove(defaultSocketPath)
 	_ = os.MkdirAll(filepath.Dir(defaultSocketPath), 0755)
 
@@ -92,15 +102,28 @@ func main() {
 					continue
 				}
 			}
-			go handleIPC(conn, devMgr, logger)
+			go handleIPC(ctx, cancel, conn, devMgr, apiClient, logger)
 		}
 	}()
 
-	<-sigCh
+	select {
+	case sig := <-sigCh:
+		logger.Info("received signal, shutting down", "signal", sig)
+		cancel()
+	case <-ctx.Done():
+	}
+
 	logger.Info("zoopd shutting down cleanly...")
 }
 
-func handleIPC(conn net.Conn, devMgr *tunnel.DeviceManager, logger *slog.Logger) {
+func handleIPC(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	conn net.Conn,
+	devMgr *tunnel.DeviceManager,
+	apiClient *client.APIClient,
+	logger *slog.Logger,
+) {
 	defer conn.Close()
 
 	var cmd DaemonCommand
@@ -119,10 +142,36 @@ func handleIPC(conn net.Conn, devMgr *tunnel.DeviceManager, logger *slog.Logger)
 			Success: true,
 			Message: fmt.Sprintf("zoopd running. WireGuard Port=%d PubKey=%s", port, devMgr.PublicKey().String()),
 		}
+
+	case "connect":
+		if cmd.PeerID == "" {
+			resp = DaemonResponse{Success: false, Message: "peer_id is required for connect"}
+			break
+		}
+		parsedUUID, err := uuid.Parse(cmd.PeerID)
+		if err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("invalid peer_id format: %v", err)}
+			break
+		}
+		providerID := types.ID(parsedUUID)
+
+		connResp, err := apiClient.RequestConnection(ctx, providerID)
+		if err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("failed to request connection: %v", err)}
+			break
+		}
+		resp = DaemonResponse{
+			Success: true,
+			Message: fmt.Sprintf("connection request submitted: id=%s state=%s", connResp.ID, connResp.State),
+		}
+
 	case "stop":
-		resp = DaemonResponse{Success: true, Message: "zoopd stopping"}
-		_ = json.NewEncoder(conn).Encode(resp)
-		os.Exit(0)
+		// Respond before cancelling so the client receives the message.
+		_ = json.NewEncoder(conn).Encode(DaemonResponse{Success: true, Message: "zoopd stopping"})
+		// Trigger graceful shutdown via context — deferred cleanup still runs.
+		cancel()
+		return
+
 	default:
 		resp = DaemonResponse{Success: false, Message: "unknown action: " + cmd.Action}
 	}

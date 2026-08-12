@@ -20,3 +20,15 @@ func platformEnableForwarding(ifName string) error {
 	// Set-NetIPInterface -Forwarding Enabled
 	return nil
 }
+
+func platformDisableForwarding(ifName string) error {
+	return nil
+}
+
+// platformAddRoute adds a host or network route using the Windows route command.
+func platformAddRoute(ifName, cidr string) error {
+	// route ADD <network> MASK <mask> <gateway-or-if> — simplified; full implementation pending.
+	_ = exec.Command("route", "ADD", cidr, "MASK", "255.255.255.255", "0.0.0.0", "IF", ifName).Run()
+	return nil
+}
+

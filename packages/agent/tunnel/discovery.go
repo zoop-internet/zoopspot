@@ -12,7 +12,17 @@ import (
 	"golang.zx2c4.com/wireguard/conn"
 )
 
+// stunServers is a prioritised list of STUN servers tried in order.
+// Using multiple providers prevents single-server outages from breaking NAT traversal.
+var stunServers = []string{
+	"stun.l.google.com:19302",
+	"stun1.l.google.com:19302",
+	"stun2.l.google.com:19302",
+	"stun.cloudflare.com:3478",
+}
+
 // DiscoverPublicEndpoint connects to a STUN server to discover the public Server-Reflexive IP and port.
+// It tries multiple STUN servers in order, returning the first successful result.
 func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 	if val := os.Getenv("ZOOP_LOCAL_TEST"); val != "" {
 		if val == "1" {
@@ -27,6 +37,19 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 		return val, localPort, nil
 	}
 
+	var lastErr error
+	for _, server := range stunServers {
+		ip, port, err := discoverViaSTUN(server, localPort)
+		if err == nil {
+			return ip, port, nil
+		}
+		lastErr = err
+	}
+	return "", 0, fmt.Errorf("all STUN servers failed, last error: %w", lastErr)
+}
+
+// discoverViaSTUN contacts a single STUN server and returns the reflexive address.
+func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 	type result struct {
 		ip   string
 		port int
@@ -35,16 +58,15 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 	resChan := make(chan result, 1)
 
 	go func() {
-		// 1. Resolve STUN server
-		stunServerAddr, err := net.ResolveUDPAddr("udp", "stun.l.google.com:19302")
+		stunServerAddr, err := net.ResolveUDPAddr("udp", stunServer)
 		if err != nil {
-			resChan <- result{"", 0, fmt.Errorf("failed to resolve stun server: %w", err)}
+			resChan <- result{"", 0, fmt.Errorf("failed to resolve %s: %w", stunServer, err)}
 			return
 		}
 
 		conn, err := net.DialUDP("udp", nil, stunServerAddr)
 		if err != nil {
-			resChan <- result{"", 0, fmt.Errorf("failed to dial stun server: %w", err)}
+			resChan <- result{"", 0, fmt.Errorf("failed to dial %s: %w", stunServer, err)}
 			return
 		}
 		defer conn.Close()
@@ -79,7 +101,7 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 		})
 
 		if err != nil {
-			resChan <- result{"", 0, fmt.Errorf("failed to start stun client: %w", err)}
+			resChan <- result{"", 0, fmt.Errorf("failed to start stun request: %w", err)}
 			return
 		}
 
@@ -95,7 +117,7 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 	case res := <-resChan:
 		return res.ip, res.port, res.err
 	case <-time.After(3 * time.Second):
-		return "", 0, fmt.Errorf("stun discovery timed out")
+		return "", 0, fmt.Errorf("stun discovery timed out for %s", stunServer)
 	}
 }
 

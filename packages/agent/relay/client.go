@@ -182,9 +182,22 @@ func (c *RelayClient) Close() error {
 }
 
 func (c *RelayClient) readLoop() {
+	// Snapshot the connection once at the start of this loop iteration.
+	// Only one goroutine reads from a given WebSocket conn so no per-read locking is needed.
+	c.mu.RLock()
+	conn := c.conn
+	c.mu.RUnlock()
+
+	if conn == nil {
+		return
+	}
+
 	defer func() {
 		c.mu.Lock()
-		if c.conn != nil {
+		// Only close and nil c.conn if it still refers to the connection owned
+		// by this readLoop invocation. A concurrent Start() may have already
+		// replaced it with a new connection.
+		if c.conn == conn {
 			_ = c.conn.Close()
 			c.conn = nil
 		}
@@ -196,14 +209,6 @@ func (c *RelayClient) readLoop() {
 		case <-c.stopCh:
 			return
 		default:
-		}
-
-		c.mu.RLock()
-		conn := c.conn
-		c.mu.RUnlock()
-
-		if conn == nil {
-			return
 		}
 
 		msgType, data, err := conn.ReadMessage()
@@ -230,3 +235,4 @@ func (c *RelayClient) readLoop() {
 		}
 	}
 }
+
