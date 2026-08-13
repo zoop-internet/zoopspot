@@ -540,7 +540,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
       <aside className="admin-sidebar" aria-label="Admin navigation">
         <div className="admin-brand">
           <div className="admin-brand-icon">
-            <img src="/zoopicon.png" alt="Zoop" width={32} height={32} />
+            <img src="/zoopicontransparent.png" alt="Zoop" width={32} height={32} />
           </div>
           <div>
             <div className="admin-brand-name">Zoop</div>

@@ -320,7 +320,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
       <aside className="user-sidebar" aria-label="User navigation">
         <div className="sidebar-brand">
           <div className="sidebar-brand-icon">
-            <img src="/zoopicon.png" alt="Zoop" width={32} height={32} />
+            <img src="/zoopicontransparent.png" alt="Zoop" width={32} height={32} />
           </div>
           <div>
             <div className="sidebar-brand-name">Zoop</div>
