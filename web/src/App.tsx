@@ -1,23 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { UserDashboard } from './app/user/UserDashboard';
+import { AdminConsole } from './admin/AdminConsole';
+import type { PortalMode } from './types';
+
+export type { PortalMode };
 
 /**
- * Zoop Web Main Layout Container
- * 
- * Domain Separation:
- * - app.zoop.com (User & Org Management)
- * - admin.zoop.com (Internal Zoop Platform Operations)
+ * App root — in production these are separate domains.
+ * Dev: portal switcher lives in each portal's sidebar (Cloudflare-style).
  */
-export const App: React.FC = () => {
-  return (
-    <div>
-      <header>
-        <h1>Zoop Web</h1>
-      </header>
-      <main>
-        {/* Module components rendered here based on route/domain */}
-      </main>
-    </div>
-  );
+const App: React.FC = () => {
+  const [mode, setMode] = useState<PortalMode>('user');
+  return mode === 'user'
+    ? <UserDashboard mode={mode} onSwitch={setMode} />
+    : <AdminConsole  mode={mode} onSwitch={setMode} />;
 };
 
 export default App;
