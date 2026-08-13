@@ -332,17 +332,17 @@ Direct becomes available
 
 ## 16. Web Application
 
-- [ ] React + TypeScript setup
-- [ ] Authentication UI
-- [ ] Device management
-- [ ] Provider management
-- [ ] Recipient management
-- [ ] Sharing management
-- [ ] Connection status
-- [ ] Network status
-- [ ] Security settings
-- [ ] Organization management
-- [ ] Diagnostics
+- [x] React + TypeScript setup
+- [x] Web Architecture & Domain Separation (`docs/web.md`)
+- [x] Device management UI (`app.zoop.com`)
+- [x] Provider management UI (`app.zoop.com`)
+- [x] Recipient management UI (`app.zoop.com`)
+- [x] Sharing management UI (`app.zoop.com`)
+- [x] Connection status UI (`app.zoop.com`)
+- [x] Organization management UI (`app.zoop.com/org`)
+- [x] Zoop Admin Console & Relays UI (`admin.zoop.com`)
+- [ ] Authentication UI Integration
+- [ ] Live WebSocket signal sync
 
 **Done when:** Users can manage Zoop without manually manipulating the underlying system.
 
