@@ -163,6 +163,7 @@ Then:
 - [Organizations](docs/organizations.md)
 - [Technology](docs/technology.md)
 - [API Specification](docs/api.md)
+- [Web Architecture](docs/web.md)
 - [Abuse & Safety](docs/abuse-and-safety.md)
 - [IPAM & Relays](docs/ipam-and-relays.md)
 
