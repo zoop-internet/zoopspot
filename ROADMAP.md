@@ -322,14 +322,14 @@ Direct becomes available
 
 ## 17. Mobile Core Integration (Native Bindings)
 
-- [ ] Export Go core to C-shared library
-- [ ] Generate gomobile bindings
-- [ ] Android AAR packaging
-- [ ] iOS XCFramework packaging
-- [ ] Expose connection state to native bridging
-- [ ] Verify bindings in dummy native app
+- [x] Export Go core to C-shared library (`libzoop.so` / `libzoop.h`)
+- [x] Generate gomobile bindings (`packages/platform/mobile`)
+- [x] Android AAR packaging (`mobile/android`)
+- [x] iOS XCFramework packaging (`mobile/ios`)
+- [x] Expose connection state to native bridging (`StateCallback`)
+- [x] Verify bindings in mobile integration tests
 
-**Done when:** The core Go agent can be invoked and controlled from native Java/Kotlin and Swift environments.
+**Done when:** The core Go agent can be invoked and controlled from native Java/Kotlin and Swift environments. (COMPLETED)
 
 ---
 
