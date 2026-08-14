@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,16 +53,26 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Inject Zoop Authentication Headers
-	ts := time.Now().Format(time.RFC3339)
-	payload := []byte("zoop-auth|" + ts)
+	// Inject Zoop Authentication Headers with v2 Canonical Payload & Nonce
+	ts := time.Now().UTC().Format(time.RFC3339)
+	nonce := types.NewID().String()
 
+	bodyHash := ""
+	if body != nil {
+		if b, err := json.Marshal(body); err == nil && len(b) > 0 {
+			hash := sha256.Sum256(b)
+			bodyHash = hex.EncodeToString(hash[:])
+		}
+	}
+
+	payload := api.BuildCanonicalPayload(method, path, ts, nonce, bodyHash)
 	sig := ed25519.Sign(c.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	req.Header.Set("X-Zoop-Identity", c.Identity.EndpointID.String())
 	req.Header.Set("X-Zoop-Signature", sigStr)
 	req.Header.Set("X-Zoop-Timestamp", ts)
+	req.Header.Set("X-Zoop-Nonce", nonce)
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

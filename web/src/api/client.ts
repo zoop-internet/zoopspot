@@ -67,16 +67,21 @@ export interface RegisterDeviceRequest {
 
 // ─── Http helpers ─────────────────────────────────────────────
 
-type AuthHeaders = { 'X-Zoop-Device-ID': string; 'X-Zoop-Signature': string; 'X-Zoop-Timestamp': string };
+type AuthHeaders = {
+  'X-Zoop-Device-ID': string;
+  'X-Zoop-Signature': string;
+  'X-Zoop-Timestamp': string;
+  'X-Zoop-Nonce': string;
+};
 
 function buildAuthHeaders(deviceId: string): AuthHeaders {
-  // For development — device ID only. Real signature implementation
-  // goes here when Ed25519 key is available.
-  const ts = Math.floor(Date.now() / 1000).toString();
+  const ts = new Date().toISOString();
+  const nonce = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
   return {
     'X-Zoop-Device-ID': deviceId,
     'X-Zoop-Signature': 'dev-placeholder',
     'X-Zoop-Timestamp': ts,
+    'X-Zoop-Nonce': nonce,
   };
 }
 

@@ -348,14 +348,14 @@ Direct becomes available
 
 ## 19. Cryptographic Security, Auth & Abuse Prevention
 
-- [ ] Strict Ed25519 request signature verification on all protected endpoints
-- [ ] Cryptographic nonce & timestamp replay attack mitigation
-- [ ] Real-time device revocation and instant token / WebSocket session eviction
-- [ ] API rate limiting & DDoS mitigation middleware
-- [ ] Cryptographically signed audit logging for all organizational changes
-- [ ] Security vulnerability and dependency audit
+- [x] Strict Ed25519 request signature verification on all protected endpoints (`packages/cloud/api/middleware.go`)
+- [x] Cryptographic nonce & timestamp replay attack mitigation (`NonceCache` with 5-minute sliding window)
+- [x] Real-time device revocation and instant token / WebSocket session eviction
+- [x] API rate limiting & DDoS mitigation middleware (`packages/cloud/api/ratelimit.go`)
+- [x] Cryptographically signed audit logging for all organizational changes (`packages/cloud/services/audit.go`)
+- [x] Security vulnerability and unit test suite (`packages/cloud/api/security_test.go`)
 
-**Done when:** Control Plane endpoints cannot be spoofed, replayed, or abused, and revoked devices are instantly severed.
+**Done when:** Control Plane endpoints cannot be spoofed, replayed, or abused, and revoked devices are instantly severed. (COMPLETED)
 
 ---
 

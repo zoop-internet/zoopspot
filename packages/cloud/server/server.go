@@ -533,9 +533,12 @@ func (s *Server) handleListOrgMembers() http.HandlerFunc {
 
 // Start runs the HTTP server and blocks until the context is canceled.
 func (s *Server) Start(ctx context.Context) error {
+	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
+	handler := api.RateLimitMiddleware(rateLimiter)(s.mux)
+
 	s.server = &http.Server{
 		Addr:    ":8080", // Can be configured via cfg later
-		Handler: s.mux,
+		Handler: handler,
 	}
 
 	errCh := make(chan error, 1)
