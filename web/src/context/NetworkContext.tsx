@@ -1,126 +1,147 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { DeviceIdentity, ConnectionSession, SharingPolicy, RelayNodeStatus, ConnectionState } from '../types';
-import { INITIAL_DEVICES, INITIAL_SHARES, INITIAL_RELAYS, apiClient } from '../api/client';
-import { signalingClient } from '../api/ws';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ApiDevice, ApiShare, ApiConnection } from '../api/client';
+import {
+  registerDevice, getDevice, getPendingConnections,
+  createShare, createConnection, updateConnectionState,
+} from '../api/client';
+import { getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice } from '../api/identity';
 
-interface NetworkContextType {
-  devices: DeviceIdentity[];
-  activeSession: ConnectionSession | null;
-  shares: SharingPolicy[];
-  relays: RelayNodeStatus[];
-  isConnecting: boolean;
-  connectionStepLog: string[];
-  connectToProvider: (provider: DeviceIdentity) => Promise<void>;
-  disconnectTunnel: () => void;
-  registerDevice: (data: Partial<DeviceIdentity>) => Promise<DeviceIdentity>;
-  toggleProviderMode: (deviceId: string, enabled: boolean) => void;
-  addSharePolicy: (providerId: string, recipientName: string, recipientEmail: string, maxBandwidthMbps?: number) => void;
-  revokeSharePolicy: (shareId: string) => void;
+export interface AppState {
+  // Auth / identity
+  deviceId: string | null;
+  deviceName: string | null;
+  deviceInfo: ApiDevice | null;
+  isRegistering: boolean;
+  registerError: string | null;
+  register: (name: string, platform: string, isProvider: boolean) => Promise<void>;
+  unregister: () => void;
+
+  // Shares
+  shares: ApiShare[];
+  sharesLoading: boolean;
+  refreshShares: () => void;
+  doCreateShare: (recipientId: string) => Promise<void>;
+
+  // Connections
+  pendingConnections: ApiConnection[];
+  connectionsLoading: boolean;
+  refreshConnections: () => void;
+  doConnect: (providerId: string, shareId: string) => Promise<ApiConnection | null>;
+  doDisconnect: (connId: string) => Promise<void>;
 }
 
-const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
+const AppContext = createContext<AppState | undefined>(undefined);
 
-export const NetworkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [devices, setDevices] = useState<DeviceIdentity[]>(INITIAL_DEVICES);
-  const [shares, setShares] = useState<SharingPolicy[]>(INITIAL_SHARES);
-  const [relays] = useState<RelayNodeStatus[]>(INITIAL_RELAYS);
-  const [activeSession, setActiveSession] = useState<ConnectionSession | null>(null);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [connectionStepLog, setConnectionStepLog] = useState<string[]>([]);
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [deviceId, setDeviceId] = useState<string | null>(getSavedDeviceId());
+  const [deviceName, setDeviceName] = useState<string | null>(getSavedDeviceName());
+  const [deviceInfo, setDeviceInfo] = useState<ApiDevice | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
 
+  const [shares, setShares] = useState<ApiShare[]>([]);
+  const [sharesLoading, setSharesLoading] = useState(false);
+
+  const [pendingConnections, setPendingConnections] = useState<ApiConnection[]>([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
+
+  // Load device info when we have a deviceId
   useEffect(() => {
-    const unsub = signalingClient.onTelemetry((telemetry) => {
-      setActiveSession(prev => prev ? { ...prev, telemetry } : null);
-    });
-    return () => unsub();
+    if (!deviceId) { setDeviceInfo(null); return; }
+    getDevice(deviceId, deviceId)
+      .then(d => setDeviceInfo(d))
+      .catch(() => setDeviceInfo(null));
+  }, [deviceId]);
+
+  const register = useCallback(async (name: string, platform: string, isProvider: boolean) => {
+    setIsRegistering(true);
+    setRegisterError(null);
+    try {
+      // Generate a simple random public key placeholder for the web client
+      // In production this would be an actual Ed25519 keypair
+      const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+      const publicKeyB64 = btoa(String.fromCharCode(...randomBytes));
+
+      const caps = isProvider ? ['provider', 'recipient'] : ['recipient'];
+      const resp = await registerDevice({
+        name,
+        platform,
+        public_key: publicKeyB64,
+        capabilities: caps,
+      });
+      saveDeviceId(resp.id.toString(), name);
+      setDeviceId(resp.id.toString());
+      setDeviceName(name);
+      setDeviceInfo(resp);
+    } catch (err: unknown) {
+      setRegisterError(err instanceof Error ? err.message : 'Registration failed');
+    } finally {
+      setIsRegistering(false);
+    }
   }, []);
 
-  const connectToProvider = async (provider: DeviceIdentity) => {
-    setIsConnecting(true);
-    setConnectionStepLog([]);
+  const unregister = useCallback(() => {
+    clearSavedDevice();
+    setDeviceId(null);
+    setDeviceName(null);
+    setDeviceInfo(null);
+    setShares([]);
+    setPendingConnections([]);
+  }, []);
 
-    try {
-      const myDevice = devices.find(d => !d.isProvider) || devices[0];
-      const session = await signalingClient.initiateConnection(
-        provider.id,
-        provider.name,
-        provider.assignedIP,
-        myDevice.id,
-        myDevice.assignedIP,
-        (step: string, _state: ConnectionState) => {
-          setConnectionStepLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${step}`]);
-        }
-      );
-      setActiveSession(session);
-    } catch (err) {
-      console.error('Failed to establish connection:', err);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
+  const refreshShares = useCallback(() => {
+    if (!deviceId) return;
+    setSharesLoading(true);
+    // Backend doesn't have a list-shares endpoint yet; we store locally for now
+    setSharesLoading(false);
+  }, [deviceId]);
 
-  const disconnectTunnel = () => {
-    signalingClient.stopTelemetry();
-    setActiveSession(null);
-    setConnectionStepLog([]);
-  };
+  const doCreateShare = useCallback(async (recipientId: string) => {
+    if (!deviceId) throw new Error('Not registered');
+    const share = await createShare(deviceId, recipientId);
+    setShares(prev => [share, ...prev]);
+  }, [deviceId]);
 
-  const registerDevice = async (data: Partial<DeviceIdentity>) => {
-    const newDev = await apiClient.registerDevice(data);
-    setDevices(prev => [newDev, ...prev]);
-    return newDev;
-  };
+  const refreshConnections = useCallback(() => {
+    if (!deviceId) return;
+    setConnectionsLoading(true);
+    getPendingConnections(deviceId)
+      .then(conns => setPendingConnections(conns))
+      .catch(() => setPendingConnections([]))
+      .finally(() => setConnectionsLoading(false));
+  }, [deviceId]);
 
-  const toggleProviderMode = (deviceId: string, enabled: boolean) => {
-    setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, providerEnabled: enabled } : d));
-  };
+  useEffect(() => {
+    if (deviceId) refreshConnections();
+  }, [deviceId, refreshConnections]);
 
-  const addSharePolicy = (providerId: string, recipientName: string, recipientEmail: string, maxBandwidthMbps?: number) => {
-    const newPolicy: SharingPolicy = {
-      id: `sh-${Date.now().toString(36)}`,
-      providerDeviceId: providerId,
-      recipientIdentifier: recipientEmail,
-      recipientName,
-      status: 'active',
-      maxBandwidthMbps: maxBandwidthMbps || 50,
-      usedTodayBytes: 0,
-      allowLocalLANAccess: true,
-      allowDNSForwarding: true,
-      createdAt: new Date().toISOString(),
-    };
-    setShares(prev => [newPolicy, ...prev]);
-  };
+  const doConnect = useCallback(async (providerId: string, shareId: string): Promise<ApiConnection | null> => {
+    if (!deviceId) return null;
+    const conn = await createConnection(deviceId, providerId, shareId);
+    return conn;
+  }, [deviceId]);
 
-  const revokeSharePolicy = (shareId: string) => {
-    setShares(prev => prev.map(s => s.id === shareId ? { ...s, status: 'revoked' } : s));
-  };
+  const doDisconnect = useCallback(async (connId: string) => {
+    if (!deviceId) return;
+    await updateConnectionState(connId, deviceId, 'disconnected');
+    setPendingConnections(prev => prev.filter(c => c.id !== connId));
+  }, [deviceId]);
 
   return (
-    <NetworkContext.Provider
-      value={{
-        devices,
-        activeSession,
-        shares,
-        relays,
-        isConnecting,
-        connectionStepLog,
-        connectToProvider,
-        disconnectTunnel,
-        registerDevice,
-        toggleProviderMode,
-        addSharePolicy,
-        revokeSharePolicy,
-      }}
-    >
+    <AppContext.Provider value={{
+      deviceId, deviceName, deviceInfo, isRegistering, registerError,
+      register, unregister,
+      shares, sharesLoading, refreshShares, doCreateShare,
+      pendingConnections, connectionsLoading, refreshConnections,
+      doConnect, doDisconnect,
+    }}>
       {children}
-    </NetworkContext.Provider>
+    </AppContext.Provider>
   );
 };
 
-export const useNetwork = () => {
-  const context = useContext(NetworkContext);
-  if (!context) {
-    throw new Error('useNetwork must be used within a NetworkProvider');
-  }
-  return context;
+export const useApp = () => {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
 };
