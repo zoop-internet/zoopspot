@@ -27,11 +27,13 @@ type MobileConfig struct {
 
 // ConnectionStatusDTO encapsulates the current connection state for polling.
 type ConnectionStatusDTO struct {
-	State          string `json:"state"`
-	ActiveEndpoint string `json:"active_endpoint"`
-	IsDirect       bool   `json:"is_direct"`
-	IsInitialized  bool   `json:"is_initialized"`
-	HasTunnel      bool   `json:"has_tunnel"`
+	State          string   `json:"state"`
+	ActiveEndpoint string   `json:"active_endpoint"`
+	IsDirect       bool     `json:"is_direct"`
+	IsInitialized  bool     `json:"is_initialized"`
+	HasTunnel      bool     `json:"has_tunnel"`
+	DNSServers     []string `json:"dns_servers,omitempty"`
+	IsPaused       bool     `json:"is_paused"`
 }
 
 var (
@@ -180,6 +182,38 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 	return nil
 }
 
+// PauseMobile pauses active probing loops when Android (Doze) or iOS suspends the app process.
+func PauseMobile() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	currentStatus.IsPaused = true
+	if recMgr != nil {
+		recMgr.Stop()
+	}
+
+	if activeCallback != nil {
+		activeCallback.OnStateChange("paused", currentStatus.ActiveEndpoint, currentStatus.IsDirect)
+	}
+	slog.Info("Zoop Mobile Core background paused")
+}
+
+// ResumeMobile resumes connection probing loops when the mobile OS brings the app back to foreground.
+func ResumeMobile() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	currentStatus.IsPaused = false
+	if recMgr != nil && activeCtx != nil {
+		recMgr.Start(activeCtx)
+	}
+
+	if activeCallback != nil {
+		activeCallback.OnStateChange(currentStatus.State, currentStatus.ActiveEndpoint, currentStatus.IsDirect)
+	}
+	slog.Info("Zoop Mobile Core foreground resumed")
+}
+
 // NotifyNetworkChange is called when Android ConnectivityManager or iOS NWPathMonitor
 // detects a network change (e.g. Wi-Fi <-> Cellular roaming).
 func NotifyNetworkChange(networkType string) {
@@ -189,7 +223,7 @@ func NotifyNetworkChange(networkType string) {
 	mu.Unlock()
 
 	slog.Info("Mobile network change event received", "network_type", networkType)
-	if rm != nil {
+	if rm != nil && !currentStatus.IsPaused {
 		// ConnectionRecoveryManager will trigger probing on next heartbeat or trigger event
 	}
 

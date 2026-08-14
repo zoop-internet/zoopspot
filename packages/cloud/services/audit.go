@@ -47,6 +47,31 @@ func NewAuditService(secret []byte, logger *slog.Logger) *AuditService {
 	}
 }
 
+// InitHistory initializes the audit chain from existing historical events (e.g. on server restart).
+func (s *AuditService) InitHistory(events []*AuditEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.events = make([]*AuditEvent, len(events))
+	copy(s.events, events)
+
+	if len(events) > 0 {
+		s.lastSig = events[len(events)-1].Signature
+	} else {
+		s.lastSig = "genesis"
+	}
+}
+
+// SetLastSignature forces the chain's predecessor signature (e.g., loaded from persistent store).
+func (s *AuditService) SetLastSignature(sig string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if sig != "" {
+		s.lastSig = sig
+	}
+}
+
 // Log records an audit event with an HMAC signature chaining to the previous entry.
 func (s *AuditService) Log(ctx context.Context, actorID types.ID, action, targetID, metadata string) (*AuditEvent, error) {
 	s.mu.Lock()

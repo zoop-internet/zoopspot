@@ -42,31 +42,44 @@ func WriteJSON(w http.ResponseWriter, status int, v interface{}) {
 	json.NewEncoder(w).Encode(v)
 }
 
-// NonceCache tracks recently seen nonces to prevent replay attacks.
+// NonceCache tracks recently seen nonces to prevent replay attacks with a bounded max capacity.
 type NonceCache struct {
 	mu     sync.Mutex
 	nonces map[string]time.Time
+	maxCap int
 }
 
 func NewNonceCache() *NonceCache {
+	return NewBoundedNonceCache(100000)
+}
+
+func NewBoundedNonceCache(maxCap int) *NonceCache {
+	if maxCap <= 0 {
+		maxCap = 100000
+	}
 	nc := &NonceCache{
 		nonces: make(map[string]time.Time),
+		maxCap: maxCap,
 	}
 	// Cleanup expired nonces every 2 minutes
 	go func() {
 		ticker := time.NewTicker(2 * time.Minute)
 		for range ticker.C {
-			nc.mu.Lock()
-			now := time.Now()
-			for k, expiry := range nc.nonces {
-				if now.After(expiry) {
-					delete(nc.nonces, k)
-				}
-			}
-			nc.mu.Unlock()
+			nc.cleanup()
 		}
 	}()
 	return nc
+}
+
+func (nc *NonceCache) cleanup() {
+	nc.mu.Lock()
+	defer nc.mu.Unlock()
+	now := time.Now()
+	for k, expiry := range nc.nonces {
+		if now.After(expiry) {
+			delete(nc.nonces, k)
+		}
+	}
 }
 
 // CheckAndSet stores a nonce if not already seen. Returns false if duplicate.
@@ -77,6 +90,22 @@ func (nc *NonceCache) CheckAndSet(nonce string, ttl time.Duration) bool {
 	now := time.Now()
 	if expiry, exists := nc.nonces[nonce]; exists && now.Before(expiry) {
 		return false // duplicate replay
+	}
+
+	// If at max capacity, force cleanup of expired entries
+	if len(nc.nonces) >= nc.maxCap {
+		for k, expiry := range nc.nonces {
+			if now.After(expiry) {
+				delete(nc.nonces, k)
+			}
+		}
+		// If still at capacity under heavy attack, evict arbitrary entry to prevent OOM
+		if len(nc.nonces) >= nc.maxCap {
+			for k := range nc.nonces {
+				delete(nc.nonces, k)
+				break
+			}
+		}
 	}
 
 	nc.nonces[nonce] = now.Add(ttl)

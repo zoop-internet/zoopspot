@@ -25,22 +25,32 @@ func NewGatewayManager(cfg RouterConfig, logger *slog.Logger) *GatewayManager {
 	}
 }
 
-// EnableProviderNAT configures MASQUERADE NAT so remote Zoop recipients can access the Internet through the router's WAN.
+// EnableProviderNAT configures MASQUERADE NAT so remote Zoop recipients can access the Internet through the router's WAN (IPv4 + IPv6).
 func (g *GatewayManager) EnableProviderNAT() error {
-	g.logger.Info("Enabling Provider Router NAT MASQUERADE", "wan", g.cfg.WANInterface, "tunnel", g.cfg.TunnelIfName)
+	g.logger.Info("Enabling Provider Router NAT MASQUERADE (IPv4 & IPv6)", "wan", g.cfg.WANInterface, "tunnel", g.cfg.TunnelIfName)
 
-	// Enable sysctl IP forwarding
+	// Enable sysctl IP forwarding for IPv4 and IPv6
 	_ = os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0644)
+	_ = os.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte("1"), 0644)
 
-	// Add iptables MASQUERADE rule for traffic exiting WAN
+	// Add iptables MASQUERADE rule for traffic exiting WAN (IPv4)
 	cmd := exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", g.cfg.WANInterface, "-j", "MASQUERADE")
 	if out, err := cmd.CombinedOutput(); err != nil && !strings.Contains(string(out), "File exists") {
 		g.logger.Debug("iptables provider NAT notice (unprivileged/mock)", "error", err, "output", string(out))
 	}
 
-	// Forward traffic from tunnel to WAN
+	// Add ip6tables MASQUERADE rule for traffic exiting WAN (IPv6)
+	cmd6 := exec.Command("ip6tables", "-t", "nat", "-A", "POSTROUTING", "-o", g.cfg.WANInterface, "-j", "MASQUERADE")
+	if out, err := cmd6.CombinedOutput(); err != nil && !strings.Contains(string(out), "File exists") {
+		g.logger.Debug("ip6tables provider NAT notice (unprivileged/mock)", "error", err, "output", string(out))
+	}
+
+	// Forward traffic from tunnel to WAN (IPv4 & IPv6)
 	_ = exec.Command("iptables", "-A", "FORWARD", "-i", g.cfg.TunnelIfName, "-o", g.cfg.WANInterface, "-j", "ACCEPT").Run()
 	_ = exec.Command("iptables", "-A", "FORWARD", "-i", g.cfg.WANInterface, "-o", g.cfg.TunnelIfName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+
+	_ = exec.Command("ip6tables", "-A", "FORWARD", "-i", g.cfg.TunnelIfName, "-o", g.cfg.WANInterface, "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-A", "FORWARD", "-i", g.cfg.WANInterface, "-o", g.cfg.TunnelIfName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 
 	return nil
 }
@@ -58,11 +68,12 @@ func (g *GatewayManager) EnableRecipientRouting(providerIP string) error {
 	return nil
 }
 
-// Teardown disables router NAT rules and policy routing tables.
+// Teardown disables router NAT rules and policy routing tables for IPv4 and IPv6.
 func (g *GatewayManager) Teardown() error {
 	g.logger.Info("Tearing down Router Gateway configuration")
 	_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", g.cfg.WANInterface, "-j", "MASQUERADE").Run()
 	_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", g.cfg.TunnelIfName, "-j", "MASQUERADE").Run()
+	_ = exec.Command("ip6tables", "-t", "nat", "-D", "POSTROUTING", "-o", g.cfg.WANInterface, "-j", "MASQUERADE").Run()
 	_ = exec.Command("ip", "rule", "del", "from", g.cfg.LANSubnet, "table", fmt.Sprintf("%d", g.cfg.TableID)).Run()
 	return nil
 }
