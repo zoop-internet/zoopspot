@@ -17,6 +17,16 @@ type Organization struct {
 	Name string `json:"name"`
 }
 
+// OrgMember represents a member of an Organization.
+type OrgMember struct {
+	ID             ID     `json:"id"`
+	OrganizationID ID     `json:"organization_id"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	Role           string `json:"role"`
+	Status         string `json:"status"`
+}
+
 // NewID generates a new random ID.
 func NewID() ID {
 	return ID(uuid.New())

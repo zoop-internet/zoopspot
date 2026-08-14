@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { ApiDevice, ApiShare, ApiConnection } from '../api/client';
+import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
-  registerDevice, getDevice, getPendingConnections,
+  registerDevice, getDevice, listDevices, getPendingConnections,
   createShare, createConnection, updateConnectionState,
+  createOrganization, listOrganizations, addOrgMember, listOrgMembers,
 } from '../api/client';
 import { getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice } from '../api/identity';
 
@@ -16,6 +17,11 @@ export interface AppState {
   register: (name: string, platform: string, isProvider: boolean) => Promise<void>;
   unregister: () => void;
 
+  // Device Fleet
+  allDevices: ApiDevice[];
+  devicesLoading: boolean;
+  refreshAllDevices: () => void;
+
   // Shares
   shares: ApiShare[];
   sharesLoading: boolean;
@@ -28,6 +34,17 @@ export interface AppState {
   refreshConnections: () => void;
   doConnect: (providerId: string, shareId: string) => Promise<ApiConnection | null>;
   doDisconnect: (connId: string) => Promise<void>;
+
+  // Organizations
+  organizations: ApiOrg[];
+  currentOrg: ApiOrg | null;
+  orgMembers: ApiOrgMember[];
+  orgsLoading: boolean;
+  refreshOrganizations: () => void;
+  doCreateOrg: (name: string) => Promise<ApiOrg>;
+  selectOrg: (org: ApiOrg) => void;
+  doAddOrgMember: (name: string, email: string, role: string) => Promise<void>;
+  refreshOrgMembers: (orgId?: string) => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -39,11 +56,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
 
+  const [allDevices, setAllDevices] = useState<ApiDevice[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+
   const [shares, setShares] = useState<ApiShare[]>([]);
   const [sharesLoading, setSharesLoading] = useState(false);
 
   const [pendingConnections, setPendingConnections] = useState<ApiConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
+
+  const [organizations, setOrganizations] = useState<ApiOrg[]>([]);
+  const [currentOrg, setCurrentOrg] = useState<ApiOrg | null>(null);
+  const [orgMembers, setOrgMembers] = useState<ApiOrgMember[]>([]);
+  const [orgsLoading, setOrgsLoading] = useState(false);
 
   // Load device info when we have a deviceId
   useEffect(() => {
@@ -53,12 +78,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(() => setDeviceInfo(null));
   }, [deviceId]);
 
+  const refreshAllDevices = useCallback(() => {
+    setDevicesLoading(true);
+    listDevices()
+      .then(d => setAllDevices(d))
+      .catch(() => setAllDevices([]))
+      .finally(() => setDevicesLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refreshAllDevices();
+  }, [refreshAllDevices]);
+
   const register = useCallback(async (name: string, platform: string, isProvider: boolean) => {
     setIsRegistering(true);
     setRegisterError(null);
     try {
-      // Generate a simple random public key placeholder for the web client
-      // In production this would be an actual Ed25519 keypair
       const randomBytes = crypto.getRandomValues(new Uint8Array(32));
       const publicKeyB64 = btoa(String.fromCharCode(...randomBytes));
 
@@ -73,12 +108,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDeviceId(resp.id.toString());
       setDeviceName(name);
       setDeviceInfo(resp);
+      refreshAllDevices();
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsRegistering(false);
     }
-  }, []);
+  }, [refreshAllDevices]);
 
   const unregister = useCallback(() => {
     clearSavedDevice();
@@ -92,7 +128,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshShares = useCallback(() => {
     if (!deviceId) return;
     setSharesLoading(true);
-    // Backend doesn't have a list-shares endpoint yet; we store locally for now
     setSharesLoading(false);
   }, [deviceId]);
 
@@ -127,13 +162,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPendingConnections(prev => prev.filter(c => c.id !== connId));
   }, [deviceId]);
 
+  // Organizations logic
+  const refreshOrganizations = useCallback(() => {
+    setOrgsLoading(true);
+    listOrganizations()
+      .then(orgs => {
+        setOrganizations(orgs);
+        if (orgs.length > 0 && !currentOrg) {
+          setCurrentOrg(orgs[0]);
+        }
+      })
+      .catch(() => setOrganizations([]))
+      .finally(() => setOrgsLoading(false));
+  }, [currentOrg]);
+
+  useEffect(() => {
+    refreshOrganizations();
+  }, [refreshOrganizations]);
+
+  const refreshOrgMembers = useCallback((orgId?: string) => {
+    const targetId = orgId || currentOrg?.id.toString();
+    if (!targetId) return;
+    listOrgMembers(targetId)
+      .then(m => setOrgMembers(m))
+      .catch(() => setOrgMembers([]));
+  }, [currentOrg]);
+
+  useEffect(() => {
+    if (currentOrg) {
+      refreshOrgMembers(currentOrg.id.toString());
+    }
+  }, [currentOrg, refreshOrgMembers]);
+
+  const doCreateOrg = useCallback(async (name: string): Promise<ApiOrg> => {
+    const org = await createOrganization(name);
+    setOrganizations(prev => [...prev, org]);
+    setCurrentOrg(org);
+    return org;
+  }, []);
+
+  const selectOrg = useCallback((org: ApiOrg) => {
+    setCurrentOrg(org);
+    refreshOrgMembers(org.id.toString());
+  }, [refreshOrgMembers]);
+
+  const doAddOrgMember = useCallback(async (name: string, email: string, role: string) => {
+    if (!currentOrg) throw new Error('No active organization');
+    const member = await addOrgMember(currentOrg.id.toString(), name, email, role);
+    setOrgMembers(prev => [...prev, member]);
+  }, [currentOrg]);
+
   return (
     <AppContext.Provider value={{
       deviceId, deviceName, deviceInfo, isRegistering, registerError,
       register, unregister,
+      allDevices, devicesLoading, refreshAllDevices,
       shares, sharesLoading, refreshShares, doCreateShare,
       pendingConnections, connectionsLoading, refreshConnections,
       doConnect, doDisconnect,
+      organizations, currentOrg, orgMembers, orgsLoading,
+      refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,
     }}>
       {children}
     </AppContext.Provider>

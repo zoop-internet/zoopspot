@@ -81,6 +81,27 @@ func (s *DeviceService) GetDevice(ctx context.Context, id types.ID) (*api.Device
 	}, nil
 }
 
+func (s *DeviceService) ListDevices(ctx context.Context) ([]api.DeviceResponse, error) {
+	devices, err := s.store.ListDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []api.DeviceResponse
+	for _, d := range devices {
+		resp = append(resp, api.DeviceResponse{
+			ID:     d.ID,
+			Name:   d.Name,
+			OS:     d.OS,
+			Status: string(d.State),
+		})
+	}
+	if resp == nil {
+		resp = []api.DeviceResponse{}
+	}
+	return resp, nil
+}
+
 // Revoke transition a device state to revoked.
 func (s *DeviceService) Revoke(ctx context.Context, id types.ID) error {
 	device, err := s.store.GetDevice(ctx, id)

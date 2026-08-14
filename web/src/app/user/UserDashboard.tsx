@@ -212,61 +212,81 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
 
 /* ─── Devices tab ─────────────────────────────────────────────── */
 const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
-  const { deviceId, deviceName, deviceInfo } = useApp();
-
-  if (!deviceId) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon"><Ico d={I.monitor} size={22} /></div>
-        <h3>No devices registered</h3>
-        <p>Register this browser session as a Zoop endpoint to manage connections and sharing.</p>
-        <button className="btn btn-primary btn-sm" id="devices-register-btn" onClick={onRegister} style={{ marginTop: 8 }}>
-          <Ico d={I.plus} />Register Device
-        </button>
-      </div>
-    );
-  }
+  const { deviceId, deviceName, deviceInfo, allDevices, devicesLoading, refreshAllDevices } = useApp();
 
   return (
-    <div className="section">
-      <div className="section-header"><span className="section-title">This Device</span></div>
-      <div className="info-row">
-        <span className="info-key">Device Name</span>
-        <span className="info-val">{deviceName}</span>
-        <span />
-      </div>
-      <div className="info-row">
-        <span className="info-key">Device ID</span>
-        <span className="info-val">{deviceId}</span>
-        <button className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(deviceId)}>
-          <Ico d={I.copy} size={12} />Copy
-        </button>
-      </div>
-      <div className="info-row">
-        <span className="info-key">Platform</span>
-        <span className="info-val">{deviceInfo?.platform ?? '—'}</span>
-        <span />
-      </div>
-      <div className="info-row">
-        <span className="info-key">Capabilities</span>
-        <span className="info-val">{(deviceInfo?.capabilities ?? []).join(', ') || '—'}</span>
-        <span />
-      </div>
-      <div className="info-row">
-        <span className="info-key">Status</span>
-        <span className="info-val">
-          <span className="badge badge-success">{deviceInfo?.status ?? 'active'}</span>
-        </span>
-        <span />
-      </div>
-      {deviceInfo?.assigned_ip && (
-        <div className="info-row">
-          <span className="info-key">Assigned IP</span>
-          <span className="info-val">{deviceInfo.assigned_ip}</span>
-          <span />
+    <>
+      {deviceId && (
+        <div className="section" style={{ marginBottom: 16 }}>
+          <div className="section-header"><span className="section-title">This Device Session</span></div>
+          <div className="info-row">
+            <span className="info-key">Device Name</span>
+            <span className="info-val">{deviceName}</span>
+            <span />
+          </div>
+          <div className="info-row">
+            <span className="info-key">Device ID</span>
+            <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId}</span>
+            <button className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(deviceId)}>
+              <Ico d={I.copy} size={12} />Copy
+            </button>
+          </div>
+          <div className="info-row">
+            <span className="info-key">Platform</span>
+            <span className="info-val">{deviceInfo?.platform ?? '—'}</span>
+            <span />
+          </div>
         </div>
       )}
-    </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Registered Fleet Devices ({allDevices.length})</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-xs" onClick={refreshAllDevices}>
+              {devicesLoading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+            </button>
+            <button className="btn btn-primary btn-xs" onClick={onRegister}>
+              <Ico d={I.plus} />Register New
+            </button>
+          </div>
+        </div>
+        {allDevices.length === 0 ? (
+          <div className="empty-state" style={{ padding: '36px 24px' }}>
+            <div className="empty-icon"><Ico d={I.monitor} size={22} /></div>
+            <h3>No devices in system</h3>
+            <p>Register a device to add it to the Control Plane registry.</p>
+            <button className="btn btn-primary btn-sm" onClick={onRegister} style={{ marginTop: 8 }}>
+              <Ico d={I.plus} />Register Device
+            </button>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Device ID</th>
+                <th>OS / Platform</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allDevices.map(d => (
+                <tr key={d.id.toString()}>
+                  <td style={{ fontWeight: 600 }}>
+                    {d.name || 'Unnamed Device'}
+                    {d.id.toString() === deviceId && <span className="badge badge-info" style={{ marginLeft: 6 }}>Current</span>}
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                  <td>{d.os || d.platform || '—'}</td>
+                  <td><span className={`badge ${d.status === 'trusted' || d.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{d.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 };
 

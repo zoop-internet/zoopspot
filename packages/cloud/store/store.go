@@ -19,6 +19,7 @@ var (
 type Store interface {
 	SaveDevice(ctx context.Context, device *types.Device) error
 	GetDevice(ctx context.Context, id types.ID) (*types.Device, error)
+	ListDevices(ctx context.Context) ([]*types.Device, error)
 
 	SaveIdentity(ctx context.Context, identity *types.Identity) error
 	GetIdentity(ctx context.Context, endpointID types.ID) (*types.Identity, error)
@@ -26,6 +27,13 @@ type Store interface {
 
 	SaveUser(ctx context.Context, account *types.Account) error
 	GetUser(ctx context.Context, id types.ID) (*types.Account, error)
+
+	SaveOrganization(ctx context.Context, org *types.Organization) error
+	GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error)
+	ListOrganizations(ctx context.Context) ([]*types.Organization, error)
+
+	SaveOrgMember(ctx context.Context, member *types.OrgMember) error
+	GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error)
 
 	SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error
 	GetSharingRelationship(ctx context.Context, id types.ID) (*types.SharingRelationship, error)
@@ -81,6 +89,8 @@ type InMemoryStore struct {
 	devices         map[types.ID]*types.Device
 	identities      map[types.ID]*types.Identity
 	users           map[types.ID]*types.Account
+	organizations   map[types.ID]*types.Organization
+	orgMembers      map[types.ID][]*types.OrgMember
 	shares          map[types.ID]*types.SharingRelationship
 	connections     map[types.ID]*types.Connection
 	identitiesByKey map[string]types.ID
@@ -92,6 +102,8 @@ func NewInMemoryStore() *InMemoryStore {
 		devices:         make(map[types.ID]*types.Device),
 		identities:      make(map[types.ID]*types.Identity),
 		users:           make(map[types.ID]*types.Account),
+		organizations:   make(map[types.ID]*types.Organization),
+		orgMembers:      make(map[types.ID][]*types.OrgMember),
 		shares:          make(map[types.ID]*types.SharingRelationship),
 		connections:     make(map[types.ID]*types.Connection),
 		identitiesByKey: make(map[string]types.ID),
@@ -227,4 +239,64 @@ func (s *InMemoryStore) GetPendingConnections(ctx context.Context, endpointID ty
 		}
 	}
 	return pending, nil
+}
+
+func (s *InMemoryStore) ListDevices(ctx context.Context) ([]*types.Device, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	devices := make([]*types.Device, 0, len(s.devices))
+	for _, d := range s.devices {
+		devices = append(devices, d)
+	}
+	return devices, nil
+}
+
+func (s *InMemoryStore) SaveOrganization(ctx context.Context, org *types.Organization) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.organizations[org.ID] = org
+	return nil
+}
+
+func (s *InMemoryStore) GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	org, ok := s.organizations[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return org, nil
+}
+
+func (s *InMemoryStore) ListOrganizations(ctx context.Context) ([]*types.Organization, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	orgs := make([]*types.Organization, 0, len(s.organizations))
+	for _, o := range s.organizations {
+		orgs = append(orgs, o)
+	}
+	return orgs, nil
+}
+
+func (s *InMemoryStore) SaveOrgMember(ctx context.Context, member *types.OrgMember) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.orgMembers[member.OrganizationID] = append(s.orgMembers[member.OrganizationID], member)
+	return nil
+}
+
+func (s *InMemoryStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	members := s.orgMembers[orgID]
+	if members == nil {
+		return []*types.OrgMember{}, nil
+	}
+	return members, nil
 }

@@ -19,18 +19,19 @@ import (
 )
 
 type Server struct {
-	cfg         config.Config
-	logger      *slog.Logger
-	store       store.Store
-	devices     *services.DeviceService
-	users       *services.UserService
-	shares      *services.ShareService
-	connections *services.ConnectionService
-	signaling   *services.SignalingHub
-	relayServer *relay.RelayServer
-	mux         *http.ServeMux
-	server      *http.Server
-	upgrader    websocket.Upgrader
+	cfg           config.Config
+	logger        *slog.Logger
+	store         store.Store
+	devices       *services.DeviceService
+	users         *services.UserService
+	organizations *services.OrganizationService
+	shares        *services.ShareService
+	connections   *services.ConnectionService
+	signaling     *services.SignalingHub
+	relayServer   *relay.RelayServer
+	mux           *http.ServeMux
+	server        *http.Server
+	upgrader      websocket.Upgrader
 }
 
 func NewServer(
@@ -39,19 +40,21 @@ func NewServer(
 	st store.Store,
 	ds *services.DeviceService,
 	us *services.UserService,
+	os *services.OrganizationService,
 	ss *services.ShareService,
 	cs *services.ConnectionService,
 	sh *services.SignalingHub,
 ) *Server {
 	s := &Server{
-		cfg:         cfg,
-		logger:      logger,
-		store:       st,
-		devices:     ds,
-		users:       us,
-		shares:      ss,
-		connections: cs,
-		signaling:   sh,
+		cfg:           cfg,
+		logger:        logger,
+		store:         st,
+		devices:       ds,
+		users:         us,
+		organizations: os,
+		shares:        ss,
+		connections:   cs,
+		signaling:     sh,
 		// Relay server uses the store for Ed25519 auth of incoming relay connections.
 		relayServer: relay.NewServer(logger, st),
 		mux:         http.NewServeMux(),
@@ -72,10 +75,17 @@ func (s *Server) routes() {
 
 	// Registration does not require Zoop Auth because the device doesn't exist yet
 	s.mux.HandleFunc("POST /v1/devices", s.handleRegisterDevice())
+	s.mux.HandleFunc("GET /v1/devices", s.handleListDevices())
 
 	// Authenticated routes
 	s.mux.Handle("GET /v1/devices/{id}", authMw(http.HandlerFunc(s.handleGetDevice())))
 	s.mux.Handle("GET /v1/devices/{id}/endpoints", authMw(http.HandlerFunc(s.handleGetEndpoints())))
+
+	s.mux.HandleFunc("POST /v1/organizations", s.handleCreateOrganization())
+	s.mux.HandleFunc("GET /v1/organizations", s.handleListOrganizations())
+	s.mux.HandleFunc("GET /v1/organizations/{id}", s.handleGetOrganization())
+	s.mux.HandleFunc("POST /v1/organizations/{id}/members", s.handleAddOrgMember())
+	s.mux.HandleFunc("GET /v1/organizations/{id}/members", s.handleListOrgMembers())
 
 	s.mux.Handle("POST /v1/shares", authMw(http.HandlerFunc(s.handleCreateShare())))
 	s.mux.Handle("GET /v1/shares/{id}", authMw(http.HandlerFunc(s.handleGetShare())))
@@ -405,6 +415,119 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 				// Optionally send an error message back to the sender
 			}
 		}
+	}
+}
+
+func (s *Server) handleListDevices() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		devices, err := s.devices.ListDevices(r.Context())
+		if err != nil {
+			s.logger.Error("failed to list devices", "error", err)
+			api.WriteError(w, "internal_error", "failed to list devices", http.StatusInternalServerError)
+			return
+		}
+		api.WriteJSON(w, http.StatusOK, devices)
+	}
+}
+
+func (s *Server) handleCreateOrganization() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req api.CreateOrgRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.organizations.CreateOrg(r.Context(), req)
+		if err != nil {
+			s.logger.Error("failed to create organization", "error", err)
+			api.WriteError(w, "internal_error", err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleListOrganizations() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgs, err := s.organizations.ListOrgs(r.Context())
+		if err != nil {
+			s.logger.Error("failed to list organizations", "error", err)
+			api.WriteError(w, "internal_error", "failed to list organizations", http.StatusInternalServerError)
+			return
+		}
+		api.WriteJSON(w, http.StatusOK, orgs)
+	}
+}
+
+func (s *Server) handleGetOrganization() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid organization id format", http.StatusBadRequest)
+			return
+		}
+
+		org, err := s.organizations.GetOrg(r.Context(), types.ID(parsedUUID))
+		if err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "organization not found", http.StatusNotFound)
+				return
+			}
+			s.logger.Error("failed to get organization", "error", err)
+			api.WriteError(w, "internal_error", "failed to lookup organization", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, org)
+	}
+}
+
+func (s *Server) handleAddOrgMember() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		orgID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid organization id format", http.StatusBadRequest)
+			return
+		}
+
+		var req api.AddOrgMemberRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := s.organizations.AddMember(r.Context(), types.ID(orgID), req)
+		if err != nil {
+			s.logger.Error("failed to add organization member", "error", err)
+			api.WriteError(w, "internal_error", err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleListOrgMembers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		orgID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid organization id format", http.StatusBadRequest)
+			return
+		}
+
+		members, err := s.organizations.ListMembers(r.Context(), types.ID(orgID))
+		if err != nil {
+			s.logger.Error("failed to list organization members", "error", err)
+			api.WriteError(w, "internal_error", "failed to list members", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, members)
 	}
 }
 

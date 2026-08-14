@@ -26,12 +26,13 @@ func main() {
 	// Initialize services.
 	deviceService := services.NewDeviceService(st)
 	userService := services.NewUserService(st)
+	orgService := services.NewOrganizationService(st)
 	shareService := services.NewShareService(st)
 	hub := services.NewSignalingHub()
 	connService := services.NewConnectionService(st, hub)
 
 	// Initialize server (relay server shares the store for auth).
-	srv := server.NewServer(cfg, logger, st, deviceService, userService, shareService, connService, hub)
+	srv := server.NewServer(cfg, logger, st, deviceService, userService, orgService, shareService, connService, hub)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

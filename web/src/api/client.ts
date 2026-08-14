@@ -12,6 +12,7 @@ export interface ApiDevice {
   id: string;
   name: string;
   platform: string;
+  os?: string;
   capabilities: string[];
   status: string;
   public_key?: string;
@@ -40,6 +41,20 @@ export interface ApiEndpoints {
   device_id: string;
   public_key: string;
   wireguard_public_key?: string;
+}
+
+export interface ApiOrg {
+  id: string;
+  name: string;
+}
+
+export interface ApiOrgMember {
+  id: string;
+  organization_id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
 }
 
 export interface RegisterDeviceRequest {
@@ -93,6 +108,10 @@ export async function registerDevice(req: RegisterDeviceRequest): Promise<ApiDev
   });
 }
 
+export async function listDevices(): Promise<ApiDevice[]> {
+  return apiFetch<ApiDevice[]>('/v1/devices');
+}
+
 export async function getDevice(deviceId: string, authDeviceId: string): Promise<ApiDevice> {
   return apiFetch<ApiDevice>(`/v1/devices/${deviceId}`, {
     headers: buildAuthHeaders(authDeviceId),
@@ -109,6 +128,34 @@ export async function getPendingConnections(deviceId: string): Promise<ApiConnec
   return apiFetch<ApiConnection[]>(`/v1/devices/${deviceId}/connections/pending`, {
     headers: buildAuthHeaders(deviceId),
   });
+}
+
+// ─── Organization operations ──────────────────────────────────
+
+export async function createOrganization(name: string): Promise<ApiOrg> {
+  return apiFetch<ApiOrg>('/v1/organizations', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function listOrganizations(): Promise<ApiOrg[]> {
+  return apiFetch<ApiOrg[]>('/v1/organizations');
+}
+
+export async function getOrganization(orgId: string): Promise<ApiOrg> {
+  return apiFetch<ApiOrg>(`/v1/organizations/${orgId}`);
+}
+
+export async function addOrgMember(orgId: string, name: string, email: string, role: string): Promise<ApiOrgMember> {
+  return apiFetch<ApiOrgMember>(`/v1/organizations/${orgId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ name, email, role }),
+  });
+}
+
+export async function listOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
+  return apiFetch<ApiOrgMember[]>(`/v1/organizations/${orgId}/members`);
 }
 
 // ─── Share operations ─────────────────────────────────────────

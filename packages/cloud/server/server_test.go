@@ -26,11 +26,12 @@ func TestServer_RegisterDevice(t *testing.T) {
 	st := store.NewInMemoryStore()
 	ds := services.NewDeviceService(st)
 	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
 	ss := services.NewShareService(st)
 	hub := services.NewSignalingHub()
 	cs := services.NewConnectionService(st, hub)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
 
 	_, pub, _ := ed25519.GenerateKey(rand.Reader)
 	pubStr := base64.StdEncoding.EncodeToString(pub)
@@ -65,11 +66,12 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	st := store.NewInMemoryStore()
 	ds := services.NewDeviceService(st)
 	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
 	ss := services.NewShareService(st)
 	hub := services.NewSignalingHub()
 	cs := services.NewConnectionService(st, hub)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, ss, cs, hub)
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
 
 	// Create Identity
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)

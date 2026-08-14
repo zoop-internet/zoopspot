@@ -24,7 +24,37 @@ type RegisterDeviceRequest struct {
 // DeviceResponse is returned for device lookups and registrations.
 type DeviceResponse struct {
 	ID     types.ID `json:"id"`
+	Name   string   `json:"name,omitempty"`
+	OS     string   `json:"os,omitempty"`
 	Status string   `json:"status"`
+}
+
+// CreateOrgRequest is the payload for POST /v1/organizations
+type CreateOrgRequest struct {
+	Name string `json:"name"`
+}
+
+// OrgResponse is returned for Organization lookups and creations.
+type OrgResponse struct {
+	ID   types.ID `json:"id"`
+	Name string   `json:"name"`
+}
+
+// AddOrgMemberRequest is the payload for POST /v1/organizations/{id}/members
+type AddOrgMemberRequest struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+// OrgMemberResponse is returned for member lookups and creations.
+type OrgMemberResponse struct {
+	ID             types.ID `json:"id"`
+	OrganizationID types.ID `json:"organization_id"`
+	Name           string   `json:"name"`
+	Email          string   `json:"email"`
+	Role           string   `json:"role"`
+	Status         string   `json:"status"`
 }
 
 // CreateShareRequest is the payload for POST /v1/shares
