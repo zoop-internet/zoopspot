@@ -333,188 +333,98 @@ Direct becomes available
 
 ---
 
-## 18. Android Implementation
+## 18. Persistent Database & State Layer (PostgreSQL + Redis)
 
-- [ ] Kotlin UI for device management
-- [ ] Android VpnService integration
-- [ ] Background behavior and Doze management
-- [ ] Foreground service for persistent connection
-- [ ] Network change detection
-- [ ] Battery constraints handling
-- [ ] Permissions handling
+- [x] PostgreSQL store implementation for Control Plane `Store` interface (`packages/cloud/store/postgres.go`)
+- [x] Relational schema migrations (`packages/cloud/store/migrations/001_initial_schema.sql`)
+- [x] Indexed UUID lookups and cryptographic public key indices
+- [x] Redis integration for ephemeral signaling sessions, presence, and pub/sub (`packages/cloud/store/redis.go`)
+- [x] Persistent IPAM subnet pool allocator
+- [x] Database integration tests and schema validation
 
-**Done when:** Android devices can act as Zoop endpoints using a native UI.
-
----
-
-## 19. iOS Implementation
-
-- [ ] Swift UI for device management
-- [ ] Apple NetworkExtension (PacketTunnelProvider)
-- [ ] Background execution limitations handling
-- [ ] Network changes detection
-- [ ] Permissions handling
-
-**Done when:** iOS devices can act as Zoop endpoints using a native UI.
+**Done when:** All Control Plane data survives server restarts and scales horizontally across stateless API replicas. (COMPLETED)
 
 ---
 
-## 20. Observability
+## 19. Cryptographic Security, Auth & Abuse Prevention
 
-- [ ] Agent logs
-- [ ] Cloud logs
-- [ ] Connection state
-- [ ] Tunnel state
-- [ ] Direct/relay status
-- [ ] NAT status
-- [ ] Latency
-- [ ] Packet loss
-- [ ] Throughput
-- [ ] Connection events
-- [ ] Error reporting
-- [ ] Health monitoring
-- [ ] User-facing diagnostics
+- [ ] Strict Ed25519 request signature verification on all protected endpoints
+- [ ] Cryptographic nonce & timestamp replay attack mitigation
+- [ ] Real-time device revocation and instant token / WebSocket session eviction
+- [ ] API rate limiting & DDoS mitigation middleware
+- [ ] Cryptographically signed audit logging for all organizational changes
+- [ ] Security vulnerability and dependency audit
 
-Example:
-
-```text
-Identity        ✓
-Authorization   ✓
-Discovery       ✓
-NAT traversal   ✓
-Direct path     ✗
-Relay           ✓
-Tunnel          ✓
-Internet        ✓
-```
-
-**Done when:** We can explain why a connection works, fails, or is using a relay.
+**Done when:** Control Plane endpoints cannot be spoofed, replayed, or abused, and revoked devices are instantly severed.
 
 ---
 
-## 21. Real-Network Validation
+## 20. Distributed Multi-Node Relay & STUN/TURN Infrastructure
 
-Test with actual devices and networks:
+- [ ] Multi-region relay cluster coordination in Control Plane
+- [ ] Dynamic relay selection based on geo-location and RTT latency probes
+- [ ] STUN/TURN server allocation for restrictive symmetric NAT traversal
+- [ ] Relay bandwidth metering and session isolation
+- [ ] Relay failover stress testing under network partition
 
-- [ ] Phone → Provider
-- [ ] Phone → Internet
-- [ ] Wi-Fi → Wi-Fi
-- [ ] Wi-Fi → Cellular
-- [ ] Cellular → Wi-Fi
-- [ ] Cellular → Cellular
-- [ ] NAT → NAT
-- [ ] IPv4 → IPv4
-- [ ] IPv6 → IPv6
-- [ ] Restricted networks
-- [ ] Direct connection
-- [ ] Relay connection
-- [ ] Relay → Direct
-- [ ] Network switching
-- [ ] Device restart
-- [ ] Long-running connections
-
-**Done when:** Zoop works outside our development machine/network.
+**Done when:** Peers on restrictive symmetric NATs can relay through the lowest-latency geo-distributed relay nodes.
 
 ---
 
-## 22. Performance Optimization
+## 21. Observability, Telemetry & Diagnostics
 
-- [ ] Measure latency
-- [ ] Measure throughput
-- [ ] Measure CPU
-- [ ] Measure memory
-- [ ] Measure tunnel overhead
-- [ ] Measure direct path
-- [ ] Measure relay path
-- [ ] Measure connection establishment
-- [ ] Measure recovery time
-- [ ] Identify bottlenecks
-- [ ] Optimize
-- [ ] Re-test
+- [ ] Prometheus metrics exporter (`/metrics`) for Control Plane and Agent
+- [ ] Structured OpenTelemetry distributed tracing across signaling and data plane
+- [ ] Deep connection state machine telemetry (P2P vs Relay, handshake RTT, packet loss, bandwidth)
+- [ ] CLI and API diagnostic health probes (`zoop doctor` / `/v1/health`)
+- [ ] Real-time alerting for signaling disconnects and relay saturation
 
-**Done when:** Performance meets the requirements established for Zoop.
+**Done when:** We can inspect, trace, and diagnose any connection failure, latency spike, or route degradation in real time.
 
 ---
 
-## 23. Production Infrastructure
+## 22. Multi-Node Real-Network Simulation & E2E Validation
 
-- [ ] Choose production infrastructure
-- [ ] Deploy Control Plane
-- [ ] Deploy database
-- [ ] Configure DNS
-- [ ] Configure TLS
-- [ ] Configure secrets
-- [ ] Configure networking
-- [ ] Configure monitoring
-- [ ] Configure backups
-- [ ] Configure CI/CD
-- [ ] Configure environments
-- [ ] Configure deployment automation
+- [ ] Docker Compose multi-subnet testbed simulating WAN, CGNAT, Symmetric NAT, and Port-Restricted Cones
+- [ ] Automated network degradation simulation (packet loss, jitter, bandwidth throttling)
+- [ ] Seamless Wi-Fi ↔ Cellular roaming validation under heavy traffic
+- [ ] Long-running tunnel endurance and memory leak validation
+- [ ] Router LAN policy routing validation with real forwarding traffic
 
-**Done when:** Zoop Cloud can operate reliably outside development.
+**Done when:** Zoop is proven rock-solid across hostile, degraded, and complex real-world network topologies.
 
 ---
 
-## 24. Production Hardening
+## 23. Android Native Client Implementation
 
-- [ ] Security audit
-- [ ] Dependency audit
-- [ ] API security testing
-- [ ] Network security testing
-- [ ] Load testing
-- [ ] Failure testing
-- [ ] Recovery testing
-- [ ] Upgrade testing
-- [ ] Backup restoration
-- [ ] Access-control review
-- [ ] Privacy review
-- [ ] Operational procedures
+- [ ] Kotlin UI (Jetpack Compose / Material 3) for device & connection management
+- [ ] Foreground Service lifecycle with persistent status notification
+- [ ] Android Doze & aggressive battery optimization handling
+- [ ] Automatic network roaming listener (Wi-Fi <-> 5G)
+- [ ] VPN consent and runtime permission handling
 
-**Done when:** The system is prepared for real users rather than only development testing.
+**Done when:** Android devices can act as Zoop endpoints using a polished native app.
 
 ---
 
-## 25. Complete System Validation
+## 24. iOS Native Client Implementation
 
-Finally test the entire chain:
+- [ ] SwiftUI views for connection management and QR pairing
+- [ ] Apple NetworkExtension (`NEPacketTunnelProvider`) integration
+- [ ] iOS background execution limits and `NWPathMonitor` transitions
+- [ ] Secure Enclave / Keychain integration for cryptographic keys
+- [ ] System VPN profile configuration and permissions
 
-```text
-                    ZOOP CLOUD
-                        │
-              Identity / Discovery
-                        │
-              Authorization / Signaling
-                        │
-             ┌──────────┴──────────┐
-             │                     │
-          PROVIDER              RECIPIENT
-             │                     │
-             └──── DIRECT TUNNEL ──┘
-                        │
-                        ▼
-                     INTERNET
-```
+**Done when:** iOS devices can act as Zoop endpoints using a polished native app.
 
-Verify:
+---
 
-- [ ] Identity works
-- [ ] Authorization works
-- [ ] Discovery works
-- [ ] Signaling works
-- [ ] Direct connectivity works
-- [ ] NAT traversal works
-- [ ] Tunnel works
-- [ ] Routing works
-- [ ] Forwarding works
-- [ ] NAT works
-- [ ] DNS works
-- [ ] Real Internet traffic works
-- [ ] Relay fallback works
-- [ ] Recovery works
-- [ ] Mobile works
-- [ ] Router works
-- [ ] Security works
-- [ ] Performance works
-- [ ] Observability works
+## 25. Production Infrastructure & Global Validation
 
-**Done when:** The implemented system satisfies the Zoop architecture and the original idea has been demonstrated with real devices and real network traffic.
+- [ ] Production deployment automation (Terraform / Helm / Docker)
+- [ ] High-availability PostgreSQL and Redis clustering
+- [ ] Automated TLS certificate provisioning and anycast DNS
+- [ ] End-to-end global validation across international endpoints
+- [ ] Production operational runbooks and disaster recovery testing
+
+**Done when:** The complete Zoop ecosystem is deployed, secure, observable, and running reliably for global production traffic. The implemented system satisfies the Zoop architecture and the original idea has been demonstrated with real devices and real network traffic.

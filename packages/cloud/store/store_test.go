@@ -123,3 +123,68 @@ func TestInMemoryStore_Connection(t *testing.T) {
 		t.Errorf("expected state match")
 	}
 }
+
+func TestInMemoryStore_OrganizationAndMembers(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	org := &types.Organization{
+		ID:   types.NewID(),
+		Name: "Acme Corp",
+	}
+
+	if err := s.SaveOrganization(ctx, org); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	retrievedOrg, err := s.GetOrganization(ctx, org.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if retrievedOrg.Name != org.Name {
+		t.Errorf("expected %s, got %s", org.Name, retrievedOrg.Name)
+	}
+
+	member := &types.OrgMember{
+		ID:             types.NewID(),
+		OrganizationID: org.ID,
+		Name:           "Alice Smith",
+		Email:          "alice@acme.corp",
+		Role:           "admin",
+		Status:         "active",
+	}
+
+	if err := s.SaveOrgMember(ctx, member); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	members, err := s.GetOrgMembers(ctx, org.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(members) != 1 || members[0].Email != member.Email {
+		t.Errorf("expected member in list")
+	}
+}
+
+func TestInMemoryStore_IPAMAllocation(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	p1, r1, err := s.AllocateConnectionIPs(ctx)
+	if err != nil {
+		t.Fatalf("allocation 1 failed: %v", err)
+	}
+	if p1 != "100.64.0.1" || r1 != "100.64.0.2" {
+		t.Errorf("expected 100.64.0.1 & 100.64.0.2, got %s & %s", p1, r1)
+	}
+
+	p2, r2, err := s.AllocateConnectionIPs(ctx)
+	if err != nil {
+		t.Fatalf("allocation 2 failed: %v", err)
+	}
+	if p2 != "100.64.0.5" || r2 != "100.64.0.6" {
+		t.Errorf("expected 100.64.0.5 & 100.64.0.6, got %s & %s", p2, r2)
+	}
+}
+

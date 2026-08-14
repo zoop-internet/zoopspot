@@ -12,6 +12,8 @@ type Config struct {
 	AgentListenAddr  string
 	LogLevel         string
 	IdentityPath     string
+	DatabaseURL      string
+	RedisURL         string
 	SignalingTimeout time.Duration
 }
 
@@ -22,6 +24,8 @@ func LoadConfig() Config {
 		AgentListenAddr:  "127.0.0.1:8080",
 		LogLevel:         "info",
 		IdentityPath:     "",
+		DatabaseURL:      "",
+		RedisURL:         "",
 		SignalingTimeout: 60 * time.Second,
 	}
 
@@ -36,6 +40,16 @@ func LoadConfig() Config {
 	}
 	if path := os.Getenv("ZOOP_IDENTITY_PATH"); path != "" {
 		cfg.IdentityPath = path
+	}
+	if dbURL := os.Getenv("ZOOP_DATABASE_URL"); dbURL != "" {
+		cfg.DatabaseURL = dbURL
+	} else if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		cfg.DatabaseURL = dbURL
+	}
+	if redisURL := os.Getenv("ZOOP_REDIS_URL"); redisURL != "" {
+		cfg.RedisURL = redisURL
+	} else if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		cfg.RedisURL = redisURL
 	}
 	if timeoutStr := os.Getenv("ZOOP_SIGNALING_TIMEOUT"); timeoutStr != "" {
 		if timeout, err := strconv.Atoi(timeoutStr); err == nil {

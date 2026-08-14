@@ -20,8 +20,21 @@ func main() {
 
 	cfg := config.LoadConfig()
 
-	// Initialize the data store (in-memory for M4; PostgreSQL in M20).
-	st := store.NewInMemoryStore()
+	// Initialize the data store (PostgreSQL if DATABASE_URL is configured, else InMemoryStore).
+	var st store.Store
+	if cfg.DatabaseURL != "" {
+		pgStore, err := store.NewPostgresStore(cfg.DatabaseURL)
+		if err != nil {
+			logger.Error("Failed to connect to PostgreSQL, falling back to InMemoryStore", "error", err)
+			st = store.NewInMemoryStore()
+		} else {
+			logger.Info("PostgreSQL persistent data layer connected and migrated successfully")
+			st = pgStore
+		}
+	} else {
+		logger.Info("Using ephemeral InMemoryStore (set DATABASE_URL for PostgreSQL)")
+		st = store.NewInMemoryStore()
+	}
 
 	// Initialize services.
 	deviceService := services.NewDeviceService(st)
