@@ -190,7 +190,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 13: Security Hardening** (Key rotation, revocation, secret management, threat testing)
 - [x] **Milestone 14: Desktop / Server Agent Hardening** (Linux daemonization, macOS/Windows Agents)
 - [x] **Milestone 15: Router Integration** (OpenWrt package, UCI configuration, multi-device routing)
-- [ ] **Milestone 16: Management Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
+- [x] **Milestone 16: Management Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
 - [ ] **Milestone 17: Mobile Core Integration** (Go native bindings, gomobile, C-shared library)
 - [ ] **Milestone 18: Android Implementation** (Kotlin UI, VpnService, battery management)
 - [ ] **Milestone 19: iOS Implementation** (Swift UI, NetworkExtension, PacketTunnelProvider)

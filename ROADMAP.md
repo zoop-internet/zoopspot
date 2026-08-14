@@ -313,10 +313,10 @@ Direct becomes available
 - [x] Connection status UI (`app.zoop.com`)
 - [x] Organization management UI (`app.zoop.com/org`)
 - [x] Zoop Admin Console & Relays UI (`admin.zoop.com`)
-- [ ] Authentication UI Integration
-- [ ] Live WebSocket signal sync
+- [x] Authentication UI Integration
+- [x] Live WebSocket signal sync
 
-**Done when:** Users can manage Zoop relationships, devices, and providers via a web dashboard before mobile clients are built.
+**Done when:** Users can manage Zoop relationships, devices, and providers via a web dashboard before mobile clients are built. (COMPLETED)
 
 ---
 
