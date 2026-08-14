@@ -1,6 +1,6 @@
 # Zoop Implementation Roadmap
 
-This document outlines the 22 concrete milestones and implementation tasks required to build the Zoop system.
+This document outlines the 25 concrete milestones and implementation tasks required to build the Zoop system.
 
 Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can be tracked as work progresses.
 
@@ -276,61 +276,33 @@ Direct becomes available
 
 ---
 
-## 14. Platform Implementations
+## 14. Desktop / Server Agent Hardening
 
-### Linux
-- [x] Linux Agent
-- [x] Linux networking
-- [x] Routing
-- [x] Forwarding
-- [x] NAT
-- [x] Service management
+- [x] Linux daemonization
+- [x] macOS Agent
+- [x] Windows Agent
+- [x] Cross-platform local APIs
+- [x] CLI polish
+- [x] System service integration
 
-### Android
-- [x] Android Agent
-- [x] Kotlin integration
-- [x] VPN integration
-- [x] Permissions
-- [x] Background behavior
-- [x] Network changes
-- [x] Battery constraints
-
-### iOS
-- [ ] Swift integration
-- [ ] Network/VPN integration
-- [ ] Permissions
-- [ ] Background limitations
-- [ ] Network changes
-
-### Shared
-- [x] Common identity
-- [x] Common protocol behavior
-- [x] Common Control Plane communication
-- [x] Common connection state
-
-**Done when:** Supported platforms can participate in Zoop using the same underlying architecture. (COMPLETED for Linux & Android)
+**Done when:** The Go agent runs robustly as a background service on standard desktop/server OSs. (COMPLETED)
 
 ---
 
-## 15. Router
+## 15. Router Integration
 
 - [x] Router Agent
-- [x] Router identity
-- [x] WAN configuration
-- [x] LAN configuration
-- [x] Routing
-- [x] Forwarding
-- [x] NAT
+- [x] OpenWrt package compilation
+- [x] UCI configuration integration
+- [x] Multi-device LAN gateway routing
 - [x] Provider mode
-- [x] Recipient mode where applicable
-- [x] Router management
 - [x] Router diagnostics
 
-**Done when:** A Zoop Router can provide connectivity to devices behind it. (COMPLETED)
+**Done when:** A Zoop Router can provide connectivity to devices behind it via embedded Linux systems. (COMPLETED)
 
 ---
 
-## 16. Web Application
+## 16. Management Web Application
 
 - [x] React + TypeScript setup
 - [x] Web Architecture & Domain Separation (`docs/web.md`)
@@ -344,11 +316,50 @@ Direct becomes available
 - [ ] Authentication UI Integration
 - [ ] Live WebSocket signal sync
 
-**Done when:** Users can manage Zoop without manually manipulating the underlying system.
+**Done when:** Users can manage Zoop relationships, devices, and providers via a web dashboard before mobile clients are built.
 
 ---
 
-## 17. Observability
+## 17. Mobile Core Integration (Native Bindings)
+
+- [ ] Export Go core to C-shared library
+- [ ] Generate gomobile bindings
+- [ ] Android AAR packaging
+- [ ] iOS XCFramework packaging
+- [ ] Expose connection state to native bridging
+- [ ] Verify bindings in dummy native app
+
+**Done when:** The core Go agent can be invoked and controlled from native Java/Kotlin and Swift environments.
+
+---
+
+## 18. Android Implementation
+
+- [ ] Kotlin UI for device management
+- [ ] Android VpnService integration
+- [ ] Background behavior and Doze management
+- [ ] Foreground service for persistent connection
+- [ ] Network change detection
+- [ ] Battery constraints handling
+- [ ] Permissions handling
+
+**Done when:** Android devices can act as Zoop endpoints using a native UI.
+
+---
+
+## 19. iOS Implementation
+
+- [ ] Swift UI for device management
+- [ ] Apple NetworkExtension (PacketTunnelProvider)
+- [ ] Background execution limitations handling
+- [ ] Network changes detection
+- [ ] Permissions handling
+
+**Done when:** iOS devices can act as Zoop endpoints using a native UI.
+
+---
+
+## 20. Observability
 
 - [ ] Agent logs
 - [ ] Cloud logs
@@ -381,7 +392,7 @@ Internet        ✓
 
 ---
 
-## 18. Real-Network Validation
+## 21. Real-Network Validation
 
 Test with actual devices and networks:
 
@@ -406,7 +417,7 @@ Test with actual devices and networks:
 
 ---
 
-## 19. Performance Optimization
+## 22. Performance Optimization
 
 - [ ] Measure latency
 - [ ] Measure throughput
@@ -425,7 +436,7 @@ Test with actual devices and networks:
 
 ---
 
-## 20. Production Infrastructure
+## 23. Production Infrastructure
 
 - [ ] Choose production infrastructure
 - [ ] Deploy Control Plane
@@ -444,7 +455,7 @@ Test with actual devices and networks:
 
 ---
 
-## 21. Production Hardening
+## 24. Production Hardening
 
 - [ ] Security audit
 - [ ] Dependency audit
@@ -463,7 +474,7 @@ Test with actual devices and networks:
 
 ---
 
-## 22. Complete System Validation
+## 25. Complete System Validation
 
 Finally test the entire chain:
 

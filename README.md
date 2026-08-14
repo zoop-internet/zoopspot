@@ -97,7 +97,7 @@ WireGuard is the current direction for the secure tunnel layer.
     zoop/
     │
     ├── README.md             # High-level overview & current progress
-    ├── ROADMAP.md            # Detailed 22-milestone implementation checklist
+    ├── ROADMAP.md            # Detailed 25-milestone implementation checklist
     │
     ├── docs/                 # Architectural specifications
     │   ├── architecture.md
@@ -145,7 +145,7 @@ Project overview + current implementation progress
 ROADMAP.md
    ↓
 WHAT WE BUILD NEXT
-Concrete tasks inside each of the 22 implementation milestones
+Concrete tasks inside each of the 25 implementation milestones
 ```
 
 ### Core Architecture Documents
@@ -173,7 +173,7 @@ For future direction:
 
 ## Implementation Progress & Roadmap
 
-Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status of our 22 implementation milestones:
+Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status of our 25 implementation milestones:
 
 - [x] **Milestone 1: Repository Foundation** (Clean build, CI, linting, directory structure)
 - [x] **Milestone 2: Go Core** (Core types, Device, Provider, Recipient, Identity, Connection primitives)
@@ -188,15 +188,18 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 11: Relay Fallback** (Relay service, automatic fallback & promotion)
 - [x] **Milestone 12: Connection Recovery** (Roaming, Wi-Fi ↔ Cellular, IP changes, auto-reconnect)
 - [x] **Milestone 13: Security Hardening** (Key rotation, revocation, secret management, threat testing)
-- [x] **Milestone 14: Platform Implementations** (Linux Agent, Android Kotlin VPN, iOS Swift NetworkExtension)
-- [x] **Milestone 15: Router** (OpenWrt/Linux router Provider mode & multi-device gateway)
-- [ ] **Milestone 16: Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
-- [ ] **Milestone 17: Observability** (Agent/Cloud logs, connection health, user diagnostics)
-- [ ] **Milestone 18: Real-Network Validation** (Cross-network testing: Wi-Fi, Cellular, NAT, IPv4/IPv6)
-- [ ] **Milestone 19: Performance Optimization** (Latency, throughput, CPU, memory, direct vs relay metrics)
-- [ ] **Milestone 20: Production Infrastructure** (Cloud deployment, PostgreSQL, TLS, CI/CD)
-- [ ] **Milestone 21: Production Hardening** (Security audit, load testing, privacy review)
-- [ ] **Milestone 22: Complete System Validation** (End-to-end verification across all layers)
+- [x] **Milestone 14: Desktop / Server Agent Hardening** (Linux daemonization, macOS/Windows Agents)
+- [x] **Milestone 15: Router Integration** (OpenWrt package, UCI configuration, multi-device routing)
+- [ ] **Milestone 16: Management Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
+- [ ] **Milestone 17: Mobile Core Integration** (Go native bindings, gomobile, C-shared library)
+- [ ] **Milestone 18: Android Implementation** (Kotlin UI, VpnService, battery management)
+- [ ] **Milestone 19: iOS Implementation** (Swift UI, NetworkExtension, PacketTunnelProvider)
+- [ ] **Milestone 20: Observability** (Agent/Cloud logs, connection health, user diagnostics)
+- [ ] **Milestone 21: Real-Network Validation** (Cross-network testing: Wi-Fi, Cellular, NAT, IPv4/IPv6)
+- [ ] **Milestone 22: Performance Optimization** (Latency, throughput, CPU, memory, direct vs relay metrics)
+- [ ] **Milestone 23: Production Infrastructure** (Cloud deployment, PostgreSQL, TLS, CI/CD)
+- [ ] **Milestone 24: Production Hardening** (Security audit, load testing, privacy review)
+- [ ] **Milestone 25: Complete System Validation** (End-to-end verification across all layers)
 
 
 ## What Zoop Is Not
