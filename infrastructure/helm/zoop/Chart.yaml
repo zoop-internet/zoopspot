@@ -1,0 +1,6 @@
+apiVersion: v2
+name: zoop
+description: A Helm chart for deploying the Zoop Cloud Control Plane and STUN/TURN infrastructure.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "zoop.fullname" . }}-config
+  labels:
+    app.kubernetes.io/name: {{ include "zoop.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  ZOOP_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  ZOOP_STORE_TYPE: {{ .Values.config.storeType | quote }}
+  ZOOP_TURN_REALM: {{ .Values.config.turnRealm | quote }}

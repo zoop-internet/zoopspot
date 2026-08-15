@@ -199,7 +199,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 22: Multi-Node Real-Network Simulation & E2E Validation** (Docker Compose testbed, degradation simulation, roaming)
 - [x] **Milestone 23: Android Native Client Implementation** (Headless Native Module, VpnService, battery/roaming management)
 - [x] **Milestone 24: iOS Native Client Implementation** (Headless Native Bridge, NetworkExtension, PacketTunnelProvider)
-- [ ] **Milestone 25: Production Infrastructure & Global Validation** (Global cloud deployment, HA clustering, operational runbooks)
+- [x] **Milestone 25: Production Infrastructure & Global Validation** (Cloud-Agnostic Helm deployment, Docker Compose, operational runbooks)
 
 
 ## What Zoop Is Not

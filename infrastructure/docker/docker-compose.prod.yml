@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  zoop-postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: zoop
+      POSTGRES_PASSWORD: zoop_prod_password
+      POSTGRES_DB: zoop_db
+    volumes:
+      - zoop_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoop -d zoop_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zoop_backend
+
+  zoop-redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - zoop_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zoop_backend
+
+  zoop-coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: always
+    network_mode: "host" # STUN/TURN generally requires host networking for optimal UDP routing
+    environment:
+      - TURN_PORT=3478
+      - TURN_PORT_TLS=5349
+      - TURN_SECRET=zoop_turn_prod_secret
+      - TURN_REALM=zoop.network
+    command: >
+      -n --log-file=stdout --min-port=49152 --max-port=65535
+      --use-auth-secret --static-auth-secret=zoop_turn_prod_secret --realm=zoop.network
+      --stale-nonce
+
+  zoop-cloud:
+    image: zoop/zoop-cloud:latest # In production, replace 'latest' with a specific tagged version
+    restart: always
+    depends_on:
+      zoop-postgres:
+        condition: service_healthy
+      zoop-redis:
+        condition: service_healthy
+    environment:
+      - ZOOP_LOG_LEVEL=INFO
+      - ZOOP_STORE_TYPE=postgres
+      - ZOOP_POSTGRES_URL=postgres://zoop:zoop_prod_password@zoop-postgres:5432/zoop_db?sslmode=disable
+      - ZOOP_REDIS_URL=redis://zoop-redis:6379
+      - ZOOP_TURN_SECRET=zoop_turn_prod_secret
+      - ZOOP_TURN_REALM=zoop.network
+    ports:
+      - "8080:8080" # Bind to host port 8080 (Usually behind a reverse proxy like Nginx/Caddy)
+    networks:
+      - zoop_backend
+
+volumes:
+  zoop_pgdata:
+  zoop_redisdata:
+
+networks:
+  zoop_backend:
+    driver: bridge

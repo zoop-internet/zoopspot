@@ -1,0 +1,92 @@
+replicaCount: 3
+
+image:
+  repository: zoop/zoop-cloud
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: api.zoop.network
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: zoop-cloud-tls
+      hosts:
+        - api.zoop.network
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+config:
+  logLevel: "INFO"
+  storeType: "postgres"
+  turnRealm: "zoop.network"
+
+secrets:
+  # In production, these should be managed by external secret operators (like ExternalSecrets)
+  # or injected securely, but provided here as templates.
+  postgresUrl: "postgres://user:password@database-host:5432/zoop?sslmode=require"
+  turnSecret: "generate-a-secure-turn-secret-here"
+
+coturn:
+  enabled: true
+  image:
+    repository: coturn/coturn
+    tag: "4.6-alpine"
+  service:
+    type: LoadBalancer
+    annotations: {}
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
