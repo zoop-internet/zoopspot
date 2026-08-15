@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -21,11 +22,20 @@ func TestLoadConfig(t *testing.T) {
 	if cfg.SignalingTimeout != 60*time.Second {
 		t.Errorf("Expected default SignalingTimeout to be 60s, got %v", cfg.SignalingTimeout)
 	}
+	if cfg.TURNSecret != "zoop-turn-secret" {
+		t.Errorf("Expected default TURNSecret to be zoop-turn-secret, got %s", cfg.TURNSecret)
+	}
+	if cfg.TURNRealm != "zoop.network" {
+		t.Errorf("Expected default TURNRealm to be zoop.network, got %s", cfg.TURNRealm)
+	}
 
 	// Test overrides
 	os.Setenv("ZOOP_CONTROL_PLANE_URL", "https://api.zoop.com")
 	os.Setenv("ZOOP_AGENT_LISTEN_ADDR", "0.0.0.0:9090")
 	os.Setenv("ZOOP_SIGNALING_TIMEOUT", "30")
+	os.Setenv("ZOOP_ALLOWED_ORIGINS", "http://localhost:3000, https://app.zoop.com, https://dashboard.zoop.com")
+	os.Setenv("ZOOP_TURN_SECRET", "custom-secret")
+	os.Setenv("ZOOP_TURN_REALM", "turn.custom.org")
 
 	cfg = LoadConfig()
 	if cfg.ControlPlaneURL != "https://api.zoop.com" {
@@ -36,5 +46,39 @@ func TestLoadConfig(t *testing.T) {
 	}
 	if cfg.SignalingTimeout != 30*time.Second {
 		t.Errorf("Expected overridden SignalingTimeout to be 30s, got %v", cfg.SignalingTimeout)
+	}
+	expectedOrigins := []string{"http://localhost:3000", "https://app.zoop.com", "https://dashboard.zoop.com"}
+	if !reflect.DeepEqual(cfg.AllowedOrigins, expectedOrigins) {
+		t.Errorf("Expected AllowedOrigins to be %v, got %v", expectedOrigins, cfg.AllowedOrigins)
+	}
+	if cfg.TURNSecret != "custom-secret" {
+		t.Errorf("Expected overridden TURNSecret to be custom-secret, got %s", cfg.TURNSecret)
+	}
+	if cfg.TURNRealm != "turn.custom.org" {
+		t.Errorf("Expected overridden TURNRealm to be turn.custom.org, got %s", cfg.TURNRealm)
+	}
+}
+
+func TestParseCommaSeparated(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"", nil},
+		{"   ", nil},
+		{"a,b,c", []string{"a", "b", "c"}},
+		{"  foo  ,  bar  , baz  ", []string{"foo", "bar", "baz"}},
+		{",,,", nil},
+		{"a,,b,", []string{"a", "b"}},
+	}
+
+	for _, tc := range tests {
+		result := parseCommaSeparated(tc.input)
+		if len(result) == 0 && len(tc.expected) == 0 {
+			continue
+		}
+		if !reflect.DeepEqual(result, tc.expected) {
+			t.Errorf("parseCommaSeparated(%q) = %v, expected %v", tc.input, result, tc.expected)
+		}
 	}
 }

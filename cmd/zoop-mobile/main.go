@@ -5,6 +5,8 @@ package main
 */
 import "C"
 import (
+	"unsafe"
+
 	"github.com/zoop-internet/zoop/packages/platform/mobile"
 )
 
@@ -68,6 +70,13 @@ func ZoopNotifyNetworkChange(networkType *C.char) {
 func ZoopGetConnectionStatus() *C.char {
 	status := mobile.GetConnectionStatus()
 	return C.CString(status)
+}
+
+//export ZoopFreeString
+func ZoopFreeString(str *C.char) {
+	if str != nil {
+		C.free(unsafe.Pointer(str))
+	}
 }
 
 //export ZoopDisconnect

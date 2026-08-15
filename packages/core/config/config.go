@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -77,51 +78,12 @@ func LoadConfig() Config {
 
 func parseCommaSeparated(s string) []string {
 	var res []string
-	for _, part := range os.ExpandEnv(s) {
-		_ = part
-	}
-	for _, item := range splitAndTrim(s, ",") {
-		if item != "" {
-			res = append(res, item)
+	for _, item := range strings.Split(s, ",") {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			res = append(res, trimmed)
 		}
 	}
 	return res
 }
 
-func splitAndTrim(s, sep string) []string {
-	var parts []string
-	for len(s) > 0 {
-		idx := -1
-		for i := 0; i+len(sep) <= len(s); i++ {
-			if s[i:i+len(sep)] == sep {
-				idx = i
-				break
-			}
-		}
-		var token string
-		if idx == -1 {
-			token = s
-			s = ""
-		} else {
-			token = s[:idx]
-			s = s[idx+len(sep):]
-		}
-		trimmed := trimSpace(token)
-		if trimmed != "" {
-			parts = append(parts, trimmed)
-		}
-	}
-	return parts
-}
-
-func trimSpace(s string) string {
-	start := 0
-	for start < len(s) && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
-		start++
-	}
-	end := len(s)
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
-		end--
-	}
-	return s[start:end]
-}

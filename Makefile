@@ -10,6 +10,9 @@ build:
 	$(GO) build -v -o $(BIN_DIR)/zoop-agent ./agent
 	$(GO) build -v -o $(BIN_DIR)/zoop-cloud ./cloud
 	$(GO) build -v -o $(BIN_DIR)/zoop-router ./router
+	$(GO) build -v -o $(BIN_DIR)/zoop ./cmd/zoop
+	$(GO) build -v -o $(BIN_DIR)/zoopd ./cmd/zoopd
+
 
 test:
 	$(GO) test -v ./...
