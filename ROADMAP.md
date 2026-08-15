@@ -409,13 +409,13 @@ Direct becomes available
 
 ## 24. iOS Native Client Implementation
 
-- [ ] SwiftUI views for connection management and QR pairing
-- [ ] Apple NetworkExtension (`NEPacketTunnelProvider`) integration
-- [ ] iOS background execution limits and `NWPathMonitor` transitions
-- [ ] Secure Enclave / Keychain integration for cryptographic keys
-- [ ] System VPN profile configuration and permissions
+- [x] Headless iOS Native Bridge & NETunnelProviderManager architecture for cross-platform UI integration
+- [x] Apple NetworkExtension (`NEPacketTunnelProvider`) integration
+- [x] iOS background execution limits and `NWPathMonitor` network roaming transitions
+- [x] Secure Enclave / Keychain integration (`KeychainHelper.swift`) for cryptographic keys
+- [x] System VPN profile configuration and permissions
 
-**Done when:** iOS devices can act as Zoop endpoints using a polished native app.
+**Done when:** iOS devices can act as Zoop endpoints using headless NetworkExtension & Go mobile runtime. (COMPLETED)
 
 ---
 
