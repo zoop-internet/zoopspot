@@ -44,7 +44,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 		// But since we don't have static virtual IPs, we can check their telemetry to see if they connected.
 
 		// Let's run a ping from agent-a to agent-b over their LAN IP (which should fail, proving isolation)
-		err := runCommandSilent("docker", "exec", "zoop-agent-a-1", "ping", "-c", "1", "-W", "1", "192.168.20.10")
+		err := runCommandSilent("docker", "exec", "zoop-agent-a-1", "ping", "-c", "1", "-W", "1", "172.52.0.10")
 		if err == nil {
 			t.Error("Expected direct LAN ping to fail across isolated NATs")
 		}

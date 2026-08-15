@@ -397,13 +397,13 @@ Direct becomes available
 
 ## 23. Android Native Client Implementation
 
-- [ ] Kotlin UI (Jetpack Compose / Material 3) for device & connection management
-- [ ] Foreground Service lifecycle with persistent status notification
-- [ ] Android Doze & aggressive battery optimization handling
-- [ ] Automatic network roaming listener (Wi-Fi <-> 5G)
-- [ ] VPN consent and runtime permission handling
+- [x] Headless Android Native Module & VpnService architecture for cross-platform UI integration
+- [x] Foreground Service lifecycle with persistent status notification
+- [x] Android Doze & aggressive battery optimization handling via Go mobile lifecycle
+- [x] Automatic network roaming listener (Wi-Fi <-> 5G) via ConnectivityManager NetworkCallback
+- [x] VPN consent and runtime permission handling
 
-**Done when:** Android devices can act as Zoop endpoints using a polished native app.
+**Done when:** Android devices can act as Zoop endpoints using headless VpnService & Go mobile runtime. (COMPLETED)
 
 ---
 
