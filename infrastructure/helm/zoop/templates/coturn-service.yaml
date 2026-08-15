@@ -1,0 +1,27 @@
+{{- if .Values.coturn.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "zoop.fullname" . }}-coturn
+  labels:
+    app.kubernetes.io/name: {{ include "zoop.name" . }}-coturn
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- with .Values.coturn.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.coturn.service.type }}
+  ports:
+    - name: stun-udp
+      port: 3478
+      targetPort: stun
+      protocol: UDP
+    - name: stun-tcp
+      port: 3478
+      targetPort: stun-tcp
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "zoop.name" . }}-coturn
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

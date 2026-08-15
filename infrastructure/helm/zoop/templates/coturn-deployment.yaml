@@ -1,0 +1,57 @@
+{{- if .Values.coturn.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "zoop.fullname" . }}-coturn
+  labels:
+    app.kubernetes.io/name: {{ include "zoop.name" . }}-coturn
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "zoop.name" . }}-coturn
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "zoop.name" . }}-coturn
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      hostNetwork: true # STUN/TURN requires host networking for optimal UDP routing
+      containers:
+        - name: coturn
+          image: "{{ .Values.coturn.image.repository }}:{{ .Values.coturn.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: {{ include "zoop.fullname" . }}-secrets
+            - configMapRef:
+                name: {{ include "zoop.fullname" . }}-config
+          env:
+            - name: TURN_PORT
+              value: "3478"
+            - name: TURN_PORT_TLS
+              value: "5349"
+          command: ["turnserver"]
+          args:
+            - "-n"
+            - "--log-file=stdout"
+            - "--min-port=49152"
+            - "--max-port=65535"
+            - "--use-auth-secret"
+            - "--static-auth-secret=$(ZOOP_TURN_SECRET)"
+            - "--realm=$(ZOOP_TURN_REALM)"
+            - "--stale-nonce"
+          ports:
+            - name: stun
+              containerPort: 3478
+              hostPort: 3478
+              protocol: UDP
+            - name: stun-tcp
+              containerPort: 3478
+              hostPort: 3478
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.coturn.resources | nindent 12 }}
+{{- end }}
