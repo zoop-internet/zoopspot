@@ -1,0 +1,7 @@
+FROM alpine:3.19
+RUN apk add --no-cache iptables iproute2 dnsmasq bash tcpdump iputils jq
+
+COPY router-entrypoint.sh /router-entrypoint.sh
+RUN chmod +x /router-entrypoint.sh
+
+ENTRYPOINT ["/router-entrypoint.sh"]
