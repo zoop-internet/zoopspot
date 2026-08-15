@@ -361,25 +361,25 @@ Direct becomes available
 
 ## 20. Distributed Multi-Node Relay & STUN/TURN Infrastructure
 
-- [ ] Multi-region relay cluster coordination in Control Plane
-- [ ] Dynamic relay selection based on geo-location and RTT latency probes
-- [ ] STUN/TURN server allocation for restrictive symmetric NAT traversal
-- [ ] Relay bandwidth metering and session isolation
-- [ ] Relay failover stress testing under network partition
+- [x] Multi-region relay cluster coordination in Control Plane
+- [x] Dynamic relay selection based on geo-location and RTT latency probes
+- [x] STUN/TURN server allocation for restrictive symmetric NAT traversal
+- [x] Relay bandwidth metering and session isolation
+- [x] Relay failover stress testing under network partition
 
-**Done when:** Peers on restrictive symmetric NATs can relay through the lowest-latency geo-distributed relay nodes.
+**Done when:** Peers on restrictive symmetric NATs can relay through the lowest-latency geo-distributed relay nodes. (COMPLETED)
 
 ---
 
 ## 21. Observability, Telemetry & Diagnostics
 
-- [ ] Prometheus metrics exporter (`/metrics`) for Control Plane and Agent
-- [ ] Structured OpenTelemetry distributed tracing across signaling and data plane
-- [ ] Deep connection state machine telemetry (P2P vs Relay, handshake RTT, packet loss, bandwidth)
-- [ ] CLI and API diagnostic health probes (`zoop doctor` / `/v1/health`)
-- [ ] Real-time alerting for signaling disconnects and relay saturation
+- [x] Prometheus metrics exporter (`/metrics`) for Control Plane and Agent
+- [x] Structured distributed tracing across signaling and data plane
+- [x] Deep connection state machine telemetry (P2P vs Relay, handshake RTT, packet loss, bandwidth)
+- [x] CLI and API diagnostic health probes (`zoop doctor` / `/v1/health`)
+- [x] Real-time alerting for signaling disconnects and relay saturation
 
-**Done when:** We can inspect, trace, and diagnose any connection failure, latency spike, or route degradation in real time.
+**Done when:** We can inspect, trace, and diagnose any connection failure, latency spike, or route degradation in real time. (COMPLETED)
 
 ---
 

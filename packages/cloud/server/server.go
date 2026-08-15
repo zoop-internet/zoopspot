@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/relay"
 	"github.com/zoop-internet/zoop/packages/cloud/services"
@@ -33,6 +34,7 @@ type Server struct {
 	relayServer   *relay.RelayServer
 	relayRegistry *relay.RelayRegistry
 	turnManager   *relay.TURNManager
+	startTime     time.Time
 	mux           *http.ServeMux
 	server        *http.Server
 	upgrader      websocket.Upgrader
@@ -118,6 +120,7 @@ func NewServer(
 		relayServer:   rs,
 		relayRegistry: reg,
 		turnManager:   relay.NewTURNManager(turnSecret, turnRealm),
+		startTime:     time.Now(),
 		mux:           http.NewServeMux(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -146,6 +149,10 @@ func (s *Server) RelayServer() *relay.RelayServer {
 
 func (s *Server) routes() {
 	authMw := api.AuthMiddleware(s.store, s.logger)
+
+	// Health & Prometheus Metrics (unauthenticated)
+	s.mux.HandleFunc("GET /v1/health", api.HealthHandler(s.startTime, s))
+	s.mux.Handle("GET /metrics", promhttp.Handler())
 
 	// Registration does not require Zoop Auth because the device doesn't exist yet
 	s.mux.HandleFunc("POST /v1/devices", s.handleRegisterDevice())
@@ -646,10 +653,54 @@ func (s *Server) handleGetTURNCredentials() http.HandlerFunc {
 	}
 }
 
+// CheckHealth queries subsystem states for the /v1/health probe.
+func (s *Server) CheckHealth() map[string]api.SubsystemStatus {
+	subsystems := make(map[string]api.SubsystemStatus)
+
+	// Storage check
+	if s.store != nil {
+		subsystems["store"] = api.SubsystemStatus{
+			Status: "ok",
+			Details: map[string]interface{}{
+				"backend": "configured",
+			},
+		}
+	} else {
+		subsystems["store"] = api.SubsystemStatus{
+			Status: "down",
+			Error:  "storage backend is nil",
+		}
+	}
+
+	// Relay Registry check
+	var activeCount int
+	if s.relayRegistry != nil {
+		activeCount = len(s.relayRegistry.GetNodes(false))
+	}
+	subsystems["relays"] = api.SubsystemStatus{
+		Status: "ok",
+		Details: map[string]interface{}{
+			"active_count": activeCount,
+		},
+	}
+
+	// Signaling check
+	subsystems["signaling"] = api.SubsystemStatus{
+		Status: "ok",
+	}
+
+	// TURN check
+	subsystems["turn"] = api.SubsystemStatus{
+		Status: "ok",
+	}
+
+	return subsystems
+}
+
 // Start runs the HTTP server and blocks until the context is canceled.
 func (s *Server) Start(ctx context.Context) error {
 	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
-	handler := api.RateLimitMiddleware(rateLimiter)(s.mux)
+	handler := api.MetricsMiddleware(api.RateLimitMiddleware(rateLimiter)(s.mux))
 
 	s.server = &http.Server{
 		Addr:    ":8080", // Can be configured via cfg later

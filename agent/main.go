@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/zoop-internet/zoop/packages/agent/health"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/server"
 	"github.com/zoop-internet/zoop/packages/agent/state"
@@ -21,6 +22,12 @@ import (
 )
 
 func main() {
+	// Check for direct subcommand "doctor"
+	if len(os.Args) > 1 && os.Args[1] == "doctor" {
+		runDoctor("", "zoop0", 9090)
+		return
+	}
+
 	configDirDefault, err := os.UserConfigDir()
 	if err != nil {
 		configDirDefault = "."
@@ -31,7 +38,14 @@ func main() {
 	configDirFlag := flag.String("config-dir", "", "override configuration directory (mostly for testing)")
 	tunName := flag.String("tun", "zoop0", "wireguard interface name")
 	apiPort := flag.Int("api-port", 9090, "local API listen port")
+	doctorFlag := flag.Bool("doctor", false, "run comprehensive diagnostics probe and report")
 	flag.Parse()
+
+	// If doctor flag is provided, run doctor probe
+	if *doctorFlag {
+		runDoctor(*configDirFlag, *tunName, *apiPort)
+		return
+	}
 
 	// If connect flag is provided, run the CLI client instead of the server
 	if *connectTo != "" {
@@ -97,4 +111,20 @@ func main() {
 	}
 
 	logger.Info("Agent exited cleanly")
+}
+
+func runDoctor(configDir, tunName string, apiPort int) {
+	cfg := config.LoadConfig()
+	checker := health.NewChecker(nil, tunName, cfg.ControlPlaneURL, "stun.l.google.com:19302")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	report := checker.RunDiagnostics(ctx)
+	report.PrintReport()
+
+	if !report.Healthy {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }

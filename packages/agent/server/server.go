@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/zoop-internet/zoop/packages/agent/client"
+	"github.com/zoop-internet/zoop/packages/agent/health"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/state"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
@@ -153,6 +155,11 @@ func (s *Server) ConnectToPeer(ctx context.Context, providerID types.ID) error {
 
 func (s *Server) startLocalAPI(ctx context.Context) {
 	mux := http.NewServeMux()
+
+	healthChecker := health.NewChecker(s.state, s.tunName, s.config.ControlPlaneURL, "stun.l.google.com:19302")
+	mux.HandleFunc("GET /health", healthChecker.WriteHTTP)
+	mux.Handle("GET /metrics", promhttp.Handler())
+
 	mux.HandleFunc("POST /connect", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ProviderID string `json:"provider_id"`
