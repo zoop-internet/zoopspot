@@ -522,16 +522,18 @@ func (s *PostgresStore) AllocateConnectionIPs(ctx context.Context) (string, stri
 		return "", "", fmt.Errorf("failed to allocate IPAM pair: %w", err)
 	}
 
-	high := byte(n / 64)
-	low := n % 64
+	const maxPairs = 64 * 256 * 64 // 1,048,576
 
-	if high > 63 {
+	if n >= maxPairs {
 		return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
 	}
 
-	base := low * 4
-	providerIP := fmt.Sprintf("100.64.%d.%d", high, base+1)
-	recipientIP := fmt.Sprintf("100.64.%d.%d", high, base+2)
+	second := 64 + (n / (64 * 256))
+	third := (n / 64) % 256
+	fourthBase := (n % 64) * 4
+
+	providerIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+1)
+	recipientIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+2)
 
 	return providerIP, recipientIP, nil
 }

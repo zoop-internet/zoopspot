@@ -5,7 +5,10 @@ import {
   createShare, createConnection, updateConnectionState,
   createOrganization, listOrganizations, addOrgMember, listOrgMembers,
 } from '../api/client';
-import { getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice } from '../api/identity';
+import {
+  getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice,
+  generateAndSaveIdentity,
+} from '../api/identity';
 
 export interface AppState {
   // Auth / identity
@@ -32,7 +35,7 @@ export interface AppState {
   pendingConnections: ApiConnection[];
   connectionsLoading: boolean;
   refreshConnections: () => void;
-  doConnect: (providerId: string, shareId: string) => Promise<ApiConnection | null>;
+  doConnect: (providerId: string, shareId?: string) => Promise<ApiConnection | null>;
   doDisconnect: (connId: string) => Promise<void>;
 
   // Organizations
@@ -73,7 +76,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Load device info when we have a deviceId
   useEffect(() => {
     if (!deviceId) { setDeviceInfo(null); return; }
-    getDevice(deviceId, deviceId)
+    getDevice(deviceId)
       .then(d => setDeviceInfo(d))
       .catch(() => setDeviceInfo(null));
   }, [deviceId]);
@@ -94,8 +97,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsRegistering(true);
     setRegisterError(null);
     try {
-      const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-      const publicKeyB64 = btoa(String.fromCharCode(...randomBytes));
+      const { publicKeyB64 } = await generateAndSaveIdentity(name);
 
       const caps = isProvider ? ['provider', 'recipient'] : ['recipient'];
       const resp = await registerDevice({
@@ -150,15 +152,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (deviceId) refreshConnections();
   }, [deviceId, refreshConnections]);
 
-  const doConnect = useCallback(async (providerId: string, shareId: string): Promise<ApiConnection | null> => {
+  const doConnect = useCallback(async (providerId: string, _shareId?: string): Promise<ApiConnection | null> => {
     if (!deviceId) return null;
-    const conn = await createConnection(deviceId, providerId, shareId);
+    const conn = await createConnection(providerId, deviceId);
     return conn;
   }, [deviceId]);
 
   const doDisconnect = useCallback(async (connId: string) => {
     if (!deviceId) return;
-    await updateConnectionState(connId, deviceId, 'disconnected');
+    await updateConnectionState(connId, 'disconnected');
     setPendingConnections(prev => prev.filter(c => c.id !== connId));
   }, [deviceId]);
 

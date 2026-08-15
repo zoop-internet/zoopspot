@@ -2,8 +2,10 @@
  * Zoop API Client
  *
  * Calls the real Control Plane REST API (localhost:8080).
- * No mock data — if the backend is down, operations will fail gracefully.
+ * Signs authenticated requests using WebCrypto Ed25519 keys.
  */
+
+import { buildSignedAuthHeaders } from './identity';
 
 const API_BASE = '/api'; // proxied via vite to http://localhost:8080
 
@@ -67,24 +69,6 @@ export interface RegisterDeviceRequest {
 
 // ─── Http helpers ─────────────────────────────────────────────
 
-type AuthHeaders = {
-  'X-Zoop-Device-ID': string;
-  'X-Zoop-Signature': string;
-  'X-Zoop-Timestamp': string;
-  'X-Zoop-Nonce': string;
-};
-
-function buildAuthHeaders(deviceId: string): AuthHeaders {
-  const ts = new Date().toISOString();
-  const nonce = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
-  return {
-    'X-Zoop-Device-ID': deviceId,
-    'X-Zoop-Signature': 'dev-placeholder',
-    'X-Zoop-Timestamp': ts,
-    'X-Zoop-Nonce': nonce,
-  };
-}
-
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...opts,
@@ -117,21 +101,27 @@ export async function listDevices(): Promise<ApiDevice[]> {
   return apiFetch<ApiDevice[]>('/v1/devices');
 }
 
-export async function getDevice(deviceId: string, authDeviceId: string): Promise<ApiDevice> {
-  return apiFetch<ApiDevice>(`/v1/devices/${deviceId}`, {
-    headers: buildAuthHeaders(authDeviceId),
+export async function getDevice(deviceId: string): Promise<ApiDevice> {
+  const path = `/v1/devices/${deviceId}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiDevice>(path, {
+    headers: authHeaders,
   });
 }
 
-export async function getDeviceEndpoints(deviceId: string, authDeviceId: string): Promise<ApiEndpoints> {
-  return apiFetch<ApiEndpoints>(`/v1/devices/${deviceId}/endpoints`, {
-    headers: buildAuthHeaders(authDeviceId),
+export async function getDeviceEndpoints(deviceId: string): Promise<ApiEndpoints> {
+  const path = `/v1/devices/${deviceId}/endpoints`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiEndpoints>(path, {
+    headers: authHeaders,
   });
 }
 
 export async function getPendingConnections(deviceId: string): Promise<ApiConnection[]> {
-  return apiFetch<ApiConnection[]>(`/v1/devices/${deviceId}/connections/pending`, {
-    headers: buildAuthHeaders(deviceId),
+  const path = `/v1/devices/${deviceId}/connections/pending`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiConnection[]>(path, {
+    headers: authHeaders,
   });
 }
 
@@ -166,39 +156,52 @@ export async function listOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
 // ─── Share operations ─────────────────────────────────────────
 
 export async function createShare(authDeviceId: string, recipientId: string): Promise<ApiShare> {
-  return apiFetch<ApiShare>('/v1/shares', {
+  const path = '/v1/shares';
+  const body = JSON.stringify({ provider_id: authDeviceId, recipient_id: recipientId });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiShare>(path, {
     method: 'POST',
-    headers: buildAuthHeaders(authDeviceId),
-    body: JSON.stringify({ provider_id: authDeviceId, recipient_id: recipientId }),
+    headers: authHeaders,
+    body,
   });
 }
 
-export async function getShare(shareId: string, authDeviceId: string): Promise<ApiShare> {
-  return apiFetch<ApiShare>(`/v1/shares/${shareId}`, {
-    headers: buildAuthHeaders(authDeviceId),
+export async function getShare(shareId: string): Promise<ApiShare> {
+  const path = `/v1/shares/${shareId}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiShare>(path, {
+    headers: authHeaders,
   });
 }
 
 // ─── Connection operations ────────────────────────────────────
 
-export async function createConnection(authDeviceId: string, providerId: string, shareId: string): Promise<ApiConnection> {
-  return apiFetch<ApiConnection>('/v1/connections', {
+export async function createConnection(providerId: string, recipientId: string): Promise<ApiConnection> {
+  const path = '/v1/connections';
+  const body = JSON.stringify({ provider_id: providerId, recipient_id: recipientId });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiConnection>(path, {
     method: 'POST',
-    headers: buildAuthHeaders(authDeviceId),
-    body: JSON.stringify({ provider_id: providerId, share_id: shareId }),
+    headers: authHeaders,
+    body,
   });
 }
 
-export async function getConnection(connId: string, authDeviceId: string): Promise<ApiConnection> {
-  return apiFetch<ApiConnection>(`/v1/connections/${connId}`, {
-    headers: buildAuthHeaders(authDeviceId),
+export async function getConnection(connId: string): Promise<ApiConnection> {
+  const path = `/v1/connections/${connId}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiConnection>(path, {
+    headers: authHeaders,
   });
 }
 
-export async function updateConnectionState(connId: string, authDeviceId: string, state: string): Promise<void> {
-  await apiFetch<void>(`/v1/connections/${connId}/state`, {
+export async function updateConnectionState(connId: string, state: string): Promise<void> {
+  const path = `/v1/connections/${connId}/state`;
+  const body = JSON.stringify({ state });
+  const authHeaders = await buildSignedAuthHeaders('PUT', path, body);
+  await apiFetch<void>(path, {
     method: 'PUT',
-    headers: buildAuthHeaders(authDeviceId),
-    body: JSON.stringify({ state }),
+    headers: authHeaders,
+    body,
   });
 }

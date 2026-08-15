@@ -29,6 +29,9 @@ type RelayServer struct {
 	logger      *slog.Logger
 	revokedIDs  map[types.ID]bool
 	store       store.Store // used for identity lookup during auth
+	meter       *SessionMeter
+	registry    *RelayRegistry
+	nodeID      string
 }
 
 // NewServer creates a new RelayServer instance.
@@ -41,7 +44,21 @@ func NewServer(logger *slog.Logger, st store.Store) *RelayServer {
 		logger:      logger,
 		revokedIDs:  make(map[types.ID]bool),
 		store:       st,
+		meter:       NewSessionMeter(0), // 0 = unlimited by default
 	}
+}
+
+// SetRegistry sets the cluster RelayRegistry and registers this node with an ID.
+func (s *RelayServer) SetRegistry(reg *RelayRegistry, nodeID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.registry = reg
+	s.nodeID = nodeID
+}
+
+// GetMeter returns the active SessionMeter for this server.
+func (s *RelayServer) GetMeter() *SessionMeter {
+	return s.meter
 }
 
 // RevokeDevice marks a device ID as revoked on the relay server.
@@ -55,7 +72,7 @@ func (s *RelayServer) RevokeDevice(id types.ID) {
 	}
 }
 
-// Register connects an agent to the relay server.
+// Register connects an agent to the relay server and initializes its session meter.
 func (s *RelayServer) Register(id types.ID, conn *websocket.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -63,13 +80,25 @@ func (s *RelayServer) Register(id types.ID, conn *websocket.Conn) {
 		_ = existing.Close()
 	}
 	s.connections[id] = conn
+	if s.meter != nil {
+		s.meter.RegisterSession(id)
+	}
+	if s.registry != nil && s.nodeID != "" {
+		s.registry.Heartbeat(s.nodeID, len(s.connections))
+	}
 }
 
-// Unregister disconnects an agent from the relay server.
+// Unregister disconnects an agent from the relay server and cleans up active meter.
 func (s *RelayServer) Unregister(id types.ID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.connections, id)
+	if s.meter != nil {
+		s.meter.UnregisterSession(id)
+	}
+	if s.registry != nil && s.nodeID != "" {
+		s.registry.Heartbeat(s.nodeID, len(s.connections))
+	}
 }
 
 // ActiveConnections returns the number of currently connected agents.
@@ -150,6 +179,11 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		if s.meter != nil && !s.meter.RecordInbound(senderID, uint64(len(data))) {
+			s.logger.Warn("relay session exceeded bandwidth quota", "sender_id", senderID)
+			break
+		}
+
 		destID, payload, err := DecodeOutbound(data)
 		if err != nil {
 			s.logger.Warn("invalid relay outbound frame", "error", err, "sender_id", senderID)
@@ -173,6 +207,8 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			s.logger.Error("failed to write relay frame to destination", "error", err, "dest_id", destID)
+		} else if s.meter != nil {
+			s.meter.RecordOutbound(destID, uint64(len(inboundFrame)))
 		}
 	}
 }

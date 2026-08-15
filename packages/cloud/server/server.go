@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,9 +31,42 @@ type Server struct {
 	connections   *services.ConnectionService
 	signaling     *services.SignalingHub
 	relayServer   *relay.RelayServer
+	relayRegistry *relay.RelayRegistry
+	turnManager   *relay.TURNManager
 	mux           *http.ServeMux
 	server        *http.Server
 	upgrader      websocket.Upgrader
+}
+
+func checkOrigin(allowed []string) func(r *http.Request) bool {
+	return func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // Non-browser clients (agents, CLI)
+		}
+		if len(allowed) == 0 {
+			// Default: allow localhost, loopback, and same host
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			host := u.Hostname()
+			reqHost := r.Host
+			if strings.Contains(reqHost, ":") {
+				reqHost = strings.Split(reqHost, ":")[0]
+			}
+			return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == reqHost
+		}
+		for _, o := range allowed {
+			if o == "*" || o == origin {
+				return true
+			}
+			if u, err := url.Parse(origin); err == nil && (u.Host == o || u.Hostname() == o) {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 func NewServer(
@@ -45,6 +80,31 @@ func NewServer(
 	cs *services.ConnectionService,
 	sh *services.SignalingHub,
 ) *Server {
+	reg := relay.NewRelayRegistry()
+	rs := relay.NewServer(logger, st)
+	rs.SetRegistry(reg, "default-relay")
+
+	// Register default local relay node
+	reg.RegisterNode(relay.RelayNode{
+		ID:           "default-relay",
+		Region:       "us-east",
+		Host:         "localhost",
+		Port:         8080,
+		WebSocketURL: "ws://localhost:8080/v1/relay",
+		STUNPort:     19302,
+		TURNPort:     3478,
+		Status:       relay.RelayStatusOnline,
+	})
+
+	turnSecret := cfg.TURNSecret
+	if turnSecret == "" {
+		turnSecret = "zoop-turn-secret"
+	}
+	turnRealm := cfg.TURNRealm
+	if turnRealm == "" {
+		turnRealm = "zoop.network"
+	}
+
 	s := &Server{
 		cfg:           cfg,
 		logger:        logger,
@@ -55,19 +115,33 @@ func NewServer(
 		shares:        ss,
 		connections:   cs,
 		signaling:     sh,
-		// Relay server uses the store for Ed25519 auth of incoming relay connections.
-		relayServer: relay.NewServer(logger, st),
-		mux:         http.NewServeMux(),
+		relayServer:   rs,
+		relayRegistry: reg,
+		turnManager:   relay.NewTURNManager(turnSecret, turnRealm),
+		mux:           http.NewServeMux(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			CheckOrigin: func(r *http.Request) bool {
-				return true // allow all origins for now
-			},
+			CheckOrigin:     checkOrigin(cfg.AllowedOrigins),
 		},
 	}
 	s.routes()
 	return s
+}
+
+// RelayRegistry returns the server's cluster relay registry.
+func (s *Server) RelayRegistry() *relay.RelayRegistry {
+	return s.relayRegistry
+}
+
+// TURNManager returns the server's ephemeral TURN manager.
+func (s *Server) TURNManager() *relay.TURNManager {
+	return s.turnManager
+}
+
+// RelayServer returns the server's WebSocket relay instance.
+func (s *Server) RelayServer() *relay.RelayServer {
+	return s.relayServer
 }
 
 func (s *Server) routes() {
@@ -96,6 +170,11 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/devices/{id}/connections/pending", authMw(http.HandlerFunc(s.handleGetPendingConnections())))
 
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
+
+	// Relay & STUN/TURN endpoints
+	s.mux.HandleFunc("GET /v1/relays", s.handleListRelays())
+	s.mux.HandleFunc("POST /v1/relays/select", s.handleSelectRelays())
+	s.mux.Handle("POST /v1/relays/turn-credentials", authMw(http.HandlerFunc(s.handleGetTURNCredentials())))
 
 	// Relay endpoint: the relay server performs its own Ed25519 authentication.
 	s.mux.HandleFunc("GET /v1/relay", s.relayServer.HandleWebSocket)
@@ -528,6 +607,42 @@ func (s *Server) handleListOrgMembers() http.HandlerFunc {
 		}
 
 		api.WriteJSON(w, http.StatusOK, members)
+	}
+}
+
+func (s *Server) handleListRelays() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nodes := s.relayRegistry.GetNodes(false)
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"relays": nodes,
+		})
+	}
+}
+
+func (s *Server) handleSelectRelays() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req api.RelaySelectRequest
+		if r.Body != nil {
+			_ = json.NewDecoder(r.Body).Decode(&req)
+		}
+
+		candidates := s.relayRegistry.SelectOptimalRelays(req.PreferredRegion, req.ToDurationRTTs())
+		api.WriteJSON(w, http.StatusOK, api.RelaySelectResponse{
+			Relays: candidates,
+		})
+	}
+}
+
+func (s *Server) handleGetTURNCredentials() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthorized", "missing caller identity", http.StatusUnauthorized)
+			return
+		}
+
+		creds := s.turnManager.GenerateCredentials(callerID, 24*time.Hour, "127.0.0.1", 3478, 19302)
+		api.WriteJSON(w, http.StatusOK, creds)
 	}
 }
 

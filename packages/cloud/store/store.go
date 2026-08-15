@@ -48,9 +48,9 @@ type Store interface {
 	AllocateConnectionIPs(ctx context.Context) (providerIP, recipientIP string, err error)
 }
 
-// ipamAllocator hands out sequential IP pairs from 100.64.0.0/10.
-// Layout: each allocation n uses IPs 100.64.(n/64).(n%64*4+1) and 100.64.(n/64).(n%64*4+2),
-// giving 16,384 distinct /30 pairs before exhaustion.
+// ipamAllocator hands out sequential IP pairs from 100.64.0.0/10 (RFC 6598).
+// Layout: each allocation n uses IPs 100.(64 + n/(64*256)).((n/64)%256).((n%64)*4 + 1 and + 2),
+// providing up to 1,048,576 distinct /30 pairs across the entire /10 block.
 type ipamAllocator struct {
 	mu      sync.Mutex
 	counter uint32
@@ -62,22 +62,20 @@ func (a *ipamAllocator) allocate() (string, string, error) {
 
 	n := a.counter
 
-	// 100.64/10 gives addresses 100.64.0.0 – 100.127.255.255 (4,194,304 host IPs).
+	// 100.64.0.0/10 spans 100.64.0.0 – 100.127.255.255 (4,194,304 host IPs = 1,048,576 /30 subnets).
 	// We consume 4 IPs per connection (.1 provider, .2 recipient, .0 net, .3 bcast).
-	// third octet wraps at 63 (64 groups of 4 per octet => 64 pairs per third-octet value),
-	// then increments fourth group via the high byte.
-	high := byte(n / 64)  // increments the third octet (0–63)
-	low := n % 64         // index within the third octet
+	const maxPairs = 64 * 256 * 64 // 1,048,576
 
-	if high > 63 {
-		// Spill into the next /16 block (100.65.x.x, etc.)
-		// For an in-memory prototype this boundary is far enough away.
+	if n >= maxPairs {
 		return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
 	}
 
-	base := low * 4
-	providerIP := fmt.Sprintf("100.64.%d.%d", high, base+1)
-	recipientIP := fmt.Sprintf("100.64.%d.%d", high, base+2)
+	second := 64 + (n / (64 * 256))
+	third := (n / 64) % 256
+	fourthBase := (n % 64) * 4
+
+	providerIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+1)
+	recipientIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+2)
 
 	a.counter++
 	return providerIP, recipientIP, nil

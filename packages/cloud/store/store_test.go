@@ -186,5 +186,41 @@ func TestInMemoryStore_IPAMAllocation(t *testing.T) {
 	if p2 != "100.64.0.5" || r2 != "100.64.0.6" {
 		t.Errorf("expected 100.64.0.5 & 100.64.0.6, got %s & %s", p2, r2)
 	}
+
+	// Test boundary: third octet roll-over (n = 64)
+	s.ipam.counter = 64
+	p64, r64, err := s.AllocateConnectionIPs(ctx)
+	if err != nil {
+		t.Fatalf("allocation 64 failed: %v", err)
+	}
+	if p64 != "100.64.1.1" || r64 != "100.64.1.2" {
+		t.Errorf("expected 100.64.1.1 & 100.64.1.2, got %s & %s", p64, r64)
+	}
+
+	// Test boundary: second octet roll-over (n = 16384 -> 100.65.0.1)
+	s.ipam.counter = 16384
+	p16k, r16k, err := s.AllocateConnectionIPs(ctx)
+	if err != nil {
+		t.Fatalf("allocation 16384 failed: %v", err)
+	}
+	if p16k != "100.65.0.1" || r16k != "100.65.0.2" {
+		t.Errorf("expected 100.65.0.1 & 100.65.0.2, got %s & %s", p16k, r16k)
+	}
+
+	// Test boundary: last valid allocation (n = 1,048,575 -> 100.127.255.253)
+	s.ipam.counter = 1048575
+	pLast, rLast, err := s.AllocateConnectionIPs(ctx)
+	if err != nil {
+		t.Fatalf("last allocation failed: %v", err)
+	}
+	if pLast != "100.127.255.253" || rLast != "100.127.255.254" {
+		t.Errorf("expected 100.127.255.253 & 100.127.255.254, got %s & %s", pLast, rLast)
+	}
+
+	// Test exhaustion (n = 1,048,576)
+	_, _, err = s.AllocateConnectionIPs(ctx)
+	if err == nil {
+		t.Errorf("expected error on IPAM pool exhaustion, got nil")
+	}
 }
 

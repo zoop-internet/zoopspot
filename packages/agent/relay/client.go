@@ -20,10 +20,11 @@ type FrameHandler func(senderID types.ID, payload []byte)
 
 // RelayClient manages the agent's WebSocket connection to a Zoop Relay server.
 type RelayClient struct {
-	relayURL string
-	identity types.Identity
-	privKey  ed25519.PrivateKey
-	logger   *slog.Logger
+	relayURLs []string
+	activeIdx int
+	identity  types.Identity
+	privKey   ed25519.PrivateKey
+	logger    *slog.Logger
 
 	mu      sync.RWMutex
 	conn    *websocket.Conn
@@ -31,18 +32,46 @@ type RelayClient struct {
 	stopCh  chan struct{}
 }
 
-// NewClient creates a new RelayClient instance.
+// NewClient creates a new RelayClient instance with a single relay URL.
 func NewClient(relayURL string, identity types.Identity, privKey ed25519.PrivateKey, logger *slog.Logger) *RelayClient {
+	urls := []string{}
+	if relayURL != "" {
+		urls = append(urls, relayURL)
+	}
+	return NewMultiClient(urls, identity, privKey, logger)
+}
+
+// NewMultiClient creates a RelayClient with multiple ordered relay candidates for automatic failover.
+func NewMultiClient(relayURLs []string, identity types.Identity, privKey ed25519.PrivateKey, logger *slog.Logger) *RelayClient {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &RelayClient{
-		relayURL: relayURL,
-		identity: identity,
-		privKey:  privKey,
-		logger:   logger,
-		stopCh:   make(chan struct{}),
+		relayURLs: relayURLs,
+		activeIdx: 0,
+		identity:  identity,
+		privKey:   privKey,
+		logger:    logger,
+		stopCh:    make(chan struct{}),
 	}
+}
+
+// SetRelayURLs updates the candidate relay URLs list.
+func (c *RelayClient) SetRelayURLs(urls []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.relayURLs = urls
+	c.activeIdx = 0
+}
+
+// GetActiveURL returns the currently active connected relay URL.
+func (c *RelayClient) GetActiveURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.relayURLs) == 0 {
+		return ""
+	}
+	return c.relayURLs[c.activeIdx%len(c.relayURLs)]
 }
 
 // SetFrameHandler sets the callback for incoming relayed frames.
@@ -52,8 +81,16 @@ func (c *RelayClient) SetFrameHandler(h FrameHandler) {
 	c.handler = h
 }
 
-// Connect establishes the WebSocket connection to the relay server.
+// Connect establishes the WebSocket connection to the current active relay candidate.
 func (c *RelayClient) Connect(ctx context.Context) error {
+	c.mu.RLock()
+	if len(c.relayURLs) == 0 {
+		c.mu.RUnlock()
+		return fmt.Errorf("no relay URLs configured")
+	}
+	targetURL := c.relayURLs[c.activeIdx%len(c.relayURLs)]
+	c.mu.RUnlock()
+
 	ts := time.Now().Format(time.RFC3339)
 	payload := []byte("zoop-auth|" + ts)
 	sig := ed25519.Sign(c.privKey, payload)
@@ -65,28 +102,28 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 	headers.Set("X-Zoop-Timestamp", ts)
 
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: 5 * time.Second,
 	}
 
-	conn, _, err := dialer.DialContext(ctx, c.relayURL, headers)
+	conn, _, err := dialer.DialContext(ctx, targetURL, headers)
 	if err != nil {
-		return fmt.Errorf("failed to dial relay websocket: %w", err)
+		return fmt.Errorf("failed to dial relay websocket (%s): %w", targetURL, err)
 	}
 
 	c.mu.Lock()
 	c.conn = conn
 	c.mu.Unlock()
 
-	c.logger.Info("connected to relay server", "url", c.relayURL)
+	c.logger.Info("connected to relay server", "url", targetURL)
 	go c.readLoop()
 
 	return nil
 }
 
-// Start maintains a persistent connection to the Relay server with exponential backoff reconnects.
+// Start maintains a persistent connection with automatic multi-node failover and backoff.
 func (c *RelayClient) Start(ctx context.Context) {
 	backoff := 1 * time.Second
-	maxBackoff := 30 * time.Second
+	maxBackoff := 15 * time.Second
 
 	for {
 		select {
@@ -99,7 +136,16 @@ func (c *RelayClient) Start(ctx context.Context) {
 
 		err := c.Connect(ctx)
 		if err != nil {
-			c.logger.Error("relay server connection failed", "error", err, "retry_in", backoff)
+			c.logger.Error("relay server connection failed", "error", err, "active_url", c.GetActiveURL(), "retry_in", backoff)
+
+			// Try next candidate in the cluster (failover)
+			c.mu.Lock()
+			if len(c.relayURLs) > 1 {
+				c.activeIdx = (c.activeIdx + 1) % len(c.relayURLs)
+				c.logger.Info("failing over to next relay candidate", "next_url", c.relayURLs[c.activeIdx])
+			}
+			c.mu.Unlock()
+
 			select {
 			case <-ctx.Done():
 				return
