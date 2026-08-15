@@ -385,13 +385,13 @@ Direct becomes available
 
 ## 22. Multi-Node Real-Network Simulation & E2E Validation
 
-- [ ] Docker Compose multi-subnet testbed simulating WAN, CGNAT, Symmetric NAT, and Port-Restricted Cones
-- [ ] Automated network degradation simulation (packet loss, jitter, bandwidth throttling)
-- [ ] Seamless Wi-Fi ↔ Cellular roaming validation under heavy traffic
-- [ ] Long-running tunnel endurance and memory leak validation
-- [ ] Router LAN policy routing validation with real forwarding traffic
+- [x] Docker Compose multi-subnet testbed simulating WAN, CGNAT, Symmetric NAT, and Port-Restricted Cones
+- [x] Automated network degradation simulation (packet loss, jitter, bandwidth throttling)
+- [x] Seamless Wi-Fi ↔ Cellular roaming validation under heavy traffic
+- [x] Long-running tunnel endurance and memory leak validation
+- [x] Router LAN policy routing validation with real forwarding traffic
 
-**Done when:** Zoop is proven rock-solid across hostile, degraded, and complex real-world network topologies.
+**Done when:** Zoop is proven rock-solid across hostile, degraded, and complex real-world network topologies. (COMPLETED)
 
 ---
 

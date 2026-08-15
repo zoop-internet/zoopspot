@@ -196,7 +196,7 @@ Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status
 - [x] **Milestone 19: Cryptographic Security, Auth & Abuse Prevention** (Ed25519 signing, replay mitigations, audit logging)
 - [x] **Milestone 20: Distributed Multi-Node Relay & STUN/TURN Infrastructure** (Cluster coordination, STUN/TURN, metering)
 - [x] **Milestone 21: Observability, Telemetry & Diagnostics** (Prometheus `/metrics`, health probes `/v1/health`, `zoop doctor`)
-- [ ] **Milestone 22: Multi-Node Real-Network Simulation & E2E Validation** (Docker Compose testbed, degradation simulation, roaming)
+- [x] **Milestone 22: Multi-Node Real-Network Simulation & E2E Validation** (Docker Compose testbed, degradation simulation, roaming)
 - [ ] **Milestone 23: Android Native Client Implementation** (Kotlin UI, VpnService, battery management)
 - [ ] **Milestone 24: iOS Native Client Implementation** (Swift UI, NetworkExtension, PacketTunnelProvider)
 - [ ] **Milestone 25: Production Infrastructure & Global Validation** (Global cloud deployment, HA clustering, operational runbooks)
