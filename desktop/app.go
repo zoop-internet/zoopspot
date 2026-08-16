@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/zoop-internet/zoop/packages/agent/client"
 	"github.com/zoop-internet/zoop/packages/agent/health"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
@@ -135,11 +137,59 @@ func (a *App) Startup(ctx context.Context) {
 		a.apiClient = client.NewAPIClient(cfg.ControlPlaneURL, ident, privKey)
 	}
 
+	// Start IPC listener for zoopd state updates
+	go a.listenIPC(a.ctx)
+
 	if a.settings.AutoConnectOnLaunch {
 		go func() {
 			time.Sleep(1 * time.Second)
 			_, _ = a.ConnectPeer("")
 		}()
+	}
+}
+
+// listenIPC connects to zoopd socket and streams events to the frontend.
+func (a *App) listenIPC(ctx context.Context) {
+	socketPath := "/var/run/zoopd.sock"
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		conn, err := net.Dial("unix", socketPath)
+		if err != nil {
+			a.logger.Debug("failed to connect to zoopd IPC, retrying...", "error", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Send subscribe command
+		cmd := map[string]string{"action": "subscribe"}
+		if err := json.NewEncoder(conn).Encode(cmd); err != nil {
+			conn.Close()
+			continue
+		}
+
+		// Read stream
+		decoder := json.NewDecoder(conn)
+		for {
+			var msg map[string]interface{}
+			if err := decoder.Decode(&msg); err != nil {
+				a.logger.Debug("zoopd IPC stream closed or error", "error", err)
+				break
+			}
+			
+			// If it's a state update, broadcast to Wails frontend
+			if evt, ok := msg["event"].(string); ok && evt == "state_update" {
+				if data, ok := msg["data"].(map[string]interface{}); ok {
+					runtime.EventsEmit(ctx, "agent_state_update", data)
+				}
+			}
+		}
+		conn.Close()
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -161,6 +211,40 @@ func (a *App) GetStatus() DesktopStatus {
 	return a.status
 }
 
+// sendIPCCommand sends a single command to zoopd.
+func (a *App) sendIPCCommand(action, peerID string) error {
+	return a.sendIPCCommandWithData(action, peerID, nil)
+}
+
+// sendIPCCommandWithData sends a command and unmarshals the response Data.
+func (a *App) sendIPCCommandWithData(action, peerID string, out interface{}) error {
+	conn, err := net.Dial("unix", "/var/run/zoopd.sock")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	cmd := map[string]string{"action": action, "peer_id": peerID}
+	if err := json.NewEncoder(conn).Encode(cmd); err != nil {
+		return err
+	}
+	var resp struct {
+		Success bool            `json:"success"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data,omitempty"`
+	}
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("daemon error: %s", resp.Message)
+	}
+	if out != nil && len(resp.Data) > 0 {
+		return json.Unmarshal(resp.Data, out)
+	}
+	return nil
+}
+
 // ConnectPeer initiates a connection to a peer or best available gateway.
 func (a *App) ConnectPeer(peerID string) (DesktopStatus, error) {
 	a.mu.Lock()
@@ -169,10 +253,14 @@ func (a *App) ConnectPeer(peerID string) (DesktopStatus, error) {
 	a.status.State = "connecting"
 	a.logger.Info("Desktop initiating connection", "peer_id", peerID)
 
+	err := a.sendIPCCommand("connect", peerID)
+	if err != nil {
+		a.logger.Error("Failed to send connect IPC", "error", err)
+		a.status.State = "error"
+		return a.status, err
+	}
+
 	if peerID != "" {
-		if _, err := uuid.Parse(peerID); err == nil && a.apiClient != nil {
-			_ = a.apiClient.UpdateConnectionState(a.ctx, types.ID(uuid.MustParse(peerID)), types.ConnectionStateConnected)
-		}
 		a.status.ActivePeerID = peerID
 		a.status.ActivePeerName = "Remote Gateway"
 	} else {
@@ -193,6 +281,11 @@ func (a *App) Disconnect() (DesktopStatus, error) {
 	defer a.mu.Unlock()
 
 	a.logger.Info("Desktop disconnecting tunnel")
+	err := a.sendIPCCommand("disconnect", "")
+	if err != nil {
+		a.logger.Error("Failed to send disconnect IPC", "error", err)
+	}
+
 	a.status.Connected = false
 	a.status.State = "idle"
 	a.status.ActivePeerID = ""
@@ -203,56 +296,12 @@ func (a *App) Disconnect() (DesktopStatus, error) {
 
 // GetPeers returns available peers in the user's network mesh.
 func (a *App) GetPeers() []PeerInfo {
-	return []PeerInfo{
-		{
-			ID:              "42a1bc23-83d4-4e12-b2d9-123456789abc",
-			Name:            "US-East Home Router (Provider)",
-			Platform:        "openwrt",
-			VirtualIP:       "100.64.0.1",
-			IsProvider:      true,
-			Online:          true,
-			LatencyMs:       18.4,
-			DirectAvailable: true,
-			Country:         "United States",
-			City:            "Ashburn, VA",
-		},
-		{
-			ID:              "88d2ef56-12c8-47a3-98b7-987654321def",
-			Name:            "Frankfurt Office Exit Node",
-			Platform:        "linux",
-			VirtualIP:       "100.64.0.2",
-			IsProvider:      true,
-			Online:          true,
-			LatencyMs:       86.2,
-			DirectAvailable: true,
-			Country:         "Germany",
-			City:            "Frankfurt",
-		},
-		{
-			ID:              "c3f4129a-55bc-4321-89ab-abcdef123456",
-			Name:            "MacBook Pro Workstation",
-			Platform:        "darwin",
-			VirtualIP:       "100.64.0.4",
-			IsProvider:      false,
-			Online:          true,
-			LatencyMs:       12.1,
-			DirectAvailable: true,
-			Country:         "United States",
-			City:            "New York, NY",
-		},
-		{
-			ID:              "77e1aa22-33cc-4999-aaaa-112233445566",
-			Name:            "Tokyo Relay Hub",
-			Platform:        "linux",
-			VirtualIP:       "100.64.0.10",
-			IsProvider:      true,
-			Online:          true,
-			LatencyMs:       142.5,
-			DirectAvailable: false,
-			Country:         "Japan",
-			City:            "Tokyo",
-		},
+	var peers []PeerInfo
+	err := a.sendIPCCommandWithData("get_peers", "", &peers)
+	if err != nil {
+		a.logger.Warn("Failed to get peers from daemon", "error", err)
 	}
+	return peers
 }
 
 // RunDiagnostics executes system health and diagnostics probe.
@@ -276,35 +325,14 @@ func (a *App) RunDiagnostics() DiagnosticsReport {
 	}
 }
 
-// GetTelemetry returns simulated/live network metrics.
+// GetTelemetry returns live network metrics from the daemon.
 func (a *App) GetTelemetry() TelemetryData {
-	a.mu.RLock()
-	connected := a.status.Connected
-	a.mu.RUnlock()
-
-	if !connected {
-		return TelemetryData{
-			DownloadRateKBps: 0,
-			UploadRateKBps:   0,
-			TotalRxBytes:     0,
-			TotalTxBytes:     0,
-			LatencyMs:        0,
-			PacketLossPct:    0,
-			PathType:         "none",
-			NATType:          "Full Cone NAT",
-		}
+	var tel TelemetryData
+	err := a.sendIPCCommandWithData("get_telemetry", "", &tel)
+	if err != nil {
+		a.logger.Warn("Failed to get telemetry from daemon", "error", err)
 	}
-
-	return TelemetryData{
-		DownloadRateKBps: 1845.2,
-		UploadRateKBps:   432.8,
-		TotalRxBytes:     148293102,
-		TotalTxBytes:     34910214,
-		LatencyMs:        19.2,
-		PacketLossPct:    0.0,
-		PathType:         "direct",
-		NATType:          "Full Cone NAT",
-	}
+	return tel
 }
 
 // GetSettings returns the desktop client preferences.

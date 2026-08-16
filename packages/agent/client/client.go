@@ -157,3 +157,10 @@ func (c *APIClient) GetPendingConnections(ctx context.Context, deviceID types.ID
 	err := c.do(ctx, http.MethodGet, path, nil, &resp)
 	return resp, err
 }
+
+// ListDevices fetches all known devices from the Control Plane.
+func (c *APIClient) ListDevices(ctx context.Context) ([]api.DeviceResponse, error) {
+	var resp []api.DeviceResponse
+	err := c.do(ctx, http.MethodGet, "/v1/devices", nil, &resp)
+	return resp, err
+}

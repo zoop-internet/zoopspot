@@ -7,21 +7,21 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.50.0.0/16
+        - subnet: 10.250.0.0/16
   # The simulated standard home network (Port-Restricted NAT)
   zoop_lan_a:
     name: zoop_lan_a
     driver: bridge
     ipam:
       config:
-        - subnet: 172.51.0.0/24
+        - subnet: 10.251.0.0/24
   # The simulated CGNAT / Symmetric network
   zoop_lan_b:
     name: zoop_lan_b
     driver: bridge
     ipam:
       config:
-        - subnet: 172.52.0.0/24
+        - subnet: 10.252.0.0/24
 
 services:
   postgres:
@@ -32,7 +32,7 @@ services:
       POSTGRES_DB: zoop_db
     networks:
       zoop_wan:
-        ipv4_address: 172.50.0.10
+        ipv4_address: 10.250.0.10
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zoop -d zoop_db"]
       interval: 5s
@@ -52,7 +52,7 @@ services:
       --stale-nonce
     networks:
       zoop_wan:
-        ipv4_address: 172.50.0.11
+        ipv4_address: 10.250.0.11
 
   zoop-cloud:
     build:
@@ -61,12 +61,12 @@ services:
       network: host
     environment:
       - ZOOP_STORE_TYPE=postgres
-      - ZOOP_POSTGRES_URL=postgres://zoop:zoop_password@172.50.0.10:5432/zoop_db?sslmode=disable
+      - ZOOP_POSTGRES_URL=postgres://zoop:zoop_password@10.250.0.10:5432/zoop_db?sslmode=disable
       - ZOOP_TURN_SECRET=zoop-turn-secret
       - ZOOP_TURN_REALM=zoop.network
     networks:
       zoop_wan:
-        ipv4_address: 172.50.0.12
+        ipv4_address: 10.250.0.12
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,9 +83,9 @@ services:
       - NAT_TYPE=standard
     networks:
       zoop_wan:
-        ipv4_address: 172.50.0.20
+        ipv4_address: 10.250.0.20
       zoop_lan_a:
-        ipv4_address: 172.51.0.1
+        ipv4_address: 10.251.0.254
 
   router-b:
     build:
@@ -99,9 +99,9 @@ services:
       - NAT_TYPE=symmetric
     networks:
       zoop_wan:
-        ipv4_address: 172.50.0.21
+        ipv4_address: 10.250.0.21
       zoop_lan_b:
-        ipv4_address: 172.52.0.1
+        ipv4_address: 10.252.0.254
 
   agent-a:
     build:
@@ -114,15 +114,15 @@ services:
     command: ["-api-port", "9090"]
     networks:
       zoop_lan_a:
-        ipv4_address: 172.51.0.10
+        ipv4_address: 10.251.0.10
     depends_on:
       - zoop-cloud
       - router-a
     # We must alter the default route so traffic goes through the router instead of the docker bridge default gateway
     entrypoint: >
-      /bin/sh -c "ip route del default && ip route add default via 172.51.0.1 && /bin/zoop-agent -api-port 9090 -tun zoopa"
+      /bin/sh -c "ip route del default && ip route add default via 10.251.0.254 && /bin/zoop-agent -api-port 9090 -tun zoopa"
     environment:
-      - ZOOP_CONTROL_PLANE_URL=http://172.50.0.12:8080
+      - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080
 
   agent-b:
     build:
@@ -135,12 +135,12 @@ services:
     command: ["-api-port", "9090"]
     networks:
       zoop_lan_b:
-        ipv4_address: 172.52.0.10
+        ipv4_address: 10.252.0.10
     depends_on:
       - zoop-cloud
       - router-b
     # We must alter the default route so traffic goes through the router instead of the docker bridge default gateway
     entrypoint: >
-      /bin/sh -c "ip route del default && ip route add default via 172.52.0.1 && /bin/zoop-agent -api-port 9090 -tun zoopb"
+      /bin/sh -c "ip route del default && ip route add default via 10.252.0.254 && /bin/zoop-agent -api-port 9090 -tun zoopb"
     environment:
-      - ZOOP_CONTROL_PLANE_URL=http://172.50.0.12:8080
+      - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080
