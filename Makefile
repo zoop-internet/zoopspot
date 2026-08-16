@@ -12,12 +12,13 @@ build:
 	$(GO) build -v -o $(BIN_DIR)/zoop-router ./router
 	$(GO) build -v -o $(BIN_DIR)/zoop ./cmd/zoop
 	$(GO) build -v -o $(BIN_DIR)/zoopd ./cmd/zoopd
-	$(GO) build -v -o $(BIN_DIR)/zoop-desktop ./desktop
+	$(GO) build -tags desktop -v -o $(BIN_DIR)/zoop-desktop ./desktop
 
 desktop-build:
 	@cd desktop/frontend && npx vite build
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -v -o $(BIN_DIR)/zoop-desktop ./desktop
+	$(GO) build -tags desktop -v -o $(BIN_DIR)/zoop-desktop ./desktop
+
 
 
 test:
