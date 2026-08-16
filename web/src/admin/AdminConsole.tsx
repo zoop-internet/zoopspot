@@ -37,6 +37,7 @@ const I = {
 
 /* ─── Portal Switcher (Cloudflare-style) ──────────────────────────── */
 const DOMAINS: Record<PortalMode, string> = {
+  desktop: 'Zoop Desktop App',
   user: 'app.zoop.com (Personal)',
   org: 'app.zoop.com/org (Acme Corp)',
   admin: 'admin.zoop.com (Operations)',
@@ -64,7 +65,7 @@ const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => 
       </button>
       {open && (
         <div className="portal-switcher-menu" role="listbox">
-          {(['user', 'org', 'admin'] as PortalMode[]).map(m => (
+          {(['desktop', 'user', 'org', 'admin'] as PortalMode[]).map(m => (
             <button key={m} id={`admin-switch-to-${m}`}
               className={`portal-switcher-option${mode === m ? ' ps-selected' : ''}`}
               onClick={() => { onSwitch(m); setOpen(false); }}

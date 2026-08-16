@@ -22,12 +22,13 @@ const I = {
 };
 
 const PORTAL_LABELS: Record<PortalMode, string> = {
-  user:  'app.zoop.com',
-  org:   'app.zoop.com/org',
-  admin: 'admin.zoop.com',
+  desktop: 'Zoop Desktop App',
+  user:    'app.zoop.com',
+  org:     'app.zoop.com/org',
+  admin:   'admin.zoop.com',
 };
 const PORTAL_COLORS: Record<PortalMode, string> = {
-  user: 'var(--accent-green)', org: 'var(--accent-blue)', admin: 'var(--accent-amber)',
+  desktop: 'var(--accent-cyan)', user: 'var(--accent-green)', org: 'var(--accent-blue)', admin: 'var(--accent-amber)',
 };
 
 const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
@@ -47,7 +48,7 @@ const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => 
       </button>
       {open && (
         <div className="portal-switcher-menu" role="listbox">
-          {(['user', 'org', 'admin'] as PortalMode[]).map(m => (
+          {(['desktop', 'user', 'org', 'admin'] as PortalMode[]).map(m => (
             <button key={m} id={`org-switch-to-${m}`} className={`portal-switcher-option${mode === m ? ' ps-selected' : ''}`}
               onClick={() => { onSwitch(m); setOpen(false); }} role="option" aria-selected={mode === m}>
               {mode === m ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
