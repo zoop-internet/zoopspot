@@ -1,259 +1,290 @@
 # Zoop
 
-![Zoop Direct Connectivity Platform](docs/assets/banner.png)
+<div align="center">
 
-Zoop is a direct connectivity platform designed to let authorized devices
-share and use network connectivity through secure, fast, and reliable
-device-to-device connections.
+**High-Performance Direct Device-to-Device Mesh & Connectivity Platform**
 
-The core idea is simple:
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android%20%7C%20iOS%20%7C%20OpenWrt-green.svg)](#platform-support)
+[![Encryption](https://img.shields.io/badge/Tunnel-WireGuard%20(Noise_IK)-9b59b6.svg)](https://www.wireguard.com)
 
-    Provider
-        │
-        │ secure direct connection
-        ▼
-    Recipient
-        │
-        ▼
-     Internet
+</div>
 
+---
 
-## Vision
+## Overview
 
-Zoop aims to make device-to-device connectivity:
+**Zoop** is an open-source, resilient direct connectivity platform that allows authorized devices to securely share, route, and access network connectivity peer-to-peer. Built on top of modern **user-space WireGuard** cryptography and reflexive **STUN/TURN NAT traversal**, Zoop automatically forms point-to-point encrypted tunnels between endpoints without routing sensitive payload traffic through centralized servers.
 
-- Fast
-- Direct
-- Secure
-- Reliable
-- Seamless
-- Easy to use
+```
+┌────────────────────────────────────────────────────────┐
+│                      ZOOP CLOUD                        │
+│   (Control Plane: Identity, Auth, Signaling & IPAM)    │
+└───────────────────▲────────────────┬───────────────────┘
+                    │                │
+            Signaling / Auth  Signaling / Auth
+                    │                │
+       ┌────────────┴───┐        ┌───┴────────────┐
+       │    Provider    │◄──────►│   Recipient    │
+       │    (zoopd)     │ Direct │    (zoopd)     │
+       └───────┬────────┘ Tunnel └────────────────┘
+               │ (WireGuard)
+               ▼
+            Internet
+```
 
-The architecture separates coordination from traffic:
+---
 
-    ┌─────────────────────────────────────────┐
-    │                  ZOOP                   │
-    │                                         │
-    │   Control Plane       Data Plane        │
-    │   ─────────────       ─────────         │
-    │   Identity            Endpoints         │
-    │   Authorization       Secure Tunnel     │
-    │   Discovery           Routing           │
-    │   Signaling           Forwarding        │
-    │   Sharing             NAT                │
-    │                                         │
-    └─────────────────────────────────────────┘
+## Key Features
 
+- **Direct Peer-to-Peer WireGuard Mesh**: End-to-end encrypted tunnels using state-of-the-art ChaCha20-Poly1305 authenticated encryption and Curve25519 key exchanges.
+- **Adaptive NAT Traversal & Hole Punching**: Automatic discovery of local LAN, reflexive STUN, and UPnP endpoints to achieve direct connectivity across restrictive home and enterprise NATs.
+- **Distributed Relay Fallback**: Low-latency WebSocket TURN/Relay cluster failover for symmetric and carrier-grade NATs (CGNAT) where direct P2P is impossible.
+- **Zero-Drop Connection Roaming**: Instant network transition detection (Wi-Fi ↔ Ethernet ↔ Cellular) via kernel Netlink events with automatic IP re-probing without breaking active TCP/UDP sockets.
+- **Privileged Background Daemon (`zoopd`)**: Lightweight system service (`systemd`, `launchd`, Windows Service) managing WireGuard TUN adapters with unprivileged local UNIX socket IPC.
+- **Developer-First CLI (`zoop`)**: Terminal management tool for inspecting peer latency, monitoring real-time throughput, initiating connections, and running diagnostics.
+- **Web Management Dashboard**: Modern React + TypeScript interface for managing devices, sharing relationships, organizations, and security audit logs.
+- **Native Mobile & Router Integration**: Gomobile bindings and C-shared libraries for Android (`VpnService`), iOS (`NetworkExtension`), and OpenWrt router firmware.
+- **Comprehensive Diagnostics & Observability**: Integrated Prometheus `/metrics` scraper endpoint, `/v1/health` probes, and interactive `zoop doctor` diagnostics.
 
-## Core Architecture
+---
 
-The Control Plane coordinates the network.
+## Architecture
 
-The Data Plane carries the actual traffic.
+Zoop strictly decouples the **Control Plane** from the **Data Plane**:
 
-Direct endpoint connectivity is preferred.
+| Plane | Component | Responsibilities |
+|---|---|---|
+| **Control Plane** | `zoop-cloud` | Device registration, Ed25519 identity verification, mutual share authorization, WebSocket signaling, and IPAM allocation. |
+| **Data Plane** | `zoopd` (Daemon) | TUN interface lifecycle, WireGuard handshake negotiation, STUN candidate gathering, packet forwarding, and NAT masquerading. |
+| **User Space** | `zoop` (CLI) | Non-root Unix domain socket client for interacting with the background daemon. |
+| **Fallback** | `zoop-relay` | Geographically distributed multi-region relay nodes that stream encrypted frames when direct UDP paths fail. |
 
-Relays are a fallback when direct connectivity cannot be established.
+---
 
-    Control Plane
-         │
-         ├── Identity
-         ├── Authentication
-         ├── Authorization
-         ├── Discovery
-         ├── Signaling
-         └── Sharing
-                 │
-                 ▼
-          Secure Connection
-                 │
-                 ▼
-        Provider ↔ Recipient
-                 │
-                 ▼
-              Internet
+## Platform Support
 
+| Operating System | Daemon Support | Interface Method | Status |
+|---|---|---|---|
+| **Linux** | `zoopd` (systemd) | Native TUN / WireGuard Go | Production Ready |
+| **macOS** | `zoopd` (launchd) | `utun` / User-space TUN | Production Ready |
+| **Windows** | `zoopd` (Windows Service) | `Wintun` driver | Supported |
+| **OpenWrt** | `zoop-router` | UCI / iptables NAT / IP policy | Supported |
+| **Android** | `zoopcore.aar` | `VpnService` / Gomobile | Native Core Binding |
+| **iOS** | `ZoopCore.xcframework` | `PacketTunnelProvider` / Gomobile | Native Core Binding |
 
-## Technology
+---
 
-The current technology direction is:
+## Quick Start
 
-    Core / Backend       → Go
-    Networking           → Go
-    Endpoint Agent       → Go
-    Router               → Go
-    Android              → Kotlin
-    iOS                  → Swift
-    Web                  → TypeScript + React
+### 1. Prerequisites
+- **Go 1.22+**
+- **Docker** (optional, for cloud orchestration & multi-node testbeds)
+- **Linux/macOS/Windows** with administrative permissions for TUN device allocation
 
-The secure tunnel will use an established technology rather than a
-custom cryptographic protocol.
+### 2. Building from Source
+Clone the repository and build the core binaries using the `Makefile`:
 
-WireGuard is the current direction for the secure tunnel layer.
+```bash
+git clone https://github.com/zoop-internet/zoop.git
+cd zoop
 
+# Compile all binaries into bin/
+make build
+```
+
+This generates:
+- `bin/zoop` — Zoop User CLI
+- `bin/zoopd` — Zoop System Daemon
+- `bin/zoop-cloud` — Zoop Cloud Control Plane
+- `bin/zoop-router` — Zoop Router Integration Binary
+
+---
+
+### 3. Running Zoop Cloud (Control Plane)
+
+To start the central coordinator locally:
+
+```bash
+# In-memory storage for development:
+./bin/zoop-cloud
+
+# Or with persistent PostgreSQL:
+export ZOOP_DATABASE_URL="postgres://user:password@localhost:5432/zoop?sslmode=disable"
+./bin/zoop-cloud
+```
+
+---
+
+### 4. Running the System Daemon (`zoopd`)
+
+#### Foreground Mode:
+```bash
+sudo ./bin/zoopd -tun zoop0 -api-port 9090
+```
+
+#### Installing as a Background Service:
+```bash
+# Install and register as a system service (systemd on Linux, launchd on macOS)
+sudo ./bin/zoopd service install
+
+# Start the background service
+sudo ./bin/zoopd service start
+
+# Check service and socket health
+sudo ./bin/zoopd service status
+```
+
+---
+
+### 5. Using the CLI (`zoop`)
+
+Once `zoopd` is active, interact with the daemon without needing root privileges:
+
+```bash
+# Verify daemon status & local WireGuard public key
+zoop status
+
+# List available peer devices in your organization
+zoop peers
+
+# Connect to a target provider device
+zoop connect <provider_endpoint_id>
+
+# Stream live network metrics (throughput, latency, packet loss)
+zoop telemetry
+
+# Subscribe to real-time daemon state updates
+zoop subscribe
+
+# Disconnect the active tunnel
+zoop disconnect
+
+# Run network & environment diagnostics
+zoop doctor
+```
+
+---
+
+## Diagnostics: `zoop doctor`
+
+Zoop includes an integrated diagnostic engine that tests the health of local networking, permissions, control plane reachability, and STUN/NAT traversal:
+
+```bash
+zoop doctor
+```
+
+**Sample Output:**
+```text
+================================================================
+ Zoop Diagnostics Report  (v0.1.0-alpha)
+ Timestamp: 2026-08-17T14:45:06Z
+================================================================
+
+[✓ PASS] Agent Lifecycle State              
+         → Current state: RUNNING
+
+[✓ PASS] TUN Interface (zoop0)               (2ms)
+         → Device zoop0 active and MTU configured (1420)
+
+[✓ PASS] Control Plane API Reachability      (12ms)
+         → Reached https://api.zoop.network/v1/health (HTTP 200 OK)
+
+[✓ PASS] DNS Resolution                      (5ms)
+         → Resolving external domains correctly
+
+[✓ PASS] STUN Reachability & NAT Discovery   (28ms)
+         → Public reflexive IP discovered: 198.51.100.42:51820 (Full Cone NAT)
+
+================================================================
+ Overall Status: HEALTHY
+================================================================
+```
+
+---
+
+## Configuration Reference
+
+Zoop is configured via environment variables or CLI flags:
+
+| Environment Variable | CLI Flag | Default | Description |
+|---|---|---|---|
+| `ZOOP_CONTROL_PLANE_URL` | — | `http://localhost:8080` | URL of the central Zoop Cloud API |
+| `ZOOP_STUN_SERVER` | — | `stun.l.google.com:19302` | STUN server for reflexive candidate discovery |
+| `ZOOP_SOCKET_PATH` | `-socket` | `/var/run/zoopd.sock` | UNIX domain socket for daemon/CLI IPC |
+| `ZOOP_TUN_NAME` | `-tun` | `zoop0` | Virtual WireGuard interface name |
+| `ZOOP_API_PORT` | `-api-port` | `9090` | Prometheus `/metrics` and health HTTP port |
+| `ZOOP_CONFIG_DIR` | `-config-dir` | `~/.zoop` | Directory for cryptographic keys and identity |
+| `ZOOP_DATABASE_URL` | — | `""` | PostgreSQL connection string for `zoop-cloud` |
+| `ZOOP_REDIS_URL` | — | `""` | Redis connection string for multi-node signaling |
+| `ZOOP_LOG_LEVEL` | — | `info` | Log verbosity (`debug`, `info`, `warn`, `error`) |
+
+---
 
 ## Repository Structure
 
-    zoop/
-    │
-    ├── README.md             # High-level overview & current progress
-    ├── ROADMAP.md            # Detailed 25-milestone implementation checklist
-    │
-    ├── docs/                 # Architectural specifications
-    │   ├── architecture.md
-    │   ├── entities.md
-    │   ├── control-plane.md
-    │   ├── data-plane.md
-    │   ├── networking.md
-    │   ├── security.md
-    │   ├── platforms.md
-    │   ├── organizations.md
-    │   ├── technology.md
-    │   ├── api.md
-    │   ├── abuse-and-safety.md
-    │   ├── ipam-and-relays.md
-    │   └── future.md
-    │
-    ├── cloud/
-    ├── agent/
-    ├── web/
-    ├── mobile/
-    ├── router/
-    ├── packages/
-    ├── tests/
-    ├── deployments/
-    ├── infrastructure/
-    ├── scripts/
-    └── .github/
-
-
-## Documentation Architecture
-
-Zoop uses three distinct documentation layers:
-
 ```text
-docs/
-   ↓
-WHAT ZOOP IS
-Architecture, entities, networking, security, technology...
-
-README.md
-   ↓
-WHERE ZOOP IS
-Project overview + current implementation progress
-
-ROADMAP.md
-   ↓
-WHAT WE BUILD NEXT
-Concrete tasks inside each of the 25 implementation milestones
+zoop/
+├── cmd/
+│   ├── zoop/                 # Unified CLI tool
+│   ├── zoopd/                # Background system daemon & service manager
+│   ├── zoop-mobile/          # C-shared library wrapper for mobile
+│   └── zoop-router/          # OpenWrt router binary
+│
+├── packages/
+│   ├── agent/                # Tunnel (WireGuard), STUN discovery, roaming, identity
+│   ├── cloud/                # Signaling hub, PostgreSQL store, REST API, Relay
+│   ├── core/                 # Shared types, crypto, config, error definitions
+│   ├── platform/             # OS bindings: Linux netlink, Android, iOS, mobile
+│   └── router/               # NAT MASQUERADE and LAN routing policies
+│
+├── cloud/                    # Zoop Cloud entrypoint
+├── router/                   # Router daemon entrypoint
+├── web/                      # React + TypeScript management web app
+├── tests/                    # End-to-end integration and simulation tests
+├── infrastructure/           # Docker Compose & Helm chart definitions
+└── scripts/                  # Network degradation and service install scripts
 ```
 
-### Core Architecture Documents
+---
 
-Start with:
-- [Architecture](docs/architecture.md)
+## Development & Testing
 
-Then:
-- [Entities](docs/entities.md)
-- [Control Plane](docs/control-plane.md)
-- [Data Plane](docs/data-plane.md)
-- [Networking](docs/networking.md)
-- [Security](docs/security.md)
-- [Platforms](docs/platforms.md)
-- [Organizations](docs/organizations.md)
-- [Technology](docs/technology.md)
-- [API Specification](docs/api.md)
-- [Web Architecture](docs/web.md)
-- [Abuse & Safety](docs/abuse-and-safety.md)
-- [IPAM & Relays](docs/ipam-and-relays.md)
+### Running Unit Tests
+```bash
+make test
+```
 
-For future direction:
-- [Future Ideas](docs/future.md)
+### Running Mobile Core Builds
+```bash
+# Build Android AAR library
+make build-android-core
 
+# Build iOS XCFramework
+make build-ios-core
 
-## Implementation Progress & Roadmap
+# Build C-shared library
+make mobile-cshared
+```
 
-Track detailed tasks in [ROADMAP.md](ROADMAP.md). Below is the high-level status of our 25 implementation milestones:
+### Running E2E Testbed Simulation
+```bash
+# Run multi-node Docker Compose network simulation (NAT, packet loss, roaming)
+ZOOP_E2E_TESTS=1 go test -v ./test/e2e/...
+```
 
-- [x] **Milestone 1: Repository Foundation** (Clean build, CI, linting, directory structure)
-- [x] **Milestone 2: Go Core** (Core types, Device, Provider, Recipient, Identity, Connection primitives)
-- [x] **Milestone 3: Zoop Agent** (Agent CLI, lifecycle, identity creation, local storage, status)
-- [x] **Milestone 4: Control Plane** (Go Cloud service, API, Registration, Auth, Discovery, Signaling)
-- [x] **Milestone 5: Agent ↔ Control Plane** (Agent-Cloud sync, peer lookup, signaling)
-- [x] **Milestone 6: Secure Tunnel** (WireGuard integration, key management, peer configuration)
-- [x] **Milestone 7: Real Packet Forwarding** (Data Plane: packet routing, TCP/UDP forwarding)
-- [x] **Milestone 8: Real Internet Traffic** (Provider NAT, DNS, HTTP/HTTPS browsing via Provider)
-- [x] **Milestone 9: Direct Connectivity** (Local & public address discovery, direct P2P connection)
-- [x] **Milestone 10: NAT Traversal** (STUN, UDP hole punching, NAT-to-NAT connectivity)
-- [x] **Milestone 11: Relay Fallback** (Relay service, automatic fallback & promotion)
-- [x] **Milestone 12: Connection Recovery** (Roaming, Wi-Fi ↔ Cellular, IP changes, auto-reconnect)
-- [x] **Milestone 13: Security Hardening** (Key rotation, revocation, secret management, threat testing)
-- [x] **Milestone 14: Desktop / Server Agent Hardening** (Linux daemonization, macOS/Windows Agents)
-- [x] **Milestone 15: Router Integration** (OpenWrt package, UCI configuration, multi-device routing)
-- [x] **Milestone 16: Management Web Application** (React + TypeScript dashboard for accounts, devices & orgs)
-- [x] **Milestone 17: Mobile Core Integration (Native Bindings)** (Go native bindings, gomobile, C-shared library)
-- [x] **Milestone 18: Persistent Database & State Layer** (PostgreSQL + Redis, schema migrations, persistent IPAM)
-- [x] **Milestone 19: Cryptographic Security, Auth & Abuse Prevention** (Ed25519 signing, replay mitigations, audit logging)
-- [x] **Milestone 20: Distributed Multi-Node Relay & STUN/TURN Infrastructure** (Cluster coordination, STUN/TURN, metering)
-- [x] **Milestone 21: Observability, Telemetry & Diagnostics** (Prometheus `/metrics`, health probes `/v1/health`, `zoop doctor`)
-- [x] **Milestone 22: Multi-Node Real-Network Simulation & E2E Validation** (Docker Compose testbed, degradation simulation, roaming)
-- [x] **Milestone 23: Android Native Client Implementation** (Headless Native Module, VpnService, battery/roaming management)
-- [x] **Milestone 24: iOS Native Client Implementation** (Headless Native Bridge, NetworkExtension, PacketTunnelProvider)
-- [x] **Milestone 25: Production Infrastructure & Global Validation** (Cloud-Agnostic Helm deployment, Docker Compose, operational runbooks)
+---
 
+## Security & Cryptography
 
-## What Zoop Is Not
+- **Noise Protocol Framework**: Uses the Noise_IK handshake pattern (via WireGuard) for mutual authentication and forward secrecy.
+- **Identity Keys**: Ed25519 signatures authenticate every control plane API request.
+- **Replay Protection**: Cryptographic nonces and bounded TTL timestamps mitigate replay attacks.
+- **Zero-Knowledge Traffic**: The control plane and relays only coordinate signaling and metadata; payload packets are end-to-end encrypted and completely opaque to relays.
 
-Zoop is not designed around a centralized VPN gateway through which all
-traffic must pass.
+---
 
-Zoop Cloud should not become the normal Internet traffic path.
+## License
 
-Zoop is also not intended to invent a new cryptographic protocol.
-
-
-## Current Architectural Goal
-
-The target system is:
-
-    User
-      │
-      ▼
-    Identity
-      │
-      ▼
-    Authorization
-      │
-      ▼
-    Provider ↔ Secure Tunnel ↔ Recipient
-                              │
-                              ▼
-                           Internet
-
-with the Control Plane coordinating the relationship and connection.
-
-
-## Long-Term Direction
-
-Zoop may eventually support:
-
-- multiple providers
-- network-to-network connectivity
-- routers
-- organizations
-- advanced policies
-- failover
-- multi-path networking
-- embedded devices
-- larger distributed networks
-
-These are future directions, not current implementation requirements.
-
-
-## Important
-
-The documents in `docs/` describe the architecture in detail, and [ROADMAP.md](ROADMAP.md) tracks step-by-step progress.
-
-This README intentionally stays high-level.
-
-When implementation begins, work through tasks sequentially starting at **Milestone 1: Repository Foundation**.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

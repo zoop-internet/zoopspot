@@ -45,7 +45,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("     ZOOP MILESTONE 11 RELAY FALLBACK E2E TEST    ")
+	fmt.Println("     ZOOP E2E: RELAY FALLBACK TEST                 ")
 	fmt.Println("==================================================")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -230,6 +230,6 @@ func main() {
 	fmt.Println("✓ Control Plane and Relay server operating concurrently")
 
 	fmt.Println("\n==================================================")
-	fmt.Println("   ✓ MILESTONE 11 RELAY FALLBACK TEST PASSED!     ")
+	fmt.Println("   ✓ RELAY FALLBACK TEST PASSED!                  ")
 	fmt.Println("==================================================")
 }

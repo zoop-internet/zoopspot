@@ -120,7 +120,7 @@ services:
       - router-a
     # We must alter the default route so traffic goes through the router instead of the docker bridge default gateway
     entrypoint: >
-      /bin/sh -c "ip route del default && ip route add default via 10.251.0.254 && /bin/zoop-agent -api-port 9090 -tun zoopa"
+      /bin/sh -c "ip route del default && ip route add default via 10.251.0.254 && /bin/zoopd -api-port 9090 -tun zoopa"
     environment:
       - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080
 
@@ -141,6 +141,6 @@ services:
       - router-b
     # We must alter the default route so traffic goes through the router instead of the docker bridge default gateway
     entrypoint: >
-      /bin/sh -c "ip route del default && ip route add default via 10.252.0.254 && /bin/zoop-agent -api-port 9090 -tun zoopb"
+      /bin/sh -c "ip route del default && ip route add default via 10.252.0.254 && /bin/zoopd -api-port 9090 -tun zoopb"
     environment:
       - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080

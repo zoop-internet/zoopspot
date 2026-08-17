@@ -29,7 +29,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("    ZOOP MILESTONE 13 SECURITY HARDENING TEST     ")
+	fmt.Println("    ZOOP E2E: SECURITY HARDENING TEST             ")
 	fmt.Println("==================================================")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -197,6 +197,6 @@ func main() {
 	fmt.Println("✓ Tampered payload signature rejected as unauthorized")
 
 	fmt.Println("\n==================================================")
-	fmt.Println("   ✓ MILESTONE 13 SECURITY HARDENING TEST PASSED! ")
+	fmt.Println("   ✓ SECURITY HARDENING TEST PASSED!              ")
 	fmt.Println("==================================================")
 }

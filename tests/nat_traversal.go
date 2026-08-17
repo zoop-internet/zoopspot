@@ -46,7 +46,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("     ZOOP MILESTONE 10 NAT TRAVERSAL E2E TEST     ")
+	fmt.Println("     ZOOP E2E: NAT TRAVERSAL TEST                  ")
 	fmt.Println("==================================================")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -222,6 +222,6 @@ func main() {
 	time.Sleep(1 * time.Second)
 
 	fmt.Println("\n==================================================")
-	fmt.Println(" ✓ MILESTONE 10 NAT TRAVERSAL TEST PASSED!")
+	fmt.Println(" ✓ NAT TRAVERSAL TEST PASSED!                      ")
 	fmt.Println("==================================================")
 }

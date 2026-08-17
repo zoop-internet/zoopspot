@@ -16,7 +16,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("       ZOOP MILESTONE 15 ROUTER GATEWAY TEST      ")
+	fmt.Println("       ZOOP E2E: ROUTER GATEWAY TEST              ")
 	fmt.Println("==================================================")
 
 	// ----------------------------------------------------
@@ -85,6 +85,6 @@ func main() {
 	fmt.Println("✓ Router Gateway rules torn down cleanly")
 
 	fmt.Println("\n==================================================")
-	fmt.Println("    ✓ MILESTONE 15 ROUTER GATEWAY TEST PASSED!    ")
+	fmt.Println("    ✓ ROUTER GATEWAY TEST PASSED!                 ")
 	fmt.Println("==================================================")
 }

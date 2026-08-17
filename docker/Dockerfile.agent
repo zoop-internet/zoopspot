@@ -5,14 +5,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/zoop-agent ./agent
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/zoopd ./cmd/zoopd
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/zoop ./cmd/zoop
 
 FROM alpine:3.19
 # We need iproute2 (ip) and iptables for tunnel manipulation, plus iperf3 for E2E speed/loss tests
 RUN apk add --no-cache ca-certificates tzdata iproute2 iptables iperf3 curl jq iputils tcpdump
 
 WORKDIR /app
-COPY --from=builder /bin/zoop-agent /bin/zoop-agent
+COPY --from=builder /bin/zoopd /bin/zoopd
+COPY --from=builder /bin/zoop /bin/zoop
 
 EXPOSE 9090
-ENTRYPOINT ["/bin/zoop-agent"]
+ENTRYPOINT ["/bin/zoopd"]

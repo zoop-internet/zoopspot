@@ -7,19 +7,10 @@ all: build test
 
 build:
 	@mkdir -p $(BIN_DIR)
-	$(GO) build -v -o $(BIN_DIR)/zoop-agent ./agent
 	$(GO) build -v -o $(BIN_DIR)/zoop-cloud ./cloud
 	$(GO) build -v -o $(BIN_DIR)/zoop-router ./router
 	$(GO) build -v -o $(BIN_DIR)/zoop ./cmd/zoop
 	$(GO) build -v -o $(BIN_DIR)/zoopd ./cmd/zoopd
-	$(GO) build -tags desktop -v -o $(BIN_DIR)/zoop-desktop ./desktop
-
-desktop-build:
-	@cd desktop/frontend && npx vite build
-	@mkdir -p $(BIN_DIR)
-	$(GO) build -tags desktop -v -o $(BIN_DIR)/zoop-desktop ./desktop
-
-
 
 test:
 	$(GO) test -v ./...
@@ -53,12 +44,10 @@ clean:
 help:
 	@echo "Zoop Build System"
 	@echo "  make build              - Compile all Go binaries into bin/"
-	@echo "  make desktop-build      - Build desktop frontend and compile zoop-desktop (Wails binary)"
-	@echo "  make test               - Run unit test suites"
+	@echo "  make mobile-build       - Build mobile native bindings"
 	@echo "  make mobile-test        - Run mobile binding tests"
 	@echo "  make mobile-cshared     - Build C-shared library (libzoop.so) for native mobile integration"
 	@echo "  make build-android-core - Build Android AAR library (zoopcore.aar) using gomobile"
 	@echo "  make build-ios-core     - Build iOS XCFramework (ZoopCore.xcframework) using gomobile"
 	@echo "  make lint               - Run linters (golangci-lint / go vet)"
-	@echo "  make clean              - Remove built binaries and caches"
 

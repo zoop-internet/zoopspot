@@ -35,7 +35,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("   ZOOP MILESTONE 14 PLATFORM IMPLEMENTATIONS TEST ")
+	fmt.Println("   ZOOP E2E: PLATFORM IMPLEMENTATIONS TEST        ")
 	fmt.Println("==================================================")
 
 	_ = context.Background()
@@ -173,6 +173,6 @@ func main() {
 	fmt.Println("✓ Android Network Change Event (Wi-Fi -> Cellular) handled cleanly")
 
 	fmt.Println("\n==================================================")
-	fmt.Println("   ✓ MILESTONE 14 PLATFORM IMPLEMENTATIONS PASSED! ")
+	fmt.Println("   ✓ PLATFORM IMPLEMENTATIONS TEST PASSED!        ")
 	fmt.Println("==================================================")
 }

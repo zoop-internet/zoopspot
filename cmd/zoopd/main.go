@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,8 +15,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoop-internet/zoop/packages/agent/client"
+	"github.com/zoop-internet/zoop/packages/agent/health"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
+	"github.com/zoop-internet/zoop/packages/agent/state"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/config"
 	"github.com/zoop-internet/zoop/packages/core/types"
@@ -45,33 +50,61 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		} else if os.Args[1] == "doctor" {
+			cfg := config.LoadConfig()
+			runDoctor("zoop0", cfg.ControlPlaneURL, cfg.STUNServer)
+			return
 		} else if os.Args[1] == "--help" || os.Args[1] == "-h" {
 			fmt.Println("Zoop Daemon (zoopd)")
 			fmt.Println("Usage:")
-			fmt.Println("  zoopd                     Run daemon in foreground")
+			fmt.Println("  zoopd [flags]             Run daemon in foreground")
+			fmt.Println("  zoopd doctor              Run comprehensive diagnostics probe and report")
 			fmt.Println("  zoopd service install     Install and enable system service")
 			fmt.Println("  zoopd service start       Start system service")
 			fmt.Println("  zoopd service stop        Stop system service")
 			fmt.Println("  zoopd service restart     Restart system service")
 			fmt.Println("  zoopd service status      Check service and socket status")
 			fmt.Println("  zoopd service uninstall   Remove system service")
+			fmt.Println("\nFlags:")
+			fmt.Println("  -tun <name>               WireGuard interface name (default: zoop0)")
+			fmt.Println("  -config-dir <dir>         Configuration and key storage directory")
+			fmt.Println("  -api-port <port>          Metrics and health API listen port (default: 9090)")
+			fmt.Println("  -socket <path>            UNIX domain socket path (default: /var/run/zoopd.sock)")
+			fmt.Println("  -doctor                   Run comprehensive diagnostics probe and exit")
 			return
 		}
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
-
-	logger.Info("Starting Zoop Linux System Daemon (zoopd)")
+	tunFlag := flag.String("tun", "zoop0", "WireGuard interface name")
+	configDirFlag := flag.String("config-dir", "", "Override configuration directory")
+	apiPortFlag := flag.Int("api-port", 9090, "Local metrics/health HTTP API listen port")
+	socketFlag := flag.String("socket", defaultSocketPath, "UNIX domain socket path")
+	doctorFlag := flag.Bool("doctor", false, "Run comprehensive diagnostics probe and exit")
+	flag.Parse()
 
 	cfg := config.LoadConfig()
 
-	// Setup local identity.
-	homeDir, _ := os.UserHomeDir()
-	if homeDir == "" {
-		homeDir = "/var/lib/zoop"
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	if *doctorFlag {
+		runDoctor(*tunFlag, cfg.ControlPlaneURL, cfg.STUNServer)
+		return
 	}
-	keyPath := filepath.Join(homeDir, ".zoop", "identity.key")
+
+	logger.Info("Starting Zoop Linux System Daemon (zoopd)")
+
+	// Setup local identity.
+	var keyPath string
+	if *configDirFlag != "" {
+		keyPath = filepath.Join(*configDirFlag, "identity.key")
+	} else {
+		homeDir, _ := os.UserHomeDir()
+		if homeDir == "" {
+			homeDir = "/var/lib/zoop"
+		}
+		keyPath = filepath.Join(homeDir, ".zoop", "identity.key")
+	}
 	idMgr := identity.NewManager()
 	ident, err := idMgr.LoadOrGenerate(keyPath)
 	if err != nil {
@@ -90,9 +123,9 @@ func main() {
 	apiClient := client.NewAPIClient(cfg.ControlPlaneURL, ident, privKey)
 
 	// Initialize WireGuard device manager.
-	devMgr, err := tunnel.NewDeviceManager("zoop0", nil)
+	devMgr, err := tunnel.NewDeviceManager(*tunFlag, nil)
 	if err != nil {
-		logger.Error("failed to initialize TUN device", "error", err)
+		logger.Error("failed to initialize TUN device", "interface", *tunFlag, "error", err)
 		os.Exit(1)
 	}
 	defer devMgr.Close()
@@ -124,25 +157,44 @@ func main() {
 	go sigClient.Connect(ctx)
 
 	// Initialize Roaming Manager for automatic Wi-Fi <-> Ethernet <-> Cellular recovery
-	roamingMgr := tunnel.NewRoamingManager("", 51820, func(event tunnel.NetworkChangeEvent, candidates []types.EndpointCandidate) {
+	roamingMgr := tunnel.NewRoamingManager(cfg.STUNServer, 51820, func(event tunnel.NetworkChangeEvent, candidates []types.EndpointCandidate) {
 		logger.Info("network roaming event triggered", "reason", event.Reason, "primary_ip", event.PrimaryIP, "candidates", len(candidates))
 	}, logger)
 	roamingMgr.Start(ctx)
 	defer roamingMgr.Stop()
 
-	// Socket listener setup.
-	_ = os.Remove(defaultSocketPath)
-	_ = os.MkdirAll(filepath.Dir(defaultSocketPath), 0755)
+	socketPath := *socketFlag
 
-	listener, err := net.Listen("unix", defaultSocketPath)
+	// Socket listener setup.
+	_ = os.Remove(socketPath)
+	_ = os.MkdirAll(filepath.Dir(socketPath), 0755)
+
+	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		logger.Error("failed to listen on daemon UNIX socket", "path", defaultSocketPath, "error", err)
+		logger.Error("failed to listen on daemon UNIX socket", "path", socketPath, "error", err)
 		os.Exit(1)
 	}
-	_ = os.Chmod(defaultSocketPath, 0666)
+	_ = os.Chmod(socketPath, 0666)
 	defer listener.Close()
 
-	logger.Info("zoopd IPC listener active", "socket", defaultSocketPath)
+	logger.Info("zoopd IPC listener active", "socket", socketPath)
+
+	// Start HTTP metrics and health API
+	go func() {
+		mux := http.NewServeMux()
+		stMgr := state.NewManager()
+		stMgr.Set(state.StateRunning)
+		healthChecker := health.NewChecker(stMgr, *tunFlag, cfg.ControlPlaneURL, cfg.STUNServer)
+		mux.HandleFunc("GET /health", healthChecker.WriteHTTP)
+		mux.Handle("GET /metrics", promhttp.Handler())
+
+		apiPort := *apiPortFlag
+		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", apiPort), Handler: mux}
+		logger.Info("metrics API listening", "port", apiPort)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("metrics API failed", "error", err)
+		}
+	}()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -326,4 +378,28 @@ func handleIPC(
 	}
 
 	_ = json.NewEncoder(conn).Encode(resp)
+}
+
+func runDoctor(tunName, controlPlaneURL, stunServer string) {
+	cfg := config.LoadConfig()
+	if stunServer == "" {
+		stunServer = cfg.STUNServer
+	}
+	if controlPlaneURL == "" {
+		controlPlaneURL = cfg.ControlPlaneURL
+	}
+	stMgr := state.NewManager()
+	stMgr.Set(state.StateRunning)
+	checker := health.NewChecker(stMgr, tunName, controlPlaneURL, stunServer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	report := checker.RunDiagnostics(ctx)
+	report.PrintReport()
+
+	if !report.Healthy {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }

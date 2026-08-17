@@ -34,6 +34,7 @@ type RoamingManager struct {
 	lastPrimaryIP  string
 	lastGateway    string
 	lastInterfaces map[string]string
+	ctx            context.Context
 	cancel         context.CancelFunc
 	debounceTimer  *time.Timer
 }
@@ -59,6 +60,7 @@ func NewRoamingManager(stunServer string, listenPort int, callback RoamingCallba
 func (rm *RoamingManager) Start(ctx context.Context) {
 	rm.mu.Lock()
 	ctx, cancel := context.WithCancel(ctx)
+	rm.ctx = ctx
 	rm.cancel = cancel
 	rm.mu.Unlock()
 
@@ -106,6 +108,7 @@ func (rm *RoamingManager) captureInitialState() {
 // TriggerRoamCheck is called by netlink/polling when interface or route changes are detected.
 func (rm *RoamingManager) TriggerRoamCheck(reason string) {
 	rm.mu.Lock()
+	ctx := rm.ctx
 	defer rm.mu.Unlock()
 
 	// Debounce rapid link flaps (500ms stabilization window)
@@ -114,12 +117,16 @@ func (rm *RoamingManager) TriggerRoamCheck(reason string) {
 	}
 
 	rm.debounceTimer = time.AfterFunc(500*time.Millisecond, func() {
-		rm.executeRoaming(reason)
+		rm.executeRoaming(ctx, reason)
 	})
 }
 
 // executeRoaming executes reflexive STUN discovery and invokes the roaming callback.
-func (rm *RoamingManager) executeRoaming(reason string) {
+func (rm *RoamingManager) executeRoaming(ctx context.Context, reason string) {
+	if ctx.Err() != nil {
+		rm.logger.Debug("roaming aborted due to context cancellation")
+		return
+	}
 	rm.logger.Info("executing network roaming recovery", "reason", reason)
 
 	// Discover updated local and reflexive candidates

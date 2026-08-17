@@ -31,8 +31,8 @@ func TestRoamingManagerLifecycle(t *testing.T) {
 	// Manually trigger a roam check
 	rm.TriggerRoamCheck("test_wifi_roam")
 
-	// Wait for debounce timer (500ms) to execute
-	time.Sleep(800 * time.Millisecond)
+	// Wait for debounce timer (500ms) to execute and STUN to resolve
+	time.Sleep(3 * time.Second)
 
 	mu.Lock()
 	invoked := callbackInvoked

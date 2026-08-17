@@ -54,7 +54,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 		// For simplicity, since this is a simulation framework scaffold, we'll verify the agent doctor reports health.
 		
 		t.Log("Running zoop doctor on agent-a...")
-		out, err := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoop-agent", "-doctor")
+		out, err := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoopd", "-doctor")
 		if err != nil {
 			t.Fatalf("agent-a is not healthy: %v\n%s", err, out)
 		}
@@ -63,7 +63,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 		}
 
 		t.Log("Running zoop doctor on agent-b...")
-		out, err = runCommandOutput(t, "docker", "exec", "zoop-agent-b-1", "/bin/zoop-agent", "-doctor")
+		out, err = runCommandOutput(t, "docker", "exec", "zoop-agent-b-1", "/bin/zoopd", "-doctor")
 		if err != nil {
 			t.Fatalf("agent-b is not healthy: %v\n%s", err, out)
 		}
@@ -80,7 +80,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 		runCommand(t, "../../scripts/net_sim.sh", "zoop-agent-a-1", "eth0", "loss", "10")
 
 		// Verify health probe latency increases
-		out, _ := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoop-agent", "-doctor")
+		out, _ := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoopd", "-doctor")
 		
 		// Just clear it for now to verify the script execution
 		runCommand(t, "../../scripts/net_sim.sh", "zoop-agent-a-1", "eth0", "clear")

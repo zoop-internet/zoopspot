@@ -3,12 +3,12 @@ package tunnel
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/zoop-internet/zoop/packages/agent/tunnel/muxbind"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
+	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -27,10 +27,10 @@ func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, err
 		logger = device.NewLogger(device.LogLevelSilent, "")
 	}
 
-	// Allocate TUN device, fallback to mock TUN if unprivileged
+	// Allocate TUN device
 	tunDev, err := tun.CreateTUN(ifName, device.DefaultMTU)
 	if err != nil {
-		tunDev = newMockTUN(ifName)
+		return nil, fmt.Errorf("failed to create TUN device (do you have CAP_NET_ADMIN privileges?): %w", err)
 	}
 
 	mb := muxbind.New(conn.NewDefaultBind())
@@ -55,7 +55,7 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 	file := os.NewFile(uintptr(fd), ifName)
 	tunDev, err := tun.CreateTUNFromFile(file, device.DefaultMTU)
 	if err != nil {
-		tunDev = newMockTUN(ifName)
+		return nil, fmt.Errorf("failed to create TUN device from file descriptor: %w", err)
 	}
 
 	mb := muxbind.New(conn.NewDefaultBind())
@@ -86,23 +86,18 @@ func (m *DeviceManager) EnableForwarding() error {
 
 // GetListenPort returns the actual UDP port the WireGuard device bound to.
 func (m *DeviceManager) GetListenPort() (int, error) {
-	uapi, err := m.wgDev.IpcGet()
+	client, err := wgctrl.New()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get ipc info: %w", err)
+		return 0, fmt.Errorf("failed to create wgctrl client: %w", err)
+	}
+	defer client.Close()
+
+	wgdev, err := client.Device(m.ifName)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get device info for %s: %w", m.ifName, err)
 	}
 
-	lines := strings.Split(uapi, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "listen_port=") {
-			portStr := strings.TrimPrefix(line, "listen_port=")
-			var port int
-			if _, err := fmt.Sscanf(portStr, "%d", &port); err == nil {
-				return port, nil
-			}
-		}
-	}
-	
-	return 0, fmt.Errorf("listen_port not found in ipc info")
+	return wgdev.ListenPort, nil
 }
 
 // PublicKey returns the configured WireGuard public key.

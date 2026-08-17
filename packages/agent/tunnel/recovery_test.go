@@ -15,7 +15,7 @@ func TestConnectionRecoveryManager(t *testing.T) {
 
 	dev, err := NewDeviceManager("z-rec-test", nil)
 	if err != nil {
-		t.Fatalf("failed to create device manager: %v", err)
+		t.Skipf("skipping test due to TUN device creation failure (requires root/CAP_NET_ADMIN): %v", err)
 	}
 	defer dev.Close()
 

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -22,7 +23,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Zoop Milestone 7: Real Packet Forwarding Test (Docker) ===")
+	fmt.Println("=== Zoop E2E: Real Packet Forwarding Test (Docker) ===")
 
 	defer func() {
 		fmt.Println("\nCleaning up containers...")
@@ -42,7 +43,7 @@ func main() {
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 	if err := buildCmd.Run(); err != nil {
-		panic(fmt.Errorf("failed to build docker image: %w", err))
+		log.Fatal(fmt.Errorf("failed to build docker image: %w", err))
 	}
 
 	exec.Command("docker", "network", "create", "zoop-test-net").Run()
@@ -51,23 +52,23 @@ func main() {
 	fmt.Println("[1] Starting Zoop Cloud...")
 	cloudCmd := exec.Command("docker", "run", "-d", "--name", "zoop-cloud", "--network", "zoop-test-net", "-p", "8080:8080", "zoop-test", "zoop-cloud")
 	if out, err := cloudCmd.CombinedOutput(); err != nil {
-		panic(fmt.Errorf("failed to start cloud container: %v\n%s", err, string(out)))
+		log.Fatal(fmt.Errorf("failed to start cloud container: %v\n%s", err, string(out)))
 	}
 	time.Sleep(2 * time.Second)
 
 	// 2. Start Provider
 	fmt.Println("[2] Starting Zoop Agent (Provider) on zoop0 (API 9090)...")
-	provCmd := exec.Command("docker", "run", "-d", "--name", "zoop-provider", "--network", "zoop-test-net", "--cap-add=NET_ADMIN", "--device=/dev/net/tun", "-e", "ZOOP_CONTROL_PLANE_URL=http://zoop-cloud:8080", "-e", "ZOOP_LOCAL_TEST=zoop-provider", "-v", testDataDir+":/data", "zoop-test", "zoop-agent", "-config-dir=/data/provider", "-tun=zoop0", "-api-port=9090")
+	provCmd := exec.Command("docker", "run", "-d", "--name", "zoop-provider", "--network", "zoop-test-net", "--cap-add=NET_ADMIN", "--device=/dev/net/tun", "-e", "ZOOP_CONTROL_PLANE_URL=http://zoop-cloud:8080", "-e", "ZOOP_LOCAL_TEST=zoop-provider", "-v", testDataDir+":/data", "zoop-test", "zoopd", "-config-dir=/data/provider", "-tun=zoop0", "-api-port=9090")
 	if out, err := provCmd.CombinedOutput(); err != nil {
-		panic(fmt.Errorf("failed to start provider container: %v\n%s", err, string(out)))
+		log.Fatal(fmt.Errorf("failed to start provider container: %v\n%s", err, string(out)))
 	}
 	time.Sleep(3 * time.Second)
 
 	// 3. Start Recipient
 	fmt.Println("[3] Starting Zoop Agent (Recipient) on zoop1 (API 9091)...")
-	recCmd := exec.Command("docker", "run", "-d", "--name", "zoop-recipient", "--network", "zoop-test-net", "--cap-add=NET_ADMIN", "--device=/dev/net/tun", "-e", "ZOOP_CONTROL_PLANE_URL=http://zoop-cloud:8080", "-e", "ZOOP_LOCAL_TEST=zoop-recipient", "-v", testDataDir+":/data", "zoop-test", "zoop-agent", "-config-dir=/data/recipient", "-tun=zoop1", "-api-port=9091")
+	recCmd := exec.Command("docker", "run", "-d", "--name", "zoop-recipient", "--network", "zoop-test-net", "--cap-add=NET_ADMIN", "--device=/dev/net/tun", "-e", "ZOOP_CONTROL_PLANE_URL=http://zoop-cloud:8080", "-e", "ZOOP_LOCAL_TEST=zoop-recipient", "-v", testDataDir+":/data", "zoop-test", "zoopd", "-config-dir=/data/recipient", "-tun=zoop1", "-api-port=9091")
 	if out, err := recCmd.CombinedOutput(); err != nil {
-		panic(fmt.Errorf("failed to start recipient container: %v\n%s", err, string(out)))
+		log.Fatal(fmt.Errorf("failed to start recipient container: %v\n%s", err, string(out)))
 	}
 	time.Sleep(3 * time.Second)
 
@@ -77,12 +78,12 @@ func main() {
 	// Load Identities
 	provIdent, provPriv, err := loadIdentity(filepath.Join(testDataDir, "provider", "identity.key"))
 	if err != nil {
-		panic(fmt.Errorf("failed to load provider identity: %v", err))
+		log.Fatal(fmt.Errorf("failed to load provider identity: %v", err))
 	}
 	
 	recIdent, _, err := loadIdentity(filepath.Join(testDataDir, "recipient", "identity.key"))
 	if err != nil {
-		panic(fmt.Errorf("failed to load recipient identity: %v", err))
+		log.Fatal(fmt.Errorf("failed to load recipient identity: %v", err))
 	}
 
 	fmt.Printf("Provider ID: %s\n", provIdent.EndpointID)
@@ -130,17 +131,17 @@ func main() {
 		logCmd.Stdout = os.Stdout
 		logCmd.Stderr = os.Stderr
 		logCmd.Run()
-		panic(fmt.Errorf("failed to create share: %v", lastErr))
+		log.Fatal(fmt.Errorf("failed to create share: %v", lastErr))
 	}
 	defer resp.Body.Close()
 	fmt.Println("Share created successfully.")
 
 	// 5. Connect
 	fmt.Println("[5] Initiating Connection from Recipient (CLI)...")
-	connectCmd := exec.Command("docker", "exec", "zoop-recipient", "zoop-agent", "-config-dir=/data/recipient", "-api-port=9091", "-connect="+provIdent.EndpointID.String())
+	connectCmd := exec.Command("docker", "exec", "zoop-recipient", "zoop", "connect", provIdent.EndpointID.String())
 	connOut, err := connectCmd.CombinedOutput()
 	if err != nil {
-		panic(fmt.Errorf("failed to initiate connection: %v\n%s", err, string(connOut)))
+		log.Fatal(fmt.Errorf("failed to initiate connection: %v\n%s", err, string(connOut)))
 	}
 	fmt.Println("Connection request submitted. Waiting for tunnels to establish...")
 	time.Sleep(5 * time.Second)
@@ -155,7 +156,7 @@ func main() {
 	exec.Command("docker", "exec", "zoop-provider", "sh", "-c", "echo 'ZOOP_TUNNEL_SUCCESS' > /data/success.txt").Run()
 	httpCmd := exec.Command("docker", "exec", "-d", "zoop-provider", "python3", "-m", "http.server", "8000", "--bind", "0.0.0.0", "--directory", "/data")
 	if err := httpCmd.Run(); err != nil {
-		panic(fmt.Errorf("failed to start python http server: %v", err))
+		log.Fatal(fmt.Errorf("failed to start python http server: %v", err))
 	}
 	time.Sleep(2 * time.Second) // wait for server to start
 
@@ -201,11 +202,11 @@ func main() {
 				psCmd.Run()
 			}
 		}
-		panic(fmt.Sprintf("[FAIL] Packet Forwarding Test Failed: %v\n\tOutput: %s", lastErr, string(lastOutput)))
+		log.Fatal(fmt.Sprintf("[FAIL] Packet Forwarding Test Failed: %v\n\tOutput: %s", lastErr, string(lastOutput)))
 	}
 
 	fmt.Printf("\n[SUCCESS] Successfully sent HTTP request over Zoop tunnel!\nOutput: %s\n", string(lastOutput))
-	fmt.Println("\nAll Milestone 1-7 Requirements Validated.")
+	fmt.Println("\nAll Packet Forwarding Requirements Validated.")
 }
 
 func loadIdentity(path string) (types.Identity, ed25519.PrivateKey, error) {

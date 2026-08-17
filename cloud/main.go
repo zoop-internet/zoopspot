@@ -25,8 +25,8 @@ func main() {
 	if cfg.DatabaseURL != "" {
 		pgStore, err := store.NewPostgresStore(cfg.DatabaseURL)
 		if err != nil {
-			logger.Error("Failed to connect to PostgreSQL, falling back to InMemoryStore", "error", err)
-			st = store.NewInMemoryStore()
+			logger.Error("Failed to connect to PostgreSQL", "error", err)
+			os.Exit(1)
 		} else {
 			logger.Info("PostgreSQL persistent data layer connected and migrated successfully")
 			st = pgStore

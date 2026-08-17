@@ -19,6 +19,7 @@ type Config struct {
 	AllowedOrigins   []string
 	TURNSecret       string
 	TURNRealm        string
+	STUNServer       string
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
@@ -34,6 +35,7 @@ func LoadConfig() Config {
 		AllowedOrigins:   []string{},
 		TURNSecret:       "zoop-turn-secret",
 		TURNRealm:        "zoop.network",
+		STUNServer:       "stun.l.google.com:19302",
 	}
 
 	if url := os.Getenv("ZOOP_CONTROL_PLANE_URL"); url != "" {
@@ -71,6 +73,9 @@ func LoadConfig() Config {
 	}
 	if realm := os.Getenv("ZOOP_TURN_REALM"); realm != "" {
 		cfg.TURNRealm = realm
+	}
+	if stun := os.Getenv("ZOOP_STUN_SERVER"); stun != "" {
+		cfg.STUNServer = stun
 	}
 
 	return cfg

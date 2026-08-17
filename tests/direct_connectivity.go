@@ -47,7 +47,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("   ZOOP MILESTONE 9 DIRECT CONNECTIVITY E2E TEST  ")
+	fmt.Println("   ZOOP E2E: DIRECT CONNECTIVITY TEST             ")
 	fmt.Println("==================================================")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -247,6 +247,6 @@ func main() {
 	fmt.Printf("✓ Direct Path Established:  %v\n", mockState.IsDirect)
 
 	fmt.Println("\n==================================================")
-	fmt.Println("   MILESTONE 9 DIRECT CONNECTIVITY TEST: PASSED!  ")
+	fmt.Println("   ✓ DIRECT CONNECTIVITY TEST: PASSED!            ")
 	fmt.Println("==================================================")
 }

@@ -24,7 +24,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	fmt.Println("==================================================")
-	fmt.Println("    ZOOP MILESTONE 12 CONNECTION RECOVERY E2E TEST ")
+	fmt.Println("    ZOOP E2E: CONNECTION RECOVERY TEST            ")
 	fmt.Println("==================================================")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -170,6 +170,6 @@ func main() {
 Done:
 
 	fmt.Println("\n==================================================")
-	fmt.Println("   ✓ MILESTONE 12 CONNECTION RECOVERY TEST PASSED! ")
+	fmt.Println("   ✓ CONNECTION RECOVERY TEST PASSED!              ")
 	fmt.Println("==================================================")
 }
