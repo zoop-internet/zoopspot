@@ -9,6 +9,9 @@ ExecStart=/usr/local/bin/zoopd
 Restart=always
 RestartSec=5s
 LimitNOFILE=65536
+UMask=0000
+RuntimeDirectory=zoop
+RuntimeDirectoryMode=0777
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 

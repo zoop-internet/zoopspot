@@ -34,6 +34,31 @@ type DaemonResponse struct {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if os.Args[1] == "service" {
+			action := "status"
+			if len(os.Args) > 2 {
+				action = os.Args[2]
+			}
+			if err := HandleServiceCommand(action); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		} else if os.Args[1] == "--help" || os.Args[1] == "-h" {
+			fmt.Println("Zoop Daemon (zoopd)")
+			fmt.Println("Usage:")
+			fmt.Println("  zoopd                     Run daemon in foreground")
+			fmt.Println("  zoopd service install     Install and enable system service")
+			fmt.Println("  zoopd service start       Start system service")
+			fmt.Println("  zoopd service stop        Stop system service")
+			fmt.Println("  zoopd service restart     Restart system service")
+			fmt.Println("  zoopd service status      Check service and socket status")
+			fmt.Println("  zoopd service uninstall   Remove system service")
+			return
+		}
+	}
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
@@ -97,6 +122,13 @@ func main() {
 
 	sigClient := client.NewSignalingClient(apiClient, devMgr, logger)
 	go sigClient.Connect(ctx)
+
+	// Initialize Roaming Manager for automatic Wi-Fi <-> Ethernet <-> Cellular recovery
+	roamingMgr := tunnel.NewRoamingManager("", 51820, func(event tunnel.NetworkChangeEvent, candidates []types.EndpointCandidate) {
+		logger.Info("network roaming event triggered", "reason", event.Reason, "primary_ip", event.PrimaryIP, "candidates", len(candidates))
+	}, logger)
+	roamingMgr.Start(ctx)
+	defer roamingMgr.Stop()
 
 	// Socket listener setup.
 	_ = os.Remove(defaultSocketPath)

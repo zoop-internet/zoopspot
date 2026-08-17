@@ -81,6 +81,41 @@ func (crm *ConnectionRecoveryManager) UpdateCandidates(candidates []types.Endpoi
 	crm.candidates = candidates
 }
 
+// OnNetworkRoam handles immediate interface handover and triggers proactive endpoint probing.
+func (crm *ConnectionRecoveryManager) OnNetworkRoam(ctx context.Context, newCandidates []types.EndpointCandidate) {
+	crm.mu.Lock()
+	crm.logger.Info("handling network roam event in recovery manager", "candidates", len(newCandidates))
+	if len(newCandidates) > 0 {
+		crm.candidates = newCandidates
+	}
+	crm.lastUpgradeTime = time.Now()
+	candidates := append([]types.EndpointCandidate(nil), crm.candidates...)
+	crm.mu.Unlock()
+
+	probeCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+
+	bestCand, err := ProbeCandidatesMux(probeCtx, crm.mux, candidates, crm.connID, crm.listenPort)
+	if err == nil && bestCand != nil {
+		endpoint := fmt.Sprintf("%s:%d", bestCand.IP, bestCand.Port)
+		allowedIPs := []string{"100.64.0.2/32"}
+		_ = crm.deviceMgr.AddPeer(crm.peerPubKey, bestCand.IP, bestCand.Port, allowedIPs)
+
+		crm.mu.Lock()
+		crm.currentState = StateDirect
+		crm.currentEndpoint = endpoint
+		crm.isDirect = true
+		cb := crm.onStateChange
+		crm.mu.Unlock()
+
+		if cb != nil {
+			cb(StateRecovered, endpoint, true)
+		}
+	} else if crm.relayURL != "" {
+		crm.transitionToRelay(ctx)
+	}
+}
+
 // GetState returns the current connection recovery state.
 func (crm *ConnectionRecoveryManager) GetState() (ConnectionRecoveryState, string, bool) {
 	crm.mu.Lock()
