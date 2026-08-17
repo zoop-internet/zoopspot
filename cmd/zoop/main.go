@@ -112,7 +112,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println("Zoop Network CLI")
+	fmt.Println("Zoop Internet CLI")
 	fmt.Println("Usage: zoop <command> [arguments]")
 	fmt.Println("")
 	fmt.Println("Commands:")

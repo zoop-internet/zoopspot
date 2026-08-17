@@ -55,7 +55,7 @@ func main() {
 			runDoctor("zoop0", cfg.ControlPlaneURL, cfg.STUNServer)
 			return
 		} else if os.Args[1] == "--help" || os.Args[1] == "-h" {
-			fmt.Println("Zoop Daemon (zoopd)")
+			fmt.Println("Zoop Internet Daemon (zoopd)")
 			fmt.Println("Usage:")
 			fmt.Println("  zoopd [flags]             Run daemon in foreground")
 			fmt.Println("  zoopd doctor              Run comprehensive diagnostics probe and report")
@@ -92,7 +92,7 @@ func main() {
 		return
 	}
 
-	logger.Info("Starting Zoop Linux System Daemon (zoopd)")
+	logger.Info("Starting Zoop Internet System Daemon (zoopd)")
 
 	// Setup local identity.
 	var keyPath string

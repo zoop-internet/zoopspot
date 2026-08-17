@@ -1,4 +1,4 @@
-# Zoop
+# Zoop Internet
 
 <div align="center">
 
@@ -15,7 +15,7 @@
 
 ## Overview
 
-**Zoop** is an open-source, resilient direct connectivity platform that allows authorized devices to securely share, route, and access network connectivity peer-to-peer. Built on top of modern **user-space WireGuard** cryptography and reflexive **STUN/TURN NAT traversal**, Zoop automatically forms point-to-point encrypted tunnels between endpoints without routing sensitive payload traffic through centralized servers.
+**Zoop Internet** is an open-source, resilient direct connectivity platform that allows authorized devices to securely share, route, and access network connectivity peer-to-peer. Built on top of modern **user-space WireGuard** cryptography and reflexive **STUN/TURN NAT traversal**, Zoop Internet automatically forms point-to-point encrypted tunnels between endpoints without routing sensitive payload traffic through centralized servers.
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -169,37 +169,10 @@ zoop doctor
 
 ## Diagnostics: `zoop doctor`
 
-Zoop includes an integrated diagnostic engine that tests the health of local networking, permissions, control plane reachability, and STUN/NAT traversal:
+Zoop Internet includes an integrated diagnostic engine that probes the status of local TUN adapters, user privileges, control plane API reachability, DNS resolution, and STUN/NAT traversal:
 
 ```bash
 zoop doctor
-```
-
-**Sample Output:**
-```text
-================================================================
- Zoop Diagnostics Report  (v0.1.0-alpha)
- Timestamp: 2026-08-17T14:45:06Z
-================================================================
-
-[✓ PASS] Agent Lifecycle State              
-         → Current state: RUNNING
-
-[✓ PASS] TUN Interface (zoop0)               (2ms)
-         → Device zoop0 active and MTU configured (1420)
-
-[✓ PASS] Control Plane API Reachability      (12ms)
-         → Reached https://api.zoop.network/v1/health (HTTP 200 OK)
-
-[✓ PASS] DNS Resolution                      (5ms)
-         → Resolving external domains correctly
-
-[✓ PASS] STUN Reachability & NAT Discovery   (28ms)
-         → Public reflexive IP discovered: 198.51.100.42:51820 (Full Cone NAT)
-
-================================================================
- Overall Status: HEALTHY
-================================================================
 ```
 
 ---
