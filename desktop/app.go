@@ -90,12 +90,13 @@ type App struct {
 	identity  types.Identity
 	deviceMgr *tunnel.DeviceManager
 	apiClient *client.APIClient
+	trayMgr   *TrayManager
 }
 
 // NewApp creates a new Wails App instance.
 func NewApp() *App {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	return &App{
+	app := &App{
 		logger: logger,
 		settings: DesktopSettings{
 			AutoConnectOnLaunch: false,
@@ -115,6 +116,8 @@ func NewApp() *App {
 			Version:      core.Version(),
 		},
 	}
+	app.trayMgr = NewTrayManager(app)
+	return app
 }
 
 // Startup is called at application startup by Wails.
@@ -135,6 +138,11 @@ func (a *App) Startup(ctx context.Context) {
 		privKey, _ := idMgr.GetPrivateKey(keyPath)
 		cfg := config.LoadConfig()
 		a.apiClient = client.NewAPIClient(cfg.ControlPlaneURL, ident, privKey)
+	}
+
+	// Start system tray manager
+	if a.trayMgr != nil {
+		a.trayMgr.Start()
 	}
 
 	// Start IPC listener for zoopd state updates
@@ -185,6 +193,9 @@ func (a *App) listenIPC(ctx context.Context) {
 			if evt, ok := msg["event"].(string); ok && evt == "state_update" {
 				if data, ok := msg["data"].(map[string]interface{}); ok {
 					runtime.EventsEmit(ctx, "agent_state_update", data)
+				}
+				if a.trayMgr != nil {
+					a.trayMgr.UpdateState()
 				}
 			}
 		}
@@ -272,6 +283,10 @@ func (a *App) ConnectPeer(peerID string) (DesktopStatus, error) {
 	a.status.State = "connected"
 	a.status.ConnectedSince = time.Now()
 
+	if a.trayMgr != nil {
+		a.trayMgr.UpdateState()
+	}
+
 	return a.status, nil
 }
 
@@ -290,6 +305,10 @@ func (a *App) Disconnect() (DesktopStatus, error) {
 	a.status.State = "idle"
 	a.status.ActivePeerID = ""
 	a.status.ActivePeerName = ""
+
+	if a.trayMgr != nil {
+		a.trayMgr.UpdateState()
+	}
 
 	return a.status, nil
 }
