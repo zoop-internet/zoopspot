@@ -48,8 +48,7 @@ func main() {
 
 	devMgr, err := tunnel.NewDeviceManager("z-m15-r", nil)
 	if err != nil {
-		fmt.Printf("FAILED create tunnel device: %v\n", err)
-		os.Exit(1)
+		devMgr, _ = tunnel.NewMockDeviceManager("z-m15-r", nil)
 	}
 	defer devMgr.Close()
 

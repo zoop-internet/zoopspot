@@ -42,6 +42,21 @@ func InitAndroidBackend(fd int, ifName string) error {
 	return nil
 }
 
+// InitAndroidBackendWithDeviceManager initializes the Android bridge with a custom DeviceManager (useful for testing and mock environments).
+func InitAndroidBackendWithDeviceManager(dm *tunnel.DeviceManager) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if devMgr != nil {
+		devMgr.Close()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	activeCtx = ctx
+	cancelFn = cancel
+	devMgr = dm
+}
+
 // ConnectPeer initiates tunneling and path recovery to a remote peer.
 func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) error {
 	mu.Lock()

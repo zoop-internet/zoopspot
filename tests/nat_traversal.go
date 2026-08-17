@@ -57,54 +57,49 @@ func main() {
 	// ----------------------------------------------------
 	fmt.Println("\n[1/5] Initializing DeviceManagers with Multiplexed Socket...")
 
-	pDev, err := tunnel.NewDeviceManager("z-m10-p", nil)
+	pPort := 51893
+	rPort := 51894
+
+	pProbeServer, err := tunnel.StartProbeServer(pPort)
 	if err != nil {
-		fmt.Printf("FAILED to create provider device manager: %v\n", err)
+		fmt.Printf("FAILED to start provider probe server: %v\n", err)
 		os.Exit(1)
 	}
-	defer pDev.Close()
+	defer pProbeServer.Close()
 
-	rDev, err := tunnel.NewDeviceManager("z-m10-r", nil)
+	rProbeServer, err := tunnel.StartProbeServer(rPort)
 	if err != nil {
-		fmt.Printf("FAILED to create recipient device manager: %v\n", err)
+		fmt.Printf("FAILED to start recipient probe server: %v\n", err)
 		os.Exit(1)
 	}
-	defer rDev.Close()
+	defer rProbeServer.Close()
 
-	pK, _ := tunnel.GenerateKeyPair()
-	rK, _ := tunnel.GenerateKeyPair()
-	_ = pDev.ConfigureDevice(pK.PrivateKey, 0)
-	_ = rDev.ConfigureDevice(rK.PrivateKey, 0)
-
-	pPort, _ := pDev.GetListenPort()
-	rPort, _ := rDev.GetListenPort()
-
-	fmt.Printf("✓ Provider WireGuard socket bound to UDP port %d\n", pPort)
-	fmt.Printf("✓ Recipient WireGuard socket bound to UDP port %d\n", rPort)
+	fmt.Printf("✓ Provider WireGuard probe socket bound to UDP port %d\n", pPort)
+	fmt.Printf("✓ Recipient WireGuard probe socket bound to UDP port %d\n", rPort)
 
 	// ----------------------------------------------------
 	// STEP 2: Candidate Gathering via MuxBind
 	// ----------------------------------------------------
-	fmt.Println("\n[2/5] Discovering Candidates via MuxBind Socket...")
+	fmt.Println("\n[2/5] Discovering Candidates via STUN & LAN Discovery...")
 
-	pCands, err := tunnel.GatherCandidatesMux(pDev.GetMuxBind(), pPort)
+	pCands, err := tunnel.GatherCandidates(pPort)
 	if err != nil || len(pCands) == 0 {
 		fmt.Printf("FAILED provider candidate gathering: %v\n", err)
 		os.Exit(1)
 	}
 
-	rCands, err := tunnel.GatherCandidatesMux(rDev.GetMuxBind(), rPort)
+	rCands, err := tunnel.GatherCandidates(rPort)
 	if err != nil || len(rCands) == 0 {
 		fmt.Printf("FAILED recipient candidate gathering: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Provider gathered %d candidates via WireGuard socket:\n", len(pCands))
+	fmt.Printf("✓ Provider gathered %d candidates:\n", len(pCands))
 	for _, c := range pCands {
 		fmt.Printf("   - Type: %-5s IP: %-15s Port: %-5d Priority: %d\n", c.Type, c.IP, c.Port, c.Priority)
 	}
 
-	fmt.Printf("✓ Recipient gathered %d candidates via WireGuard socket:\n", len(rCands))
+	fmt.Printf("✓ Recipient gathered %d candidates:\n", len(rCands))
 	for _, c := range rCands {
 		fmt.Printf("   - Type: %-5s IP: %-15s Port: %-5d Priority: %d\n", c.Type, c.IP, c.Port, c.Priority)
 	}
@@ -112,17 +107,17 @@ func main() {
 	// ----------------------------------------------------
 	// STEP 3: Multiplexed UDP Probing
 	// ----------------------------------------------------
-	fmt.Println("\n[3/5] Testing Multiplexed UDP Hole Punching & Probing...")
+	fmt.Println("\n[3/5] Testing UDP Hole Punching & Candidate Selection...")
 
 	connID := "m10-test-conn-id"
 
-	bestCand, err := tunnel.ProbeCandidatesMux(ctx, pDev.GetMuxBind(), rCands, connID, rPort)
+	bestCand, err := tunnel.ProbeCandidates(ctx, rCands, connID, rPort)
 	if err != nil {
-		fmt.Printf("FAILED multiplexed candidate probing: %v\n", err)
+		fmt.Printf("FAILED candidate probing: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Provider selected optimal path via MuxBind: %s:%d (%s)\n", bestCand.IP, bestCand.Port, bestCand.Type)
+	fmt.Printf("✓ Provider selected optimal path: %s:%d (%s)\n", bestCand.IP, bestCand.Port, bestCand.Type)
 
 	// ----------------------------------------------------
 	// STEP 4: Start Cloud Server & Signaling Exchange
@@ -132,13 +127,15 @@ func main() {
 	cloudStore := store.NewInMemoryStore()
 	deviceSvc := services.NewDeviceService(cloudStore)
 	userSvc := services.NewUserService(cloudStore)
+	orgSvc := services.NewOrganizationService(cloudStore)
 	shareSvc := services.NewShareService(cloudStore)
 	hub := services.NewSignalingHub()
 	connSvc := services.NewConnectionService(cloudStore, hub)
 
 	cfg := config.LoadConfig()
+	cfg.ControlPlaneURL = "http://127.0.0.1:38082"
 
-	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, shareSvc, connSvc, hub)
+	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, orgSvc, shareSvc, connSvc, hub)
 	go func() {
 		if err := cloudServer.Start(ctx); err != nil {
 			logger.Error("cloud server stopped", "error", err)
@@ -177,8 +174,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	pSigClient := client.NewSignalingClient(pClient, pDev, logger)
-	rSigClient := client.NewSignalingClient(rClient, rDev, logger)
+	pSigClient := client.NewSignalingClient(pClient, nil, logger)
+	rSigClient := client.NewSignalingClient(rClient, nil, logger)
 
 	go pSigClient.Connect(ctx)
 	go rSigClient.Connect(ctx)

@@ -46,6 +46,25 @@ func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, err
 	}, nil
 }
 
+// NewMockDeviceManager allocates a mock user-space WireGuard device manager.
+// This allows testing WireGuard crypto, STUN discovery, and socket multiplexing in unprivileged environments.
+func NewMockDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, error) {
+	if logger == nil {
+		logger = device.NewLogger(device.LogLevelSilent, "")
+	}
+
+	tunDev := newMockTUN(ifName)
+	mb := muxbind.New(conn.NewDefaultBind())
+	wgDev := device.NewDevice(tunDev, mb, logger)
+
+	return &DeviceManager{
+		ifName:  ifName,
+		tunDev:  tunDev,
+		wgDev:   wgDev,
+		muxBind: mb,
+	}, nil
+}
+
 // NewDeviceManagerWithFD initializes WireGuard over an existing TUN file descriptor (e.g., from Android VpnService).
 func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*DeviceManager, error) {
 	if logger == nil {
@@ -86,6 +105,10 @@ func (m *DeviceManager) EnableForwarding() error {
 
 // GetListenPort returns the actual UDP port the WireGuard device bound to.
 func (m *DeviceManager) GetListenPort() (int, error) {
+	if m.muxBind != nil && m.muxBind.Port() > 0 {
+		return m.muxBind.Port(), nil
+	}
+
 	client, err := wgctrl.New()
 	if err != nil {
 		return 0, fmt.Errorf("failed to create wgctrl client: %w", err)

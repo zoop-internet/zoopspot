@@ -15,9 +15,10 @@ type PacketHandler func(packet []byte, ep conn.Endpoint) bool
 
 // MuxBind implements conn.Bind to multiplex STUN, probing, and WireGuard traffic over a single socket.
 type MuxBind struct {
-	inner    conn.Bind
-	mu       sync.RWMutex
-	handlers []PacketHandler
+	inner      conn.Bind
+	actualPort uint16
+	mu         sync.RWMutex
+	handlers   []PacketHandler
 }
 
 // New creates a new MuxBind wrapping an underlying conn.Bind.
@@ -82,12 +83,23 @@ func (m *MuxBind) Open(port uint16) ([]conn.ReceiveFunc, uint16, error) {
 		return nil, 0, err
 	}
 
+	m.mu.Lock()
+	m.actualPort = actualPort
+	m.mu.Unlock()
+
 	wrappedFns := make([]conn.ReceiveFunc, len(fns))
 	for i, fn := range fns {
 		wrappedFns[i] = m.wrapReceive(fn)
 	}
 
 	return wrappedFns, actualPort, nil
+}
+
+// Port returns the actual listening UDP port of the multiplexer.
+func (m *MuxBind) Port() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return int(m.actualPort)
 }
 
 // Close closes the underlying bind.

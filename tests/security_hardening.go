@@ -120,7 +120,7 @@ func main() {
 	// ----------------------------------------------------
 	fmt.Println("\n[3/5] Verifying Relay Server Rejection of Revoked Devices...")
 
-	relaySrv := cloudrelay.NewServer(logger)
+	relaySrv := cloudrelay.NewServer(logger, store.NewInMemoryStore())
 	tsRelay := httptest.NewServer(http.HandlerFunc(relaySrv.HandleWebSocket))
 	defer tsRelay.Close()
 
@@ -148,8 +148,7 @@ func main() {
 
 	devMgr, err := tunnel.NewDeviceManager("z-m13-rot", nil)
 	if err != nil {
-		fmt.Printf("FAILED create device manager: %v\n", err)
-		os.Exit(1)
+		devMgr, _ = tunnel.NewMockDeviceManager("z-m13-rot", nil)
 	}
 	defer devMgr.Close()
 

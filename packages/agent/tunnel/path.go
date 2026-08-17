@@ -178,16 +178,6 @@ func ProbeCandidatesMux(ctx context.Context, mb *muxbind.MuxBind, candidates []t
 }
 
 func fallbackProbe(ctx context.Context, candidates []types.EndpointCandidate, connID string, defaultProbePort int) (*types.EndpointCandidate, error) {
-	localAddr, err := net.ResolveUDPAddr("udp", ":0")
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve local UDP probe addr: %w", err)
-	}
-	conn, err := net.ListenUDP("udp", localAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to bind local UDP probe socket: %w", err)
-	}
-	defer conn.Close()
-
 	var mu sync.Mutex
 	var working []CandidateResult
 	var wg sync.WaitGroup
@@ -209,6 +199,12 @@ func fallbackProbe(ctx context.Context, candidates []types.EndpointCandidate, co
 				return
 			}
 
+			conn, err := net.ListenUDP("udp", nil)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+
 			start := time.Now()
 			_, err = conn.WriteToUDP(pingMsg, raddr)
 			if err != nil {
@@ -217,21 +213,18 @@ func fallbackProbe(ctx context.Context, candidates []types.EndpointCandidate, co
 
 			buf := make([]byte, 1024)
 			_ = conn.SetReadDeadline(time.Now().Add(1500 * time.Millisecond))
-			for {
-				n, from, err := conn.ReadFromUDP(buf)
-				if err != nil {
-					return
-				}
-				if from.IP.Equal(raddr.IP) && string(buf[:n]) == "ZOOP_PONG:"+connID {
-					rtt := time.Since(start)
-					mu.Lock()
-					working = append(working, CandidateResult{
-						Candidate: c,
-						RTT:       rtt,
-					})
-					mu.Unlock()
-					return
-				}
+			n, _, err := conn.ReadFromUDP(buf)
+			if err != nil {
+				return
+			}
+			if string(buf[:n]) == "ZOOP_PONG:"+connID {
+				rtt := time.Since(start)
+				mu.Lock()
+				working = append(working, CandidateResult{
+					Candidate: c,
+					RTT:       rtt,
+				})
+				mu.Unlock()
 			}
 		}(cand)
 	}

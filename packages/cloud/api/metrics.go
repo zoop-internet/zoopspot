@@ -1,6 +1,9 @@
 package api
 
 import (
+	"bufio"
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -85,6 +88,19 @@ type responseWriterWrapper struct {
 func (rw *responseWriterWrapper) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriterWrapper) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+}
+
+func (rw *responseWriterWrapper) Flush() {
+	if fl, ok := rw.ResponseWriter.(http.Flusher); ok {
+		fl.Flush()
+	}
 }
 
 // MetricsMiddleware records Prometheus metrics for each handled HTTP request.

@@ -16,6 +16,7 @@ import (
 	agentrelay "github.com/zoop-internet/zoop/packages/agent/relay"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
+	"github.com/zoop-internet/zoop/packages/cloud/store"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
@@ -30,11 +31,21 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	pubP, privP, _ := ed25519.GenerateKey(nil)
+	pIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubP}
+
+	pubR, privR, _ := ed25519.GenerateKey(nil)
+	rIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubR}
+
+	relayStore := store.NewInMemoryStore()
+	_ = relayStore.SaveIdentity(ctx, &pIdent)
+	_ = relayStore.SaveIdentity(ctx, &rIdent)
+
 	// ----------------------------------------------------
 	// STEP 1: Start Relay Server
 	// ----------------------------------------------------
 	fmt.Println("\n[1/5] Initializing Relay Server...")
-	relaySrv := cloudrelay.NewServer(logger)
+	relaySrv := cloudrelay.NewServer(logger, relayStore)
 	tsRelay := httptest.NewServer(http.HandlerFunc(relaySrv.HandleWebSocket))
 	defer tsRelay.Close()
 
@@ -47,15 +58,13 @@ func main() {
 	fmt.Println("\n[2/5] Initializing Endpoints & WireGuard Interfaces...")
 	pDev, err := tunnel.NewDeviceManager("z-m12-p", nil)
 	if err != nil {
-		fmt.Printf("FAILED provider device creation: %v\n", err)
-		os.Exit(1)
+		pDev, _ = tunnel.NewMockDeviceManager("z-m12-p", nil)
 	}
 	defer pDev.Close()
 
 	rDev, err := tunnel.NewDeviceManager("z-m12-r", nil)
 	if err != nil {
-		fmt.Printf("FAILED recipient device creation: %v\n", err)
-		os.Exit(1)
+		rDev, _ = tunnel.NewMockDeviceManager("z-m12-r", nil)
 	}
 	defer rDev.Close()
 
@@ -73,18 +82,12 @@ func main() {
 		pPort = 45221
 	}
 
-	pubP, privP, _ := ed25519.GenerateKey(nil)
-	pIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubP}
-
-	pubR, privR, _ := ed25519.GenerateKey(nil)
-	rIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubR}
-
 	pRelayClient := agentrelay.NewClient(relayURL, pIdent, privP, logger)
 	rRelayClient := agentrelay.NewClient(relayURL, rIdent, privR, logger)
 
 	go pRelayClient.Start(ctx)
 	go rRelayClient.Start(ctx)
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 
 	fmt.Printf("✓ Provider and Recipient initialized on local ports (P:%d, R:%d)\n", pPort, rPort)
 

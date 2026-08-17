@@ -136,13 +136,15 @@ func main() {
 	cloudStore := store.NewInMemoryStore()
 	deviceSvc := services.NewDeviceService(cloudStore)
 	userSvc := services.NewUserService(cloudStore)
+	orgSvc := services.NewOrganizationService(cloudStore)
 	shareSvc := services.NewShareService(cloudStore)
 	hub := services.NewSignalingHub()
 	connSvc := services.NewConnectionService(cloudStore, hub)
 
 	cfg := config.LoadConfig()
+	cfg.ControlPlaneURL = "http://127.0.0.1:38081"
 
-	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, shareSvc, connSvc, hub)
+	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, orgSvc, shareSvc, connSvc, hub)
 	go func() {
 		if err := cloudServer.Start(ctx); err != nil {
 			logger.Error("cloud server stopped", "error", err)

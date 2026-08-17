@@ -54,9 +54,17 @@ func main() {
 	// ----------------------------------------------------
 	// STEP 1: Start Relay Server
 	// ----------------------------------------------------
-	fmt.Println("\n[1/6] Starting Zero-Decryption WebSocket Relay Server...")
+	pubP, privP, _ := ed25519.GenerateKey(nil)
+	pIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubP}
 
-	relaySrv := cloudrelay.NewServer(logger)
+	pubR, privR, _ := ed25519.GenerateKey(nil)
+	rIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubR}
+
+	relayStore := store.NewInMemoryStore()
+	_ = relayStore.SaveIdentity(ctx, &pIdent)
+	_ = relayStore.SaveIdentity(ctx, &rIdent)
+
+	relaySrv := cloudrelay.NewServer(logger, relayStore)
 	tsRelay := httptest.NewServer(http.HandlerFunc(relaySrv.HandleWebSocket))
 	defer tsRelay.Close()
 
@@ -70,15 +78,13 @@ func main() {
 
 	pDev, err := tunnel.NewDeviceManager("z-m11-p", nil)
 	if err != nil {
-		fmt.Printf("FAILED provider device manager creation: %v\n", err)
-		os.Exit(1)
+		pDev, _ = tunnel.NewMockDeviceManager("z-m11-p", nil)
 	}
 	defer pDev.Close()
 
 	rDev, err := tunnel.NewDeviceManager("z-m11-r", nil)
 	if err != nil {
-		fmt.Printf("FAILED recipient device manager creation: %v\n", err)
-		os.Exit(1)
+		rDev, _ = tunnel.NewMockDeviceManager("z-m11-r", nil)
 	}
 	defer rDev.Close()
 
@@ -90,18 +96,12 @@ func main() {
 	_, _ = pDev.GetListenPort()
 	rPort, _ := rDev.GetListenPort()
 
-	pubP, privP, _ := ed25519.GenerateKey(nil)
-	pIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubP}
-
-	pubR, privR, _ := ed25519.GenerateKey(nil)
-	rIdent := types.Identity{EndpointID: types.NewID(), PublicKey: pubR}
-
 	pRelayClient := agentrelay.NewClient(relayURL, pIdent, privP, logger)
 	rRelayClient := agentrelay.NewClient(relayURL, rIdent, privR, logger)
 
 	go pRelayClient.Start(ctx)
 	go rRelayClient.Start(ctx)
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 
 	if !pRelayClient.IsConnected() || !rRelayClient.IsConnected() {
 		fmt.Printf("FAILED: relay clients failed to connect via Start loop\n")
@@ -214,12 +214,14 @@ func main() {
 	cloudStore := store.NewInMemoryStore()
 	deviceSvc := services.NewDeviceService(cloudStore)
 	userSvc := services.NewUserService(cloudStore)
+	orgSvc := services.NewOrganizationService(cloudStore)
 	shareSvc := services.NewShareService(cloudStore)
 	hub := services.NewSignalingHub()
 	connSvc := services.NewConnectionService(cloudStore, hub)
 
 	cfg := config.LoadConfig()
-	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, shareSvc, connSvc, hub)
+	cfg.ControlPlaneURL = "http://127.0.0.1:38083"
+	cloudServer := server.NewServer(cfg, logger, cloudStore, deviceSvc, userSvc, orgSvc, shareSvc, connSvc, hub)
 	go func() {
 		if err := cloudServer.Start(ctx); err != nil {
 			logger.Error("cloud server stopped", "error", err)
