@@ -15,6 +15,17 @@ build:
 test:
 	$(GO) test -v ./...
 
+tests: test
+
+integration-tests:
+	$(GO) run tests/direct_connectivity.go
+	$(GO) run tests/nat_traversal.go
+	$(GO) run tests/relay_fallback.go
+	$(GO) run tests/connection_recovery.go
+	$(GO) run tests/security_hardening.go
+	$(GO) run tests/platform_implementations.go
+	$(GO) run tests/router_integration.go
+
 mobile-test:
 	$(GO) test -v ./packages/platform/mobile/...
 
