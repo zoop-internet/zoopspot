@@ -31,8 +31,8 @@ and organizations, and operators get a working admin console.
   audit log), `/v1/admin/usage`, `/v1/admin/relays`; middleware via `ZOOP_ADMIN_IDS`.
   AdminConsole Users/Network/Relays/Security/Operations/Usage tabs wired to real data;
   audit entries logged for device.register/unregister, share.create, connection.create,
-  org.create. REMAINING: Billing tab (no billing model), device revoke endpoint,
-  relay add/remove endpoints.
+  org.create. REMAINING: device revoke endpoint, relay add/remove endpoints.
+  (Billing tab intentionally out of scope — no billing model planned.)
 - **Phase 6 (deployment)** — MOSTLY DONE: `VITE_API_BASE` build-time env for the web app
   (`web/.env.example`); `CORSMiddleware` honoring `ZOOP_ALLOWED_ORIGINS`; `SecurityHeaders
   Middleware` (CSP, HSTS, X-Frame-Options, nosniff, referrer/permissions policies);
