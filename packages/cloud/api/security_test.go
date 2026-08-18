@@ -163,6 +163,57 @@ func TestSecurity_RevokedDeviceRejection(t *testing.T) {
 	}
 }
 
+func TestSecurity_CORS_AllowedOrigin(t *testing.T) {
+	mw := CORSMiddleware([]string{"https://app.zoop.network"})
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	req.Header.Set("Origin", "https://app.zoop.network")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for allowed origin, got %d", w.Result().StatusCode)
+	}
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "https://app.zoop.network" {
+		t.Fatalf("expected Allow-Origin echo, got %q", got)
+	}
+}
+
+func TestSecurity_CORS_DisallowedOrigin(t *testing.T) {
+	mw := CORSMiddleware([]string{"https://app.zoop.network"})
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Result().StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for disallowed origin, got %d", w.Result().StatusCode)
+	}
+}
+
+func TestSecurity_CORS_NoOriginAllowed(t *testing.T) {
+	// With no origins configured, same-origin requests (no Origin header) pass.
+	mw := CORSMiddleware(nil)
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for no-origin request, got %d", w.Result().StatusCode)
+	}
+}
+
 func TestSecurity_RateLimiter(t *testing.T) {
 	limiter := NewRateLimiter(60, 3) // 3 tokens burst capacity
 

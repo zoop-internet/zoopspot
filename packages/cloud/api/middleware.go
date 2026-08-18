@@ -249,3 +249,38 @@ func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) fu
 		}))
 	}
 }
+
+// CORSMiddleware sets permissive CORS headers for a configured set of allowed
+// origins (from ZOOP_ALLOWED_ORIGINS). If no origins are configured, requests
+// with no Origin header (same-origin / CLI) pass through untouched, and any
+// cross-origin request is rejected.
+func CORSMiddleware(allowed []string) func(http.Handler) http.Handler {
+	allowedSet := make(map[string]bool, len(allowed))
+	for _, o := range allowed {
+		allowedSet[o] = true
+	}
+	allowAll := len(allowed) == 0
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if !allowAll && !allowedSet[origin] {
+					WriteError(w, "forbidden", "origin not allowed", http.StatusForbidden)
+					return
+				}
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Zoop-Identity, X-Zoop-Device-ID, X-Zoop-Signature, X-Zoop-Timestamp, X-Zoop-Nonce")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

@@ -1,13 +1,15 @@
 /**
  * Zoop API Client
  *
- * Calls the real Control Plane REST API (localhost:8080).
+ * Calls the real Control Plane REST API. The base is configurable at build time:
+ * - VITE_API_BASE set → points at that origin (e.g. a deployed control plane).
+ * - Otherwise defaults to '/api', which Vite proxies to the local control plane.
  * Signs authenticated requests using WebCrypto Ed25519 keys.
  */
 
 import { buildSignedAuthHeaders } from './identity';
 
-const API_BASE = '/api'; // proxied via vite to http://localhost:8080
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
 
 // ─── Types matching the Go API ────────────────────────────────
 export interface ApiDevice {

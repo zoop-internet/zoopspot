@@ -27,7 +27,10 @@ and organizations, and operators get a working admin console.
   `/v1/admin/connections`, `/v1/admin/services` added; middleware via `ZOOP_ADMIN_IDS`).
   REMAINING: Users tab (account model), Operations/Usage/Billing (no telemetry backend yet),
   Network/Relays/Security/Abuse still placeholders.
-- **Phase 6 (deployment)** — PENDING.
+- **Phase 6 (deployment)** — PARTIAL: `VITE_API_BASE` build-time env for the web app
+  (`web/.env.example`); `CORSMiddleware` on the cloud API honoring
+  `ZOOP_ALLOWED_ORIGINS` (preflight + origin allow-list, tests added). REMAINING:
+  static hosting of `web/dist`, CSP/HSTS headers, serving over TLS.
 - **Phase 7 (multi-tenant workspaces)** — PENDING, spec added below.
 
 ## The Product Model (verified against code + `docs/web.md`)

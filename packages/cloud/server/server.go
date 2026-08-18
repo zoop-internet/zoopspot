@@ -1005,7 +1005,11 @@ func (s *Server) CheckHealth() map[string]api.SubsystemStatus {
 // Start runs the HTTP server and blocks until the context is canceled.
 func (s *Server) Start(ctx context.Context) error {
 	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
-	handler := api.MetricsMiddleware(api.RateLimitMiddleware(rateLimiter)(s.mux))
+	handler := api.MetricsMiddleware(
+		api.RateLimitMiddleware(rateLimiter)(
+			api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+		),
+	)
 
 	addr := ":8080"
 	if s.cfg.ControlPlaneURL != "" {
