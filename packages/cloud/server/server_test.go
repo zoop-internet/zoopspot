@@ -282,4 +282,92 @@ func bodyHash(s string) string {
 	return fmt.Sprintf("%x", h[:])
 }
 
+// TestServer_UnregisterDevice verifies a device can delete itself:
+// DELETE /v1/devices/{id} returns 204, the device disappears from the registry,
+// and its identity can no longer authenticate.
+func TestServer_UnregisterDevice(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	pubStr := base64.StdEncoding.EncodeToString(pub)
+
+	// 1. Register the device.
+	reqBody, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Doomed Device", PublicKey: pubStr})
+	req := httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(reqBody))
+	w := httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("register: expected 201, got %d", w.Result().StatusCode)
+	}
+	var resp api.DeviceResponse
+	json.NewDecoder(w.Result().Body).Decode(&resp)
+
+	sign := func(method, path string, body string) *http.Request {
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		payload := api.BuildCanonicalPayload(method, path, ts, nonce, bodyHash(body))
+		sig := base64.StdEncoding.EncodeToString(ed25519.Sign(priv, payload))
+		var r *http.Request
+		if method == http.MethodDelete {
+			r = httptest.NewRequest(method, path, nil)
+		} else {
+			r = httptest.NewRequest(method, path, bytes.NewReader([]byte(body)))
+		}
+		r.Header.Set("X-Zoop-Identity", resp.EndpointID.String())
+		r.Header.Set("X-Zoop-Signature", sig)
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		return r
+	}
+
+	// 2. Another device cannot unregister this one (403).
+	otherPub, otherPriv, _ := ed25519.GenerateKey(rand.Reader)
+	otherID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, otherPub))
+	st.SaveIdentity(context.Background(), &types.Identity{EndpointID: otherID, PublicKey: otherPub})
+	ts := time.Now().UTC().Format(time.RFC3339)
+	nonce := uuid.NewString()
+	payload := api.BuildCanonicalPayload(http.MethodDelete, "/v1/devices/"+resp.EndpointID.String(), ts, nonce, "")
+	sig := base64.StdEncoding.EncodeToString(ed25519.Sign(otherPriv, payload))
+	otherReq := httptest.NewRequest(http.MethodDelete, "/v1/devices/"+resp.EndpointID.String(), nil)
+	otherReq.Header.Set("X-Zoop-Identity", otherID.String())
+	otherReq.Header.Set("X-Zoop-Signature", sig)
+	otherReq.Header.Set("X-Zoop-Timestamp", ts)
+	otherReq.Header.Set("X-Zoop-Nonce", nonce)
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, otherReq)
+	if w.Result().StatusCode != http.StatusForbidden {
+		t.Fatalf("other device unregister: expected 403, got %d", w.Result().StatusCode)
+	}
+
+	// 3. Device unregisters itself (204).
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, sign(http.MethodDelete, "/v1/devices/"+resp.EndpointID.String(), ""))
+	if w.Result().StatusCode != http.StatusNoContent {
+		t.Fatalf("unregister self: expected 204, got %d (body %s)", w.Result().StatusCode, w.Result().Body)
+	}
+
+	// 4. Device is gone from the registry.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, sign(http.MethodGet, "/v1/devices/"+resp.EndpointID.String(), ""))
+	if w.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("get after unregister: expected 401 (identity deleted), got %d", w.Result().StatusCode)
+	}
+	_, err := st.GetDevice(context.Background(), resp.EndpointID)
+	if err != store.ErrNotFound {
+		t.Fatalf("expected device deleted (ErrNotFound), got %v", err)
+	}
+	_, err = st.GetIdentity(context.Background(), resp.EndpointID)
+	if err != store.ErrNotFound {
+		t.Fatalf("expected identity deleted (ErrNotFound), got %v", err)
+	}
+}
+
 

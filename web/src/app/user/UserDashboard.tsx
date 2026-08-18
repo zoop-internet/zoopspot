@@ -455,10 +455,12 @@ const ConnectionsTab: React.FC = () => {
 
 /* ─── Sharing tab ─────────────────────────────────────────────── */
 const SharingTab: React.FC = () => {
-  const { deviceId, shares, doCreateShare } = useApp();
+  const { deviceId, shares, allDevices, doCreateShare } = useApp();
   const [recipientId, setRecipientId] = useState('');
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+
+  const candidates = allDevices.filter(d => d.id.toString() !== deviceId);
 
   const handleShare = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -493,9 +495,23 @@ const SharingTab: React.FC = () => {
         <div className="section-header"><span className="section-title">Authorize Recipient</span></div>
         <form onSubmit={handleShare} style={{ padding: '16px', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Recipient Device ID</label>
-            <input id="share-recipient-id" type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)}
-              placeholder="Recipient's Device UUID" required />
+            <label>Recipient Device</label>
+            {candidates.length > 0 ? (
+              <select id="share-recipient-id" value={recipientId} onChange={e => setRecipientId(e.target.value)} required>
+                <option value="" disabled>Select a registered device…</option>
+                {candidates.map(d => (
+                  <option key={d.id.toString()} value={d.id.toString()}>
+                    {d.name || 'Unnamed Device'} — {d.id.toString().slice(0, 8)}…
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input id="share-recipient-id" type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)}
+                placeholder="Recipient's Device ID" required />
+            )}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              Sharing a connection lets this device act as a Provider for the chosen recipient.
+            </div>
           </div>
           <button type="submit" className="btn btn-primary btn-sm" id="share-create-btn" disabled={sharing}>
             {sharing ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
@@ -547,6 +563,17 @@ const SharingTab: React.FC = () => {
 /* ─── Settings tab ────────────────────────────────────────────── */
 const SettingsTab: React.FC = () => {
   const { deviceId, deviceName, deviceInfo, unregister } = useApp();
+  const [confirming, setConfirming] = useState(false);
+  const [unregistering, setUnregistering] = useState(false);
+
+  const handleUnregister = async () => {
+    setUnregistering(true);
+    try {
+      await unregister();
+    } finally {
+      setUnregistering(false);
+    }
+  };
 
   return (
     <div className="section settings-section">
@@ -577,10 +604,24 @@ const SettingsTab: React.FC = () => {
       )}
       {deviceId && (
         <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border-subtle)' }}>
-          <button className="btn btn-ghost btn-sm" id="settings-unregister-btn" onClick={unregister}
-            style={{ color: 'var(--accent-red)' }}>
-            <Ico d={I.logOut} />Unregister Device
-          </button>
+          {confirming ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                Remove this device from the control plane? This deletes its identity and cannot be undone.
+              </span>
+              <button className="btn btn-danger btn-sm" id="settings-unregister-confirm-btn"
+                disabled={unregistering} onClick={handleUnregister}>
+                {unregistering ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}Unregister
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={unregistering}
+                onClick={() => setConfirming(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button className="btn btn-ghost btn-sm" id="settings-unregister-btn"
+              onClick={() => setConfirming(true)} style={{ color: 'var(--accent-red)' }}>
+              <Ico d={I.logOut} />Unregister Device
+            </button>
+          )}
         </div>
       )}
     </div>

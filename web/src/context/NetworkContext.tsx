@@ -3,6 +3,7 @@ import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '.
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
   createShare, createConnection, updateConnectionState, listConnections, listShares,
+  unregisterDevice,
   createOrganization, listOrganizations, addOrgMember, listOrgMembers,
 } from '../api/client';
 import {
@@ -18,7 +19,7 @@ export interface AppState {
   isRegistering: boolean;
   registerError: string | null;
   register: (name: string, platform: string, isProvider: boolean) => Promise<void>;
-  unregister: () => void;
+  unregister: () => Promise<void>;
 
   // Device Fleet
   allDevices: ApiDevice[];
@@ -118,14 +119,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [refreshAllDevices]);
 
-  const unregister = useCallback(() => {
+  const unregister = useCallback(async () => {
+    if (deviceId) {
+      try {
+        await unregisterDevice(deviceId);
+      } catch {
+        // Proceed with local cleanup even if the API call fails.
+      }
+    }
     clearSavedDevice();
     setDeviceId(null);
     setDeviceName(null);
     setDeviceInfo(null);
     setShares([]);
     setConnections([]);
-  }, []);
+  }, [deviceId]);
 
   const refreshShares = useCallback(() => {
     if (!deviceId) return;

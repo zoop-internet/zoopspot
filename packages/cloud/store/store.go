@@ -20,10 +20,12 @@ type Store interface {
 	SaveDevice(ctx context.Context, device *types.Device) error
 	GetDevice(ctx context.Context, id types.ID) (*types.Device, error)
 	ListDevices(ctx context.Context) ([]*types.Device, error)
+	DeleteDevice(ctx context.Context, id types.ID) error
 
 	SaveIdentity(ctx context.Context, identity *types.Identity) error
 	GetIdentity(ctx context.Context, endpointID types.ID) (*types.Identity, error)
 	GetIdentityByPublicKey(ctx context.Context, pubKey []byte) (*types.Identity, error)
+	DeleteIdentity(ctx context.Context, endpointID types.ID) error
 
 	SaveUser(ctx context.Context, account *types.Account) error
 	GetUser(ctx context.Context, id types.ID) (*types.Account, error)
@@ -164,6 +166,31 @@ func (s *InMemoryStore) GetIdentityByPublicKey(ctx context.Context, pubKey []byt
 		return nil, ErrNotFound
 	}
 	return s.identities[id], nil
+}
+
+func (s *InMemoryStore) DeleteDevice(ctx context.Context, id types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.devices[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.devices, id)
+	return nil
+}
+
+func (s *InMemoryStore) DeleteIdentity(ctx context.Context, endpointID types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i, ok := s.identities[endpointID]
+	if !ok {
+		return ErrNotFound
+	}
+	delete(s.identities, endpointID)
+	if i != nil {
+		encodedKey := base64.StdEncoding.EncodeToString(i.PublicKey)
+		delete(s.identitiesByKey, encodedKey)
+	}
+	return nil
 }
 
 func (s *InMemoryStore) SaveUser(ctx context.Context, account *types.Account) error {

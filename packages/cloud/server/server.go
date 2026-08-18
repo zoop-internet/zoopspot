@@ -161,6 +161,7 @@ func (s *Server) routes() {
 	// Authenticated routes
 	s.mux.Handle("GET /v1/devices/{id}", authMw(http.HandlerFunc(s.handleGetDevice())))
 	s.mux.Handle("GET /v1/devices/{id}/endpoints", authMw(http.HandlerFunc(s.handleGetEndpoints())))
+	s.mux.Handle("DELETE /v1/devices/{id}", authMw(http.HandlerFunc(s.handleUnregisterDevice())))
 
 	s.mux.HandleFunc("POST /v1/organizations", s.handleCreateOrganization())
 	s.mux.HandleFunc("GET /v1/organizations", s.handleListOrganizations())
@@ -264,6 +265,36 @@ func (s *Server) handleGetEndpoints() http.HandlerFunc {
 		}
 
 		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleUnregisterDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id format", http.StatusBadRequest)
+			return
+		}
+
+		// Only the device itself may unregister.
+		identityID := api.IdentityFromContext(r.Context())
+		if identityID != types.ID(parsedUUID) {
+			api.WriteError(w, "forbidden", "device may only unregister itself", http.StatusForbidden)
+			return
+		}
+
+		if err := s.devices.Unregister(r.Context(), types.ID(parsedUUID)); err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "device not found", http.StatusNotFound)
+				return
+			}
+			s.logger.Error("failed to unregister device", "error", err)
+			api.WriteError(w, "internal_error", "failed to unregister device", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

@@ -115,6 +115,17 @@ func (s *DeviceService) Revoke(ctx context.Context, id types.ID) error {
 	return s.store.SaveDevice(ctx, device)
 }
 
+// Unregister removes a device and its identity from the control plane.
+func (s *DeviceService) Unregister(ctx context.Context, id types.ID) error {
+	if _, err := s.store.GetDevice(ctx, id); err != nil {
+		return err
+	}
+	if err := s.store.DeleteIdentity(ctx, id); err != nil {
+		return err
+	}
+	return s.store.DeleteDevice(ctx, id)
+}
+
 // RotateKey updates the registered WireGuard public key for an identity.
 func (s *DeviceService) RotateKey(ctx context.Context, endpointID types.ID, newWireGuardKeyBase64 string) error {
 	identity, err := s.store.GetIdentity(ctx, endpointID)

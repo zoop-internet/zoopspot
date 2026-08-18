@@ -219,3 +219,11 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 type ContextKey string
 
 const CallerIdentityKey ContextKey = "caller_identity"
+
+// IdentityFromContext returns the authenticated caller's endpoint ID.
+func IdentityFromContext(ctx context.Context) types.ID {
+	if v, ok := ctx.Value(CallerIdentityKey).(types.ID); ok {
+		return v
+	}
+	return types.ID{}
+}

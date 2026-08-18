@@ -134,6 +134,22 @@ func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error
 	return devices, nil
 }
 
+func (s *PostgresStore) DeleteDevice(ctx context.Context, id types.ID) error {
+	query := `DELETE FROM devices WHERE id = $1`
+	result, err := s.db.ExecContext(ctx, query, id.String())
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ─── Identities ───────────────────────────────────────────────
 
 func (s *PostgresStore) SaveIdentity(ctx context.Context, identity *types.Identity) error {
@@ -194,6 +210,22 @@ func (s *PostgresStore) GetIdentityByPublicKey(ctx context.Context, pubKey []byt
 	}
 	ident.EndpointID = parsedID
 	return &ident, nil
+}
+
+func (s *PostgresStore) DeleteIdentity(ctx context.Context, endpointID types.ID) error {
+	query := `DELETE FROM identities WHERE endpoint_id = $1`
+	result, err := s.db.ExecContext(ctx, query, endpointID.String())
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // ─── Users ────────────────────────────────────────────────────

@@ -111,6 +111,15 @@ export async function getDevice(deviceId: string): Promise<ApiDevice> {
   });
 }
 
+export async function unregisterDevice(deviceId: string): Promise<void> {
+  const path = `/v1/devices/${deviceId}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  await apiFetch<void>(path, {
+    method: 'DELETE',
+    headers: authHeaders,
+  });
+}
+
 export async function getDeviceEndpoints(deviceId: string): Promise<ApiEndpoints> {
   const path = `/v1/devices/${deviceId}/endpoints`;
   const authHeaders = await buildSignedAuthHeaders('GET', path);
