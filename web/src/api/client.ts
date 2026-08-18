@@ -50,11 +50,15 @@ export interface ApiEndpoints {
 export interface ApiOrg {
   id: string;
   name: string;
+  owner_device_id?: string;
+  slug?: string;
+  status?: string;
 }
 
 export interface ApiOrgMember {
   id: string;
   organization_id: string;
+  device_id?: string;
   name: string;
   email: string;
   role: string;
@@ -154,30 +158,75 @@ export async function listShares(): Promise<ApiShare[]> {
 
 // ─── Organization operations ──────────────────────────────────
 
-export async function createOrganization(name: string): Promise<ApiOrg> {
-  return apiFetch<ApiOrg>('/v1/organizations', {
+export async function createOrganization(name: string, slug?: string): Promise<ApiOrg> {
+  const path = '/v1/organizations';
+  const body = JSON.stringify({ name, slug });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiOrg>(path, {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    headers: authHeaders,
+    body,
   });
 }
 
 export async function listOrganizations(): Promise<ApiOrg[]> {
-  return apiFetch<ApiOrg[]>('/v1/organizations');
+  const path = '/v1/organizations';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiOrg[]>(path, { headers: authHeaders });
 }
 
 export async function getOrganization(orgId: string): Promise<ApiOrg> {
-  return apiFetch<ApiOrg>(`/v1/organizations/${orgId}`);
+  const path = `/v1/organizations/${orgId}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiOrg>(path, { headers: authHeaders });
 }
 
-export async function addOrgMember(orgId: string, name: string, email: string, role: string): Promise<ApiOrgMember> {
-  return apiFetch<ApiOrgMember>(`/v1/organizations/${orgId}/members`, {
+export async function addOrgMember(orgId: string, name: string, email: string, role: string, deviceId?: string): Promise<ApiOrgMember> {
+  const path = `/v1/organizations/${orgId}/members`;
+  const body = JSON.stringify({ name, email, role, device_id: deviceId });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiOrgMember>(path, {
     method: 'POST',
-    body: JSON.stringify({ name, email, role }),
+    headers: authHeaders,
+    body,
   });
 }
 
 export async function listOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
-  return apiFetch<ApiOrgMember[]>(`/v1/organizations/${orgId}/members`);
+  const path = `/v1/organizations/${orgId}/members`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiOrgMember[]>(path, { headers: authHeaders });
+}
+
+// ─── Admin operations (operator console) ─────────────────────
+
+export async function adminListOrganizations(): Promise<ApiOrg[]> {
+  const path = '/v1/admin/organizations';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiOrg[]>(path, { headers: authHeaders });
+}
+
+export async function adminListOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
+  const path = `/v1/admin/organizations/${orgId}/members`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiOrgMember[]>(path, { headers: authHeaders });
+}
+
+export async function adminListConnections(): Promise<ApiConnection[]> {
+  const path = '/v1/admin/connections';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiConnection[]>(path, { headers: authHeaders });
+}
+
+export interface ApiServiceHealth {
+  status: string;
+  details?: Record<string, unknown>;
+}
+
+export async function adminServices(): Promise<Record<string, ApiServiceHealth>> {
+  const path = '/v1/admin/services';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<Record<string, ApiServiceHealth>>(path, { headers: authHeaders });
 }
 
 // ─── Share operations ─────────────────────────────────────────
@@ -231,4 +280,69 @@ export async function updateConnectionState(connId: string, state: string): Prom
     headers: authHeaders,
     body,
   });
+}
+
+// ─── Real-time events (Server-Sent Events) ────────────────────
+
+export interface ServerEvent {
+  type: string;
+  entity?: string;
+  id?: string;
+  payload?: unknown;
+}
+
+/**
+ * Subscribes to the control plane's SSE event stream using the caller's
+ * authenticated identity. Returns a cleanup function. Because EventSource
+ * cannot attach custom auth headers, the stream is read via fetch + reader.
+ */
+export async function subscribeToEvents(
+  onEvent: (ev: ServerEvent) => void,
+  onError: (err: unknown) => void,
+): Promise<() => void> {
+  const path = '/v1/events';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+
+  const controller = new AbortController();
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: authHeaders,
+    signal: controller.signal,
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error(`SSE subscribe failed: ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const pump = async () => {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          onError(new Error('Event stream closed'));
+          return;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop() ?? '';
+        for (const chunk of chunks) {
+          const dataLine = chunk.split('\n').find(l => l.startsWith('data:'));
+          if (!dataLine) continue;
+          try {
+            onEvent(JSON.parse(dataLine.slice(5).trim()) as ServerEvent);
+          } catch {
+            // ignore malformed events
+          }
+        }
+      }
+    } catch (err) {
+      onError(err);
+    }
+  };
+  void pump();
+
+  return () => controller.abort();
 }

@@ -227,3 +227,25 @@ func IdentityFromContext(ctx context.Context) types.ID {
 	}
 	return types.ID{}
 }
+
+// AdminMiddleware wraps AuthMiddleware and additionally requires the caller to be
+// in the configured admin allow-list. If no allow-list is configured, all
+// authenticated callers are treated as admins (dev-time convenience).
+func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) func(http.Handler) http.Handler {
+	adminSet := make(map[string]bool, len(adminIDs))
+	for _, id := range adminIDs {
+		adminSet[id] = true
+	}
+	allowAll := len(adminIDs) == 0
+
+	return func(next http.Handler) http.Handler {
+		return auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			callerID := IdentityFromContext(r.Context())
+			if !allowAll && !adminSet[callerID.String()] {
+				WriteError(w, "forbidden", "operator privileges required", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		}))
+	}
+}

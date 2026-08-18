@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
   createShare, createConnection, updateConnectionState, listConnections, listShares,
   unregisterDevice,
   createOrganization, listOrganizations, addOrgMember, listOrgMembers,
+  subscribeToEvents,
 } from '../api/client';
 import {
   getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice,
@@ -45,7 +46,7 @@ export interface AppState {
   orgMembers: ApiOrgMember[];
   orgsLoading: boolean;
   refreshOrganizations: () => void;
-  doCreateOrg: (name: string) => Promise<ApiOrg>;
+  doCreateOrg: (name: string, slug?: string) => Promise<ApiOrg>;
   selectOrg: (org: ApiOrg) => void;
   doAddOrgMember: (name: string, email: string, role: string) => Promise<void>;
   refreshOrgMembers: (orgId?: string) => void;
@@ -59,6 +60,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [deviceInfo, setDeviceInfo] = useState<ApiDevice | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const autoRegisteredRef = useRef(false);
 
   const [allDevices, setAllDevices] = useState<ApiDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
@@ -79,7 +81,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!deviceId) { setDeviceInfo(null); return; }
     getDevice(deviceId)
       .then(d => setDeviceInfo(d))
-      .catch(() => setDeviceInfo(null));
+      .catch(() => {
+        // Stored identity no longer exists server-side (e.g. cloud reset).
+        // Clear it so auto-register can create a fresh identity.
+        setDeviceInfo(null);
+        clearSavedDevice();
+        setDeviceId(null);
+        setDeviceName(null);
+      });
   }, [deviceId]);
 
   const refreshAllDevices = useCallback(() => {
@@ -118,6 +127,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsRegistering(false);
     }
   }, [refreshAllDevices]);
+
+  // Auto-register the browser as a device on first load so the portal
+  // starts populated instead of showing "Not registered" empty states.
+  useEffect(() => {
+    if (deviceId || autoRegisteredRef.current) return;
+    autoRegisteredRef.current = true;
+    register('My Device', 'web', false).catch(() => {});
+  }, [deviceId, register]);
 
   const unregister = useCallback(async () => {
     if (deviceId) {
@@ -171,6 +188,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (deviceId) refreshConnections();
   }, [deviceId, refreshConnections]);
 
+  // Subscribe to real-time server events (SSE) and refresh affected lists.
+  useEffect(() => {
+    if (!deviceId) return;
+
+    let cleanup: (() => void) | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let aborted = false;
+
+    const connect = async () => {
+      try {
+        cleanup = await subscribeToEvents(
+          ev => {
+            if (ev.type === 'share_created') refreshShares();
+            if (ev.type === 'connection_requested' || ev.type === 'connection_updated') {
+              refreshConnections();
+            }
+          },
+          () => {
+            // Stream dropped: resync once then retry the subscription.
+            if (aborted) return;
+            refreshShares();
+            refreshConnections();
+            retryTimer = setTimeout(connect, 3000);
+          },
+        );
+      } catch {
+        if (aborted) return;
+        retryTimer = setTimeout(connect, 3000);
+      }
+    };
+
+    void connect();
+
+    return () => {
+      aborted = true;
+      cleanup?.();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [deviceId, refreshShares, refreshConnections]);
+
   const doConnect = useCallback(async (providerId: string, _shareId?: string): Promise<ApiConnection | null> => {
     if (!deviceId) return null;
     const conn = await createConnection(providerId, deviceId);
@@ -215,8 +272,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentOrg, refreshOrgMembers]);
 
-  const doCreateOrg = useCallback(async (name: string): Promise<ApiOrg> => {
-    const org = await createOrganization(name);
+  const doCreateOrg = useCallback(async (name: string, slug?: string): Promise<ApiOrg> => {
+    const org = await createOrganization(name, slug);
     setOrganizations(prev => [...prev, org]);
     setCurrentOrg(org);
     return org;

@@ -174,6 +174,124 @@ func TestServer_AuthMiddleware(t *testing.T) {
 
 // TestServer_ListSharesAndConnections verifies the authenticated list endpoints
 // return only the caller's own shares and connections.
+func TestServer_OrgAuthAndOwnership(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Register two devices (owner + member) with real Ed25519 keys.
+	register := func(name string) (types.ID, ed25519.PrivateKey) {
+		pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+		pubStr := base64.StdEncoding.EncodeToString(pub)
+		body, _ := json.Marshal(api.RegisterDeviceRequest{Name: name, PublicKey: pubStr})
+		req := httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(body))
+		w := httptest.NewRecorder()
+		srv.mux.ServeHTTP(w, req)
+		if w.Result().StatusCode != http.StatusCreated {
+			t.Fatalf("register %s: expected 201, got %d", name, w.Result().StatusCode)
+		}
+		var resp api.DeviceResponse
+		json.NewDecoder(w.Result().Body).Decode(&resp)
+		return resp.EndpointID, priv
+	}
+
+	authReq := func(priv ed25519.PrivateKey, ident types.ID, method, path string, body string) *http.Request {
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		payload := api.BuildCanonicalPayload(method, path, ts, nonce, bodyHash(body))
+		sig := base64.StdEncoding.EncodeToString(ed25519.Sign(priv, payload))
+		r := httptest.NewRequest(method, path, bytes.NewReader([]byte(body)))
+		r.Header.Set("X-Zoop-Identity", ident.String())
+		r.Header.Set("X-Zoop-Signature", sig)
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		return r
+	}
+
+	ownerID, ownerPriv := register("Owner")
+	memberID, memberPriv := register("Member")
+
+	// 1. Unauthenticated org list -> 401.
+	w := httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/v1/organizations", nil))
+	if w.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauth org list: expected 401, got %d", w.Result().StatusCode)
+	}
+
+	// 2. Owner creates an org -> 201, caller becomes owner, slug set.
+	createBody, _ := json.Marshal(api.CreateOrgRequest{Name: "Test Org", Slug: "test-org"})
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(ownerPriv, ownerID, http.MethodPost, "/v1/organizations", string(createBody)))
+	if w.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("create org: expected 201, got %d", w.Result().StatusCode)
+	}
+	var org api.OrgResponse
+	json.NewDecoder(w.Result().Body).Decode(&org)
+	if org.OwnerDevice != ownerID {
+		t.Fatalf("expected owner %s, got %s", ownerID, org.OwnerDevice)
+	}
+	if org.Slug != "test-org" {
+		t.Fatalf("expected slug test-org, got %q", org.Slug)
+	}
+
+	// 3. Member cannot see the org before joining -> 0.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(memberPriv, memberID, http.MethodGet, "/v1/organizations", ""))
+	var before []api.OrgResponse
+	json.NewDecoder(w.Result().Body).Decode(&before)
+	if len(before) != 0 {
+		t.Fatalf("member before join: expected 0 orgs, got %d", len(before))
+	}
+
+	// 4. Member cannot add members (not owner) -> 403.
+	addBody, _ := json.Marshal(api.AddOrgMemberRequest{Name: "Hax", Email: "hax@test", Role: "admin"})
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(memberPriv, memberID, http.MethodPost, "/v1/organizations/"+org.ID.String()+"/members", string(addBody)))
+	if w.Result().StatusCode != http.StatusForbidden {
+		t.Fatalf("member add: expected 403, got %d", w.Result().StatusCode)
+	}
+
+	// 5. Owner adds member with device link -> 201.
+	addBody, _ = json.Marshal(api.AddOrgMemberRequest{DeviceID: memberID, Name: "Member", Email: "m@test", Role: "member"})
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(ownerPriv, ownerID, http.MethodPost, "/v1/organizations/"+org.ID.String()+"/members", string(addBody)))
+	if w.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("owner add member: expected 201, got %d", w.Result().StatusCode)
+	}
+
+	// 6. Member now sees the org -> 1.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(memberPriv, memberID, http.MethodGet, "/v1/organizations", ""))
+	var after []api.OrgResponse
+	json.NewDecoder(w.Result().Body).Decode(&after)
+	if len(after) != 1 {
+		t.Fatalf("member after join: expected 1 org, got %d", len(after))
+	}
+
+	// 7. Duplicate slug rejected.
+	dupBody, _ := json.Marshal(api.CreateOrgRequest{Name: "Other", Slug: "test-org"})
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(ownerPriv, ownerID, http.MethodPost, "/v1/organizations", string(dupBody)))
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("duplicate slug: expected 400, got %d", w.Result().StatusCode)
+	}
+
+	// 8. Admin endpoint (no ZOOP_ADMIN_IDS configured => allowAll) lists the org.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, authReq(ownerPriv, ownerID, http.MethodGet, "/v1/admin/organizations", ""))
+	var adm []api.OrgResponse
+	json.NewDecoder(w.Result().Body).Decode(&adm)
+	if len(adm) < 1 {
+		t.Fatalf("admin org list: expected >=1, got %d", len(adm))
+	}
+}
+
 func TestServer_ListSharesAndConnections(t *testing.T) {
 	st := store.NewInMemoryStore()
 	ds := services.NewDeviceService(st)

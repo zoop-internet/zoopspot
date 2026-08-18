@@ -1,4 +1,4 @@
-export type PortalMode = 'user' | 'org' | 'admin' | 'desktop';
+export type PortalMode = 'user' | 'org' | 'admin';
 
 export interface DesktopSettings {
   auto_connect: boolean;

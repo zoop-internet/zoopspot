@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
+import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 
 /* ─── Icons ─────────────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) => (
@@ -28,47 +29,7 @@ const I = {
   shield:     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
 };
 
-/* ─── Portal Switcher ─────────────────────────────────────────── */
-const PORTAL_LABELS: Record<PortalMode, string> = {
-  desktop: 'Zoop Desktop App',
-  user:    'app.zoop.com',
-  org:     'app.zoop.com/org',
-  admin:   'admin.zoop.com',
-};
-const PORTAL_COLORS: Record<PortalMode, string> = {
-  desktop: 'var(--accent-cyan)', user: 'var(--accent-green)', org: 'var(--accent-blue)', admin: 'var(--accent-amber)',
-};
-
-const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-  return (
-    <div className="portal-switcher" ref={ref}>
-      <button className="portal-switcher-trigger" id="portal-switch-trigger" onClick={() => setOpen(v => !v)} aria-haspopup="listbox" aria-expanded={open}>
-        <span className="switcher-dot" style={{ background: PORTAL_COLORS[mode] }} />
-        <span className="switcher-domain">{PORTAL_LABELS[mode]}</span>
-        <Ico d={I.chevronD} size={12} />
-      </button>
-      {open && (
-        <div className="portal-switcher-menu" role="listbox">
-          {(['desktop', 'user', 'org', 'admin'] as PortalMode[]).map(m => (
-            <button key={m} id={`switch-to-${m}`} className={`portal-switcher-option${mode === m ? ' ps-selected' : ''}`}
-              onClick={() => { onSwitch(m); setOpen(false); }} role="option" aria-selected={mode === m}>
-              {mode === m ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
-              <span className="switcher-dot" style={{ background: PORTAL_COLORS[m] }} />
-              {PORTAL_LABELS[m]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+/* ─── Workspace switcher (shared) ────────────────────────────── */
 
 
 /* ─── Register device modal ───────────────────────────────────── */
@@ -304,11 +265,13 @@ const stateBadge = (s: string) => {
 };
 
 const ConnectionsTab: React.FC = () => {
-  const { deviceId, connections, connectionsLoading, doConnect, doDisconnect, refreshConnections } = useApp();
+  const { deviceId, connections, connectionsLoading, allDevices, doConnect, doDisconnect, refreshConnections } = useApp();
   const [providerId, setProviderId] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [busyConn, setBusyConn] = useState<string | null>(null);
+
+  const providers = allDevices.filter(d => d.id.toString() !== deviceId);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,16 +310,27 @@ const ConnectionsTab: React.FC = () => {
         <div className="section-header"><span className="section-title">Initiate Connection</span></div>
         <form onSubmit={handleConnect} style={{ padding: '16px', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Provider Device ID</label>
-            <input id="conn-provider-id" type="text" value={providerId} onChange={e => setProviderId(e.target.value)}
-              placeholder="Provider's Device ID" required />
+            <label>Provider Device</label>
+            {providers.length > 0 ? (
+              <select id="conn-provider-id" value={providerId} onChange={e => setProviderId(e.target.value)} required>
+                <option value="" disabled>Select a provider device…</option>
+                {providers.map(d => (
+                  <option key={d.id.toString()} value={d.id.toString()}>
+                    {d.name || 'Unnamed Device'} — {d.id.toString().slice(0, 8)}…
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input id="conn-provider-id" type="text" value={providerId} onChange={e => setProviderId(e.target.value)}
+                placeholder="Provider's Device ID" required />
+            )}
           </div>
           <button type="submit" className="btn btn-primary btn-sm" id="connect-btn" disabled={connecting}>
             {connecting ? <><span className="spinner" style={{ width: 13, height: 13 }} />Connecting…</> : <><Ico d={I.zap} />Connect</>}
           </button>
         </form>
         <div style={{ padding: '0 16px 14px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          Paste the Provider's Device ID (from their Settings screen) to request a connection.
+          Pick a Provider to route your traffic through. A share must exist between you and the Provider.
         </div>
       </div>
 
@@ -655,7 +629,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           </div>
         </div>
 
-        <PortalSwitcher mode={mode} onSwitch={onSwitch} />
+        <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
 
         <nav className="sidebar-nav" aria-label="User navigation">
           {NAV.map(item => (

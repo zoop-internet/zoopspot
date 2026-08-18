@@ -5,6 +5,31 @@ non-technical users. A user who cannot use the CLI opens the web, sees their con
 devices and live tunnel state, manages connections (connect/disconnect), manages shares
 and organizations, and operators get a working admin console.
 
+## Sprint status
+
+- **Phase 0 (identity & auth fix)** — DONE: `Register` returns `endpoint_id`, web signs
+  with it, `types.ID` JSON fixed, unregister endpoint added.
+- **Phase 1 (API surface)** — DONE: list shares/connections endpoints + store methods;
+  org routes now behind `authMw` with owner/membership checks, `OrgMember.DeviceID`,
+  `Organization.OwnerDevice`/`Slug`, admin-scoped endpoints
+  (`GET /v1/admin/overview`, `/organizations`, `/organizations/{id}/members`) via
+  `ZOOP_ADMIN_IDS` allow-list; duplicate-slug rejection; browser auto-recovers stale
+  identities after cloud reset.
+- **Phase 2 (lifecycle)** — DONE: `connection_disconnected` signaling, teardown, truthful
+  CONNECTED reporting, daemon disconnect wired.
+- **Phase 3 (daemon API)** — DONE: full `127.0.0.1:9090` REST + SSE + `-mock-tun`.
+- **Phase 4 (web UI)** — MOSTLY DONE: user portal wired to real data; auto-register;
+  fleet/shares/connections dropdowns; SSE real-time (live `share_created` /
+  `connection_updated` events refresh the UI automatically). REMAINING: local-mode
+  daemon client, routing, desktop-panel removal.
+- **Phase 5 (admin console)** — MOSTLY DONE: Devices/Organizations/Overview/Connections/
+  System tabs now fetch real data via admin endpoints (`/v1/admin/devices`,
+  `/v1/admin/connections`, `/v1/admin/services` added; middleware via `ZOOP_ADMIN_IDS`).
+  REMAINING: Users tab (account model), Operations/Usage/Billing (no telemetry backend yet),
+  Network/Relays/Security/Abuse still placeholders.
+- **Phase 6 (deployment)** — PENDING.
+- **Phase 7 (multi-tenant workspaces)** — PENDING, spec added below.
+
 ## The Product Model (verified against code + `docs/web.md`)
 
 - `zoopd` runs on the real device and performs the networking: it creates the WireGuard
@@ -174,18 +199,43 @@ origins). Back these with **real** data, not the mocked IPC:
   (no placeholder).
 - Document local-mode vs remote-mode behavior for users.
 
+### Phase 7 — Account-centric workspaces (Cloudflare-style, no subdomains)
+
+Product model: every user has **one account**. The account contains a **Personal
+workspace** (their own devices/shares/connections) and any number of **organizations**
+("workspaces") they create or join. A workspace switcher (like Cloudflare's account
+dropdown) moves between them — all on the same app, no separate domains/subdomains.
+
+- **Workspace switcher** (`web/src`): a dropdown in the top bar listing
+  "Personal" + each organization the account belongs to + "Create organization…".
+  Selecting one switches the portal body:
+  - Personal → the existing user portal (devices/shares/connections).
+  - Organization → the org portal (members, managed devices, policies, logs).
+  - Platform operator console stays separate (`admin` mode).
+- **Create-org flow**: inline form (name + slug) in the switcher menu; on success the
+  caller becomes owner and the switcher jumps to the new org.
+- **Backend** (foundation, already partly landed in Phase 1): orgs are authed, owner
+  linked via `owner_device_id`, members linked via `device_id`, and `GET /v1/organizations`
+  is caller-scoped — exactly what a switcher needs to list.
+- **Personal workspace** is implicit (no org record needed): it is the caller's own
+  devices/shares/connections via the existing user-portal endpoints.
+- **Admin** (Phase 5) lists all workspaces (personal + org) with owner, slug, member count.
+
+Dependencies: needs Phase 1 (org auth + ownership) and Phase 4 (routing) foundations.
+
 ## Sequencing & dependencies
 
 ```
-Phase 0 ──▶ Phase 1 ──▶ Phase 2 ──▶ Phase 3 ──▶ Phase 4 ──▶ Phase 5 ──▶ Phase 6
-  auth fix    API       lifecycle   daemon API   web UI       admin       ship
- (blocking)  surface    (disconnect) (local mode) (dual mode)  console
+Phase 0 ──▶ Phase 1 ──▶ Phase 2 ──▶ Phase 3 ──▶ Phase 4 ──▶ Phase 5 ──▶ Phase 6 ──▶ Phase 7
+  auth fix    API       lifecycle   daemon API   web UI       admin       ship       multi-tenant
+ (blocking)  surface    (disconnect) (local mode) (dual mode)  console                            workspaces
 ```
 
 - Phases 0–1 make the web *work* against the cloud remotely.
 - Phase 2 makes "manage/disconnect" *real* (tunnels actually tear down).
 - Phases 3–4 deliver the desktop-equivalent local experience for non-technical users.
 - Phase 5 delivers the operator console; Phase 6 ships it.
+- Phase 7 delivers the Cloudflare/Vercel-style workspace model with per-org domains.
 
 ## Definition of done (web fully functional)
 

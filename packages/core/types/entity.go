@@ -36,14 +36,18 @@ type Account struct {
 
 // Organization represents a group that manages participants, devices, networks, or policies.
 type Organization struct {
-	ID   ID     `json:"id"`
-	Name string `json:"name"`
+	ID          ID     `json:"id"`
+	Name        string `json:"name"`
+	OwnerDevice ID     `json:"owner_device_id,omitempty"`
+	Slug        string `json:"slug,omitempty"`
+	Status      string `json:"status,omitempty"`
 }
 
 // OrgMember represents a member of an Organization.
 type OrgMember struct {
 	ID             ID     `json:"id"`
 	OrganizationID ID     `json:"organization_id"`
+	DeviceID       ID     `json:"device_id,omitempty"`
 	Name           string `json:"name"`
 	Email          string `json:"email"`
 	Role           string `json:"role"`

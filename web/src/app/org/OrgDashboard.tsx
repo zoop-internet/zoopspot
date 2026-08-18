@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
+import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 
 /* Shared icon helper */
 const Ico: React.FC<{ d: React.ReactNode; size?: number }> = ({ d, size = 15 }) => (
@@ -19,47 +20,6 @@ const I = {
   check:    <polyline points="20 6 9 17 4 12"/>,
   plus:     <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
   alert:    <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
-};
-
-const PORTAL_LABELS: Record<PortalMode, string> = {
-  desktop: 'Zoop Desktop App',
-  user:    'app.zoop.com',
-  org:     'app.zoop.com/org',
-  admin:   'admin.zoop.com',
-};
-const PORTAL_COLORS: Record<PortalMode, string> = {
-  desktop: 'var(--accent-cyan)', user: 'var(--accent-green)', org: 'var(--accent-blue)', admin: 'var(--accent-amber)',
-};
-
-const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-  return (
-    <div className="portal-switcher" ref={ref}>
-      <button className="portal-switcher-trigger" id="portal-switch-trigger-org" onClick={() => setOpen(v => !v)}>
-        <span className="switcher-dot" style={{ background: PORTAL_COLORS[mode] }} />
-        <span className="switcher-domain">{PORTAL_LABELS[mode]}</span>
-        <Ico d={I.chevronD} size={12} />
-      </button>
-      {open && (
-        <div className="portal-switcher-menu" role="listbox">
-          {(['desktop', 'user', 'org', 'admin'] as PortalMode[]).map(m => (
-            <button key={m} id={`org-switch-to-${m}`} className={`portal-switcher-option${mode === m ? ' ps-selected' : ''}`}
-              onClick={() => { onSwitch(m); setOpen(false); }} role="option" aria-selected={mode === m}>
-              {mode === m ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
-              <span className="switcher-dot" style={{ background: PORTAL_COLORS[m] }} />
-              {PORTAL_LABELS[m]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 };
 
 type OrgTab = 'overview' | 'members' | 'devices' | 'policies' | 'logs';
@@ -216,7 +176,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           </div>
         </div>
 
-        <PortalSwitcher mode={mode} onSwitch={onSwitch} />
+        <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
 
         {/* Organization Switcher Dropdown */}
         <div style={{ padding: '4px 10px 8px' }}>

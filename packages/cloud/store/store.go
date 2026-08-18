@@ -36,6 +36,8 @@ type Store interface {
 
 	SaveOrgMember(ctx context.Context, member *types.OrgMember) error
 	GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error)
+	ListOrgMembersAll(ctx context.Context) ([]*types.OrgMember, error)
+	ListOrgsByDevice(ctx context.Context, deviceID types.ID) ([]*types.Organization, error)
 
 	SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error
 	GetSharingRelationship(ctx context.Context, id types.ID) (*types.SharingRelationship, error)
@@ -46,6 +48,8 @@ type Store interface {
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
 	GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
 	ListConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
+	ListAllConnections(ctx context.Context) ([]*types.Connection, error)
+	ListSharesAll(ctx context.Context) ([]*types.SharingRelationship, error)
 
 	// AllocateConnectionIPs returns a unique (providerIP, recipientIP) pair for a new connection
 	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
@@ -254,6 +258,20 @@ func (s *InMemoryStore) ListShares(ctx context.Context, endpointID types.ID) ([]
 	return shares, nil
 }
 
+func (s *InMemoryStore) ListSharesAll(ctx context.Context) ([]*types.SharingRelationship, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var shares []*types.SharingRelationship
+	for _, sh := range s.shares {
+		shares = append(shares, sh)
+	}
+	if shares == nil {
+		shares = []*types.SharingRelationship{}
+	}
+	return shares, nil
+}
+
 func (s *InMemoryStore) SaveConnection(ctx context.Context, conn *types.Connection) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -293,6 +311,20 @@ func (s *InMemoryStore) ListConnections(ctx context.Context, endpointID types.ID
 		if conn.ProviderID == endpointID || conn.RecipientID == endpointID {
 			conns = append(conns, conn)
 		}
+	}
+	if conns == nil {
+		conns = []*types.Connection{}
+	}
+	return conns, nil
+}
+
+func (s *InMemoryStore) ListAllConnections(ctx context.Context) ([]*types.Connection, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var conns []*types.Connection
+	for _, conn := range s.connections {
+		conns = append(conns, conn)
 	}
 	if conns == nil {
 		conns = []*types.Connection{}
@@ -358,4 +390,39 @@ func (s *InMemoryStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 		return []*types.OrgMember{}, nil
 	}
 	return members, nil
+}
+
+func (s *InMemoryStore) ListOrgsByDevice(ctx context.Context, deviceID types.ID) ([]*types.Organization, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var orgs []*types.Organization
+	for _, members := range s.orgMembers {
+		for _, m := range members {
+			if m.DeviceID == deviceID {
+				if org, ok := s.organizations[m.OrganizationID]; ok {
+					orgs = append(orgs, org)
+				}
+				break
+			}
+		}
+	}
+	if orgs == nil {
+		orgs = []*types.Organization{}
+	}
+	return orgs, nil
+}
+
+func (s *InMemoryStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMember, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var all []*types.OrgMember
+	for _, members := range s.orgMembers {
+		all = append(all, members...)
+	}
+	if all == nil {
+		all = []*types.OrgMember{}
+	}
+	return all, nil
 }

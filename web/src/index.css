@@ -212,6 +212,55 @@ html, body, #root {
 .portal-switcher-option.ps-selected { color: var(--text-primary); }
 .ps-blank { width: 14px; flex-shrink: 0; display: inline-block; }
 
+.ps-section-label {
+  padding: 10px 11px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ps-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
+
+.ps-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--border);
+}
+
+.ps-create-form input {
+  width: 100%;
+  padding: 7px 9px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  outline: none;
+}
+
+.ps-create-form input:focus { border-color: var(--accent-green); }
+
+.ps-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ps-create-error {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--danger);
+}
+
 /* ─── Nav ─────────────────────────────────────────────────────── */
 .sidebar-nav {
   display: flex;

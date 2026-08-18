@@ -27,12 +27,16 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,
+    owner_device_id UUID,
+    slug TEXT UNIQUE,
+    status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS org_members (
     id UUID PRIMARY KEY,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    device_id UUID,
     name TEXT NOT NULL,
     email TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'member',

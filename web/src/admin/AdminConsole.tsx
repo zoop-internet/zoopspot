@@ -1,5 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { PortalMode } from '../types';
+import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
+import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, listDevices } from '../api/client';
+import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth } from '../api/client';
 import './AdminConsole.css';
 
 /* ─── Icon Primitives ─────────────────────────────────────────────── */
@@ -33,51 +36,6 @@ const I = {
   chevronD:   () => <Ico size={13}><polyline points="6 9 12 15 18 9"/></Ico>,
   flag:       () => <Ico><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Ico>,
   check:      () => <Ico size={14}><polyline points="20 6 9 17 4 12"/></Ico>,
-};
-
-/* ─── Portal Switcher (Cloudflare-style) ──────────────────────────── */
-const DOMAINS: Record<PortalMode, string> = {
-  desktop: 'Zoop Desktop App',
-  user: 'app.zoop.com (Personal)',
-  org: 'app.zoop.com/org (Acme Corp)',
-  admin: 'admin.zoop.com (Operations)',
-};
-
-const PortalSwitcher: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-
-  return (
-    <div className="portal-switcher" ref={ref}>
-      <button className="portal-switcher-trigger" onClick={() => setOpen(v => !v)}
-              id="dev-switcher-trigger-admin" aria-haspopup="listbox" aria-expanded={open}>
-        <span className="switcher-dot" style={{ background: 'var(--accent-amber)' }} />
-        <span className="switcher-domain">{DOMAINS[mode]}</span>
-        <I.chevronD />
-      </button>
-      {open && (
-        <div className="portal-switcher-menu" role="listbox">
-          {(['desktop', 'user', 'org', 'admin'] as PortalMode[]).map(m => (
-            <button key={m} id={`admin-switch-to-${m}`}
-              className={`portal-switcher-option${mode === m ? ' ps-selected' : ''}`}
-              onClick={() => { onSwitch(m); setOpen(false); }}
-              role="option" aria-selected={mode === m}>
-              {mode === m ? <I.check /> : <span className="ps-blank" />}
-              {DOMAINS[m]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 };
 
 /* ─── Navigation Types & Structure ────────────────────────────────── */
@@ -165,62 +123,105 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; desc: string;
     </div>
   );
 
+/* ─── Real API data ──────────────────────────────────────────── */
+function useAdminData() {
+  const [devices, setDevices] = useState<ApiDevice[]>([]);
+  const [orgs, setOrgs] = useState<ApiOrg[]>([]);
+  const [orgMembers, setOrgMembers] = useState<Record<string, ApiOrgMember[]>>({});
+  const [connections, setConnections] = useState<ApiConnection[]>([]);
+  const [services, setServices] = useState<Record<string, ApiServiceHealth>>({});
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      listDevices(), adminListOrganizations(), adminListConnections(), adminServices(),
+    ])
+      .then(async ([d, o, c, svc]) => {
+        setDevices(d);
+        setOrgs(o);
+        setConnections(c);
+        setServices(svc);
+        const memberMap: Record<string, ApiOrgMember[]> = {};
+        await Promise.all(o.map(async org => {
+          try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
+          catch { memberMap[org.id.toString()] = []; }
+        }));
+        setOrgMembers(memberMap);
+      })
+      .catch(() => { /* keep last state */ })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  return { devices, orgs, orgMembers, connections, services, loading, reload };
+}
+
 /* ─── Tab Screens ─────────────────────────────────────────────────── */
 
-const SERVICES: { name: string; desc: string; status: SvcStatus }[] = [
-  { name: 'Control Plane API',   desc: 'Identity · Auth · Discovery · Signaling', status: 'unknown' },
-  { name: 'PostgreSQL',          desc: 'Primary data store',                       status: 'unknown' },
-  { name: 'Redis',               desc: 'Ephemeral coordination cache',             status: 'unknown' },
-  { name: 'WebSocket Signaling', desc: 'Real-time connection coordination',        status: 'unknown' },
-  { name: 'Relay Network',       desc: 'Global relay fallback nodes',              status: 'unknown' },
-  { name: 'Discovery Service',   desc: 'Endpoint registration & presence',         status: 'unknown' },
-];
-
-const OverviewTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Users</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">Accounts</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Devices</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">Registered</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Connections</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">Live P2P</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Relays</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">Active nodes</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Security</div>
-        <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
-        <div className="metric-sub">Open alerts</div>
-      </div>
-    </div>
-
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Service Health</span>
-        <span className="badge badge-neutral">API disconnected</span>
-      </div>
-      {SERVICES.map(s => (
-        <div key={s.name} className="info-row">
-          <span className="info-key">{s.name}</span>
-          <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{s.desc}</span>
-          <span className="info-meta"><StatusBadge s={s.status} /></span>
+const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const onlineCount = data.devices.filter(d => d.status === 'trusted' || d.status === 'active').length;
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Devices</div>
+          <div className="metric-value">{data.devices.length}</div>
+          <div className="metric-sub">Registered</div>
         </div>
-      ))}
-    </div>
-  </>
-);
+        <div className="metric-item">
+          <div className="metric-label">Organizations</div>
+          <div className="metric-value">{data.orgs.length}</div>
+          <div className="metric-sub">Accounts</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Members</div>
+          <div className="metric-value">
+            {Object.values(data.orgMembers).reduce((n, m) => n + m.length, 0)}
+          </div>
+          <div className="metric-sub">Across orgs</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Trusted</div>
+          <div className="metric-value">{onlineCount}</div>
+          <div className="metric-sub">Active endpoints</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Security</div>
+          <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
+          <div className="metric-sub">Open alerts</div>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Registered Devices ({data.devices.length})</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {data.devices.length === 0 ? (
+          <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th></tr></thead>
+            <tbody>
+              {data.devices.map(d => (
+                <tr key={d.id.toString()}>
+                  <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                  <td>{d.os || d.platform || '—'}</td>
+                  <td><span className="badge badge-success">{d.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+};
 
 const OperationsTab: React.FC = () => (
   <>
@@ -319,60 +320,114 @@ const UsersTab: React.FC = () => (
   </>
 );
 
-const OrgsTab: React.FC = () => (
+const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
     <SearchBar id="admin-orgs-search" placeholder="Search organizations by name or ID…" />
     <div className="section">
       <div className="section-header">
-        <span className="section-title">Organizations</span>
+        <span className="section-title">Organizations ({data.orgs.length})</span>
         <button className="btn-admin-primary" id="admin-orgs-create-btn"><I.plus />Create Org</button>
       </div>
-      <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces and organization accounts will appear here." />
+      {data.orgs.length === 0 ? (
+        <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces and organization accounts will appear here." />
+      ) : (
+        <table className="data-table">
+          <thead><tr><th>Name</th><th>Organization ID</th><th>Members</th></tr></thead>
+          <tbody>
+            {data.orgs.map(o => (
+              <tr key={o.id.toString()}>
+                <td style={{ fontWeight: 600 }}>{o.name}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{o.id.toString()}</td>
+                <td><span className="badge badge-neutral">{data.orgMembers[o.id.toString()]?.length ?? 0}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   </>
 );
 
-const DevicesTab: React.FC = () => (
+const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
     <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" />
     <div className="section">
       <div className="section-header">
-        <span className="section-title">Registered Endpoints</span>
+        <span className="section-title">Registered Endpoints ({data.devices.length})</span>
+        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+        </button>
       </div>
-      <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
+      {data.devices.length === 0 ? (
+        <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
+      ) : (
+        <table className="data-table">
+          <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.devices.map(d => (
+              <tr key={d.id.toString()}>
+                <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                <td>{d.os || d.platform || '—'}</td>
+                <td><span className="badge badge-success">{d.status}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   </>
 );
 
-const ConnectionsTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Active Tunnels</div>
-        <div className="metric-value">—</div>
+const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const active = data.connections.filter(c => c.state === 'CONNECTED').length;
+  const pending = data.connections.filter(c => c.state === 'REQUESTED').length;
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Active Tunnels</div>
+          <div className="metric-value">{active}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Pending Requests</div>
+          <div className="metric-value">{pending}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Total</div>
+          <div className="metric-value">{data.connections.length}</div>
+        </div>
       </div>
-      <div className="metric-item">
-        <div className="metric-label">Direct P2P</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Relayed</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Avg Latency</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Live Tunnels</span>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Live Tunnels</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {data.connections.length === 0 ? (
+          <EmptyState icon={<I.zap />} title="No connections" desc="WireGuard sessions between Providers and Recipients will appear here." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Provider</th><th>Recipient</th><th>State</th><th>Provider IP</th><th>Recipient IP</th></tr></thead>
+            <tbody>
+              {data.connections.map(c => (
+                <tr key={c.id.toString()}>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_id?.toString().slice(0, 13)}…</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_id?.toString().slice(0, 13)}…</td>
+                  <td><span className={`badge ${c.state === 'CONNECTED' ? 'badge-success' : c.state === 'REQUESTED' ? 'badge-warning' : 'badge-neutral'}`}>{c.state}</span></td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_ip || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_ip || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      <EmptyState icon={<I.zap />} title="No active tunnels" desc="Real-time WireGuard sessions between Providers and Recipients will appear here." />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const NetworkTab: React.FC = () => (
   <>
@@ -481,63 +536,79 @@ const AbuseTab: React.FC = () => (
   </>
 );
 
-const SystemTab: React.FC = () => (
-  <>
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Infrastructure Services</span>
-        <span className="badge badge-neutral">API disconnected</span>
-      </div>
-      {SERVICES.map(s => (
-        <div key={s.name} className="info-row">
-          <span className="info-key">{s.name}</span>
-          <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{s.desc}</span>
-          <span className="info-meta"><StatusBadge s={s.status} /></span>
+const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const svcEntries = Object.entries(data.services);
+  return (
+    <>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Infrastructure Services</span>
+          {Object.values(data.services).some(s => s.status === 'ok')
+            ? <span className="badge badge-success">API connected</span>
+            : <span className="badge badge-neutral">API disconnected</span>}
         </div>
-      ))}
-    </div>
+        {svcEntries.length === 0 ? (
+          <EmptyState icon={<I.monitor />} title="No service health data" desc="Service health checks will appear here." />
+        ) : (
+          svcEntries.map(([name, s]) => (
+            <div key={name} className="info-row">
+              <span className="info-key">{name}</span>
+              <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                {s.details ? JSON.stringify(s.details) : ''}
+              </span>
+              <span className="info-meta">
+                <StatusBadge s={s.status === 'ok' ? 'operational' : s.status === 'degraded' ? 'degraded' : 'down'} />
+              </span>
+            </div>
+          ))
+        )}
+      </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Control Plane Config</span>
-      </div>
-      {[
-        ['API Endpoint',      'Not configured'],
-        ['TLS Certificate',   'Not configured'],
-        ['Database URL',      'Not configured'],
-        ['Redis URL',         'Not configured'],
-        ['WireGuard Subnet',  'Not configured'],
-      ].map(([k, v]) => (
-        <div key={k} className="info-row">
-          <span className="info-key">{k}</span>
-          <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{v}</span>
-          <span className="info-meta" />
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Control Plane Config</span>
         </div>
-      ))}
-    </div>
-  </>
-);
+        {[
+          ['API Endpoint',      'configured'],
+          ['Auth',              'signed requests (Ed25519)'],
+          ['Data Store',        'configured'],
+          ['Signaling',         'WebSocket'],
+          ['WireGuard Subnet',  '100.64.0.0/10 (CGNAT)'],
+        ].map(([k, v]) => (
+          <div key={k} className="info-row">
+            <span className="info-key">{k}</span>
+            <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{v}</span>
+            <span className="info-meta" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+};
 
 /* ─── Screen Registry ─────────────────────────────────────────────── */
-const SCREENS: Record<AdminTab, { title: string; subtitle: string; screen: React.ReactNode; action?: React.ReactNode }> = {
-  overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, active nodes and service status',  screen: <OverviewTab />, action: <span className="badge badge-neutral">API disconnected</span> },
-  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 screen: <OperationsTab /> },
-  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          screen: <UsageTab /> },
-  billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           screen: <BillingTab /> },
-  users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        screen: <UsersTab /> },
-  organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                screen: <OrgsTab />, action: <button className="btn-admin-primary" id="admin-orgs-header-btn"><I.plus />Create Org</button> },
-  devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       screen: <DevicesTab /> },
-  connections:   { title: 'Connections',         subtitle: 'Live P2P tunnels and relay connections',                  screen: <ConnectionsTab /> },
-  network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                screen: <NetworkTab /> },
-  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  screen: <RelaysTab />, action: <button className="btn-admin-primary" id="admin-relays-header-btn"><I.plus />Add Relay Node</button> },
-  security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            screen: <SecurityTab /> },
-  abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           screen: <AbuseTab /> },
-  system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          screen: <SystemTab /> },
+type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>) => React.ReactNode; action?: React.ReactNode };
+
+const SCREENS: Record<AdminTab, ScreenDef> = {
+  overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, active nodes and service status',  render: d => <OverviewTab data={d} /> },
+  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: () => <OperationsTab /> },
+  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: () => <UsageTab /> },
+  billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
+  users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: () => <UsersTab /> },
+  organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} />, action: <button className="btn-admin-primary" id="admin-orgs-header-btn"><I.plus />Create Org</button> },
+  devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: d => <DevicesTab data={d} /> },
+  connections:   { title: 'Connections',         subtitle: 'Live P2P tunnels and relay connections',                  render: d => <ConnectionsTab data={d} /> },
+  network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: () => <NetworkTab /> },
+  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: () => <RelaysTab />, action: <button className="btn-admin-primary" id="admin-relays-header-btn"><I.plus />Add Relay Node</button> },
+  security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: () => <SecurityTab /> },
+  abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           render: () => <AbuseTab /> },
+  system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
 };
 
 /* ─── Main Component ──────────────────────────────────────────────── */
 export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const [tab, setTab] = useState<AdminTab>('overview');
+  const data = useAdminData();
   const cur = SCREENS[tab];
 
   return (
@@ -554,7 +625,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </div>
 
         {/* Cloudflare-style Dev Portal Switcher */}
-        <PortalSwitcher mode={mode} onSwitch={onSwitch} />
+        <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
 
         <nav className="admin-nav" aria-label="Admin Navigation">
           {NAV_SECTIONS.map(section => (
@@ -597,7 +668,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </header>
 
         <div className="admin-page-body" role="region" aria-label={cur.title}>
-          {cur.screen}
+          {cur.render(data)}
         </div>
       </div>
     </div>

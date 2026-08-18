@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
@@ -266,21 +267,38 @@ func (s *PostgresStore) GetUser(ctx context.Context, id types.ID) (*types.Accoun
 
 func (s *PostgresStore) SaveOrganization(ctx context.Context, org *types.Organization) error {
 	query := `
-		INSERT INTO organizations (id, name)
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+		INSERT INTO organizations (id, name, owner_device_id, slug, status)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			owner_device_id = EXCLUDED.owner_device_id,
+			slug = EXCLUDED.slug,
+			status = EXCLUDED.status;
 	`
-	_, err := s.db.ExecContext(ctx, query, org.ID.String(), org.Name)
+	var ownerDevice any
+	if org.OwnerDevice != types.ID(uuid.Nil) {
+		ownerDevice = org.OwnerDevice.String()
+	}
+	var slug any
+	if org.Slug != "" {
+		slug = org.Slug
+	}
+	status := org.Status
+	if status == "" {
+		status = "active"
+	}
+	_, err := s.db.ExecContext(ctx, query, org.ID.String(), org.Name, ownerDevice, slug, status)
 	return err
 }
 
 func (s *PostgresStore) GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error) {
-	query := `SELECT id, name FROM organizations WHERE id = $1`
+	query := `SELECT id, name, owner_device_id, slug, status FROM organizations WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var o types.Organization
 	var idStr string
-	err := row.Scan(&idStr, &o.Name)
+	var ownerDevice, slug sql.NullString
+	err := row.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -293,11 +311,19 @@ func (s *PostgresStore) GetOrganization(ctx context.Context, id types.ID) (*type
 		return nil, err
 	}
 	o.ID = parsedID
+	if ownerDevice.Valid {
+		if od, err := types.ParseID(ownerDevice.String); err == nil {
+			o.OwnerDevice = od
+		}
+	}
+	if slug.Valid {
+		o.Slug = slug.String
+	}
 	return &o, nil
 }
 
 func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organization, error) {
-	query := `SELECT id, name FROM organizations ORDER BY created_at DESC`
+	query := `SELECT id, name, owner_device_id, slug, status FROM organizations ORDER BY created_at DESC`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -308,7 +334,8 @@ func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organiz
 	for rows.Next() {
 		var o types.Organization
 		var idStr string
-		if err := rows.Scan(&idStr, &o.Name); err != nil {
+		var ownerDevice, slug sql.NullString
+		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status); err != nil {
 			return nil, err
 		}
 		parsedID, err := types.ParseID(idStr)
@@ -316,6 +343,14 @@ func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organiz
 			return nil, err
 		}
 		o.ID = parsedID
+		if ownerDevice.Valid {
+			if od, err := types.ParseID(ownerDevice.String); err == nil {
+				o.OwnerDevice = od
+			}
+		}
+		if slug.Valid {
+			o.Slug = slug.String
+		}
 		orgs = append(orgs, &o)
 	}
 	if orgs == nil {
@@ -328,17 +363,23 @@ func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organiz
 
 func (s *PostgresStore) SaveOrgMember(ctx context.Context, member *types.OrgMember) error {
 	query := `
-		INSERT INTO org_members (id, organization_id, name, email, role, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO org_members (id, organization_id, device_id, name, email, role, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) DO UPDATE SET
+			device_id = EXCLUDED.device_id,
 			name = EXCLUDED.name,
 			email = EXCLUDED.email,
 			role = EXCLUDED.role,
 			status = EXCLUDED.status;
 	`
+	var deviceID any
+	if member.DeviceID != types.ID(uuid.Nil) {
+		deviceID = member.DeviceID.String()
+	}
 	_, err := s.db.ExecContext(ctx, query,
 		member.ID.String(),
 		member.OrganizationID.String(),
+		deviceID,
 		member.Name,
 		member.Email,
 		member.Role,
@@ -348,7 +389,7 @@ func (s *PostgresStore) SaveOrgMember(ctx context.Context, member *types.OrgMemb
 }
 
 func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error) {
-	query := `SELECT id, organization_id, name, email, role, status FROM org_members WHERE organization_id = $1 ORDER BY created_at ASC`
+	query := `SELECT id, organization_id, device_id, name, email, role, status FROM org_members WHERE organization_id = $1 ORDER BY created_at ASC`
 	rows, err := s.db.QueryContext(ctx, query, orgID.String())
 	if err != nil {
 		return nil, err
@@ -359,7 +400,8 @@ func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 	for rows.Next() {
 		var m types.OrgMember
 		var idStr, orgIDStr string
-		if err := rows.Scan(&idStr, &orgIDStr, &m.Name, &m.Email, &m.Role, &m.Status); err != nil {
+		var deviceID sql.NullString
+		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status); err != nil {
 			return nil, err
 		}
 		mID, err := types.ParseID(idStr)
@@ -378,6 +420,90 @@ func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 		members = []*types.OrgMember{}
 	}
 	return members, nil
+}
+
+// ListOrgMembersAll returns every org member across all organizations (admin use).
+func (s *PostgresStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMember, error) {
+	query := `SELECT id, organization_id, device_id, name, email, role, status FROM org_members ORDER BY created_at ASC`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []*types.OrgMember
+	for rows.Next() {
+		var m types.OrgMember
+		var idStr, orgIDStr string
+		var deviceID sql.NullString
+		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status); err != nil {
+			return nil, err
+		}
+		mID, err := types.ParseID(idStr)
+		if err != nil {
+			return nil, err
+		}
+		oID, err := types.ParseID(orgIDStr)
+		if err != nil {
+			return nil, err
+		}
+		m.ID = mID
+		m.OrganizationID = oID
+		if deviceID.Valid {
+			if dID, err := types.ParseID(deviceID.String); err == nil {
+				m.DeviceID = dID
+			}
+		}
+		members = append(members, &m)
+	}
+	if members == nil {
+		members = []*types.OrgMember{}
+	}
+	return members, nil
+}
+
+// ListOrgsByDevice returns organizations the given device is a member of.
+func (s *PostgresStore) ListOrgsByDevice(ctx context.Context, deviceID types.ID) ([]*types.Organization, error) {
+	query := `
+		SELECT o.id, o.name, o.owner_device_id, o.slug, o.status
+		FROM organizations o
+		JOIN org_members m ON m.organization_id = o.id
+		WHERE m.device_id = $1
+		ORDER BY o.created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, deviceID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []*types.Organization
+	for rows.Next() {
+		var o types.Organization
+		var idStr string
+		var ownerDevice, slug sql.NullString
+		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status); err != nil {
+			return nil, err
+		}
+		parsedID, err := types.ParseID(idStr)
+		if err != nil {
+			return nil, err
+		}
+		o.ID = parsedID
+		if ownerDevice.Valid {
+			if od, err := types.ParseID(ownerDevice.String); err == nil {
+				o.OwnerDevice = od
+			}
+		}
+		if slug.Valid {
+			o.Slug = slug.String
+		}
+		orgs = append(orgs, &o)
+	}
+	if orgs == nil {
+		orgs = []*types.Organization{}
+	}
+	return orgs, nil
 }
 
 // ─── Sharing Relationships ────────────────────────────────────
@@ -451,6 +577,40 @@ func (s *PostgresStore) ListShares(ctx context.Context, endpointID types.ID) ([]
 		ORDER BY created_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, endpointID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []*types.SharingRelationship
+	for rows.Next() {
+		var sh types.SharingRelationship
+		var idStr, provStr, recStr string
+		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive); err != nil {
+			return nil, err
+		}
+		pID, _ := types.ParseID(provStr)
+		rID, _ := types.ParseID(recStr)
+		sID, _ := types.ParseID(idStr)
+		sh.ID = sID
+		sh.ProviderID = pID
+		sh.RecipientID = rID
+		shares = append(shares, &sh)
+	}
+	if shares == nil {
+		shares = []*types.SharingRelationship{}
+	}
+	return shares, nil
+}
+
+// ListSharesAll returns every sharing relationship (admin use).
+func (s *PostgresStore) ListSharesAll(ctx context.Context) ([]*types.SharingRelationship, error) {
+	query := `
+		SELECT id, provider_id, recipient_id, is_active
+		FROM sharing_relationships
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -580,6 +740,48 @@ func (s *PostgresStore) ListConnections(ctx context.Context, endpointID types.ID
 		ORDER BY created_at DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, endpointID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var conns []*types.Connection
+	for rows.Next() {
+		var c types.Connection
+		var idStr, provStr, recStr, stateStr string
+		var provIP, recIP sql.NullString
+		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP); err != nil {
+			return nil, err
+		}
+		cID, _ := types.ParseID(idStr)
+		pID, _ := types.ParseID(provStr)
+		rID, _ := types.ParseID(recStr)
+		c.ID = cID
+		c.ProviderID = pID
+		c.RecipientID = rID
+		c.State = types.ConnectionState(stateStr)
+		if provIP.Valid {
+			c.ProviderIP = provIP.String
+		}
+		if recIP.Valid {
+			c.RecipientIP = recIP.String
+		}
+		conns = append(conns, &c)
+	}
+	if conns == nil {
+		conns = []*types.Connection{}
+	}
+	return conns, nil
+}
+
+// ListAllConnections returns every connection across the platform (admin use).
+func (s *PostgresStore) ListAllConnections(ctx context.Context) ([]*types.Connection, error) {
+	query := `
+		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip
+		FROM connections
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}

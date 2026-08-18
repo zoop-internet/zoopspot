@@ -20,6 +20,7 @@ type Config struct {
 	TURNSecret       string
 	TURNRealm        string
 	STUNServer       string
+	AdminIDs         []string
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
@@ -36,6 +37,7 @@ func LoadConfig() Config {
 		TURNSecret:       "zoop-turn-secret",
 		TURNRealm:        "zoop.network",
 		STUNServer:       "stun.l.google.com:19302",
+		AdminIDs:         []string{},
 	}
 
 	if url := os.Getenv("ZOOP_CONTROL_PLANE_URL"); url != "" {
@@ -76,6 +78,9 @@ func LoadConfig() Config {
 	}
 	if stun := os.Getenv("ZOOP_STUN_SERVER"); stun != "" {
 		cfg.STUNServer = stun
+	}
+	if admins := os.Getenv("ZOOP_ADMIN_IDS"); admins != "" {
+		cfg.AdminIDs = parseCommaSeparated(admins)
 	}
 
 	return cfg

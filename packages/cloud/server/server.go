@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ type Server struct {
 	shares        *services.ShareService
 	connections   *services.ConnectionService
 	signaling     *services.SignalingHub
+	events        *services.EventHub
 	relayServer   *relay.RelayServer
 	relayRegistry *relay.RelayRegistry
 	turnManager   *relay.TURNManager
@@ -117,6 +119,7 @@ func NewServer(
 		shares:        ss,
 		connections:   cs,
 		signaling:     sh,
+		events:        services.NewEventHub(),
 		relayServer:   rs,
 		relayRegistry: reg,
 		turnManager:   relay.NewTURNManager(turnSecret, turnRealm),
@@ -163,11 +166,11 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/devices/{id}/endpoints", authMw(http.HandlerFunc(s.handleGetEndpoints())))
 	s.mux.Handle("DELETE /v1/devices/{id}", authMw(http.HandlerFunc(s.handleUnregisterDevice())))
 
-	s.mux.HandleFunc("POST /v1/organizations", s.handleCreateOrganization())
-	s.mux.HandleFunc("GET /v1/organizations", s.handleListOrganizations())
-	s.mux.HandleFunc("GET /v1/organizations/{id}", s.handleGetOrganization())
-	s.mux.HandleFunc("POST /v1/organizations/{id}/members", s.handleAddOrgMember())
-	s.mux.HandleFunc("GET /v1/organizations/{id}/members", s.handleListOrgMembers())
+	s.mux.Handle("POST /v1/organizations", authMw(http.HandlerFunc(s.handleCreateOrganization())))
+	s.mux.Handle("GET /v1/organizations", authMw(http.HandlerFunc(s.handleListOrganizations())))
+	s.mux.Handle("GET /v1/organizations/{id}", authMw(http.HandlerFunc(s.handleGetOrganization())))
+	s.mux.Handle("POST /v1/organizations/{id}/members", authMw(http.HandlerFunc(s.handleAddOrgMember())))
+	s.mux.Handle("GET /v1/organizations/{id}/members", authMw(http.HandlerFunc(s.handleListOrgMembers())))
 
 	s.mux.Handle("POST /v1/shares", authMw(http.HandlerFunc(s.handleCreateShare())))
 	s.mux.Handle("GET /v1/shares", authMw(http.HandlerFunc(s.handleListShares())))
@@ -180,6 +183,16 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/devices/{id}/connections/pending", authMw(http.HandlerFunc(s.handleGetPendingConnections())))
 
 	s.mux.Handle("GET /v1/signaling", authMw(http.HandlerFunc(s.handleSignaling())))
+	s.mux.Handle("GET /v1/events", authMw(http.HandlerFunc(s.handleEventStream())))
+
+	// Admin endpoints (operator console)
+	adminMw := api.AdminMiddleware(authMw, s.cfg.AdminIDs)
+	s.mux.Handle("GET /v1/admin/overview", adminMw(http.HandlerFunc(s.handleAdminOverview())))
+	s.mux.Handle("GET /v1/admin/organizations", adminMw(http.HandlerFunc(s.handleAdminOrganizations())))
+	s.mux.Handle("GET /v1/admin/organizations/{id}/members", adminMw(http.HandlerFunc(s.handleAdminOrgMembers())))
+	s.mux.Handle("GET /v1/admin/devices", adminMw(http.HandlerFunc(s.handleAdminDevices())))
+	s.mux.Handle("GET /v1/admin/connections", adminMw(http.HandlerFunc(s.handleAdminConnections())))
+	s.mux.Handle("GET /v1/admin/services", adminMw(http.HandlerFunc(s.handleAdminServices())))
 
 	// Relay & STUN/TURN endpoints
 	s.mux.HandleFunc("GET /v1/relays", s.handleListRelays())
@@ -313,6 +326,10 @@ func (s *Server) handleCreateShare() http.HandlerFunc {
 			return
 		}
 
+		ev := services.ServerEvent{Type: "share_created", Entity: "share", ID: resp.ID.String(), Payload: resp}
+		s.events.PublishTo(resp.ProviderID, ev)
+		s.events.PublishTo(resp.RecipientID, ev)
+
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
@@ -383,6 +400,10 @@ func (s *Server) handleCreateConnection() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "failed to create connection", http.StatusInternalServerError)
 			return
 		}
+
+		ev := services.ServerEvent{Type: "connection_requested", Entity: "connection", ID: resp.ID.String(), Payload: resp}
+		s.events.PublishTo(resp.ProviderID, ev)
+		s.events.PublishTo(resp.RecipientID, ev)
 
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
@@ -480,6 +501,14 @@ func (s *Server) handleUpdateConnectionState() http.HandlerFunc {
 			return
 		}
 
+		s.events.PublishBroadcast(services.ServerEvent{
+			Type:   "connection_updated",
+			Entity: "connection",
+			ID:     parsedUUID.String(),
+			Payload: map[string]string{
+				"state": string(req.State),
+			},
+		})
 		api.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 	}
 }
@@ -575,6 +604,64 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 	}
 }
 
+// handleEventStream serves a Server-Sent Events stream of real-time server
+// events (share/connection changes) to authenticated web clients.
+func (s *Server) handleEventStream() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			api.WriteError(w, "unsupported", "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		ch, unsub := s.events.Subscribe(callerID)
+		defer unsub()
+
+		// Initial heartbeat so the client knows the stream is live.
+		fmt.Fprintf(w, ": connected\n\n")
+		flusher.Flush()
+
+		ctx := r.Context()
+		heartbeat := time.NewTicker(30 * time.Second)
+		defer heartbeat.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-heartbeat.C:
+				if _, err := fmt.Fprintf(w, ": ping\n\n"); err != nil {
+					return
+				}
+				flusher.Flush()
+			case ev, ok := <-ch:
+				if !ok {
+					return
+				}
+				b, err := json.Marshal(ev)
+				if err != nil {
+					continue
+				}
+				if _, err := fmt.Fprintf(w, "data: %s\n\n", b); err != nil {
+					return
+				}
+				flusher.Flush()
+			}
+		}
+	}
+}
+
 func (s *Server) handleListDevices() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		devices, err := s.devices.ListDevices(r.Context())
@@ -595,10 +682,11 @@ func (s *Server) handleCreateOrganization() http.HandlerFunc {
 			return
 		}
 
-		resp, err := s.organizations.CreateOrg(r.Context(), req)
+		callerID := api.IdentityFromContext(r.Context())
+		resp, err := s.organizations.CreateOrg(r.Context(), callerID, req)
 		if err != nil {
 			s.logger.Error("failed to create organization", "error", err)
-			api.WriteError(w, "internal_error", err.Error(), http.StatusBadRequest)
+			api.WriteError(w, "invalid_request", err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -608,7 +696,8 @@ func (s *Server) handleCreateOrganization() http.HandlerFunc {
 
 func (s *Server) handleListOrganizations() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		orgs, err := s.organizations.ListOrgs(r.Context())
+		callerID := api.IdentityFromContext(r.Context())
+		orgs, err := s.organizations.ListOrgs(r.Context(), callerID)
 		if err != nil {
 			s.logger.Error("failed to list organizations", "error", err)
 			api.WriteError(w, "internal_error", "failed to list organizations", http.StatusInternalServerError)
@@ -627,10 +716,15 @@ func (s *Server) handleGetOrganization() http.HandlerFunc {
 			return
 		}
 
-		org, err := s.organizations.GetOrg(r.Context(), types.ID(parsedUUID))
+		callerID := api.IdentityFromContext(r.Context())
+		org, err := s.organizations.GetOrg(r.Context(), callerID, types.ID(parsedUUID))
 		if err != nil {
 			if err == store.ErrNotFound {
 				api.WriteError(w, "not_found", "organization not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrForbidden {
+				api.WriteError(w, "forbidden", "not a member of this organization", http.StatusForbidden)
 				return
 			}
 			s.logger.Error("failed to get organization", "error", err)
@@ -657,10 +751,15 @@ func (s *Server) handleAddOrgMember() http.HandlerFunc {
 			return
 		}
 
-		resp, err := s.organizations.AddMember(r.Context(), types.ID(orgID), req)
+		callerID := api.IdentityFromContext(r.Context())
+		resp, err := s.organizations.AddMember(r.Context(), callerID, types.ID(orgID), req)
 		if err != nil {
+			if err == services.ErrForbidden {
+				api.WriteError(w, "forbidden", "only owners or admins can add members", http.StatusForbidden)
+				return
+			}
 			s.logger.Error("failed to add organization member", "error", err)
-			api.WriteError(w, "internal_error", err.Error(), http.StatusBadRequest)
+			api.WriteError(w, "invalid_request", err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -677,14 +776,149 @@ func (s *Server) handleListOrgMembers() http.HandlerFunc {
 			return
 		}
 
-		members, err := s.organizations.ListMembers(r.Context(), types.ID(orgID))
+		callerID := api.IdentityFromContext(r.Context())
+		members, err := s.organizations.ListMembers(r.Context(), callerID, types.ID(orgID))
 		if err != nil {
+			if err == services.ErrForbidden {
+				api.WriteError(w, "forbidden", "not a member of this organization", http.StatusForbidden)
+				return
+			}
 			s.logger.Error("failed to list organization members", "error", err)
 			api.WriteError(w, "internal_error", "failed to list members", http.StatusInternalServerError)
 			return
 		}
 
 		api.WriteJSON(w, http.StatusOK, members)
+	}
+}
+
+func (s *Server) handleAdminOverview() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		devices, _ := s.store.ListDevices(r.Context())
+		orgs, _ := s.store.ListOrganizations(r.Context())
+		members, _ := s.store.ListOrgMembersAll(r.Context())
+
+		trusted := 0
+		for _, d := range devices {
+			if d.State == types.DeviceStateTrusted || d.State == types.DeviceStateRegistered {
+				trusted++
+			}
+		}
+
+		api.WriteJSON(w, http.StatusOK, map[string]any{
+			"devices":       len(devices),
+			"organizations": len(orgs),
+			"members":       len(members),
+			"trusted":       trusted,
+		})
+	}
+}
+
+func (s *Server) handleAdminDevices() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		devices, err := s.store.ListDevices(r.Context())
+		if err != nil {
+			s.logger.Error("failed to list devices for admin", "error", err)
+			api.WriteError(w, "internal_error", "failed to list devices", http.StatusInternalServerError)
+			return
+		}
+
+		resp := make([]api.DeviceResponse, 0, len(devices))
+		for _, d := range devices {
+			resp = append(resp, api.DeviceResponse{
+				ID:     d.ID,
+				Name:   d.Name,
+				OS:     d.OS,
+				Status: string(d.State),
+			})
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleAdminConnections() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		conns, err := s.store.ListAllConnections(r.Context())
+		if err != nil {
+			s.logger.Error("failed to list connections for admin", "error", err)
+			api.WriteError(w, "internal_error", "failed to list connections", http.StatusInternalServerError)
+			return
+		}
+
+		resp := make([]api.ConnectionResponse, 0, len(conns))
+		for _, c := range conns {
+			resp = append(resp, api.ConnectionResponse{
+				ID:          c.ID,
+				ProviderID:  c.ProviderID,
+				RecipientID: c.RecipientID,
+				State:       c.State,
+				ProviderIP:  c.ProviderIP,
+				RecipientIP: c.RecipientIP,
+			})
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleAdminServices() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		health := s.CheckHealth()
+		api.WriteJSON(w, http.StatusOK, health)
+	}
+}
+
+func (s *Server) handleAdminOrganizations() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgs, err := s.store.ListOrganizations(r.Context())
+		if err != nil {
+			s.logger.Error("failed to list organizations for admin", "error", err)
+			api.WriteError(w, "internal_error", "failed to list organizations", http.StatusInternalServerError)
+			return
+		}
+
+		resp := make([]api.OrgResponse, 0, len(orgs))
+		for _, o := range orgs {
+			resp = append(resp, api.OrgResponse{
+				ID:          o.ID,
+				Name:        o.Name,
+				OwnerDevice: o.OwnerDevice,
+				Slug:        o.Slug,
+				Status:      o.Status,
+			})
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleAdminOrgMembers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+		orgID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid organization id format", http.StatusBadRequest)
+			return
+		}
+
+		all, err := s.store.GetOrgMembers(r.Context(), types.ID(orgID))
+		if err != nil {
+			s.logger.Error("failed to list members for admin", "error", err)
+			api.WriteError(w, "internal_error", "failed to list members", http.StatusInternalServerError)
+			return
+		}
+
+		resp := make([]api.OrgMemberResponse, 0, len(all))
+		for _, m := range all {
+			resp = append(resp, api.OrgMemberResponse{
+				ID:             m.ID,
+				OrganizationID: m.OrganizationID,
+				DeviceID:       m.DeviceID,
+				Name:           m.Name,
+				Email:          m.Email,
+				Role:           m.Role,
+				Status:         m.Status,
+			})
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
 	}
 }
 
