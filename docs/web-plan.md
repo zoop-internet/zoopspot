@@ -21,7 +21,10 @@ and organizations, and operators get a working admin console.
 - **Phase 4 (web UI)** — MOSTLY DONE: user portal wired to real data; auto-register;
   fleet/shares/connections dropdowns; SSE real-time (live `share_created` /
   `connection_updated` events refresh the UI automatically); dead `'desktop'` mode and
-  `Desktop*` types removed. REMAINING: local-mode daemon client, routing.
+  `Desktop*` types removed; **local-mode daemon client** (`web/src/api/daemon.ts` +
+  `DaemonStatusCard` in Overview: probes `127.0.0.1:9090`, shows live status,
+  telemetry/throughput, peers, and subscribes to the daemon SSE stream). REMAINING:
+  routing (App-level view routing).
 - **Phase 5 (admin console)** — MOSTLY DONE: Devices/Organizations/Overview/Connections/
   System tabs now fetch real data via admin endpoints (`/v1/admin/devices`,
   `/v1/admin/connections`, `/v1/admin/services` added; middleware via `ZOOP_ADMIN_IDS`).

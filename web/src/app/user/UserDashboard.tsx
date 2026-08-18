@@ -103,6 +103,113 @@ const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
 ];
 
 /* ─── Overview tab ────────────────────────────────────────────── */
+const DaemonStatusCard: React.FC = () => {
+  const { localMode, daemonChecking, daemonStatus, daemonTelemetry, daemonPeers, refreshDaemon } = useApp();
+  const activeTunnels = daemonTelemetry.filter(t => t.state === 'CONNECTED' || t.state === 'connected').length;
+  const totalRx = daemonTelemetry.reduce((acc, t) => acc + (t.rx_bytes ?? 0), 0);
+  const totalTx = daemonTelemetry.reduce((acc, t) => acc + (t.tx_bytes ?? 0), 0);
+  const fmt = (n: number) => {
+    if (n >= 1048576) return `${(n / 1048576).toFixed(1)} MiB`;
+    if (n >= 1024) return `${(n / 1024).toFixed(1)} KiB`;
+    return `${n} B`;
+  };
+
+  if (daemonChecking && !localMode) {
+    return (
+      <div className="section">
+        <div className="section-header"><span className="section-title">Local Device (zoopd)</span></div>
+        <div className="empty-state" style={{ padding: '24px' }}>
+          <span className="spinner" style={{ width: 15, height: 15 }} />
+          <p style={{ marginTop: 8 }}>Checking for a local daemon on 127.0.0.1:9090…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!localMode || !daemonStatus) {
+    return (
+      <div className="section">
+        <div className="section-header"><span className="section-title">Local Device (zoopd)</span></div>
+        <div className="empty-state" style={{ padding: '24px' }}>
+          <div className="empty-icon"><Ico d={I.monitor} size={20} /></div>
+          <h3>No local daemon detected</h3>
+          <p>Install and run zoopd to manage tunnels, telemetry, and WireGuard state from this device.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section">
+      <div className="section-header">
+        <span className="section-title">Local Device (zoopd)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="badge badge-success">Online</span>
+          <button className="btn btn-ghost btn-xs" onClick={refreshDaemon}>Refresh</button>
+        </div>
+      </div>
+      <div className="info-row">
+        <span className="info-key">Device Name</span>
+        <span className="info-val">{daemonStatus.device_name}</span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">Endpoint ID</span>
+        <span className="info-val" style={{ fontSize: '0.75rem' }}>{daemonStatus.endpoint_id}</span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">WireGuard</span>
+        <span className="info-val" style={{ fontSize: '0.75rem' }}>{daemonStatus.wireguard_public_key?.slice(0, 24)}…</span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">Listen Port</span>
+        <span className="info-val">{daemonStatus.listen_port}</span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">Cloud</span>
+        <span className="info-val">
+          {daemonStatus.cloud_reachable
+            ? <span className="badge badge-success">Reachable</span>
+            : <span className="badge badge-neutral">Unreachable</span>}
+        </span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">Active Tunnels</span>
+        <span className="info-val">{activeTunnels} of {daemonStatus.active_tunnels}</span>
+        <span />
+      </div>
+      <div className="info-row">
+        <span className="info-key">Throughput</span>
+        <span className="info-val" style={{ fontSize: '0.75rem' }}>
+          ↓ {fmt(totalRx)} · ↑ {fmt(totalTx)}
+        </span>
+        <span />
+      </div>
+      {daemonPeers.length > 0 && (
+        <div style={{ padding: '10px 16px 14px', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 6 }}>
+            Live peers
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {daemonPeers.map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                <span>{p.name}</span>
+                <span className="badge" style={{ fontSize: '0.6875rem' }}>
+                  {p.connected ? 'Connected' : p.online ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
   const { deviceId, deviceName, deviceInfo, connections, connectionsLoading } = useApp();
   const pending = connections.filter(c => c.state === 'REQUESTED');
@@ -122,6 +229,8 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
 
   return (
     <>
+      <DaemonStatusCard />
+
       <div className="section">
         <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>

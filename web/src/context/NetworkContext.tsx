@@ -11,6 +11,11 @@ import {
   getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice,
   generateAndSaveIdentity,
 } from '../api/identity';
+import {
+  probeDaemon, getDaemonStatus, getDaemonPeers, getDaemonTelemetry,
+  subscribeToDaemonStream,
+} from '../api/daemon';
+import type { DaemonStatus, DaemonPeer, DaemonTelemetryEntry, DaemonStreamSnapshot } from '../api/daemon';
 
 export interface AppState {
   // Auth / identity
@@ -50,6 +55,14 @@ export interface AppState {
   selectOrg: (org: ApiOrg) => void;
   doAddOrgMember: (name: string, email: string, role: string) => Promise<void>;
   refreshOrgMembers: (orgId?: string) => void;
+
+  // Local daemon mode
+  localMode: boolean;
+  daemonChecking: boolean;
+  daemonStatus: DaemonStatus | null;
+  daemonPeers: DaemonPeer[];
+  daemonTelemetry: DaemonTelemetryEntry[];
+  refreshDaemon: () => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -75,6 +88,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentOrg, setCurrentOrg] = useState<ApiOrg | null>(null);
   const [orgMembers, setOrgMembers] = useState<ApiOrgMember[]>([]);
   const [orgsLoading, setOrgsLoading] = useState(false);
+
+  // Local daemon mode: true when zoopd is reachable on 127.0.0.1:9090.
+  const [localMode, setLocalMode] = useState(false);
+  const [daemonChecking, setDaemonChecking] = useState(true);
+  const [daemonStatus, setDaemonStatus] = useState<DaemonStatus | null>(null);
+  const [daemonPeers, setDaemonPeers] = useState<DaemonPeer[]>([]);
+  const [daemonTelemetry, setDaemonTelemetry] = useState<DaemonTelemetryEntry[]>([]);
+
+  const refreshDaemon = useCallback(() => {
+    setDaemonChecking(true);
+    Promise.allSettled([getDaemonStatus(), getDaemonPeers(), getDaemonTelemetry()])
+      .then(([status, peers, telemetry]) => {
+        if (status.status === 'fulfilled') setDaemonStatus(status.value);
+        if (peers.status === 'fulfilled') setDaemonPeers(peers.value);
+        if (telemetry.status === 'fulfilled') setDaemonTelemetry(telemetry.value);
+      })
+      .finally(() => setDaemonChecking(false));
+  }, []);
+
+  // Probe for a local daemon on load (and once more shortly after, in case the
+  // daemon is still starting up).
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      const up = await probeDaemon();
+      if (!active) return;
+      setLocalMode(up);
+      if (up) refreshDaemon();
+      setDaemonChecking(false);
+    };
+    void check();
+    const retry = setTimeout(check, 2500);
+    return () => { active = false; clearTimeout(retry); };
+  }, [refreshDaemon]);
+
+  // Subscribe to live daemon stream updates when local mode is active.
+  useEffect(() => {
+    if (!localMode) return;
+    const cleanup = subscribeToDaemonStream(
+      (snap: DaemonStreamSnapshot) => {
+        setDaemonTelemetry(snap.telemetry);
+      },
+      () => {
+        // Stream dropped: stop treating the daemon as the live source until
+        // the periodic re-probe re-enables it.
+        setLocalMode(false);
+        setDaemonStatus(null);
+      },
+    );
+    return cleanup;
+  }, [localMode]);
 
   // Load device info when we have a deviceId
   useEffect(() => {
@@ -300,6 +364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       doConnect, doDisconnect,
       organizations, currentOrg, orgMembers, orgsLoading,
       refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,
+      localMode, daemonChecking, daemonStatus, daemonPeers, daemonTelemetry, refreshDaemon,
     }}>
       {children}
     </AppContext.Provider>
