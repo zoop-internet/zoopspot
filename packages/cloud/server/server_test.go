@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -485,6 +486,42 @@ func TestServer_UnregisterDevice(t *testing.T) {
 	_, err = st.GetIdentity(context.Background(), resp.EndpointID)
 	if err != store.ErrNotFound {
 		t.Fatalf("expected identity deleted (ErrNotFound), got %v", err)
+	}
+}
+
+func TestServer_ServeWebApp(t *testing.T) {
+	dist := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dist, "index.html"), []byte("<html>app</html>"), 0o644); err != nil {
+		t.Fatalf("failed to write index.html: %v", err)
+	}
+
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{WebDistDir: dist}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// SPA fallback: unknown path returns index.html
+	req := httptest.NewRequest(http.MethodGet, "/some/client/route", nil)
+	w := httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for SPA route, got %d", w.Result().StatusCode)
+	}
+	if got := w.Body.String(); got != "<html>app</html>" {
+		t.Fatalf("expected index.html fallback, got %q", got)
+	}
+
+	// API routes still take precedence over the SPA fallback.
+	req = httptest.NewRequest(http.MethodGet, "/v1/health", nil)
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for /v1/health with web dist configured, got %d", w.Result().StatusCode)
 	}
 }
 

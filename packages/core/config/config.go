@@ -21,6 +21,7 @@ type Config struct {
 	TURNRealm        string
 	STUNServer       string
 	AdminIDs         []string
+	WebDistDir       string
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
@@ -38,6 +39,7 @@ func LoadConfig() Config {
 		TURNRealm:        "zoop.network",
 		STUNServer:       "stun.l.google.com:19302",
 		AdminIDs:         []string{},
+		WebDistDir:       "",
 	}
 
 	if url := os.Getenv("ZOOP_CONTROL_PLANE_URL"); url != "" {
@@ -81,6 +83,9 @@ func LoadConfig() Config {
 	}
 	if admins := os.Getenv("ZOOP_ADMIN_IDS"); admins != "" {
 		cfg.AdminIDs = parseCommaSeparated(admins)
+	}
+	if dist := os.Getenv("ZOOP_WEB_DIST"); dist != "" {
+		cfg.WebDistDir = dist
 	}
 
 	return cfg

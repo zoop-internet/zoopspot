@@ -214,6 +214,27 @@ func TestSecurity_CORS_NoOriginAllowed(t *testing.T) {
 	}
 }
 
+func TestSecurity_SecurityHeaders(t *testing.T) {
+	handler := SecurityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	h := w.Result().Header
+	if got := h.Get("Content-Security-Policy"); got == "" {
+		t.Fatal("expected CSP header")
+	}
+	if got := h.Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("expected HSTS header")
+	}
+	if got := h.Get("X-Frame-Options"); got != "DENY" {
+		t.Fatalf("expected X-Frame-Options DENY, got %q", got)
+	}
+}
+
 func TestSecurity_RateLimiter(t *testing.T) {
 	limiter := NewRateLimiter(60, 3) // 3 tokens burst capacity
 

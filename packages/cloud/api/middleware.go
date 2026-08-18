@@ -250,6 +250,22 @@ func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) fu
 	}
 }
 
+// SecurityHeadersMiddleware sets a baseline of hardening headers on every
+// response: CSP, HSTS, frame/clickjacking protection, MIME sniffing off,
+// referrer trimming, and X-Content-Type protection.
+func SecurityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // CORSMiddleware sets permissive CORS headers for a configured set of allowed
 // origins (from ZOOP_ALLOWED_ORIGINS). If no origins are configured, requests
 // with no Origin header (same-origin / CLI) pass through untouched, and any

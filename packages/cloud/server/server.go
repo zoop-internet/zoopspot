@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -201,6 +203,32 @@ func (s *Server) routes() {
 
 	// Relay endpoint: the relay server performs its own Ed25519 authentication.
 	s.mux.HandleFunc("GET /v1/relay", s.relayServer.HandleWebSocket)
+
+	// Static web app hosting. When ZOOP_WEB_DIST points at a built web/dist,
+	// serve it as an SPA (fall back to index.html for non-file paths).
+	if s.cfg.WebDistDir != "" {
+		s.serveWebApp()
+	}
+}
+
+// serveWebApp registers SPA static file serving from the configured dist dir.
+// Non-API, non-file requests fall back to index.html so client-side routes work.
+func (s *Server) serveWebApp() {
+	fs := http.FileServer(http.Dir(s.cfg.WebDistDir))
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/" || path == "" {
+			http.ServeFile(w, r, filepath.Join(s.cfg.WebDistDir, "index.html"))
+			return
+		}
+		// Serve existing files directly; otherwise hand off to the SPA shell.
+		full := filepath.Join(s.cfg.WebDistDir, filepath.FromSlash(path))
+		if info, err := os.Stat(full); err == nil && !info.IsDir() {
+			fs.ServeHTTP(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(s.cfg.WebDistDir, "index.html"))
+	})
 }
 
 func (s *Server) handleRegisterDevice() http.HandlerFunc {
@@ -1006,8 +1034,10 @@ func (s *Server) CheckHealth() map[string]api.SubsystemStatus {
 func (s *Server) Start(ctx context.Context) error {
 	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
 	handler := api.MetricsMiddleware(
-		api.RateLimitMiddleware(rateLimiter)(
-			api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+		api.SecurityHeadersMiddleware(
+			api.RateLimitMiddleware(rateLimiter)(
+				api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+			),
 		),
 	)
 
