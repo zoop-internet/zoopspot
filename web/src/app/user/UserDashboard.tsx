@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
-import type { ApiConnection } from '../../api/client';
 
 /* ─── Icons ─────────────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) => (
@@ -144,7 +143,8 @@ const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
 
 /* ─── Overview tab ────────────────────────────────────────────── */
 const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
-  const { deviceId, deviceName, deviceInfo, pendingConnections, connectionsLoading } = useApp();
+  const { deviceId, deviceName, deviceInfo, connections, connectionsLoading } = useApp();
+  const pending = connections.filter(c => c.state === 'REQUESTED');
 
   if (!deviceId) {
     return (
@@ -183,10 +183,10 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
         <div className="section-header">
           <span className="section-title">Pending Connections</span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            {connectionsLoading ? 'Loading…' : `${pendingConnections.length} pending`}
+            {connectionsLoading ? 'Loading…' : `${pending.length} pending`}
           </span>
         </div>
-        {pendingConnections.length === 0 && !connectionsLoading ? (
+        {pending.length === 0 && !connectionsLoading ? (
           <div className="empty-state" style={{ padding: '36px 24px' }}>
             <div className="empty-icon"><Ico d={I.zap} size={20} /></div>
             <h3>No pending connections</h3>
@@ -196,7 +196,7 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
           <table className="data-table">
             <thead><tr><th>Connection</th><th>Provider</th><th>Recipient</th><th>State</th></tr></thead>
             <tbody>
-              {pendingConnections.map(c => (
+              {pending.map(c => (
                 <tr key={c.id.toString()}>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.id.toString().slice(0, 8)}…</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_id.toString()}</td>
@@ -293,22 +293,32 @@ const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
 };
 
 /* ─── Connections tab ─────────────────────────────────────────── */
+const stateBadge = (s: string) => {
+  switch (s) {
+    case 'CONNECTED':    return <span className="badge badge-success">{s}</span>;
+    case 'REQUESTED':    return <span className="badge badge-warning">{s}</span>;
+    case 'AUTHORIZED':
+    case 'CONNECTING':   return <span className="badge badge-info">{s}</span>;
+    default:             return <span className="badge badge-neutral">{s}</span>;
+  }
+};
+
 const ConnectionsTab: React.FC = () => {
-  const { deviceId, pendingConnections, connectionsLoading, doConnect, doDisconnect, refreshConnections } = useApp();
+  const { deviceId, connections, connectionsLoading, doConnect, doDisconnect, refreshConnections } = useApp();
   const [providerId, setProviderId] = useState('');
-  const [shareId, setShareId] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
-  const [activeConn, setActiveConn] = useState<ApiConnection | null>(null);
+  const [busyConn, setBusyConn] = useState<string | null>(null);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!providerId.trim() || !shareId.trim()) return;
+    if (!providerId.trim()) return;
     setConnecting(true);
     setConnectError(null);
     try {
-      const conn = await doConnect(providerId.trim(), shareId.trim());
-      setActiveConn(conn);
+      await doConnect(providerId.trim());
+      setProviderId('');
+      refreshConnections();
     } catch (err: unknown) {
       setConnectError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
@@ -326,75 +336,115 @@ const ConnectionsTab: React.FC = () => {
     );
   }
 
+  const pending = connections.filter(c => c.state === 'REQUESTED');
+  const active = connections.filter(c => c.state !== 'REQUESTED' && c.state !== 'DISCONNECTED');
+
   return (
     <>
       {connectError && <div className="error-banner"><Ico d={I.alert} />{connectError}</div>}
 
-      {activeConn && (
-        <div className="section" style={{ borderLeft: '3px solid var(--accent-green)' }}>
-          <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>Connection established</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>
-                ID: {activeConn.id.toString()} • State: {activeConn.state}
-              </div>
-            </div>
-            <button className="btn btn-danger btn-sm" id="disconnect-btn" onClick={() => doDisconnect(activeConn.id.toString()).then(() => setActiveConn(null))}>
-              <Ico d={I.wifiOff} />Disconnect
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="section">
         <div className="section-header"><span className="section-title">Initiate Connection</span></div>
-        <form onSubmit={handleConnect} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="field">
+        <form onSubmit={handleConnect} style={{ padding: '16px', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <div className="field" style={{ flex: 1 }}>
             <label>Provider Device ID</label>
             <input id="conn-provider-id" type="text" value={providerId} onChange={e => setProviderId(e.target.value)}
-              placeholder="Provider's Device UUID" required />
+              placeholder="Provider's Device ID" required />
           </div>
-          <div className="field">
-            <label>Share ID</label>
-            <input id="conn-share-id" type="text" value={shareId} onChange={e => setShareId(e.target.value)}
-              placeholder="Sharing relationship UUID" required />
-          </div>
-          <div>
-            <button type="submit" className="btn btn-primary btn-sm" id="connect-btn" disabled={connecting}>
-              {connecting ? <><span className="spinner" style={{ width: 13, height: 13 }} />Connecting…</> : <><Ico d={I.zap} />Connect</>}
-            </button>
-          </div>
+          <button type="submit" className="btn btn-primary btn-sm" id="connect-btn" disabled={connecting}>
+            {connecting ? <><span className="spinner" style={{ width: 13, height: 13 }} />Connecting…</> : <><Ico d={I.zap} />Connect</>}
+          </button>
         </form>
+        <div style={{ padding: '0 16px 14px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Paste the Provider's Device ID (from their Settings screen) to request a connection.
+        </div>
       </div>
 
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Pending from Provider ({pendingConnections.length})</span>
+          <span className="section-title">Active Connections ({active.length})</span>
           <button className="btn btn-ghost btn-xs" id="refresh-connections-btn" onClick={refreshConnections}>
             {connectionsLoading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
           </button>
         </div>
-        {pendingConnections.length === 0 ? (
+        {active.length === 0 ? (
           <div className="empty-state" style={{ padding: '36px 24px' }}>
             <div className="empty-icon"><Ico d={I.zap} size={20} /></div>
-            <h3>No pending connections</h3>
+            <h3>No active connections</h3>
+            <p>Initiate a connection above to start sharing through a provider.</p>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Direction</th><th>Peer</th><th>State</th><th>IPs</th><th /></tr></thead>
+            <tbody>
+              {active.map(c => {
+                const isProvider = c.provider_id.toString() === deviceId;
+                return (
+                  <tr key={c.id.toString()}>
+                    <td>
+                      {isProvider
+                        ? <span className="badge badge-info">Providing</span>
+                        : <span className="badge badge-neutral">Receiving</span>}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {isProvider ? c.recipient_id.toString() : c.provider_id.toString()}
+                    </td>
+                    <td>{stateBadge(c.state)}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {isProvider ? c.recipient_ip ?? '—' : c.provider_ip ?? '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-danger btn-xs" disabled={busyConn === c.id.toString()}
+                        onClick={() => {
+                          setBusyConn(c.id.toString());
+                          doDisconnect(c.id.toString()).finally(() => setBusyConn(null));
+                        }}>
+                        <Ico d={I.wifiOff} />Disconnect
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Pending Requests ({pending.length})</span>
+        </div>
+        {pending.length === 0 ? (
+          <div className="empty-state" style={{ padding: '36px 24px' }}>
+            <div className="empty-icon"><Ico d={I.zap} size={20} /></div>
+            <h3>No pending requests</h3>
             <p>When a provider initiates a connection to this device it will appear here.</p>
           </div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>ID</th><th>Provider</th><th>State</th><th>Provider IP</th><th /></tr></thead>
+            <thead><tr><th>Direction</th><th>Peer</th><th>State</th><th /></tr></thead>
             <tbody>
-              {pendingConnections.map(c => (
-                <tr key={c.id.toString()}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.id.toString().slice(0, 8)}…</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_id.toString()}</td>
-                  <td><span className="badge badge-warning">{c.state}</span></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_ip ?? '—'}</td>
-                  <td>
-                    <button className="btn btn-danger btn-xs" onClick={() => doDisconnect(c.id.toString())}>Decline</button>
-                  </td>
-                </tr>
-              ))}
+              {pending.map(c => {
+                const isProvider = c.provider_id.toString() === deviceId;
+                return (
+                  <tr key={c.id.toString()}>
+                    <td>
+                      {isProvider
+                        ? <span className="badge badge-info">Providing</span>
+                        : <span className="badge badge-warning">Incoming</span>}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {isProvider ? c.recipient_id.toString() : c.provider_id.toString()}
+                    </td>
+                    <td>{stateBadge(c.state)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      {!isProvider && (
+                        <button className="btn btn-danger btn-xs" onClick={() => doDisconnect(c.id.toString())}>Decline</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -464,15 +514,28 @@ const SharingTab: React.FC = () => {
           </div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>Share ID</th><th>Recipient</th><th>Status</th></tr></thead>
+            <thead><tr><th>Direction</th><th>Peer</th><th>Status</th></tr></thead>
             <tbody>
-              {shares.map(s => (
-                <tr key={s.id.toString()}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{s.id.toString()}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{s.recipient_id.toString()}</td>
-                  <td><span className="badge badge-success">{s.status}</span></td>
-                </tr>
-              ))}
+              {shares.map(s => {
+                const isProvider = s.provider_id.toString() === deviceId;
+                return (
+                  <tr key={s.id.toString()}>
+                    <td>
+                      {isProvider
+                        ? <span className="badge badge-info">Provider</span>
+                        : <span className="badge badge-neutral">Recipient</span>}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {isProvider ? s.recipient_id.toString() : s.provider_id.toString()}
+                    </td>
+                    <td>
+                      {s.is_active
+                        ? <span className="badge badge-success">Active</span>
+                        : <span className="badge badge-neutral">Inactive</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -12,6 +12,7 @@ const API_BASE = '/api'; // proxied via vite to http://localhost:8080
 // ─── Types matching the Go API ────────────────────────────────
 export interface ApiDevice {
   id: string;
+  endpoint_id?: string;
   name: string;
   platform: string;
   os?: string;
@@ -26,7 +27,8 @@ export interface ApiShare {
   id: string;
   provider_id: string;
   recipient_id: string;
-  status: string;
+  is_active?: boolean;
+  status?: string;
   created_at?: string;
 }
 
@@ -121,6 +123,22 @@ export async function getPendingConnections(deviceId: string): Promise<ApiConnec
   const path = `/v1/devices/${deviceId}/connections/pending`;
   const authHeaders = await buildSignedAuthHeaders('GET', path);
   return apiFetch<ApiConnection[]>(path, {
+    headers: authHeaders,
+  });
+}
+
+export async function listConnections(): Promise<ApiConnection[]> {
+  const path = '/v1/connections';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiConnection[]>(path, {
+    headers: authHeaders,
+  });
+}
+
+export async function listShares(): Promise<ApiShare[]> {
+  const path = '/v1/shares';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiShare[]>(path, {
     headers: authHeaders,
   });
 }

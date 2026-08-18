@@ -141,6 +141,28 @@ func (s *ConnectionService) GetConnection(ctx context.Context, id types.ID, call
 	}, nil
 }
 
+// ListConnections returns all connections where the caller is either the
+// provider or the recipient.
+func (s *ConnectionService) ListConnections(ctx context.Context, callerIdentity types.ID) ([]api.ConnectionResponse, error) {
+	conns, err := s.store.ListConnections(ctx, callerIdentity)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]api.ConnectionResponse, 0, len(conns))
+	for _, conn := range conns {
+		resp = append(resp, api.ConnectionResponse{
+			ID:          conn.ID,
+			ProviderID:  conn.ProviderID,
+			RecipientID: conn.RecipientID,
+			State:       conn.State,
+			ProviderIP:  conn.ProviderIP,
+			RecipientIP: conn.RecipientIP,
+		})
+	}
+	return resp, nil
+}
+
 // UpdateConnectionState transitions a connection to a new state, validating the transition first.
 func (s *ConnectionService) UpdateConnectionState(ctx context.Context, id types.ID, callerIdentity types.ID, newState types.ConnectionState) error {
 	conn, err := s.store.GetConnection(ctx, id)
@@ -159,5 +181,26 @@ func (s *ConnectionService) UpdateConnectionState(ctx context.Context, id types.
 	}
 
 	conn.State = newState
-	return s.store.SaveConnection(ctx, conn)
+	if err := s.store.SaveConnection(ctx, conn); err != nil {
+		return err
+	}
+
+	// Notify the peer endpoint so it can tear down or update its tunnel.
+	if newState == types.ConnectionStateDisconnected && s.signaling != nil {
+		peerID := conn.RecipientID
+		if callerIdentity == conn.RecipientID {
+			peerID = conn.ProviderID
+		}
+		payloadBytes, _ := json.Marshal(types.ConnectionPayload{ConnectionID: conn.ID})
+		msg := types.SignalingMessage{
+			Type:        types.SignalingTypeConnectionDisconnected,
+			SenderID:    callerIdentity,
+			RecipientID: peerID,
+			Payload:     payloadBytes,
+		}
+		// Best-effort: the peer may be offline; a resync on reconnect catches it.
+		_ = s.signaling.SendTo(peerID, msg)
+	}
+
+	return nil
 }

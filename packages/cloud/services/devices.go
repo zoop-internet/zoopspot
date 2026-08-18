@@ -31,9 +31,11 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 	// Calculate deterministic Endpoint ID from the public key, matching agent logic.
 	endpointID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pubKeyBytes))
 
-	// Create device record
+	// The device registry ID equals the endpoint ID so that listing peers,
+	// creating shares, and requesting connections all reference the same
+	// identifier. This keeps the web UI and agent aligned.
 	device := &types.Device{
-		ID:          types.NewID(),
+		ID:          endpointID,
 		Name:        req.Name,
 		OS:          req.Platform,
 		Description: "",
@@ -64,8 +66,9 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 	}
 
 	return &api.DeviceResponse{
-		ID:     device.ID,
-		Status: string(device.State),
+		ID:         device.ID,
+		EndpointID: endpointID,
+		Status:     string(device.State),
 	}, nil
 }
 

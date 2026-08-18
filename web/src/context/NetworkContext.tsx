@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
-  createShare, createConnection, updateConnectionState,
+  createShare, createConnection, updateConnectionState, listConnections, listShares,
   createOrganization, listOrganizations, addOrgMember, listOrgMembers,
 } from '../api/client';
 import {
@@ -32,7 +32,7 @@ export interface AppState {
   doCreateShare: (recipientId: string) => Promise<void>;
 
   // Connections
-  pendingConnections: ApiConnection[];
+  connections: ApiConnection[];
   connectionsLoading: boolean;
   refreshConnections: () => void;
   doConnect: (providerId: string, shareId?: string) => Promise<ApiConnection | null>;
@@ -65,7 +65,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [shares, setShares] = useState<ApiShare[]>([]);
   const [sharesLoading, setSharesLoading] = useState(false);
 
-  const [pendingConnections, setPendingConnections] = useState<ApiConnection[]>([]);
+  const [connections, setConnections] = useState<ApiConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
 
   const [organizations, setOrganizations] = useState<ApiOrg[]>([]);
@@ -106,7 +106,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         public_key: publicKeyB64,
         capabilities: caps,
       });
-      saveDeviceId(resp.id.toString(), name);
+      saveDeviceId(resp.id.toString(), name, resp.endpoint_id);
       setDeviceId(resp.id.toString());
       setDeviceName(name);
       setDeviceInfo(resp);
@@ -124,14 +124,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDeviceName(null);
     setDeviceInfo(null);
     setShares([]);
-    setPendingConnections([]);
+    setConnections([]);
   }, []);
 
   const refreshShares = useCallback(() => {
     if (!deviceId) return;
     setSharesLoading(true);
-    setSharesLoading(false);
+    listShares()
+      .then(s => setShares(s))
+      .catch(() => setShares([]))
+      .finally(() => setSharesLoading(false));
   }, [deviceId]);
+
+  useEffect(() => {
+    if (deviceId) refreshShares();
+  }, [deviceId, refreshShares]);
 
   const doCreateShare = useCallback(async (recipientId: string) => {
     if (!deviceId) throw new Error('Not registered');
@@ -142,9 +149,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshConnections = useCallback(() => {
     if (!deviceId) return;
     setConnectionsLoading(true);
-    getPendingConnections(deviceId)
-      .then(conns => setPendingConnections(conns))
-      .catch(() => setPendingConnections([]))
+    Promise.all([getPendingConnections(deviceId), listConnections()])
+      .then(([pending, all]) => {
+        const merged = new Map<string, ApiConnection>();
+        for (const c of [...all, ...pending]) merged.set(c.id.toString(), c);
+        setConnections([...merged.values()]);
+      })
+      .catch(() => setConnections([]))
       .finally(() => setConnectionsLoading(false));
   }, [deviceId]);
 
@@ -160,8 +171,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const doDisconnect = useCallback(async (connId: string) => {
     if (!deviceId) return;
-    await updateConnectionState(connId, 'disconnected');
-    setPendingConnections(prev => prev.filter(c => c.id !== connId));
+    await updateConnectionState(connId, 'DISCONNECTED');
+    setConnections(prev => prev.filter(c => c.id.toString() !== connId));
   }, [deviceId]);
 
   // Organizations logic
@@ -220,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       register, unregister,
       allDevices, devicesLoading, refreshAllDevices,
       shares, sharesLoading, refreshShares, doCreateShare,
-      pendingConnections, connectionsLoading, refreshConnections,
+      connections, connectionsLoading, refreshConnections,
       doConnect, doDisconnect,
       organizations, currentOrg, orgMembers, orgsLoading,
       refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,

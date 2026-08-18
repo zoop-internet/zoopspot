@@ -7,6 +7,7 @@
  */
 
 const IDENTITY_KEY = 'zoop:web:device_id';
+const ENDPOINT_KEY = 'zoop:web:endpoint_id';
 const NAME_KEY = 'zoop:web:device_name';
 const PRIV_KEY = 'zoop:web:priv_key';
 const PUB_KEY = 'zoop:web:pub_key';
@@ -17,17 +18,25 @@ export function getSavedDeviceId(): string | null {
   return localStorage.getItem(IDENTITY_KEY);
 }
 
+export function getSavedEndpointId(): string | null {
+  return localStorage.getItem(ENDPOINT_KEY);
+}
+
 export function getSavedDeviceName(): string | null {
   return localStorage.getItem(NAME_KEY);
 }
 
-export function saveDeviceId(id: string, name: string) {
+export function saveDeviceId(id: string, name: string, endpointId?: string) {
   localStorage.setItem(IDENTITY_KEY, id);
   localStorage.setItem(NAME_KEY, name);
+  if (endpointId) {
+    localStorage.setItem(ENDPOINT_KEY, endpointId);
+  }
 }
 
 export function clearSavedDevice() {
   localStorage.removeItem(IDENTITY_KEY);
+  localStorage.removeItem(ENDPOINT_KEY);
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(PRIV_KEY);
   localStorage.removeItem(PUB_KEY);
@@ -102,8 +111,10 @@ export async function buildSignedAuthHeaders(
   path: string,
   body?: string
 ): Promise<Record<string, string>> {
-  const deviceId = getSavedDeviceId();
-  if (!deviceId) {
+  // Auth identity is the endpoint_id (SHA1 of the Ed25519 pubkey), which is what
+  // the cloud AuthMiddleware resolves. The device_id is a separate registry record.
+  const endpointId = getSavedEndpointId() ?? getSavedDeviceId();
+  if (!endpointId) {
     return {};
   }
 
@@ -127,20 +138,19 @@ export async function buildSignedAuthHeaders(
   const payloadBytes = new TextEncoder().encode(canonicalPayload);
 
   let signatureB64 = '';
-  if (privKey) {
-    const sigBuffer = await crypto.subtle.sign(
-      { name: 'Ed25519' },
-      privKey,
-      payloadBytes
-    );
-    signatureB64 = uint8ArrayToBase64(new Uint8Array(sigBuffer));
-  } else {
-    signatureB64 = 'dev-placeholder';
+  if (!privKey) {
+    throw new Error('No private key available to sign the request');
   }
+  const sigBuffer = await crypto.subtle.sign(
+    { name: 'Ed25519' },
+    privKey,
+    payloadBytes
+  );
+  signatureB64 = uint8ArrayToBase64(new Uint8Array(sigBuffer));
 
   return {
-    'X-Zoop-Device-ID': deviceId,
-    'X-Zoop-Identity': deviceId,
+    'X-Zoop-Device-ID': endpointId,
+    'X-Zoop-Identity': endpointId,
     'X-Zoop-Signature': signatureB64,
     'X-Zoop-Timestamp': timestamp,
     'X-Zoop-Nonce': nonce,

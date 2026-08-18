@@ -169,9 +169,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /v1/organizations/{id}/members", s.handleListOrgMembers())
 
 	s.mux.Handle("POST /v1/shares", authMw(http.HandlerFunc(s.handleCreateShare())))
+	s.mux.Handle("GET /v1/shares", authMw(http.HandlerFunc(s.handleListShares())))
 	s.mux.Handle("GET /v1/shares/{id}", authMw(http.HandlerFunc(s.handleGetShare())))
 
 	s.mux.Handle("POST /v1/connections", authMw(http.HandlerFunc(s.handleCreateConnection())))
+	s.mux.Handle("GET /v1/connections", authMw(http.HandlerFunc(s.handleListConnections())))
 	s.mux.Handle("GET /v1/connections/{id}", authMw(http.HandlerFunc(s.handleGetConnection())))
 	s.mux.Handle("PUT /v1/connections/{id}/state", authMw(http.HandlerFunc(s.handleUpdateConnectionState())))
 	s.mux.Handle("GET /v1/devices/{id}/connections/pending", authMw(http.HandlerFunc(s.handleGetPendingConnections())))
@@ -307,6 +309,25 @@ func (s *Server) handleGetShare() http.HandlerFunc {
 	}
 }
 
+func (s *Server) handleListShares() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		resp, err := s.shares.ListShares(r.Context(), callerID)
+		if err != nil {
+			s.logger.Error("failed to list shares", "error", err)
+			api.WriteError(w, "internal_error", "failed to list shares", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
 func (s *Server) handleCreateConnection() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
@@ -362,6 +383,25 @@ func (s *Server) handleGetConnection() http.HandlerFunc {
 				return
 			}
 			api.WriteError(w, "internal_error", "failed to lookup connection", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleListConnections() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+
+		resp, err := s.connections.ListConnections(r.Context(), callerID)
+		if err != nil {
+			s.logger.Error("failed to list connections", "error", err)
+			api.WriteError(w, "internal_error", "failed to list connections", http.StatusInternalServerError)
 			return
 		}
 

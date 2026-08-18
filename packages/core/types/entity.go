@@ -1,9 +1,32 @@
 package types
 
-import "github.com/google/uuid"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 // ID represents a unique identifier in the Zoop system.
 type ID uuid.UUID
+
+// MarshalJSON serializes the ID as a UUID string.
+func (id ID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(uuid.UUID(id).String())
+}
+
+// UnmarshalJSON parses a UUID string into an ID.
+func (id *ID) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	u, err := uuid.Parse(s)
+	if err != nil {
+		return err
+	}
+	*id = ID(u)
+	return nil
+}
 
 // Account represents the identity and ownership context of a Zoop participant.
 type Account struct {

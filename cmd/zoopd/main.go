@@ -28,8 +28,9 @@ import (
 const defaultSocketPath = "/var/run/zoopd.sock"
 
 type DaemonCommand struct {
-	Action string `json:"action"`
-	PeerID string `json:"peer_id,omitempty"`
+	Action       string `json:"action"`
+	PeerID       string `json:"peer_id,omitempty"`
+	ConnectionID string `json:"connection_id,omitempty"`
 }
 
 type DaemonResponse struct {
@@ -80,6 +81,7 @@ func main() {
 	apiPortFlag := flag.Int("api-port", 9090, "Local metrics/health HTTP API listen port")
 	socketFlag := flag.String("socket", defaultSocketPath, "UNIX domain socket path")
 	doctorFlag := flag.Bool("doctor", false, "Run comprehensive diagnostics probe and exit")
+	mockTunFlag := flag.Bool("mock-tun", false, "Use an in-memory WireGuard device (no root required, for development/testing)")
 	flag.Parse()
 
 	cfg := config.LoadConfig()
@@ -123,9 +125,14 @@ func main() {
 	apiClient := client.NewAPIClient(cfg.ControlPlaneURL, ident, privKey)
 
 	// Initialize WireGuard device manager.
-	devMgr, err := tunnel.NewDeviceManager(*tunFlag, nil)
+	var devMgr *tunnel.DeviceManager
+	if *mockTunFlag {
+		devMgr, err = tunnel.NewMockDeviceManager(*tunFlag, nil)
+	} else {
+		devMgr, err = tunnel.NewDeviceManager(*tunFlag, nil)
+	}
 	if err != nil {
-		logger.Error("failed to initialize TUN device", "interface", *tunFlag, "error", err)
+		logger.Error("failed to initialize TUN device", "interface", *tunFlag, "mock", *mockTunFlag, "error", err)
 		os.Exit(1)
 	}
 	defer devMgr.Close()
@@ -179,7 +186,7 @@ func main() {
 
 	logger.Info("zoopd IPC listener active", "socket", socketPath)
 
-	// Start HTTP metrics and health API
+	// Start HTTP metrics, health and local management API
 	go func() {
 		mux := http.NewServeMux()
 		stMgr := state.NewManager()
@@ -188,9 +195,21 @@ func main() {
 		mux.HandleFunc("GET /health", healthChecker.WriteHTTP)
 		mux.Handle("GET /metrics", promhttp.Handler())
 
+		// Local management API (localhost only) used by the web UI.
+		daemon := &daemonAPI{
+			ctx:        ctx,
+			logger:     logger,
+			apiClient:  apiClient,
+			sigClient:  sigClient,
+			devMgr:     devMgr,
+			roamingMgr: roamingMgr,
+			configDir:  filepath.Dir(keyPath),
+		}
+		mux.Handle("/api/", daemon.routes())
+
 		apiPort := *apiPortFlag
 		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", apiPort), Handler: mux}
-		logger.Info("metrics API listening", "port", apiPort)
+		logger.Info("local management API listening", "port", apiPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("metrics API failed", "error", err)
 		}
@@ -211,7 +230,7 @@ func main() {
 					continue
 				}
 			}
-			go handleIPC(ctx, cancel, conn, devMgr, apiClient, logger)
+			go handleIPC(ctx, cancel, conn, devMgr, apiClient, sigClient, logger)
 		}
 	}()
 
@@ -231,6 +250,7 @@ func handleIPC(
 	conn net.Conn,
 	devMgr *tunnel.DeviceManager,
 	apiClient *client.APIClient,
+	sigClient *client.SignalingClient,
 	logger *slog.Logger,
 ) {
 	defer conn.Close()
@@ -275,13 +295,22 @@ func handleIPC(
 		}
 
 	case "disconnect":
-		// Disconnect tunnel
-		if devMgr != nil {
-			// devMgr.Close() or reset. For now just clear the peer config.
-			resp = DaemonResponse{Success: true, Message: "tunnel disconnected"}
-		} else {
-			resp = DaemonResponse{Success: false, Message: "device manager not initialized"}
+		connID := cmd.ConnectionID
+		if connID == "" {
+			resp = DaemonResponse{Success: false, Message: "connection_id is required for disconnect"}
+			break
 		}
+		parsedConnID, err := uuid.Parse(connID)
+		if err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("invalid connection_id format: %v", err)}
+			break
+		}
+
+		if err := sigClient.DisconnectConnection(ctx, types.ID(parsedConnID)); err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("failed to disconnect: %v", err)}
+			break
+		}
+		resp = DaemonResponse{Success: true, Message: "tunnel disconnected"}
 
 	case "get_peers":
 		devices, err := apiClient.ListDevices(ctx)

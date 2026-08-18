@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"encoding/json"
@@ -15,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/types"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // SignalingClient manages the persistent WebSocket connection to the Control Plane.
@@ -24,6 +26,11 @@ type SignalingClient struct {
 	tunnelManager *tunnel.DeviceManager
 
 	conn *websocket.Conn
+
+	// activeConns tracks established tunnels (connection_id -> peer key) so a
+	// disconnect can tear down the right WireGuard peer.
+	activeMu      sync.Mutex
+	activeConns   map[types.ID]wgtypes.Key
 }
 
 // NewSignalingClient creates a new WebSocket client.
@@ -32,6 +39,7 @@ func NewSignalingClient(apiClient *APIClient, tunnelManager *tunnel.DeviceManage
 		apiClient:     apiClient,
 		tunnelManager: tunnelManager,
 		Logger:        logger,
+		activeConns:   make(map[types.ID]wgtypes.Key),
 	}
 }
 
@@ -275,6 +283,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 							s.Logger.Error("failed to configure wireguard peer", "error", err)
 						} else {
 							s.Logger.Info("wireguard peer configured successfully on provider", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
+							s.trackActive(payload.ConnectionID, peerKey)
 						}
 					}
 				}
@@ -355,7 +364,114 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				s.Logger.Error("failed to configure wireguard peer", "error", err)
 			} else {
 				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
+				s.trackActive(connIDFromPayload(payload), peerKey)
+
+				// Report the truthful connection state to the cloud so the UI and
+				// both sides see CONNECTED once the tunnel is actually up.
+				if cid := connIDFromPayload(payload); cid.String() != "" {
+					if err := s.apiClient.UpdateConnectionState(ctx, cid, types.ConnectionStateConnected); err != nil {
+						s.Logger.Error("failed to report connected state", "error", err)
+					}
+				}
 			}
 		}
+	case types.SignalingTypeConnectionDisconnected:
+		s.Logger.Info("peer disconnected the connection", "sender_id", msg.SenderID)
+
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal disconnect payload", "error", err)
+				return
+			}
+		}
+		s.teardownConnection(ctx, payload.ConnectionID)
+	case types.SignalingTypeConnectionRejected:
+		s.Logger.Info("connection request rejected by peer", "sender_id", msg.SenderID)
+
+		var payload types.ConnectionPayload
+		if len(msg.Payload) > 0 {
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				s.Logger.Error("failed to unmarshal rejection payload", "error", err)
+				return
+			}
+		}
+		s.teardownConnection(ctx, payload.ConnectionID)
 	}
+}
+
+func connIDFromPayload(p types.ConnectionPayload) types.ID {
+	return p.ConnectionID
+}
+
+// DisconnectConnection tears down a local tunnel and notifies the cloud, which
+// in turn signals the peer to tear down its side.
+func (s *SignalingClient) DisconnectConnection(ctx context.Context, connID types.ID) error {
+	s.teardownConnection(ctx, connID)
+	if err := s.apiClient.UpdateConnectionState(ctx, connID, types.ConnectionStateDisconnected); err != nil {
+		return err
+	}
+	s.Logger.Info("connection disconnected", "connection_id", connID)
+	return nil
+}
+
+// trackActive records the WireGuard peer key associated with a connection so a
+// later disconnect can remove exactly that peer.
+func (s *SignalingClient) trackActive(connID types.ID, peerKey wgtypes.Key) {
+	if connID.String() == "" {
+		return
+	}
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+	s.activeConns[connID] = peerKey
+}
+
+// ActiveConnectionInfo describes an established tunnel on this device.
+type ActiveConnectionInfo struct {
+	ConnectionID types.ID `json:"connection_id"`
+	PeerKey      string   `json:"peer_key"`
+}
+
+// ActiveConnections returns the currently tracked tunnels (connection id -> peer key).
+func (s *SignalingClient) ActiveConnections() []ActiveConnectionInfo {
+	s.activeMu.Lock()
+	defer s.activeMu.Unlock()
+
+	out := make([]ActiveConnectionInfo, 0, len(s.activeConns))
+	for cid, key := range s.activeConns {
+		out = append(out, ActiveConnectionInfo{ConnectionID: cid, PeerKey: key.String()})
+	}
+	return out
+}
+
+// teardownConnection removes the WireGuard peer and disables forwarding for the
+// given connection, if this endpoint was acting as provider.
+func (s *SignalingClient) teardownConnection(ctx context.Context, connID types.ID) {
+	if connID.String() == "" {
+		return
+	}
+	s.activeMu.Lock()
+	peerKey, ok := s.activeConns[connID]
+	delete(s.activeConns, connID)
+	s.activeMu.Unlock()
+
+	if !ok {
+		s.Logger.Warn("no active tunnel tracked for connection, nothing to tear down", "connection_id", connID)
+		return
+	}
+
+	if s.tunnelManager != nil {
+		if err := s.tunnelManager.RemovePeer(peerKey); err != nil {
+			s.Logger.Error("failed to remove wireguard peer", "error", err)
+		} else {
+			s.Logger.Info("wireguard peer removed", "connection_id", connID)
+		}
+		if err := s.tunnelManager.DisableForwarding(); err != nil {
+			s.Logger.Warn("failed to disable forwarding (may not be enabled)", "error", err)
+		}
+	}
+
+	// Ensure the cloud record reflects the disconnected state even if this side
+	// initiated the teardown through a signaling message.
+	_ = s.apiClient.UpdateConnectionState(ctx, connID, types.ConnectionStateDisconnected)
 }

@@ -61,3 +61,23 @@ func (s *ShareService) GetShare(ctx context.Context, id types.ID) (*api.ShareRes
 		IsActive:    share.IsActive,
 	}, nil
 }
+
+// ListShares returns all sharing relationships where the caller is either the
+// provider or the recipient.
+func (s *ShareService) ListShares(ctx context.Context, endpointID types.ID) ([]api.ShareResponse, error) {
+	shares, err := s.store.ListShares(ctx, endpointID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]api.ShareResponse, 0, len(shares))
+	for _, share := range shares {
+		resp = append(resp, api.ShareResponse{
+			ID:          share.ID,
+			ProviderID:  share.ProviderID,
+			RecipientID: share.RecipientID,
+			IsActive:    share.IsActive,
+		})
+	}
+	return resp, nil
+}

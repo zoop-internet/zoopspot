@@ -411,6 +411,40 @@ func (s *PostgresStore) GetSharingRelationshipByEndpoints(ctx context.Context, p
 	return &sh, nil
 }
 
+func (s *PostgresStore) ListShares(ctx context.Context, endpointID types.ID) ([]*types.SharingRelationship, error) {
+	query := `
+		SELECT id, provider_id, recipient_id, is_active
+		FROM sharing_relationships
+		WHERE provider_id = $1 OR recipient_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, endpointID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []*types.SharingRelationship
+	for rows.Next() {
+		var sh types.SharingRelationship
+		var idStr, provStr, recStr string
+		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive); err != nil {
+			return nil, err
+		}
+		pID, _ := types.ParseID(provStr)
+		rID, _ := types.ParseID(recStr)
+		sID, _ := types.ParseID(idStr)
+		sh.ID = sID
+		sh.ProviderID = pID
+		sh.RecipientID = rID
+		shares = append(shares, &sh)
+	}
+	if shares == nil {
+		shares = []*types.SharingRelationship{}
+	}
+	return shares, nil
+}
+
 // ─── Connections ──────────────────────────────────────────────
 
 func (s *PostgresStore) SaveConnection(ctx context.Context, conn *types.Connection) error {
@@ -504,6 +538,48 @@ func (s *PostgresStore) GetPendingConnections(ctx context.Context, endpointID ty
 		pending = []*types.Connection{}
 	}
 	return pending, nil
+}
+
+func (s *PostgresStore) ListConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
+	query := `
+		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip
+		FROM connections
+		WHERE provider_id = $1 OR recipient_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, endpointID.String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var conns []*types.Connection
+	for rows.Next() {
+		var c types.Connection
+		var idStr, provStr, recStr, stateStr string
+		var provIP, recIP sql.NullString
+		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP); err != nil {
+			return nil, err
+		}
+		cID, _ := types.ParseID(idStr)
+		pID, _ := types.ParseID(provStr)
+		rID, _ := types.ParseID(recStr)
+		c.ID = cID
+		c.ProviderID = pID
+		c.RecipientID = rID
+		c.State = types.ConnectionState(stateStr)
+		if provIP.Valid {
+			c.ProviderIP = provIP.String
+		}
+		if recIP.Valid {
+			c.RecipientIP = recIP.String
+		}
+		conns = append(conns, &c)
+	}
+	if conns == nil {
+		conns = []*types.Connection{}
+	}
+	return conns, nil
 }
 
 // ─── IPAM Pool Allocation ─────────────────────────────────────

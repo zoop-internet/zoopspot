@@ -158,6 +158,20 @@ func (c *APIClient) GetPendingConnections(ctx context.Context, deviceID types.ID
 	return resp, err
 }
 
+// ListConnections fetches all connections for the current device.
+func (c *APIClient) ListConnections(ctx context.Context) ([]api.ConnectionResponse, error) {
+	var resp []api.ConnectionResponse
+	err := c.do(ctx, http.MethodGet, "/v1/connections", nil, &resp)
+	return resp, err
+}
+
+// ListShares fetches all sharing relationships for the current device.
+func (c *APIClient) ListShares(ctx context.Context) ([]api.ShareResponse, error) {
+	var resp []api.ShareResponse
+	err := c.do(ctx, http.MethodGet, "/v1/shares", nil, &resp)
+	return resp, err
+}
+
 // ListDevices fetches all known devices from the Control Plane.
 func (c *APIClient) ListDevices(ctx context.Context) ([]api.DeviceResponse, error) {
 	var resp []api.DeviceResponse

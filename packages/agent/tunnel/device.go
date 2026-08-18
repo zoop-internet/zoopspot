@@ -19,6 +19,10 @@ type DeviceManager struct {
 	wgDev    *device.Device
 	wgPubKey wgtypes.Key
 	muxBind  *muxbind.MuxBind
+
+	// mockMode skips OS-level platform operations (ip addr/route, iptables) so
+	// the manager can be exercised in unprivileged test environments.
+	mockMode bool
 }
 
 // NewDeviceManager allocates a new user-space TUN device and initializes WireGuard on it.
@@ -58,10 +62,11 @@ func NewMockDeviceManager(ifName string, logger *device.Logger) (*DeviceManager,
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
-		ifName:  ifName,
-		tunDev:  tunDev,
-		wgDev:   wgDev,
-		muxBind: mb,
+		ifName:   ifName,
+		tunDev:   tunDev,
+		wgDev:    wgDev,
+		muxBind:  mb,
+		mockMode: true,
 	}, nil
 }
 
@@ -81,10 +86,10 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
-		ifName:  ifName,
-		tunDev:  tunDev,
-		wgDev:   wgDev,
-		muxBind: mb,
+		ifName:   ifName,
+		tunDev:   tunDev,
+		wgDev:    wgDev,
+		muxBind:  mb,
 	}, nil
 }
 
@@ -95,11 +100,17 @@ func (m *DeviceManager) GetMuxBind() *muxbind.MuxBind {
 
 // AssignIP assigns an IP address to the TUN interface using OS-specific methods.
 func (m *DeviceManager) AssignIP(ipAddress string) error {
+	if m.mockMode {
+		return nil
+	}
 	return platformAssignIP(m.ifName, ipAddress)
 }
 
 // EnableForwarding enables IP forwarding and NAT (MASQUERADE) on the host OS.
 func (m *DeviceManager) EnableForwarding() error {
+	if m.mockMode {
+		return nil
+	}
 	return platformEnableForwarding(m.ifName)
 }
 
@@ -136,6 +147,9 @@ func (m *DeviceManager) RotateKeyPair(newPrivKey wgtypes.Key) error {
 
 // DisableForwarding disables IP forwarding and tears down iptables NAT rules.
 func (m *DeviceManager) DisableForwarding() error {
+	if m.mockMode {
+		return nil
+	}
 	return platformDisableForwarding(m.ifName)
 }
 

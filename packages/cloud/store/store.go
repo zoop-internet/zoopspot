@@ -38,10 +38,12 @@ type Store interface {
 	SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error
 	GetSharingRelationship(ctx context.Context, id types.ID) (*types.SharingRelationship, error)
 	GetSharingRelationshipByEndpoints(ctx context.Context, providerID, recipientID types.ID) (*types.SharingRelationship, error)
+	ListShares(ctx context.Context, endpointID types.ID) ([]*types.SharingRelationship, error)
 
 	SaveConnection(ctx context.Context, conn *types.Connection) error
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
 	GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
+	ListConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error)
 
 	// AllocateConnectionIPs returns a unique (providerIP, recipientIP) pair for a new connection
 	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
@@ -209,6 +211,22 @@ func (s *InMemoryStore) GetSharingRelationshipByEndpoints(ctx context.Context, p
 	return nil, ErrNotFound
 }
 
+func (s *InMemoryStore) ListShares(ctx context.Context, endpointID types.ID) ([]*types.SharingRelationship, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var shares []*types.SharingRelationship
+	for _, sh := range s.shares {
+		if sh.ProviderID == endpointID || sh.RecipientID == endpointID {
+			shares = append(shares, sh)
+		}
+	}
+	if shares == nil {
+		shares = []*types.SharingRelationship{}
+	}
+	return shares, nil
+}
+
 func (s *InMemoryStore) SaveConnection(ctx context.Context, conn *types.Connection) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -237,6 +255,22 @@ func (s *InMemoryStore) GetPendingConnections(ctx context.Context, endpointID ty
 		}
 	}
 	return pending, nil
+}
+
+func (s *InMemoryStore) ListConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var conns []*types.Connection
+	for _, conn := range s.connections {
+		if conn.ProviderID == endpointID || conn.RecipientID == endpointID {
+			conns = append(conns, conn)
+		}
+	}
+	if conns == nil {
+		conns = []*types.Connection{}
+	}
+	return conns, nil
 }
 
 func (s *InMemoryStore) ListDevices(ctx context.Context) ([]*types.Device, error) {

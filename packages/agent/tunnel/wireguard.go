@@ -51,6 +51,9 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 	}
 
 	// Add routes for the allowed IPs to the OS routing table using the platform-appropriate method.
+	if m.mockMode {
+		return nil
+	}
 	for _, aip := range allowedIPs {
 		if err := platformAddRoute(m.ifName, aip); err != nil {
 			return fmt.Errorf("failed to add route for %s: %w", aip, err)

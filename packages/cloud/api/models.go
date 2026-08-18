@@ -23,10 +23,11 @@ type RegisterDeviceRequest struct {
 
 // DeviceResponse is returned for device lookups and registrations.
 type DeviceResponse struct {
-	ID     types.ID `json:"id"`
-	Name   string   `json:"name,omitempty"`
-	OS     string   `json:"os,omitempty"`
-	Status string   `json:"status"`
+	ID         types.ID `json:"id"`
+	EndpointID types.ID `json:"endpoint_id,omitempty"`
+	Name       string   `json:"name,omitempty"`
+	OS         string   `json:"os,omitempty"`
+	Status     string   `json:"status"`
 }
 
 // CreateOrgRequest is the payload for POST /v1/organizations
