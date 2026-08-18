@@ -20,8 +20,8 @@ and organizations, and operators get a working admin console.
 - **Phase 3 (daemon API)** — DONE: full `127.0.0.1:9090` REST + SSE + `-mock-tun`.
 - **Phase 4 (web UI)** — MOSTLY DONE: user portal wired to real data; auto-register;
   fleet/shares/connections dropdowns; SSE real-time (live `share_created` /
-  `connection_updated` events refresh the UI automatically). REMAINING: local-mode
-  daemon client, routing, desktop-panel removal.
+  `connection_updated` events refresh the UI automatically); dead `'desktop'` mode and
+  `Desktop*` types removed. REMAINING: local-mode daemon client, routing.
 - **Phase 5 (admin console)** — MOSTLY DONE: Devices/Organizations/Overview/Connections/
   System tabs now fetch real data via admin endpoints (`/v1/admin/devices`,
   `/v1/admin/connections`, `/v1/admin/services` added; middleware via `ZOOP_ADMIN_IDS`).
@@ -176,8 +176,7 @@ origins). Back these with **real** data, not the mocked IPC:
 - **UX** (`UserDashboard`, `OrgDashboard`): simple, human labels — "My device", "Who can
   use my internet", "Connected right now", connect/disconnect buttons, share
   create/accept/revoke, device list, diagnostics and settings when local.
-- Remove the dead `'desktop'` PortalMode and `Desktop*` types, or repurpose them as the
-  local-daemon panel.
+- Done: removed the dead `'desktop'` PortalMode and `Desktop*` types.
 
 ### Phase 5 — Admin console (real endpoints)
 
