@@ -298,6 +298,36 @@ export async function adminRelays(): Promise<unknown[]> {
   return apiFetch<unknown[]>(path, { headers: authHeaders });
 }
 
+export interface ApiRelayAddRequest {
+  id: string;
+  region: string;
+  host: string;
+  port?: number;
+  websocket_url?: string;
+  stun_port?: number;
+  turn_port?: number;
+  max_capacity?: number;
+}
+
+export async function adminAddRelay(req: ApiRelayAddRequest): Promise<unknown> {
+  const path = '/v1/admin/relays';
+  const body = JSON.stringify(req);
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<unknown>(path, { method: 'POST', headers: authHeaders, body });
+}
+
+export async function adminRemoveRelay(id: string): Promise<unknown> {
+  const path = `/v1/admin/relays/${id}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  return apiFetch<unknown>(path, { method: 'DELETE', headers: authHeaders });
+}
+
+export async function adminRevokeDevice(id: string): Promise<unknown> {
+  const path = `/v1/admin/devices/${id}/revoke`;
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch<unknown>(path, { method: 'POST', headers: authHeaders });
+}
+
 // ─── Share operations ─────────────────────────────────────────
 
 export async function createShare(authDeviceId: string, recipientId: string): Promise<ApiShare> {

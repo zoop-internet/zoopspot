@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
-import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, listDevices } from '../api/client';
+import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, listDevices } from '../api/client';
 import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
 import './AdminConsole.css';
 
@@ -407,36 +407,60 @@ const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) 
   </>
 );
 
-const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
-  <>
-    <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" />
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Registered Endpoints ({data.devices.length})</span>
-        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-        </button>
+const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const handleRevoke = async (id: string) => {
+    if (!window.confirm('Revoke this device? It will be denied cloud access immediately.')) return;
+    setRevoking(id);
+    try {
+      await adminRevokeDevice(id);
+      data.reload();
+    } catch {
+      window.alert('Failed to revoke device');
+    } finally {
+      setRevoking(null);
+    }
+  };
+  return (
+    <>
+      <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" />
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Registered Endpoints ({data.devices.length})</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {data.devices.length === 0 ? (
+          <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {data.devices.map(d => (
+                <tr key={d.id.toString()}>
+                  <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                  <td>{d.os || d.platform || '—'}</td>
+                  <td><span className={`badge ${d.status === 'revoked' ? 'badge-danger' : 'badge-success'}`}>{d.status}</span></td>
+                  <td>
+                    {d.status !== 'revoked' && (
+                      <button className="btn btn-danger btn-sm"
+                        onClick={() => handleRevoke(d.id.toString())}
+                        disabled={revoking === d.id.toString()}>
+                        {revoking === d.id.toString() ? 'Revoking…' : 'Revoke'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      {data.devices.length === 0 ? (
-        <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
-      ) : (
-        <table className="data-table">
-          <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th></tr></thead>
-          <tbody>
-            {data.devices.map(d => (
-              <tr key={d.id.toString()}>
-                <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
-                <td>{d.os || d.platform || '—'}</td>
-                <td><span className="badge badge-success">{d.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const active = data.connections.filter(c => c.state === 'CONNECTED').length;
@@ -546,7 +570,51 @@ const NetworkTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
 };
 
 const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
-  const relays = data.relays as unknown as { id?: string; region?: string; host?: string; active?: boolean }[];
+  const relays = data.relays as unknown as { id?: string; region?: string; host?: string; status?: string }[];
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ id: '', region: '', host: '', port: '443', websocket_url: '', stun_port: '3478', turn_port: '' });
+  const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const addRelay = async () => {
+    if (!form.id.trim() || !form.host.trim()) {
+      window.alert('Relay id and host are required');
+      return;
+    }
+    setBusy(true);
+    try {
+      await adminAddRelay({
+        id: form.id.trim(),
+        region: form.region.trim() || 'global',
+        host: form.host.trim(),
+        port: parseInt(form.port, 10) || 443,
+        websocket_url: form.websocket_url.trim() || undefined,
+        stun_port: parseInt(form.stun_port, 10) || undefined,
+        turn_port: parseInt(form.turn_port, 10) || undefined,
+      });
+      setShowAdd(false);
+      setForm({ id: '', region: '', host: '', port: '443', websocket_url: '', stun_port: '3478', turn_port: '' });
+      data.reload();
+    } catch {
+      window.alert('Failed to add relay node');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeRelay = async (id: string) => {
+    if (!window.confirm(`Remove relay node ${id}?`)) return;
+    setRemoving(id);
+    try {
+      await adminRemoveRelay(id);
+      data.reload();
+    } catch {
+      window.alert('Failed to remove relay node');
+    } finally {
+      setRemoving(null);
+    }
+  };
+
   return (
     <>
       <div className="metrics-bar">
@@ -564,23 +632,55 @@ const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
         </div>
       </div>
 
+      {showAdd && (
+        <div className="section" style={{ borderColor: 'var(--border)' }}>
+          <div className="section-header">
+            <span className="section-title">Add Relay Node</span>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+          </div>
+          <div className="add-relay-form" style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+            {([['id', 'ID *'], ['region', 'Region'], ['host', 'Host *'], ['port', 'Port'], ['websocket_url', 'WebSocket URL'], ['stun_port', 'STUN Port'], ['turn_port', 'TURN Port']] as const).map(([key, label]) => (
+              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {label}
+                <input
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={key === 'port' ? '443' : key === 'stun_port' ? '3478' : ''}
+                  style={{ padding: '8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)' }}
+                />
+              </label>
+            ))}
+          </div>
+          <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
+            <button className="btn-admin-primary" onClick={addRelay} disabled={busy}>{busy ? 'Adding…' : 'Add Relay'}</button>
+          </div>
+        </div>
+      )}
+
       <div className="section">
         <div className="section-header">
           <span className="section-title">Relay Nodes</span>
-          <button className="btn-admin-primary" id="admin-relays-add-btn"><I.plus />Add Relay Node</button>
+          <button className="btn-admin-primary" id="admin-relays-add-btn" onClick={() => setShowAdd(s => !s)}><I.plus />Add Relay Node</button>
         </div>
         {relays.length === 0 ? (
           <EmptyState icon={<I.globe />} title="No relay nodes configured" desc="Fallback relay nodes (TURN/STUN relays) for nat-traversal fallback are listed here." />
         ) : (
           <table className="data-table">
-            <thead><tr><th>ID</th><th>Region</th><th>Host</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Region</th><th>Host</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {relays.map((rl, i) => (
                 <tr key={rl.id ?? `relay-${i}`}>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.id || '—'}</td>
                   <td>{rl.region || '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.host || '—'}</td>
-                  <td><span className={`badge ${rl.active === false ? 'badge-neutral' : 'badge-success'}`}>{rl.active === false ? 'inactive' : 'active'}</span></td>
+                  <td><span className={`badge ${rl.status === 'offline' || rl.status === 'draining' ? 'badge-neutral' : 'badge-success'}`}>{rl.status || 'online'}</span></td>
+                  <td>
+                    <button className="btn btn-danger btn-sm"
+                      onClick={() => rl.id && removeRelay(rl.id)}
+                      disabled={removing === rl.id}>
+                      {removing === rl.id ? 'Removing…' : 'Remove'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

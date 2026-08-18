@@ -202,6 +202,9 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/admin/audit", adminMw(http.HandlerFunc(s.handleAdminAudit())))
 	s.mux.Handle("GET /v1/admin/usage", adminMw(http.HandlerFunc(s.handleAdminUsage())))
 	s.mux.Handle("GET /v1/admin/relays", adminMw(http.HandlerFunc(s.handleAdminRelays())))
+	s.mux.Handle("POST /v1/admin/relays", adminMw(http.HandlerFunc(s.handleAdminAddRelay())))
+	s.mux.Handle("DELETE /v1/admin/relays/{id}", adminMw(http.HandlerFunc(s.handleAdminRemoveRelay())))
+	s.mux.Handle("POST /v1/admin/devices/{id}/revoke", adminMw(http.HandlerFunc(s.handleAdminRevokeDevice())))
 
 	// Relay & STUN/TURN endpoints
 	s.mux.HandleFunc("GET /v1/relays", s.handleListRelays())
@@ -1069,6 +1072,87 @@ func (s *Server) handleAdminRelays() http.HandlerFunc {
 		nodes := s.relayRegistry.GetNodes(false)
 		api.WriteJSON(w, http.StatusOK, nodes)
 	}
+}
+
+// handleAdminAddRelay registers a new relay node in the cluster registry.
+func (s *Server) handleAdminAddRelay() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req api.RelayAddRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid relay payload", http.StatusBadRequest)
+			return
+		}
+		if req.ID == "" || req.Host == "" {
+			api.WriteError(w, "invalid_request", "relay id and host are required", http.StatusBadRequest)
+			return
+		}
+
+		node := relay.RelayNode{
+			ID:          req.ID,
+			Region:      req.Region,
+			Host:        req.Host,
+			Port:        req.Port,
+			WebSocketURL: req.WebSocketURL,
+			STUNPort:    req.STUNPort,
+			TURNPort:    req.TURNPort,
+			MaxCapacity: req.MaxCapacity,
+		}
+		s.relayRegistry.RegisterNode(node)
+
+		s.audit.Log(r.Context(), s.adminActorID(r), "relay.add", "relay:"+node.ID, "host="+node.Host+" region="+node.Region)
+
+		for _, n := range s.relayRegistry.GetNodes(true) {
+			if n.ID == node.ID {
+				api.WriteJSON(w, http.StatusCreated, n)
+				return
+			}
+		}
+		api.WriteJSON(w, http.StatusCreated, node)
+	}
+}
+
+// handleAdminRemoveRelay removes a relay node from the cluster registry.
+func (s *Server) handleAdminRemoveRelay() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			api.WriteError(w, "invalid_request", "relay id is required", http.StatusBadRequest)
+			return
+		}
+		s.relayRegistry.DeregisterNode(id)
+		s.audit.Log(r.Context(), s.adminActorID(r), "relay.remove", "relay:"+id, "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{"removed": true, "id": id})
+	}
+}
+
+// handleAdminRevokeDevice transitions a device into the revoked state.
+func (s *Server) handleAdminRevokeDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.devices.Revoke(r.Context(), types.ID(parsed)); err != nil {
+			s.logger.Error("failed to revoke device", "error", err)
+			api.WriteError(w, "not_found", "device not found", http.StatusNotFound)
+			return
+		}
+
+		s.audit.Log(r.Context(), s.adminActorID(r), "device.revoke", "device:"+id, "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{"revoked": true, "id": id})
+	}
+}
+
+// adminActorID resolves the caller identity for audit logging on admin actions.
+func (s *Server) adminActorID(r *http.Request) types.ID {
+	callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+	if !ok {
+		return types.ID{}
+	}
+	return callerID
 }
 
 func (s *Server) handleListRelays() http.HandlerFunc {
