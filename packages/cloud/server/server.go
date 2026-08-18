@@ -35,6 +35,7 @@ type Server struct {
 	connections   *services.ConnectionService
 	signaling     *services.SignalingHub
 	events        *services.EventHub
+	audit         *services.AuditService
 	relayServer   *relay.RelayServer
 	relayRegistry *relay.RelayRegistry
 	turnManager   *relay.TURNManager
@@ -122,6 +123,7 @@ func NewServer(
 		connections:   cs,
 		signaling:     sh,
 		events:        services.NewEventHub(),
+		audit:         services.NewAuditService([]byte(cfg.TURNSecret), logger),
 		relayServer:   rs,
 		relayRegistry: reg,
 		turnManager:   relay.NewTURNManager(turnSecret, turnRealm),
@@ -195,6 +197,11 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/admin/devices", adminMw(http.HandlerFunc(s.handleAdminDevices())))
 	s.mux.Handle("GET /v1/admin/connections", adminMw(http.HandlerFunc(s.handleAdminConnections())))
 	s.mux.Handle("GET /v1/admin/services", adminMw(http.HandlerFunc(s.handleAdminServices())))
+	s.mux.Handle("GET /v1/admin/users", adminMw(http.HandlerFunc(s.handleAdminUsers())))
+	s.mux.Handle("GET /v1/admin/network", adminMw(http.HandlerFunc(s.handleAdminNetwork())))
+	s.mux.Handle("GET /v1/admin/audit", adminMw(http.HandlerFunc(s.handleAdminAudit())))
+	s.mux.Handle("GET /v1/admin/usage", adminMw(http.HandlerFunc(s.handleAdminUsage())))
+	s.mux.Handle("GET /v1/admin/relays", adminMw(http.HandlerFunc(s.handleAdminRelays())))
 
 	// Relay & STUN/TURN endpoints
 	s.mux.HandleFunc("GET /v1/relays", s.handleListRelays())
@@ -246,6 +253,7 @@ func (s *Server) handleRegisterDevice() http.HandlerFunc {
 			return
 		}
 
+		s.audit.Log(r.Context(), types.ID{}, "device.register", "device:"+resp.ID.String(), "name="+resp.Name)
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
@@ -335,6 +343,7 @@ func (s *Server) handleUnregisterDevice() http.HandlerFunc {
 			return
 		}
 
+		s.audit.Log(r.Context(), identityID, "device.unregister", "device:"+parsedUUID.String(), "")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -358,6 +367,7 @@ func (s *Server) handleCreateShare() http.HandlerFunc {
 		s.events.PublishTo(resp.ProviderID, ev)
 		s.events.PublishTo(resp.RecipientID, ev)
 
+		s.audit.Log(r.Context(), resp.ProviderID, "share.create", "share:"+resp.ID.String(), "recipient="+resp.RecipientID.String())
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
@@ -433,6 +443,7 @@ func (s *Server) handleCreateConnection() http.HandlerFunc {
 		s.events.PublishTo(resp.ProviderID, ev)
 		s.events.PublishTo(resp.RecipientID, ev)
 
+		s.audit.Log(r.Context(), callerID, "connection.create", "connection:"+resp.ID.String(), "provider="+resp.ProviderID.String())
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
@@ -718,6 +729,7 @@ func (s *Server) handleCreateOrganization() http.HandlerFunc {
 			return
 		}
 
+		s.audit.Log(r.Context(), callerID, "org.create", "org:"+resp.ID.String(), "name="+resp.Name+" slug="+resp.Slug)
 		api.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
@@ -947,6 +959,115 @@ func (s *Server) handleAdminOrgMembers() http.HandlerFunc {
 			})
 		}
 		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminUsers lists every registered user across the platform: org members
+// enriched with their linked device state.
+func (s *Server) handleAdminUsers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		devices, _ := s.store.ListDevices(r.Context())
+		members, _ := s.store.ListOrgMembersAll(r.Context())
+
+		deviceByID := make(map[types.ID]*types.Device, len(devices))
+		for _, d := range devices {
+			deviceByID[d.ID] = d
+		}
+
+		resp := make([]map[string]interface{}, 0, len(members))
+		for _, m := range members {
+			dev := deviceByID[m.DeviceID]
+			status := m.Status
+			if dev != nil {
+				status = string(dev.State)
+			}
+			resp = append(resp, map[string]interface{}{
+				"id":              m.ID,
+				"name":            m.Name,
+				"email":           m.Email,
+				"role":            m.Role,
+				"status":          status,
+				"device_id":       m.DeviceID,
+				"organization_id": m.OrganizationID,
+			})
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleAdminNetwork reports IPAM allocation usage for the overlay network.
+func (s *Server) handleAdminNetwork() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		allocated, capacity, err := s.store.IPAMUsage(r.Context())
+		if err != nil {
+			s.logger.Error("failed to read IPAM usage", "error", err)
+			api.WriteError(w, "internal_error", "failed to read IPAM usage", http.StatusInternalServerError)
+			return
+		}
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"pool":            "100.64.0.0/10",
+			"subnets_allocated": allocated,
+			"capacity":        capacity,
+			"utilization_pct": float64(allocated) / float64(capacity) * 100,
+		})
+	}
+}
+
+// handleAdminAudit returns recent operator audit log entries, newest first.
+func (s *Server) handleAdminAudit() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		events := s.audit.ListEvents()
+		// Newest first, capped at 200.
+		n := len(events)
+		if n > 200 {
+			n = 200
+		}
+		out := make([]*services.AuditEvent, 0, n)
+		for i := len(events) - 1; i >= 0 && len(out) < n; i-- {
+			out = append(out, events[i])
+		}
+		api.WriteJSON(w, http.StatusOK, out)
+	}
+}
+
+// handleAdminUsage aggregates platform usage counters.
+func (s *Server) handleAdminUsage() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		devices, _ := s.store.ListDevices(r.Context())
+		orgs, _ := s.store.ListOrganizations(r.Context())
+		members, _ := s.store.ListOrgMembersAll(r.Context())
+		shares, _ := s.store.ListSharesAll(r.Context())
+		conns, _ := s.store.ListAllConnections(r.Context())
+
+		stateCounts := map[string]int{}
+		for _, c := range conns {
+			stateCounts[string(c.State)]++
+		}
+
+		trusted := 0
+		for _, d := range devices {
+			if d.State == types.DeviceStateTrusted || d.State == types.DeviceStateRegistered {
+				trusted++
+			}
+		}
+
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"devices":         len(devices),
+			"trusted_devices": trusted,
+			"organizations":   len(orgs),
+			"members":         len(members),
+			"shares":          len(shares),
+			"connections":     len(conns),
+			"connections_by_state": stateCounts,
+		})
+	}
+}
+
+// handleAdminRelays lists the relay registry nodes.
+func (s *Server) handleAdminRelays() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nodes := s.relayRegistry.GetNodes(false)
+		api.WriteJSON(w, http.StatusOK, nodes)
 	}
 }
 

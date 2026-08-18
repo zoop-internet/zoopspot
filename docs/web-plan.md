@@ -25,11 +25,14 @@ and organizations, and operators get a working admin console.
   `DaemonStatusCard` in Overview: probes `127.0.0.1:9090`, shows live status,
   telemetry/throughput, peers, and subscribes to the daemon SSE stream). REMAINING:
   routing (App-level view routing).
-- **Phase 5 (admin console)** — MOSTLY DONE: Devices/Organizations/Overview/Connections/
-  System tabs now fetch real data via admin endpoints (`/v1/admin/devices`,
-  `/v1/admin/connections`, `/v1/admin/services` added; middleware via `ZOOP_ADMIN_IDS`).
-  REMAINING: Users tab (account model), Operations/Usage/Billing (no telemetry backend yet),
-  Network/Relays/Security/Abuse still placeholders.
+- **Phase 5 (admin console)** — MOSTLY DONE: all admin tabs fetch real data.
+  Endpoints added: `/v1/admin/devices`, `/v1/admin/connections`, `/v1/admin/services`,
+  `/v1/admin/users`, `/v1/admin/network` (IPAM usage), `/v1/admin/audit` (HMAC-chained
+  audit log), `/v1/admin/usage`, `/v1/admin/relays`; middleware via `ZOOP_ADMIN_IDS`.
+  AdminConsole Users/Network/Relays/Security/Operations/Usage tabs wired to real data;
+  audit entries logged for device.register/unregister, share.create, connection.create,
+  org.create. REMAINING: Billing tab (no billing model), device revoke endpoint,
+  relay add/remove endpoints.
 - **Phase 6 (deployment)** — MOSTLY DONE: `VITE_API_BASE` build-time env for the web app
   (`web/.env.example`); `CORSMiddleware` honoring `ZOOP_ALLOWED_ORIGINS`; `SecurityHeaders
   Middleware` (CSP, HSTS, X-Frame-Options, nosniff, referrer/permissions policies);

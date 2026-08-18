@@ -231,6 +231,73 @@ export async function adminServices(): Promise<Record<string, ApiServiceHealth>>
   return apiFetch<Record<string, ApiServiceHealth>>(path, { headers: authHeaders });
 }
 
+export interface ApiAdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  device_id?: string;
+  organization_id: string;
+}
+
+export interface ApiNetworkUsage {
+  pool: string;
+  subnets_allocated: number;
+  capacity: number;
+  utilization_pct: number;
+}
+
+export interface ApiAuditEvent {
+  id: string;
+  actor_id: string;
+  action: string;
+  target_id: string;
+  metadata?: string;
+  timestamp: string;
+  signature: string;
+}
+
+export interface ApiUsage {
+  devices: number;
+  trusted_devices: number;
+  organizations: number;
+  members: number;
+  shares: number;
+  connections: number;
+  connections_by_state: Record<string, number>;
+}
+
+export async function adminUsers(): Promise<ApiAdminUser[]> {
+  const path = '/v1/admin/users';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiAdminUser[]>(path, { headers: authHeaders });
+}
+
+export async function adminNetwork(): Promise<ApiNetworkUsage> {
+  const path = '/v1/admin/network';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiNetworkUsage>(path, { headers: authHeaders });
+}
+
+export async function adminAudit(): Promise<ApiAuditEvent[]> {
+  const path = '/v1/admin/audit';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiAuditEvent[]>(path, { headers: authHeaders });
+}
+
+export async function adminUsage(): Promise<ApiUsage> {
+  const path = '/v1/admin/usage';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiUsage>(path, { headers: authHeaders });
+}
+
+export async function adminRelays(): Promise<unknown[]> {
+  const path = '/v1/admin/relays';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<unknown[]>(path, { headers: authHeaders });
+}
+
 // ─── Share operations ─────────────────────────────────────────
 
 export async function createShare(authDeviceId: string, recipientId: string): Promise<ApiShare> {

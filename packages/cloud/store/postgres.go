@@ -847,3 +847,12 @@ func (s *PostgresStore) AllocateConnectionIPs(ctx context.Context) (string, stri
 
 	return providerIP, recipientIP, nil
 }
+
+func (s *PostgresStore) IPAMUsage(ctx context.Context) (allocated, capacity uint32, err error) {
+	var allocatedPairs uint32
+	err = s.db.QueryRowContext(ctx, `SELECT allocated_pairs FROM ipam_counter WHERE id = 1`).Scan(&allocatedPairs)
+	if err != nil {
+		return 0, 0, err
+	}
+	return allocatedPairs, ipamMaxPairs, nil
+}

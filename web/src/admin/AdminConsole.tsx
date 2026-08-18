@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
-import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, listDevices } from '../api/client';
-import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth } from '../api/client';
+import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, listDevices } from '../api/client';
+import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
 import './AdminConsole.css';
 
 /* ─── Icon Primitives ─────────────────────────────────────────────── */
@@ -130,18 +130,29 @@ function useAdminData() {
   const [orgMembers, setOrgMembers] = useState<Record<string, ApiOrgMember[]>>({});
   const [connections, setConnections] = useState<ApiConnection[]>([]);
   const [services, setServices] = useState<Record<string, ApiServiceHealth>>({});
+  const [users, setUsers] = useState<ApiAdminUser[]>([]);
+  const [network, setNetwork] = useState<ApiNetworkUsage | null>(null);
+  const [audit, setAudit] = useState<ApiAuditEvent[]>([]);
+  const [usage, setUsage] = useState<ApiUsage | null>(null);
+  const [relays, setRelays] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(() => {
     setLoading(true);
     Promise.all([
       listDevices(), adminListOrganizations(), adminListConnections(), adminServices(),
+      adminUsers(), adminNetwork(), adminAudit(), adminUsage(), adminRelays(),
     ])
-      .then(async ([d, o, c, svc]) => {
+      .then(async ([d, o, c, svc, u, nw, au, us, rl]) => {
         setDevices(d);
         setOrgs(o);
         setConnections(c);
         setServices(svc);
+        setUsers(u);
+        setNetwork(nw);
+        setAudit(au);
+        setUsage(us);
+        setRelays(rl);
         const memberMap: Record<string, ApiOrgMember[]> = {};
         await Promise.all(o.map(async org => {
           try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
@@ -155,7 +166,7 @@ function useAdminData() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  return { devices, orgs, orgMembers, connections, services, loading, reload };
+  return { devices, orgs, orgMembers, connections, services, users, network, audit, usage, relays, loading, reload };
 }
 
 /* ─── Tab Screens ─────────────────────────────────────────────────── */
@@ -223,62 +234,92 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data
   );
 };
 
-const OperationsTab: React.FC = () => (
+const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
     <div className="metrics-bar">
       <div className="metric-item">
-        <div className="metric-label">System Uptime</div>
-        <div className="metric-value">—</div>
+        <div className="metric-label">Registered Devices</div>
+        <div className="metric-value">{data.devices.length}</div>
       </div>
       <div className="metric-item">
-        <div className="metric-label">Open Incidents</div>
-        <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
+        <div className="metric-label">Active Connections</div>
+        <div className="metric-value">{data.usage?.connections ?? '—'}</div>
       </div>
       <div className="metric-item">
-        <div className="metric-label">Deployments</div>
-        <div className="metric-value">—</div>
+        <div className="metric-label">Organizations</div>
+        <div className="metric-value">{data.orgs.length}</div>
       </div>
     </div>
 
     <div className="section">
       <div className="section-header">
-        <span className="section-title">Incident Log</span>
-        <button className="btn btn-secondary btn-sm" id="ops-incident-btn"><I.plus />New Incident</button>
+        <span className="section-title">Recent Activity</span>
+        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+        </button>
       </div>
-      <EmptyState icon={<I.activity />} title="No active incidents" desc="Platform incidents and scheduled maintenance windows will be tracked here." />
+      {data.audit.length === 0 ? (
+        <EmptyState icon={<I.activity />} title="No activity recorded" desc="Platform incidents and scheduled maintenance windows will be tracked here." />
+      ) : (
+        <table className="data-table">
+          <thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead>
+          <tbody>
+            {data.audit.slice(0, 25).map(ev => (
+              <tr key={ev.id.toString()}>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
+                <td><span className="badge badge-neutral">{ev.action}</span></td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   </>
 );
 
-const UsageTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">API Requests</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">Last 24h</div>
+const UsageTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const u = data.usage;
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Devices</div>
+          <div className="metric-value">{u ? u.devices : '—'}</div>
+          <div className="metric-sub">trusted: {u ? u.trusted_devices : 0}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Connections</div>
+          <div className="metric-value">{u ? u.connections : '—'}</div>
+          <div className="metric-sub">by state: {u ? Object.entries(u.connections_by_state).map(([k, v]) => `${k}:${v}`).join(', ') : '—'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Members</div>
+          <div className="metric-value">{u ? u.members : '—'}</div>
+          <div className="metric-sub">across {u ? u.organizations : 0} orgs</div>
+        </div>
       </div>
-      <div className="metric-item">
-        <div className="metric-label">Data Transferred</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">This month</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Active Users</div>
-        <div className="metric-value">—</div>
-        <div className="metric-sub">7-day active</div>
-      </div>
-    </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Usage Analytics</span>
-        <button className="btn btn-secondary btn-sm" id="usage-export-btn">Export CSV</button>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Usage Analytics</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {!u ? (
+          <EmptyState icon={<I.barChart />} title="No usage telemetry" desc="Per-account API consumption and bandwidth metrics will display here once the telemetry agent connects." />
+        ) : (
+          <div style={{ padding: '16px' }}>
+            <div className="info-row"><span className="info-key">Shares</span><span className="info-val">{u.shares}</span></div>
+            <div className="info-row"><span className="info-key">Organizations</span><span className="info-val">{u.organizations}</span></div>
+            <div className="info-row"><span className="info-key">Trusted devices</span><span className="info-val">{u.trusted_devices}</span></div>
+          </div>
+        )}
       </div>
-      <EmptyState icon={<I.barChart />} title="No usage telemetry" desc="Per-account API consumption and bandwidth metrics will display here once the telemetry agent connects." />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const BillingTab: React.FC = () => (
   <>
@@ -307,15 +348,33 @@ const BillingTab: React.FC = () => (
   </>
 );
 
-const UsersTab: React.FC = () => (
+const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
     <SearchBar id="admin-users-search" placeholder="Search accounts by name, email or ID…" />
     <div className="section">
       <div className="section-header">
-        <span className="section-title">Accounts</span>
-        <button className="btn btn-secondary btn-sm" id="admin-users-export-btn">Export Accounts</button>
+        <span className="section-title">Accounts ({data.users.length})</span>
+        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+        </button>
       </div>
-      <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here with options to manage role and status." />
+      {data.users.length === 0 ? (
+        <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here with options to manage role and status." />
+      ) : (
+        <table className="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody>
+            {data.users.map(u => (
+              <tr key={u.id.toString()}>
+                <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
+                <td>{u.email || '—'}</td>
+                <td><span className="badge badge-neutral">{u.role}</span></td>
+                <td><span className={`badge ${u.status === 'active' || u.status === 'trusted' ? 'badge-success' : 'badge-neutral'}`}>{u.status}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   </>
 );
@@ -429,86 +488,155 @@ const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ d
   );
 };
 
-const NetworkTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Subnets</div>
-        <div className="metric-value">—</div>
+const NetworkTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const nw = data.network;
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Pool</div>
+          <div className="metric-value" style={{ fontSize: '0.9rem' }}>{nw ? nw.pool : '—'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Subnets Allocated</div>
+          <div className="metric-value">{nw ? nw.subnets_allocated : '—'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Utilization</div>
+          <div className="metric-value">{nw ? `${nw.utilization_pct.toFixed(3)}%` : '—'}</div>
+        </div>
       </div>
-      <div className="metric-item">
-        <div className="metric-label">IP Allocated</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Routes</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">IPAM & Overlay Routing</span>
-        <button className="btn btn-secondary btn-sm" id="network-subnet-btn"><I.plus />Add Subnet</button>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">IPAM & Overlay Routing</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {!nw ? (
+          <EmptyState icon={<I.layers />} title="No subnets allocated" desc="Overlay IP pools, WireGuard subnets, and routing table allocations will display here." />
+        ) : (
+          <div style={{ padding: '16px' }}>
+            <div className="info-row">
+              <span className="info-key">CGNAT Pool</span>
+              <span className="info-val" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{nw.pool}</span>
+              <span />
+            </div>
+            <div className="info-row">
+              <span className="info-key">Allocated /30 Subnets</span>
+              <span className="info-val">{nw.subnets_allocated}</span>
+              <span />
+            </div>
+            <div className="info-row">
+              <span className="info-key">Capacity</span>
+              <span className="info-val">{nw.capacity.toLocaleString()}</span>
+              <span />
+            </div>
+            <div className="info-row">
+              <span className="info-key">Utilization</span>
+              <span className="info-val">{nw.utilization_pct.toFixed(3)}%</span>
+              <span />
+            </div>
+          </div>
+        )}
       </div>
-      <EmptyState icon={<I.layers />} title="No subnets allocated" desc="Overlay IP pools, WireGuard subnets, and routing table allocations will display here." />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
-const RelaysTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Relay Nodes</div>
-        <div className="metric-value">—</div>
+const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const relays = data.relays as unknown as { id?: string; region?: string; host?: string; active?: boolean }[];
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Relay Nodes</div>
+          <div className="metric-value">{relays.length}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Active Sessions</div>
+          <div className="metric-value">—</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Global Bandwidth</div>
+          <div className="metric-value">—</div>
+        </div>
       </div>
-      <div className="metric-item">
-        <div className="metric-label">Active Sessions</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Global Bandwidth</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Relay Nodes</span>
-        <button className="btn-admin-primary" id="admin-relays-add-btn"><I.plus />Add Relay Node</button>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Relay Nodes</span>
+          <button className="btn-admin-primary" id="admin-relays-add-btn"><I.plus />Add Relay Node</button>
+        </div>
+        {relays.length === 0 ? (
+          <EmptyState icon={<I.globe />} title="No relay nodes configured" desc="Fallback relay nodes (TURN/STUN relays) for nat-traversal fallback are listed here." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>ID</th><th>Region</th><th>Host</th><th>Status</th></tr></thead>
+            <tbody>
+              {relays.map((rl, i) => (
+                <tr key={rl.id ?? `relay-${i}`}>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.id || '—'}</td>
+                  <td>{rl.region || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.host || '—'}</td>
+                  <td><span className={`badge ${rl.active === false ? 'badge-neutral' : 'badge-success'}`}>{rl.active === false ? 'inactive' : 'active'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      <EmptyState icon={<I.globe />} title="No relay nodes configured" desc="Fallback relay nodes (TURN/STUN relays) for nat-traversal fallback are listed here." />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
-const SecurityTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Open Alerts</div>
-        <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
+const SecurityTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const events = data.audit;
+  const revocations = events.filter(e => e.action.includes('revoke')).length;
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Open Alerts</div>
+          <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Revocations</div>
+          <div className="metric-value">{revocations}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Failed Auth (24h)</div>
+          <div className="metric-value">—</div>
+        </div>
       </div>
-      <div className="metric-item">
-        <div className="metric-label">Revocations</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Failed Auth (24h)</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Security & Audit Log</span>
-        <button className="btn btn-danger btn-sm" id="admin-revoke-btn"><I.alert />Revoke Session</button>
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Security & Audit Log</span>
+          <button className="btn btn-danger btn-sm" id="admin-revoke-btn"><I.alert />Revoke Session</button>
+        </div>
+        {events.length === 0 ? (
+          <EmptyState icon={<I.shield />} title="No security events" desc="Authentication anomalies, revocation logs, and authorization failures will appear here." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
+            <tbody>
+              {events.slice(0, 50).map(ev => (
+                <tr key={ev.id.toString()}>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
+                  <td><span className="badge badge-neutral">{ev.action}</span></td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.target_id}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      <EmptyState icon={<I.shield />} title="No security events" desc="Authentication anomalies, revocation logs, and authorization failures will appear here." />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const AbuseTab: React.FC = () => (
   <>
@@ -591,16 +719,16 @@ type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<ty
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
   overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, active nodes and service status',  render: d => <OverviewTab data={d} /> },
-  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: () => <OperationsTab /> },
-  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: () => <UsageTab /> },
+  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: d => <OperationsTab data={d} /> },
+  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: d => <UsageTab data={d} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
-  users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: () => <UsersTab /> },
+  users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
   organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} />, action: <button className="btn-admin-primary" id="admin-orgs-header-btn"><I.plus />Create Org</button> },
   devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: d => <DevicesTab data={d} /> },
   connections:   { title: 'Connections',         subtitle: 'Live P2P tunnels and relay connections',                  render: d => <ConnectionsTab data={d} /> },
-  network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: () => <NetworkTab /> },
-  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: () => <RelaysTab />, action: <button className="btn-admin-primary" id="admin-relays-header-btn"><I.plus />Add Relay Node</button> },
-  security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: () => <SecurityTab /> },
+  network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: d => <NetworkTab data={d} /> },
+  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: d => <RelaysTab data={d} />, action: <button className="btn-admin-primary" id="admin-relays-header-btn"><I.plus />Add Relay Node</button> },
+  security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: d => <SecurityTab data={d} /> },
   abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           render: () => <AbuseTab /> },
   system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
 };

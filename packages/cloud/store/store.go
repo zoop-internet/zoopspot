@@ -54,6 +54,9 @@ type Store interface {
 	// AllocateConnectionIPs returns a unique (providerIP, recipientIP) pair for a new connection
 	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
 	AllocateConnectionIPs(ctx context.Context) (providerIP, recipientIP string, err error)
+
+	// IPAMUsage returns the number of allocated /30 pairs and the pool capacity.
+	IPAMUsage(ctx context.Context) (allocated, capacity uint32, err error)
 }
 
 // ipamAllocator hands out sequential IP pairs from 100.64.0.0/10 (RFC 6598).
@@ -72,7 +75,7 @@ func (a *ipamAllocator) allocate() (string, string, error) {
 
 	// 100.64.0.0/10 spans 100.64.0.0 – 100.127.255.255 (4,194,304 host IPs = 1,048,576 /30 subnets).
 	// We consume 4 IPs per connection (.1 provider, .2 recipient, .0 net, .3 bcast).
-	const maxPairs = 64 * 256 * 64 // 1,048,576
+	const maxPairs = ipamMaxPairs
 
 	if n >= maxPairs {
 		return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
@@ -119,6 +122,14 @@ func NewInMemoryStore() *InMemoryStore {
 
 func (s *InMemoryStore) AllocateConnectionIPs(_ context.Context) (string, string, error) {
 	return s.ipam.allocate()
+}
+
+const ipamMaxPairs = 64 * 256 * 64 // 1,048,576 /30 pairs across 100.64.0.0/10
+
+func (s *InMemoryStore) IPAMUsage(_ context.Context) (allocated, capacity uint32, err error) {
+	s.ipam.mu.Lock()
+	defer s.ipam.mu.Unlock()
+	return s.ipam.counter, ipamMaxPairs, nil
 }
 
 func (s *InMemoryStore) SaveDevice(ctx context.Context, device *types.Device) error {
