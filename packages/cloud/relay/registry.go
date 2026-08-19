@@ -94,7 +94,7 @@ func (r *RelayRegistry) GetNodes(includeDead bool) []RelayNode {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var result []RelayNode
+	result := []RelayNode{}
 	now := time.Now()
 
 	for _, node := range r.nodes {
@@ -112,7 +112,7 @@ func (r *RelayRegistry) GetNodesByRegion(region string) []RelayNode {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var result []RelayNode
+	result := []RelayNode{}
 	now := time.Now()
 
 	for _, node := range r.nodes {

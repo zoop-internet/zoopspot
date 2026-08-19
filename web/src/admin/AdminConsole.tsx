@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
 import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, listDevices } from '../api/client';
@@ -106,10 +106,10 @@ const StatusBadge: React.FC<{ s: SvcStatus }> = ({ s }) => {
   return <span className={`badge ${cls}`}>{label}</span>;
 };
 
-const SearchBar: React.FC<{ id: string; placeholder: string }> = ({ id, placeholder }) => (
+const SearchBar: React.FC<{ id: string; placeholder: string; label: string }> = ({ id, placeholder, label }) => (
   <div className="admin-search">
     <I.search />
-    <input id={id} type="search" placeholder={placeholder} />
+    <input id={id} type="search" placeholder={placeholder} aria-label={label} />
   </div>
 );
 
@@ -136,99 +136,366 @@ function useAdminData() {
   const [usage, setUsage] = useState<ApiUsage | null>(null);
   const [relays, setRelays] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const reload = useCallback(() => {
     setLoading(true);
+    setError(null);
     Promise.all([
       listDevices(), adminListOrganizations(), adminListConnections(), adminServices(),
       adminUsers(), adminNetwork(), adminAudit(), adminUsage(), adminRelays(),
     ])
       .then(async ([d, o, c, svc, u, nw, au, us, rl]) => {
-        setDevices(d);
-        setOrgs(o);
-        setConnections(c);
-        setServices(svc);
-        setUsers(u);
-        setNetwork(nw);
-        setAudit(au);
-        setUsage(us);
-        setRelays(rl);
+        setDevices(d ?? []);
+        setOrgs(o ?? []);
+        setConnections(c ?? []);
+        setServices(svc ?? {});
+        setUsers(u ?? []);
+        setNetwork(nw ?? null);
+        setAudit(au ?? []);
+        setUsage(us ?? null);
+        setRelays(rl ?? []);
         const memberMap: Record<string, ApiOrgMember[]> = {};
         await Promise.all(o.map(async org => {
           try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
           catch { memberMap[org.id.toString()] = []; }
         }));
         setOrgMembers(memberMap);
+        setHasLoaded(true);
+        hasLoadedRef.current = true;
+        setLastUpdated(new Date());
       })
-      .catch(() => { /* keep last state */ })
+      .catch(() => {
+        // Keep last known state on refresh failures; surface the error on first load.
+        if (!hasLoadedRef.current) setError('Failed to load platform data. Check that the control plane is reachable.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
-  return { devices, orgs, orgMembers, connections, services, users, network, audit, usage, relays, loading, reload };
+  return { devices, orgs, orgMembers, connections, services, users, network, audit, usage, relays, loading, hasLoaded, error, lastUpdated, reload };
 }
 
 /* ─── Tab Screens ─────────────────────────────────────────────────── */
 
-const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
-  const onlineCount = data.devices.filter(d => d.status === 'trusted' || d.status === 'active').length;
-  return (
-    <>
-      <div className="metrics-bar">
-        <div className="metric-item">
-          <div className="metric-label">Devices</div>
-          <div className="metric-value">{data.devices.length}</div>
-          <div className="metric-sub">Registered</div>
-        </div>
-        <div className="metric-item">
-          <div className="metric-label">Organizations</div>
-          <div className="metric-value">{data.orgs.length}</div>
-          <div className="metric-sub">Accounts</div>
-        </div>
-        <div className="metric-item">
-          <div className="metric-label">Members</div>
-          <div className="metric-value">
-            {Object.values(data.orgMembers).reduce((n, m) => n + m.length, 0)}
-          </div>
-          <div className="metric-sub">Across orgs</div>
-        </div>
-        <div className="metric-item">
-          <div className="metric-label">Trusted</div>
-          <div className="metric-value">{onlineCount}</div>
-          <div className="metric-sub">Active endpoints</div>
-        </div>
-        <div className="metric-item">
-          <div className="metric-label">Security</div>
-          <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
-          <div className="metric-sub">Open alerts</div>
+const SERVICE_LABELS: Record<string, string> = {
+  store: 'Store',
+  relays: 'Relay cluster',
+  signaling: 'Signaling',
+  turn: 'TURN',
+};
+
+function timeAgo(d: Date | null): string {
+  if (!d) return 'never';
+  const s = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return d.toLocaleTimeString();
+}
+
+/* ─── Overview dashboard helpers ─────────────────────────────────── */
+
+const STATE_META: Record<string, { label: string; color: string }> = {
+  CONNECTED:    { label: 'Connected',    color: '#22c55e' },
+  REQUESTED:    { label: 'Requested',    color: '#f59e0b' },
+  AUTHORIZED:   { label: 'Authorized',   color: '#06b6d4' },
+  CONNECTING:   { label: 'Connecting',   color: '#3b82f6' },
+  DISCONNECTED: { label: 'Disconnected', color: '#6b7280' },
+};
+
+const KpiCard: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  sub: string;
+  color: string;
+  onClick: () => void;
+}> = ({ icon, label, value, sub, color, onClick }) => (
+  <button className="ov-kpi" onClick={onClick} style={{ '--kpi-accent': color } as React.CSSProperties}>
+    <span className="ov-kpi-icon">{icon}</span>
+    <span className="ov-kpi-main">
+      <span className="ov-kpi-label">{label}</span>
+      <span className="ov-kpi-value">{value}</span>
+      <span className="ov-kpi-sub">{sub}</span>
+    </span>
+    <I.chevronR />
+  </button>
+);
+
+const Panel: React.FC<{
+  title: string;
+  link?: { label: string; tab: AdminTab };
+  note?: string;
+  onNavigate: (t: AdminTab) => void;
+  children: React.ReactNode;
+}> = ({ title, link, note, onNavigate, children }) => (
+  <div className="section ov-panel">
+    <div className="section-header">
+      <span className="section-title">{title}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {note && <span className="section-note">{note}</span>}
+        {link && (
+          <button className="ov-panel-link" onClick={() => onNavigate(link.tab)}>
+            {link.label} <I.chevronR />
+          </button>
+        )}
+      </div>
+    </div>
+    {children}
+  </div>
+);
+
+const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate: (t: AdminTab) => void }> = ({ data, onNavigate }) => {
+  const {
+    devices, orgs, orgMembers, connections, services, network, usage, audit, relays,
+    loading, hasLoaded, error, reload, lastUpdated,
+  } = data;
+
+  const stateCounts = useMemo(() => usage?.connections_by_state ?? {}, [usage]);
+  const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => c.state === 'CONNECTED').length;
+  const pendingRequests = stateCounts['REQUESTED'] ?? connections.filter(c => c.state === 'REQUESTED').length;
+  const members = Object.values(orgMembers).reduce((n, m) => n + m.length, 0);
+  const utilization = network?.utilization_pct ?? null;
+  const ipamWarn = utilization !== null && utilization > 80;
+  const ipamDanger = utilization !== null && utilization > 95;
+
+  const nameOf = useMemo(() => {
+    const byId = new Map(devices.map(d => [d.id.toString(), d.name || 'Unnamed Device']));
+    return (id?: string) => {
+      if (!id) return '—';
+      return byId.get(id.toString()) ?? `${id.toString().slice(0, 8)}…`;
+    };
+  }, [devices]);
+
+  const serviceEntries = Object.entries(services);
+  const servicesOk = serviceEntries.length > 0 && serviceEntries.every(([, s]) => s.status === 'ok');
+
+  const stateSegments = useMemo(() => {
+    const order = ['CONNECTED', 'REQUESTED', 'AUTHORIZED', 'CONNECTING', 'DISCONNECTED'] as const;
+    return order
+      .filter(s => (stateCounts[s] ?? 0) > 0)
+      .map(s => ({ key: s, ...STATE_META[s], count: stateCounts[s] ?? 0 }));
+  }, [stateCounts]);
+  const stateTotal = stateSegments.reduce((n, s) => n + s.count, 0);
+
+  const platformMix = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of devices) {
+      const key = (d.os || d.platform || 'unknown').toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [devices]);
+
+  const relayNodes = useMemo(() => {
+    return (relays as Array<{ id?: string; host?: string; region?: string; status?: string }>)
+      .slice(0, 5);
+  }, [relays]);
+  const relayOnline = relayNodes.filter(r => r.status && !['offline', 'draining', 'unknown'].includes(r.status)).length;
+
+  const topOrgs = useMemo(() => {
+    return orgs
+      .map(o => ({ ...o, members: orgMembers[o.id.toString()]?.length ?? 0 }))
+      .sort((a, b) => b.members - a.members)
+      .slice(0, 4);
+  }, [orgs, orgMembers]);
+
+  if (!hasLoaded && loading) {
+    return (
+      <div className="section">
+        <div className="section-header"><span className="section-title">Platform Overview</span></div>
+        <div className="admin-loading-row">
+          <span className="spinner" />
+          <span>Loading platform data…</span>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <>
+      {error && !hasLoaded && (
+        <div className="error-banner">
+          <I.alert />
+          <span style={{ flex: 1 }}>{error}</span>
+          <button className="btn btn-secondary btn-sm" onClick={reload}>Retry</button>
+        </div>
+      )}
 
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Registered Devices ({data.devices.length})</span>
-          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-          </button>
+          <span className="section-title">Service Status</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="section-note">Updated {timeAgo(lastUpdated)}</span>
+            <button className="btn btn-secondary btn-xs" onClick={reload}>
+              {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
+            </button>
+          </div>
         </div>
-        {data.devices.length === 0 ? (
-          <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
-        ) : (
-          <table className="data-table">
-            <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th></tr></thead>
-            <tbody>
-              {data.devices.map(d => (
-                <tr key={d.id.toString()}>
-                  <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
-                  <td>{d.os || d.platform || '—'}</td>
-                  <td><span className="badge badge-success">{d.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <div className="service-chips">
+          <span className={`service-chip ${servicesOk ? 'service-chip-ok' : serviceEntries.length === 0 ? 'service-chip-warn' : 'service-chip-down'}`}>
+            <span className="chip-dot" />API
+          </span>
+          {serviceEntries.length === 0 ? (
+            <span className="service-chip service-chip-warn"><span className="chip-dot" />No health data</span>
+          ) : (
+            serviceEntries.map(([name, s]) => {
+              const ok = s.status === 'ok';
+              const degraded = s.status === 'degraded';
+              return (
+                <span key={name} className={`service-chip ${ok ? 'service-chip-ok' : degraded ? 'service-chip-warn' : 'service-chip-down'}`}>
+                  <span className="chip-dot" />
+                  {SERVICE_LABELS[name] ?? name}
+                </span>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="ov-kpis">
+        <KpiCard color="#06b6d4" icon={<I.monitor />} label="Registered Devices" value={devices.length} sub="across all accounts" onClick={() => onNavigate('devices')} />
+        <KpiCard color="#22c55e" icon={<I.zap />} label="Active Tunnels" value={activeTunnels} sub="CONNECTED" onClick={() => onNavigate('connections')} />
+        <KpiCard color="#f59e0b" icon={<I.alert />} label="Pending Requests" value={pendingRequests} sub="awaiting approval" onClick={() => onNavigate('connections')} />
+        <KpiCard color="#3b82f6" icon={<I.building />} label="Organizations" value={orgs.length} sub={`${members} members`} onClick={() => onNavigate('organizations')} />
+        <KpiCard color={ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : '#22c55e'} icon={<I.layers />} label="IPAM Utilization" value={utilization !== null ? `${utilization.toFixed(1)}%` : '—'} sub="of 1,048,576 /30 pairs" onClick={() => onNavigate('network')} />
+      </div>
+
+      <div className="ov-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Panel title="Connection States" note={`${stateTotal} tunnels`} link={{ label: 'View connections', tab: 'connections' }} onNavigate={onNavigate}>
+            {stateTotal === 0 ? (
+              <div className="empty-state" style={{ padding: '28px 20px' }}>
+                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.zap /></div>
+                <h3>No connections yet</h3>
+                <p>Approved tunnels across the overlay will appear here.</p>
+              </div>
+            ) : (
+              <div className="ov-seg-wrap">
+                <div className="ov-seg">
+                  {stateSegments.map(s => (
+                    <div key={s.key} style={{ width: `${(s.count / stateTotal) * 100}%`, background: s.color }} />
+                  ))}
+                </div>
+                <div className="ov-seg-legend">
+                  {stateSegments.map(s => (
+                    <span key={s.key} className="ov-seg-item">
+                      <span className="ov-seg-dot" style={{ background: s.color }} />
+                      {s.label} <b>{s.count}</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Overlay Network" link={{ label: 'Manage IPAM', tab: 'network' }} onNavigate={onNavigate}>
+            <div className="ov-ipam">
+              <div className="ov-bar">
+                <div className={`ov-bar-fill ${ipamDanger ? 'danger' : ipamWarn ? 'warn' : 'ok'}`} style={{ width: `${Math.min(100, utilization ?? 0)}%` }} />
+              </div>
+              <div className="ov-bar-meta">
+                <span>{network ? `${network.subnets_allocated.toLocaleString()} /30 allocated` : 'No IPAM data'}</span>
+                <span>{network ? `${network.capacity.toLocaleString()} capacity` : ''}</span>
+              </div>
+            </div>
+            <div className="ov-divider" />
+            <div className="ov-mix-label">Devices by platform</div>
+            <div className="ov-mix">
+              {platformMix.length === 0 ? (
+                <div className="section-note" style={{ padding: '4px 0' }}>No device platform data.</div>
+              ) : (
+                platformMix.map(([name, count]) => (
+                  <div key={name} className="ov-mix-row">
+                    <span className="ov-mix-name">{name}</span>
+                    <div className="ov-mix-bar">
+                      <div className="ov-mix-fill" style={{ width: `${(count / Math.max(1, platformMix[0][1])) * 100}%` }} />
+                    </div>
+                    <span className="ov-mix-count">{count}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Panel title="Recent Activity" link={{ label: 'Audit log', tab: 'security' }} onNavigate={onNavigate}>
+            {audit.length === 0 ? (
+              <div className="empty-state" style={{ padding: '28px 20px' }}>
+                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.activity /></div>
+                <h3>No activity recorded</h3>
+                <p>Audit events will appear here as operators and devices act.</p>
+              </div>
+            ) : (
+              <div className="ov-list">
+                {audit.slice(0, 6).map(ev => (
+                  <div key={ev.id.toString()} className="ov-list-row">
+                    <span className={`status-dot ${ev.action === 'device.revoked' ? 'offline' : 'online'}`} />
+                    <div className="ov-list-main">
+                      <div className="ov-list-name">{ev.action}</div>
+                      <div className="ov-list-sub">{nameOf(ev.actor_id)} · {new Date(ev.timestamp).toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Relay Cluster" note={`${relayOnline}/${relayNodes.length} online`} link={{ label: 'Manage relays', tab: 'relays' }} onNavigate={onNavigate}>
+            {relayNodes.length === 0 ? (
+              <div className="empty-state" style={{ padding: '28px 20px' }}>
+                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.server /></div>
+                <h3>No relay nodes</h3>
+                <p>Add fallback relays for NAT-traversal across regions.</p>
+              </div>
+            ) : (
+              <div className="ov-list">
+                {relayNodes.map(r => {
+                  const up = r.status && !['offline', 'draining', 'unknown'].includes(r.status);
+                  return (
+                    <div key={r.id ?? r.host} className="ov-list-row">
+                      <span className={`status-dot ${up ? 'online' : 'offline'}`} />
+                      <div className="ov-list-main">
+                        <div className="ov-list-name">{r.id || 'relay'}</div>
+                        <div className="ov-list-sub">{r.host || '—'} · {r.region || 'global'}</div>
+                      </div>
+                      <span className={`badge ${up ? 'badge-success' : 'badge-neutral'}`}>{r.status || 'online'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Organizations" link={{ label: 'View all', tab: 'organizations' }} onNavigate={onNavigate}>
+            {topOrgs.length === 0 ? (
+              <div className="empty-state" style={{ padding: '28px 20px' }}>
+                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.building /></div>
+                <h3>No organizations</h3>
+                <p>Enterprise teams will appear here.</p>
+              </div>
+            ) : (
+              <div className="ov-list">
+                {topOrgs.map(o => (
+                  <div key={o.id.toString()} className="ov-list-row">
+                    <div className="ov-list-main">
+                      <div className="ov-list-name">{o.name}</div>
+                      <div className="ov-list-sub">{o.slug ? `/${o.slug}` : ''} · {o.status || 'active'}</div>
+                    </div>
+                    <span className="badge badge-neutral">{o.members} members</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
       </div>
     </>
   );
@@ -350,7 +617,7 @@ const BillingTab: React.FC = () => (
 
 const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
-    <SearchBar id="admin-users-search" placeholder="Search accounts by name, email or ID…" />
+    <SearchBar id="admin-users-search" placeholder="Search accounts by name, email or ID…" label="Search user accounts" />
     <div className="section">
       <div className="section-header">
         <span className="section-title">Accounts ({data.users.length})</span>
@@ -381,7 +648,7 @@ const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data })
 
 const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
   <>
-    <SearchBar id="admin-orgs-search" placeholder="Search organizations by name or ID…" />
+    <SearchBar id="admin-orgs-search" placeholder="Search organizations by name or ID…" label="Search organizations" />
     <div className="section">
       <div className="section-header">
         <span className="section-title">Organizations ({data.orgs.length})</span>
@@ -423,7 +690,7 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
   };
   return (
     <>
-      <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" />
+      <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" label="Search devices" />
       <div className="section">
         <div className="section-header">
           <span className="section-title">Registered Endpoints ({data.devices.length})</span>
@@ -815,10 +1082,10 @@ const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
 };
 
 /* ─── Screen Registry ─────────────────────────────────────────────── */
-type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>) => React.ReactNode; action?: React.ReactNode };
+type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>, navigate: (t: AdminTab) => void) => React.ReactNode; action?: React.ReactNode };
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
-  overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, active nodes and service status',  render: d => <OverviewTab data={d} /> },
+  overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, connection states, overlay usage and service status',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
   operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: d => <OperationsTab data={d} /> },
   usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: d => <UsageTab data={d} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
@@ -875,13 +1142,12 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </nav>
 
         <div className="admin-sidebar-footer">
-          <div className="admin-operator" id="admin-operator-btn" role="button" tabIndex={0}>
+          <div className="admin-operator" id="admin-operator-btn">
             <div className="admin-operator-avatar"><I.user /></div>
             <div className="admin-operator-info">
               <div className="admin-operator-name">Zoop Operator</div>
               <div className="admin-operator-role">Platform Admin</div>
             </div>
-            <I.chevronR />
           </div>
         </div>
       </aside>
@@ -896,7 +1162,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </header>
 
         <div className="admin-page-body" role="region" aria-label={cur.title}>
-          {cur.render(data)}
+          {cur.render(data, setTab)}
         </div>
       </div>
     </div>
