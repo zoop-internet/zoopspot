@@ -394,6 +394,8 @@ html, body, #root {
 .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
 .btn-danger    { background: var(--accent-red-soft); color: #f87171; border-color: rgba(239,68,68,0.18); }
 .btn-danger:hover { background: rgba(239,68,68,0.18); }
+.btn-outline   { background: transparent; }
+.btn-outline:hover { background: rgba(255,255,255,0.05); }
 
 /* Badges */
 .badge {

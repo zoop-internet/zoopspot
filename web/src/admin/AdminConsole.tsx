@@ -106,10 +106,17 @@ const StatusBadge: React.FC<{ s: SvcStatus }> = ({ s }) => {
   return <span className={`badge ${cls}`}>{label}</span>;
 };
 
-const SearchBar: React.FC<{ id: string; placeholder: string; label: string }> = ({ id, placeholder, label }) => (
+const SearchBar: React.FC<{ id: string; placeholder: string; label: string; value?: string; onChange?: (v: string) => void }> = ({ id, placeholder, label, value, onChange }) => (
   <div className="admin-search">
     <I.search />
-    <input id={id} type="search" placeholder={placeholder} aria-label={label} />
+    <input
+      id={id}
+      type="search"
+      placeholder={placeholder}
+      aria-label={label}
+      value={value}
+      onChange={onChange ? e => onChange(e.target.value) : undefined}
+    />
   </div>
 );
 
@@ -674,13 +681,45 @@ const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) 
   </>
 );
 
+const DEV_STATUS_BADGE: Record<string, string> = {
+  trusted: 'badge-success',
+  registered: 'badge-neutral',
+  suspended: 'badge-warning',
+  revoked: 'badge-danger',
+};
+const DEV_STATUS_LABEL: Record<string, string> = {
+  trusted: 'Trusted',
+  registered: 'Registered',
+  suspended: 'Suspended',
+  revoked: 'Revoked',
+};
+const devStatusLabel = (s: string) => DEV_STATUS_LABEL[s] ?? (s.charAt(0).toUpperCase() + s.slice(1));
+
 const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const [q, setQ] = useState('');
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return data.devices;
+    return data.devices.filter(d =>
+      (d.name || '').toLowerCase().includes(query) ||
+      d.id.toString().toLowerCase().includes(query) ||
+      (d.os || '').toLowerCase().includes(query) ||
+      (d.status || '').toLowerCase().includes(query)
+    );
+  }, [q, data.devices]);
+
+  const trusted = data.devices.filter(d => d.status === 'trusted').length;
+  const suspended = data.devices.filter(d => d.status === 'suspended').length;
+  const revoked = data.devices.filter(d => d.status === 'revoked').length;
+
   const handleRevoke = async (id: string) => {
-    if (!window.confirm('Revoke this device? It will be denied cloud access immediately.')) return;
     setRevoking(id);
     try {
       await adminRevokeDevice(id);
+      setConfirming(null);
       data.reload();
     } catch {
       window.alert('Failed to revoke device');
@@ -688,34 +727,82 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
       setRevoking(null);
     }
   };
+
   return (
     <>
-      <SearchBar id="admin-devices-search" placeholder="Search by device name, public key, or owner…" label="Search devices" />
+      <SearchBar
+        id="admin-devices-search"
+        placeholder="Search by name, OS, ID or status…"
+        label="Search devices"
+        value={q}
+        onChange={setQ}
+      />
+
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Registered Endpoints</div>
+          <div className="metric-value">{data.devices.length}</div>
+          <div className="metric-sub">across all accounts</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Trusted</div>
+          <div className="metric-value">{trusted}</div>
+          <div className="metric-sub">fully operational</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Suspended</div>
+          <div className="metric-value">{suspended}</div>
+          <div className="metric-sub">needs attention</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Revoked</div>
+          <div className="metric-value">{revoked}</div>
+          <div className="metric-sub">access denied</div>
+        </div>
+      </div>
+
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Registered Endpoints ({data.devices.length})</span>
+          <span className="section-title">
+            Registered Endpoints {q.trim() ? `(${filtered.length}/${data.devices.length})` : `(${data.devices.length})`}
+          </span>
           <button className="btn btn-secondary btn-sm" onClick={data.reload}>
             {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
           </button>
         </div>
         {data.devices.length === 0 ? (
           <EmptyState icon={<I.monitor />} title="No devices registered" desc="All registered WireGuard endpoints across all accounts will be listed here." />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={<I.search />} title="No matching devices" desc={`No endpoints match "${q.trim()}". Try a different name, OS, ID or status.`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Device ID</th><th>Platform</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Device ID</th><th>OS</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {data.devices.map(d => (
+              {filtered.map(d => (
                 <tr key={d.id.toString()}>
                   <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
-                  <td>{d.os || d.platform || '—'}</td>
-                  <td><span className={`badge ${d.status === 'revoked' ? 'badge-danger' : 'badge-success'}`}>{d.status}</span></td>
                   <td>
-                    {d.status !== 'revoked' && (
-                      <button className="btn btn-danger btn-sm"
-                        onClick={() => handleRevoke(d.id.toString())}
-                        disabled={revoking === d.id.toString()}>
-                        {revoking === d.id.toString() ? 'Revoking…' : 'Revoke'}
+                    <span title={d.id.toString()} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {d.id.toString().slice(0, 13)}…
+                    </span>
+                  </td>
+                  <td>{d.os || '—'}</td>
+                  <td><span className={`badge ${DEV_STATUS_BADGE[d.status] ?? 'badge-neutral'}`}>{devStatusLabel(d.status)}</span></td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {d.status !== 'revoked' && confirming === d.id.toString() && (
+                      <>
+                        <button className="btn btn-secondary btn-sm" style={{ marginRight: 6 }}
+                          onClick={() => setConfirming(null)}>Cancel</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleRevoke(d.id.toString())}
+                          disabled={revoking === d.id.toString()}>
+                          {revoking === d.id.toString() ? 'Revoking…' : 'Confirm revoke'}
+                        </button>
+                      </>
+                    )}
+                    {d.status !== 'revoked' && confirming !== d.id.toString() && (
+                      <button className="btn btn-danger btn-sm btn-outline"
+                        onClick={() => setConfirming(d.id.toString())}>
+                        Revoke
                       </button>
                     )}
                   </td>
