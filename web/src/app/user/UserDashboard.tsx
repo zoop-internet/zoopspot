@@ -102,8 +102,36 @@ const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
   { id: 'settings',     label: 'Settings',     icon: <Ico d={I.settings} /> },
 ];
 
+/* ─── Toast Notification Helper ───────────────────────────────── */
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="toast-container" style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} className={`toast toast-${t.type}`} style={{
+          padding: '10px 14px', borderRadius: 'var(--r-md)', background: 'var(--bg-surface-3)',
+          border: `1px solid ${t.type === 'success' ? 'var(--accent-green)' : t.type === 'error' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
+          boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          fontSize: '0.8125rem', color: 'var(--text-primary)', animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <span>{t.message}</span>
+          <button className="btn btn-ghost btn-xs" style={{ padding: '2px 4px', lineHeight: 1 }} onClick={() => onDismiss(t.id)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /* ─── Overview tab ────────────────────────────────────────────── */
-const DaemonStatusCard: React.FC = () => {
+const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { localMode, daemonChecking, daemonStatus, daemonTelemetry, daemonPeers, refreshDaemon } = useApp();
   const activeTunnels = daemonTelemetry.filter(t => t.state === 'CONNECTED' || t.state === 'connected').length;
   const totalRx = daemonTelemetry.reduce((acc, t) => acc + (t.rx_bytes ?? 0), 0);
@@ -161,7 +189,14 @@ const DaemonStatusCard: React.FC = () => {
       <div className="info-row">
         <span className="info-key">WireGuard</span>
         <span className="info-val" style={{ fontSize: '0.75rem' }}>{daemonStatus.wireguard_public_key?.slice(0, 24)}…</span>
-        <span />
+        {daemonStatus.wireguard_public_key && (
+          <button className="btn btn-ghost btn-xs" onClick={() => {
+            navigator.clipboard.writeText(daemonStatus.wireguard_public_key ?? '');
+            onToast?.('WireGuard public key copied to clipboard');
+          }}>
+            <Ico d={I.copy} size={12} />Copy
+          </button>
+        )}
       </div>
       <div className="info-row">
         <span className="info-key">Listen Port</span>
@@ -210,7 +245,7 @@ const DaemonStatusCard: React.FC = () => {
   );
 };
 
-const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
+const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onRegister, onToast }) => {
   const { deviceId, deviceName, deviceInfo, connections, connectionsLoading } = useApp();
   const pending = connections.filter(c => c.state === 'REQUESTED');
 
@@ -229,7 +264,7 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
 
   return (
     <>
-      <DaemonStatusCard />
+      <DaemonStatusCard onToast={onToast} />
 
       <div className="section">
         <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -239,8 +274,14 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
               <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{deviceName}</span>
               <span className="badge badge-info">Registered</span>
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
-              Device ID: {deviceId}
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Device ID: {deviceId}</span>
+              <button className="btn btn-ghost btn-xs" style={{ padding: '1px 5px', fontSize: '0.6875rem' }} onClick={() => {
+                navigator.clipboard.writeText(deviceId);
+                onToast('Device ID copied to clipboard');
+              }}>
+                <Ico d={I.copy} size={10} />Copy
+              </button>
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -283,8 +324,15 @@ const OverviewTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
 };
 
 /* ─── Devices tab ─────────────────────────────────────────────── */
-const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
+const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onRegister, onToast }) => {
   const { deviceId, deviceName, deviceInfo, allDevices, devicesLoading, refreshAllDevices } = useApp();
+  const [filter, setFilter] = useState('');
+
+  const filteredDevices = allDevices.filter(d =>
+    (d.name || '').toLowerCase().includes(filter.toLowerCase()) ||
+    d.id.toString().toLowerCase().includes(filter.toLowerCase()) ||
+    (d.platform || '').toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
     <>
@@ -299,7 +347,10 @@ const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
           <div className="info-row">
             <span className="info-key">Device ID</span>
             <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId}</span>
-            <button className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(deviceId)}>
+            <button className="btn btn-ghost btn-xs" onClick={() => {
+              navigator.clipboard.writeText(deviceId);
+              onToast('Device ID copied to clipboard');
+            }}>
               <Ico d={I.copy} size={12} />Copy
             </button>
           </div>
@@ -312,9 +363,19 @@ const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
       )}
 
       <div className="section">
-        <div className="section-header">
+        <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
           <span className="section-title">Registered Fleet Devices ({allDevices.length})</span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search devices…"
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              style={{
+                padding: '4px 8px', fontSize: '0.75rem', borderRadius: 'var(--r-md)',
+                border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)'
+              }}
+            />
             <button className="btn btn-ghost btn-xs" onClick={refreshAllDevices}>
               {devicesLoading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
             </button>
@@ -343,13 +404,20 @@ const DevicesTab: React.FC<{ onRegister: () => void }> = ({ onRegister }) => {
               </tr>
             </thead>
             <tbody>
-              {allDevices.map(d => (
+              {filteredDevices.map(d => (
                 <tr key={d.id.toString()}>
                   <td style={{ fontWeight: 600 }}>
                     {d.name || 'Unnamed Device'}
                     {d.id.toString() === deviceId && <span className="badge badge-info" style={{ marginLeft: 6 }}>Current</span>}
                   </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                    <span style={{ cursor: 'pointer' }} title="Click to copy" onClick={() => {
+                      navigator.clipboard.writeText(d.id.toString());
+                      onToast(`Copied ${d.name || 'device'} ID`);
+                    }}>
+                      {d.id.toString()}
+                    </span>
+                  </td>
                   <td>{d.os || d.platform || '—'}</td>
                   <td><span className={`badge ${d.status === 'trusted' || d.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{d.status}</span></td>
                 </tr>
@@ -373,7 +441,7 @@ const stateBadge = (s: string) => {
   }
 };
 
-const ConnectionsTab: React.FC = () => {
+const ConnectionsTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { deviceId, connections, connectionsLoading, allDevices, doConnect, doDisconnect, refreshConnections } = useApp();
   const [providerId, setProviderId] = useState('');
   const [connecting, setConnecting] = useState(false);
@@ -389,10 +457,13 @@ const ConnectionsTab: React.FC = () => {
     setConnectError(null);
     try {
       await doConnect(providerId.trim());
+      onToast('Connection request sent successfully', 'success');
       setProviderId('');
       refreshConnections();
     } catch (err: unknown) {
-      setConnectError(err instanceof Error ? err.message : 'Connection failed');
+      const msg = err instanceof Error ? err.message : 'Connection failed';
+      setConnectError(msg);
+      onToast(msg, 'error');
     } finally {
       setConnecting(false);
     }
@@ -480,7 +551,10 @@ const ConnectionsTab: React.FC = () => {
                       <button className="btn btn-danger btn-xs" disabled={busyConn === c.id.toString()}
                         onClick={() => {
                           setBusyConn(c.id.toString());
-                          doDisconnect(c.id.toString()).finally(() => setBusyConn(null));
+                          doDisconnect(c.id.toString())
+                            .then(() => onToast('Disconnected connection session', 'info'))
+                            .catch(err => onToast(err instanceof Error ? err.message : 'Failed to disconnect', 'error'))
+                            .finally(() => setBusyConn(null));
                         }}>
                         <Ico d={I.wifiOff} />Disconnect
                       </button>
@@ -537,7 +611,7 @@ const ConnectionsTab: React.FC = () => {
 };
 
 /* ─── Sharing tab ─────────────────────────────────────────────── */
-const SharingTab: React.FC = () => {
+const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { deviceId, shares, allDevices, doCreateShare } = useApp();
   const [recipientId, setRecipientId] = useState('');
   const [sharing, setSharing] = useState(false);
@@ -552,9 +626,12 @@ const SharingTab: React.FC = () => {
     setShareError(null);
     try {
       await doCreateShare(recipientId.trim());
+      onToast('Share relationship authorized successfully', 'success');
       setRecipientId('');
     } catch (err: unknown) {
-      setShareError(err instanceof Error ? err.message : 'Failed to create share');
+      const msg = err instanceof Error ? err.message : 'Failed to create share';
+      setShareError(msg);
+      onToast(msg, 'error');
     } finally {
       setSharing(false);
     }
@@ -644,7 +721,7 @@ const SharingTab: React.FC = () => {
 };
 
 /* ─── Settings tab ────────────────────────────────────────────── */
-const SettingsTab: React.FC = () => {
+const SettingsTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { deviceId, deviceName, deviceInfo, unregister } = useApp();
   const [confirming, setConfirming] = useState(false);
   const [unregistering, setUnregistering] = useState(false);
@@ -653,6 +730,9 @@ const SettingsTab: React.FC = () => {
     setUnregistering(true);
     try {
       await unregister();
+      onToast('Device identity removed successfully', 'info');
+    } catch (err: unknown) {
+      onToast(err instanceof Error ? err.message : 'Unregistration failed', 'error');
     } finally {
       setUnregistering(false);
     }
@@ -673,7 +753,10 @@ const SettingsTab: React.FC = () => {
         <span className="info-key">Device ID</span>
         <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId ?? '—'}</span>
         {deviceId && (
-          <button className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(deviceId)}>
+          <button className="btn btn-ghost btn-xs" onClick={() => {
+            navigator.clipboard.writeText(deviceId);
+            onToast('Device ID copied to clipboard');
+          }}>
             <Ico d={I.copy} size={12} />Copy
           </button>
         )}
@@ -716,6 +799,19 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
   const { deviceId, deviceName } = useApp();
   const [tab, setTab] = useState<UserTab>('overview');
   const [showRegister, setShowRegister] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const TAB_META: Record<UserTab, { title: string; subtitle: string }> = {
     overview:    { title: 'Overview',    subtitle: 'Device status and pending connection requests.' },
@@ -780,15 +876,16 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
         </header>
 
         <div className="page-body">
-          {tab === 'overview'     && <OverviewTab onRegister={() => setShowRegister(true)} />}
-          {tab === 'devices'      && <DevicesTab  onRegister={() => setShowRegister(true)} />}
-          {tab === 'connections'  && <ConnectionsTab />}
-          {tab === 'sharing'      && <SharingTab />}
-          {tab === 'settings'     && <SettingsTab />}
+          {tab === 'overview'     && <OverviewTab onRegister={() => setShowRegister(true)} onToast={addToast} />}
+          {tab === 'devices'      && <DevicesTab  onRegister={() => setShowRegister(true)} onToast={addToast} />}
+          {tab === 'connections'  && <ConnectionsTab onToast={addToast} />}
+          {tab === 'sharing'      && <SharingTab onToast={addToast} />}
+          {tab === 'settings'     && <SettingsTab onToast={addToast} />}
         </div>
       </div>
 
       {showRegister && <RegisterModal onClose={() => setShowRegister(false)} />}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 };
