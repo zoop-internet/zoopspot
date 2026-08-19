@@ -92,6 +92,34 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+/* ─── Toast Notification Helper ───────────────────────────────── */
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="toast-container" style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} className={`toast toast-${t.type}`} style={{
+          padding: '10px 14px', borderRadius: 'var(--r-md)', background: 'var(--bg-surface-3)',
+          border: `1px solid ${t.type === 'success' ? 'var(--accent-green)' : t.type === 'error' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
+          boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          fontSize: '0.8125rem', color: 'var(--text-primary)', animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <span>{t.message}</span>
+          <button className="btn btn-ghost btn-xs" style={{ padding: '2px 4px', lineHeight: 1 }} onClick={() => onDismiss(t.id)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /* ─── Shared Components ───────────────────────────────────────────── */
 type SvcStatus = 'operational' | 'degraded' | 'down' | 'unknown';
 
@@ -789,7 +817,7 @@ const DEV_STATUS_LABEL: Record<string, string> = {
 };
 const devStatusLabel = (s: string) => DEV_STATUS_LABEL[s] ?? (s.charAt(0).toUpperCase() + s.slice(1));
 
-const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ data, onToast }) => {
   const [q, setQ] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -818,9 +846,12 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
       if (action === 'suspend') await adminSuspendDevice(id);
       if (action === 'restore') await adminRestoreDevice(id);
       setConfirming(null);
+      onToast(`Device ${label}d successfully`, 'success');
       data.reload();
     } catch {
-      setError(`Failed to ${label} device. Check the control plane and try again.`);
+      const errMs = `Failed to ${label} device. Check the control plane and try again.`;
+      setError(errMs);
+      onToast(errMs, 'error');
     } finally {
       setBusy(null);
     }
@@ -1048,7 +1079,7 @@ const NetworkTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
   );
 };
 
-const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ data, onToast }) => {
   const relays = data.relays as unknown as { id?: string; region?: string; host?: string; status?: string }[];
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ id: '', region: '', host: '', port: '443', websocket_url: '', stun_port: '3478', turn_port: '' });
@@ -1057,7 +1088,7 @@ const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
 
   const addRelay = async () => {
     if (!form.id.trim() || !form.host.trim()) {
-      window.alert('Relay id and host are required');
+      onToast('Relay id and host are required', 'error');
       return;
     }
     setBusy(true);
@@ -1073,9 +1104,10 @@ const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
       });
       setShowAdd(false);
       setForm({ id: '', region: '', host: '', port: '443', websocket_url: '', stun_port: '3478', turn_port: '' });
+      onToast('Relay node added successfully', 'success');
       data.reload();
     } catch {
-      window.alert('Failed to add relay node');
+      onToast('Failed to add relay node', 'error');
     } finally {
       setBusy(false);
     }
@@ -1086,9 +1118,10 @@ const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
     setRemoving(id);
     try {
       await adminRemoveRelay(id);
+      onToast(`Relay node ${id} removed`, 'info');
       data.reload();
     } catch {
-      window.alert('Failed to remove relay node');
+      onToast('Failed to remove relay node', 'error');
     } finally {
       setRemoving(null);
     }
@@ -1294,7 +1327,7 @@ const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
 };
 
 /* ─── Screen Registry ─────────────────────────────────────────────── */
-type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>, navigate: (t: AdminTab) => void) => React.ReactNode; action?: React.ReactNode };
+type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>, navigate: (t: AdminTab) => void, onToast: (msg: string, type?: 'success' | 'error' | 'info') => void) => React.ReactNode; action?: React.ReactNode };
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
   overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, connection states, overlay usage and service status',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
@@ -1303,10 +1336,10 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
   users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
   organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} /> },
-  devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: d => <DevicesTab data={d} /> },
+  devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: (d, _nav, onToast) => <DevicesTab data={d} onToast={onToast} /> },
   connections:   { title: 'Connections',         subtitle: 'Live P2P tunnels and relay connections',                  render: d => <ConnectionsTab data={d} /> },
   network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: d => <NetworkTab data={d} /> },
-  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: d => <RelaysTab data={d} /> },
+  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: (d, _nav, onToast) => <RelaysTab data={d} onToast={onToast} /> },
   security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: d => <SecurityTab data={d} /> },
   abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           render: () => <AbuseTab /> },
   system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
@@ -1315,8 +1348,21 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
 /* ─── Main Component ──────────────────────────────────────────────── */
 export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const [tab, setTab] = useState<AdminTab>('overview');
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const data = useAdminData();
   const cur = SCREENS[tab];
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   return (
     <div className="admin-portal" role="main">
@@ -1374,9 +1420,10 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </header>
 
         <div className="admin-page-body" role="region" aria-label={cur.title}>
-          {cur.render(data, setTab)}
+          {cur.render(data, setTab, addToast)}
         </div>
       </div>
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 };

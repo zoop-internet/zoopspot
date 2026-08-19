@@ -153,6 +153,34 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+/* ─── Toast Notification Helper ───────────────────────────────── */
+interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="toast-container" style={{
+      position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} className={`toast toast-${t.type}`} style={{
+          padding: '10px 14px', borderRadius: 'var(--r-md)', background: 'var(--bg-surface-3)',
+          border: `1px solid ${t.type === 'success' ? 'var(--accent-green)' : t.type === 'error' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
+          boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          fontSize: '0.8125rem', color: 'var(--text-primary)', animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <span>{t.message}</span>
+          <button className="btn btn-ghost btn-xs" style={{ padding: '2px 4px', lineHeight: 1 }} onClick={() => onDismiss(t.id)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const {
     organizations, currentOrg, orgMembers, selectOrg,
@@ -162,6 +190,33 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [tab, setTab] = useState<OrgTab>('overview');
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [memberFilter, setMemberFilter] = useState('');
+  const [deviceFilter, setDeviceFilter] = useState('');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const filteredMembers = orgMembers.filter(m =>
+    m.name.toLowerCase().includes(memberFilter.toLowerCase()) ||
+    m.email.toLowerCase().includes(memberFilter.toLowerCase()) ||
+    m.role.toLowerCase().includes(memberFilter.toLowerCase())
+  );
+
+  const filteredDevices = allDevices.filter(d =>
+    (d.name || '').toLowerCase().includes(deviceFilter.toLowerCase()) ||
+    d.id.toString().toLowerCase().includes(deviceFilter.toLowerCase()) ||
+    (d.platform || '').toLowerCase().includes(deviceFilter.toLowerCase())
+  );
 
   return (
     <div className="portal" role="main">
@@ -310,9 +365,21 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
               {tab === 'members' && (
                 <div className="section">
-                  <div className="section-header">
+                  <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
                     <span className="section-title">Team Roster ({orgMembers.length})</span>
-                    <button className="btn btn-ghost btn-xs" onClick={() => refreshOrgMembers()}>Refresh</button>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Search members…"
+                        value={memberFilter}
+                        onChange={e => setMemberFilter(e.target.value)}
+                        style={{
+                          padding: '4px 8px', fontSize: '0.75rem', borderRadius: 'var(--r-md)',
+                          border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)'
+                        }}
+                      />
+                      <button className="btn btn-ghost btn-xs" onClick={() => refreshOrgMembers()}>Refresh</button>
+                    </div>
                   </div>
                   {orgMembers.length === 0 ? (
                     <div className="empty-state" style={{ padding: '36px 24px' }}>
@@ -331,12 +398,19 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                         </tr>
                       </thead>
                       <tbody>
-                        {orgMembers.map(m => (
+                        {filteredMembers.map(m => (
                           <tr key={m.id.toString()}>
                             <td style={{ fontWeight: 600 }}>{m.name}</td>
-                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{m.email}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                              <span style={{ cursor: 'pointer' }} title="Click to copy email" onClick={() => {
+                                navigator.clipboard.writeText(m.email);
+                                addToast(`Copied ${m.email} to clipboard`);
+                              }}>
+                                {m.email}
+                              </span>
+                            </td>
                             <td><span className="badge badge-neutral">{m.role}</span></td>
-                            <td><span className="badge badge-success">{m.status}</span></td>
+                            <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{m.status}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -347,8 +421,18 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
               {tab === 'devices' && (
                 <div className="section">
-                  <div className="section-header">
+                  <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
                     <span className="section-title">System Devices ({allDevices.length})</span>
+                    <input
+                      type="text"
+                      placeholder="Search devices…"
+                      value={deviceFilter}
+                      onChange={e => setDeviceFilter(e.target.value)}
+                      style={{
+                        padding: '4px 8px', fontSize: '0.75rem', borderRadius: 'var(--r-md)',
+                        border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)'
+                      }}
+                    />
                   </div>
                   {allDevices.length === 0 ? (
                     <div className="empty-state" style={{ padding: '36px 24px' }}>
@@ -367,10 +451,17 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                         </tr>
                       </thead>
                       <tbody>
-                        {allDevices.map(d => (
+                        {filteredDevices.map(d => (
                           <tr key={d.id.toString()}>
                             <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{d.id.toString()}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                              <span style={{ cursor: 'pointer' }} title="Click to copy ID" onClick={() => {
+                                navigator.clipboard.writeText(d.id.toString());
+                                addToast(`Copied device ID`);
+                              }}>
+                                {d.id.toString()}
+                              </span>
+                            </td>
                             <td>{d.os || d.platform || '—'}</td>
                             <td><span className="badge badge-success">{d.status}</span></td>
                           </tr>
@@ -393,8 +484,9 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </div>
       </div>
 
-      {showCreateOrg && <CreateOrgModal onClose={() => setShowCreateOrg(false)} />}
-      {showAddMember  && <AddMemberModal  onClose={() => setShowAddMember(false)} />}
+      {showCreateOrg && <CreateOrgModal onClose={() => { setShowCreateOrg(false); addToast('Organization state updated', 'info'); }} />}
+      {showAddMember  && <AddMemberModal  onClose={() => { setShowAddMember(false); addToast('Member roster updated', 'info'); }} />}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 };
