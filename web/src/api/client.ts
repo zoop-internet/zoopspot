@@ -325,7 +325,19 @@ export async function adminRemoveRelay(id: string): Promise<unknown> {
 export async function adminRevokeDevice(id: string): Promise<unknown> {
   const path = `/v1/admin/devices/${id}/revoke`;
   const authHeaders = await buildSignedAuthHeaders('POST', path);
-  return apiFetch<unknown>(path, { method: 'POST', headers: authHeaders });
+  return apiFetch(path, { method: 'POST', headers: authHeaders });
+}
+
+export async function adminSuspendDevice(id: string): Promise<unknown> {
+  const path = `/v1/admin/devices/${id}/suspend`;
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch(path, { method: 'POST', headers: authHeaders });
+}
+
+export async function adminRestoreDevice(id: string): Promise<unknown> {
+  const path = `/v1/admin/devices/${id}/restore`;
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch(path, { method: 'POST', headers: authHeaders });
 }
 
 // ─── Share operations ─────────────────────────────────────────

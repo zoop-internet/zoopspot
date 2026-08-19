@@ -526,3 +526,98 @@ func TestServer_ServeWebApp(t *testing.T) {
 }
 
 
+
+func TestServer_AdminDeviceSuspendRestore(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Admin and target devices: the admin caller manages the target device.
+	adminPub, adminPriv, _ := ed25519.GenerateKey(rand.Reader)
+	targetPub, _, _ := ed25519.GenerateKey(rand.Reader)
+
+	adminBody, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Admin", PublicKey: base64.StdEncoding.EncodeToString(adminPub)})
+	req := httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(adminBody))
+	w := httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("register admin: expected 201, got %d", w.Result().StatusCode)
+	}
+	var adminResp api.DeviceResponse
+	json.NewDecoder(w.Result().Body).Decode(&adminResp)
+
+	targetBody, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Suspendable", PublicKey: base64.StdEncoding.EncodeToString(targetPub)})
+	req = httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(targetBody))
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("register target: expected 201, got %d", w.Result().StatusCode)
+	}
+	var resp api.DeviceResponse
+	json.NewDecoder(w.Result().Body).Decode(&resp)
+
+	auth := func(method, path string) *http.Request {
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		payload := api.BuildCanonicalPayload(method, path, ts, nonce, "")
+		sig := base64.StdEncoding.EncodeToString(ed25519.Sign(adminPriv, payload))
+		r := httptest.NewRequest(method, path, nil)
+		r.Header.Set("X-Zoop-Identity", adminResp.EndpointID.String())
+		r.Header.Set("X-Zoop-Signature", sig)
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		return r
+	}
+
+	devPath := "/v1/admin/devices/" + resp.ID.String()
+
+	// Suspend a trusted device -> 200, state becomes suspended.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, auth(http.MethodPost, devPath+"/suspend"))
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("suspend: expected 200, got %d", w.Result().StatusCode)
+	}
+	dev, err := st.GetDevice(context.Background(), resp.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.State != types.DeviceStateSuspended {
+		t.Fatalf("expected suspended, got %s", dev.State)
+	}
+
+	// Restore a suspended device -> 200, state becomes trusted.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, auth(http.MethodPost, devPath+"/restore"))
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("restore: expected 200, got %d", w.Result().StatusCode)
+	}
+	dev, _ = st.GetDevice(context.Background(), resp.ID)
+	if dev.State != types.DeviceStateTrusted {
+		t.Fatalf("expected trusted, got %s", dev.State)
+	}
+
+	// Restoring a non-suspended device -> 409 conflict.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, auth(http.MethodPost, devPath+"/restore"))
+	if w.Result().StatusCode != http.StatusConflict {
+		t.Fatalf("restore of trusted device: expected 409, got %d", w.Result().StatusCode)
+	}
+
+	// Revoke, then suspending the revoked device -> 409 conflict.
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, auth(http.MethodPost, devPath+"/revoke"))
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("revoke: expected 200, got %d", w.Result().StatusCode)
+	}
+	w = httptest.NewRecorder()
+	srv.mux.ServeHTTP(w, auth(http.MethodPost, devPath+"/suspend"))
+	if w.Result().StatusCode != http.StatusConflict {
+		t.Fatalf("suspend of revoked device: expected 409, got %d", w.Result().StatusCode)
+	}
+}

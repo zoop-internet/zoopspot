@@ -205,6 +205,8 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /v1/admin/relays", adminMw(http.HandlerFunc(s.handleAdminAddRelay())))
 	s.mux.Handle("DELETE /v1/admin/relays/{id}", adminMw(http.HandlerFunc(s.handleAdminRemoveRelay())))
 	s.mux.Handle("POST /v1/admin/devices/{id}/revoke", adminMw(http.HandlerFunc(s.handleAdminRevokeDevice())))
+	s.mux.Handle("POST /v1/admin/devices/{id}/suspend", adminMw(http.HandlerFunc(s.handleAdminSuspendDevice())))
+	s.mux.Handle("POST /v1/admin/devices/{id}/restore", adminMw(http.HandlerFunc(s.handleAdminRestoreDevice())))
 
 	// Relay & STUN/TURN endpoints
 	s.mux.HandleFunc("GET /v1/relays", s.handleListRelays())
@@ -1143,6 +1145,62 @@ func (s *Server) handleAdminRevokeDevice() http.HandlerFunc {
 
 		s.audit.Log(r.Context(), s.adminActorID(r), "device.revoke", "device:"+id, "")
 		api.WriteJSON(w, http.StatusOK, map[string]interface{}{"revoked": true, "id": id})
+	}
+}
+
+func (s *Server) handleAdminSuspendDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.devices.Suspend(r.Context(), types.ID(parsed)); err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "device not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrInvalidDeviceState {
+				api.WriteError(w, "invalid_state_transition", err.Error(), http.StatusConflict)
+				return
+			}
+			s.logger.Error("failed to suspend device", "error", err)
+			api.WriteError(w, "internal_error", "failed to suspend device", http.StatusInternalServerError)
+			return
+		}
+
+		s.audit.Log(r.Context(), s.adminActorID(r), "device.suspend", "device:"+id, "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{"suspended": true, "id": id})
+	}
+}
+
+func (s *Server) handleAdminRestoreDevice() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.devices.Restore(r.Context(), types.ID(parsed)); err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "device not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrInvalidDeviceState {
+				api.WriteError(w, "invalid_state_transition", err.Error(), http.StatusConflict)
+				return
+			}
+			s.logger.Error("failed to restore device", "error", err)
+			api.WriteError(w, "internal_error", "failed to restore device", http.StatusInternalServerError)
+			return
+		}
+
+		s.audit.Log(r.Context(), s.adminActorID(r), "device.restore", "device:"+id, "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{"restored": true, "id": id})
 	}
 }
 

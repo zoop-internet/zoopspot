@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -10,6 +11,9 @@ import (
 	"github.com/zoop-internet/zoop/packages/cloud/store"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
+
+// ErrInvalidDeviceState signals a device state transition that is not allowed.
+var ErrInvalidDeviceState = errors.New("invalid device state transition")
 
 type DeviceService struct {
 	store store.Store
@@ -112,6 +116,33 @@ func (s *DeviceService) Revoke(ctx context.Context, id types.ID) error {
 		return err
 	}
 	device.State = types.DeviceStateRevoked
+	return s.store.SaveDevice(ctx, device)
+}
+
+// Suspend transitions a device to the suspended state. Revoked devices are
+// terminal and cannot be suspended.
+func (s *DeviceService) Suspend(ctx context.Context, id types.ID) error {
+	device, err := s.store.GetDevice(ctx, id)
+	if err != nil {
+		return err
+	}
+	if device.State == types.DeviceStateRevoked {
+		return ErrInvalidDeviceState
+	}
+	device.State = types.DeviceStateSuspended
+	return s.store.SaveDevice(ctx, device)
+}
+
+// Restore returns a suspended device to the trusted state.
+func (s *DeviceService) Restore(ctx context.Context, id types.ID) error {
+	device, err := s.store.GetDevice(ctx, id)
+	if err != nil {
+		return err
+	}
+	if device.State != types.DeviceStateSuspended {
+		return ErrInvalidDeviceState
+	}
+	device.State = types.DeviceStateTrusted
 	return s.store.SaveDevice(ctx, device)
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
-import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, listDevices } from '../api/client';
+import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice, listDevices, createOrganization } from '../api/client';
 import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
 import './AdminConsole.css';
 
@@ -622,64 +622,158 @@ const BillingTab: React.FC = () => (
   </>
 );
 
-const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
-  <>
-    <SearchBar id="admin-users-search" placeholder="Search accounts by name, email or ID…" label="Search user accounts" />
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Accounts ({data.users.length})</span>
-        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-        </button>
-      </div>
-      {data.users.length === 0 ? (
-        <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here with options to manage role and status." />
-      ) : (
-        <table className="data-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
-          <tbody>
-            {data.users.map(u => (
-              <tr key={u.id.toString()}>
-                <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
-                <td>{u.email || '—'}</td>
-                <td><span className="badge badge-neutral">{u.role}</span></td>
-                <td><span className={`badge ${u.status === 'active' || u.status === 'trusted' ? 'badge-success' : 'badge-neutral'}`}>{u.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  </>
-);
+const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const [q, setQ] = useState('');
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return data.users;
+    return data.users.filter(u =>
+      (u.name || '').toLowerCase().includes(query) ||
+      (u.email || '').toLowerCase().includes(query) ||
+      (u.role || '').toLowerCase().includes(query) ||
+      (u.status || '').toLowerCase().includes(query) ||
+      u.id.toString().toLowerCase().includes(query)
+    );
+  }, [q, data.users]);
 
-const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
-  <>
-    <SearchBar id="admin-orgs-search" placeholder="Search organizations by name or ID…" label="Search organizations" />
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Organizations ({data.orgs.length})</span>
-        <button className="btn-admin-primary" id="admin-orgs-create-btn"><I.plus />Create Org</button>
+  return (
+    <>
+      <SearchBar id="admin-users-search" placeholder="Search by name, email, role, status or ID…" label="Search user accounts" value={q} onChange={setQ} />
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Accounts {q.trim() ? `(${filtered.length}/${data.users.length})` : `(${data.users.length})`}</span>
+          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
+            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+          </button>
+        </div>
+        {data.users.length === 0 ? (
+          <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here with options to manage role and status." />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={<I.search />} title="No matching accounts" desc={`No accounts match "${q.trim()}".`} pad="36px 24px" />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id.toString()}>
+                  <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
+                  <td>{u.email || '—'}</td>
+                  <td><span className="badge badge-neutral">{u.role}</span></td>
+                  <td><span className={`badge ${u.status === 'active' || u.status === 'trusted' ? 'badge-success' : 'badge-neutral'}`}>{u.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      {data.orgs.length === 0 ? (
-        <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces and organization accounts will appear here." />
-      ) : (
-        <table className="data-table">
-          <thead><tr><th>Name</th><th>Organization ID</th><th>Members</th></tr></thead>
-          <tbody>
-            {data.orgs.map(o => (
-              <tr key={o.id.toString()}>
-                <td style={{ fontWeight: 600 }}>{o.name}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{o.id.toString()}</td>
-                <td><span className="badge badge-neutral">{data.orgMembers[o.id.toString()]?.length ?? 0}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    </>
+  );
+};
+
+const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const [q, setQ] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return data.orgs;
+    return data.orgs.filter(o =>
+      (o.name || '').toLowerCase().includes(query) ||
+      (o.slug || '').toLowerCase().includes(query) ||
+      o.id.toString().toLowerCase().includes(query)
+    );
+  }, [q, data.orgs]);
+
+  const createOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await createOrganization(name.trim(), slug.trim() || undefined);
+      setShowCreate(false);
+      setName('');
+      setSlug('');
+      data.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create organization');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <SearchBar id="admin-orgs-search" placeholder="Search by name, slug or ID…" label="Search organizations" value={q} onChange={setQ} />
+
+      {error && (
+        <div className="error-banner">
+          <I.alert />
+          <span style={{ flex: 1 }}>{error}</span>
+          <button className="btn btn-secondary btn-sm" onClick={() => setError(null)}>Dismiss</button>
+        </div>
       )}
-    </div>
-  </>
-);
+
+      {showCreate && (
+        <form className="section" onSubmit={createOrg}>
+          <div className="section-header">
+            <span className="section-title">Create Organization</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+          </div>
+          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Organization name *
+              <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp"
+                style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)' }} required />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Slug
+              <input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32))} placeholder="acme"
+                style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)' }} />
+            </label>
+          </div>
+          <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
+            <button className="btn-admin-primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create Organization'}</button>
+          </div>
+        </form>
+      )}
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Organizations {q.trim() ? `(${filtered.length}/${data.orgs.length})` : `(${data.orgs.length})`}</span>
+          <button className="btn-admin-primary" id="admin-orgs-create-btn" onClick={() => setShowCreate(v => !v)}><I.plus />Create Org</button>
+        </div>
+        {data.orgs.length === 0 ? (
+          <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces and organization accounts will appear here." />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={<I.search />} title="No matching organizations" desc={`No organizations match "${q.trim()}".`} pad="36px 24px" />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Name</th><th>Slug</th><th>Organization ID</th><th>Members</th></tr></thead>
+            <tbody>
+              {filtered.map(o => (
+                <tr key={o.id.toString()}>
+                  <td style={{ fontWeight: 600 }}>{o.name}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{o.slug ? `/${o.slug}` : '—'}</td>
+                  <td>
+                    <span title={o.id.toString()} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {o.id.toString().slice(0, 13)}…
+                    </span>
+                  </td>
+                  <td><span className="badge badge-neutral">{data.orgMembers[o.id.toString()]?.length ?? 0}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+};
 
 const DEV_STATUS_BADGE: Record<string, string> = {
   trusted: 'badge-success',
@@ -698,7 +792,8 @@ const devStatusLabel = (s: string) => DEV_STATUS_LABEL[s] ?? (s.charAt(0).toUppe
 const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const [q, setQ] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -715,17 +810,56 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
   const suspended = data.devices.filter(d => d.status === 'suspended').length;
   const revoked = data.devices.filter(d => d.status === 'revoked').length;
 
-  const handleRevoke = async (id: string) => {
-    setRevoking(id);
+  const runAction = async (id: string, action: 'revoke' | 'suspend' | 'restore', label: string) => {
+    setBusy(id);
+    setError(null);
     try {
-      await adminRevokeDevice(id);
+      if (action === 'revoke') await adminRevokeDevice(id);
+      if (action === 'suspend') await adminSuspendDevice(id);
+      if (action === 'restore') await adminRestoreDevice(id);
       setConfirming(null);
       data.reload();
     } catch {
-      window.alert('Failed to revoke device');
+      setError(`Failed to ${label} device. Check the control plane and try again.`);
     } finally {
-      setRevoking(null);
+      setBusy(null);
     }
+  };
+
+  const renderAction = (d: ApiDevice) => {
+    const id = d.id.toString();
+    const isConfirming = confirming === id;
+    const isBusy = busy === id;
+
+    if (d.status === 'revoked') return <span className="section-note" style={{ textAlign: 'right' }}>No actions</span>;
+    if (d.status === 'suspended') {
+      return isConfirming ? (
+        <>
+          <button className="btn btn-secondary btn-sm" style={{ marginRight: 6 }} onClick={() => setConfirming(null)}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={() => runAction(id, 'restore', 'restore')} disabled={isBusy}>
+            {isBusy ? 'Restoring…' : 'Confirm restore'}
+          </button>
+        </>
+      ) : (
+        <button className="btn btn-secondary btn-sm" onClick={() => setConfirming(id)}>Restore</button>
+      );
+    }
+    return isConfirming ? (
+      <>
+        <button className="btn btn-secondary btn-sm" style={{ marginRight: 6 }} onClick={() => setConfirming(null)}>Cancel</button>
+        <button className="btn btn-danger btn-sm" style={{ marginRight: 6 }} onClick={() => runAction(id, 'suspend', 'suspend')} disabled={isBusy}>
+          {isBusy ? 'Suspending…' : 'Suspend'}
+        </button>
+        <button className="btn btn-danger btn-sm" onClick={() => runAction(id, 'revoke', 'revoke')} disabled={isBusy}>
+          {isBusy ? 'Revoking…' : 'Revoke'}
+        </button>
+      </>
+    ) : (
+      <>
+        <button className="btn btn-secondary btn-sm" style={{ marginRight: 6 }} onClick={() => setConfirming(id)}>Suspend</button>
+        <button className="btn btn-danger btn-sm btn-outline" onClick={() => setConfirming(id)}>Revoke</button>
+      </>
+    );
   };
 
   return (
@@ -761,6 +895,14 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
         </div>
       </div>
 
+      {error && (
+        <div className="error-banner">
+          <I.alert />
+          <span style={{ flex: 1 }}>{error}</span>
+          <button className="btn btn-secondary btn-sm" onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
+
       <div className="section">
         <div className="section-header">
           <span className="section-title">
@@ -776,7 +918,7 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
           <EmptyState icon={<I.search />} title="No matching devices" desc={`No endpoints match "${q.trim()}". Try a different name, OS, ID or status.`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Device ID</th><th>OS</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Device ID</th><th>OS</th><th>Status</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
               {filtered.map(d => (
                 <tr key={d.id.toString()}>
@@ -788,24 +930,7 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data 
                   </td>
                   <td>{d.os || '—'}</td>
                   <td><span className={`badge ${DEV_STATUS_BADGE[d.status] ?? 'badge-neutral'}`}>{devStatusLabel(d.status)}</span></td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    {d.status !== 'revoked' && confirming === d.id.toString() && (
-                      <>
-                        <button className="btn btn-secondary btn-sm" style={{ marginRight: 6 }}
-                          onClick={() => setConfirming(null)}>Cancel</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleRevoke(d.id.toString())}
-                          disabled={revoking === d.id.toString()}>
-                          {revoking === d.id.toString() ? 'Revoking…' : 'Confirm revoke'}
-                        </button>
-                      </>
-                    )}
-                    {d.status !== 'revoked' && confirming !== d.id.toString() && (
-                      <button className="btn btn-danger btn-sm btn-outline"
-                        onClick={() => setConfirming(d.id.toString())}>
-                        Revoke
-                      </button>
-                    )}
-                  </td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{renderAction(d)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1177,11 +1302,11 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: d => <UsageTab data={d} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
   users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
-  organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} />, action: <button className="btn-admin-primary" id="admin-orgs-header-btn"><I.plus />Create Org</button> },
+  organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} /> },
   devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: d => <DevicesTab data={d} /> },
   connections:   { title: 'Connections',         subtitle: 'Live P2P tunnels and relay connections',                  render: d => <ConnectionsTab data={d} /> },
   network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: d => <NetworkTab data={d} /> },
-  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: d => <RelaysTab data={d} />, action: <button className="btn-admin-primary" id="admin-relays-header-btn"><I.plus />Add Relay Node</button> },
+  relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: d => <RelaysTab data={d} /> },
   security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: d => <SecurityTab data={d} /> },
   abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           render: () => <AbuseTab /> },
   system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
