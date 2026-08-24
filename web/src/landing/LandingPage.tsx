@@ -274,14 +274,6 @@ const BentArrowMeshIllustration: React.FC = () => {
         <line x1="300" y1="220" x2="385" y2="365" stroke="rgba(185, 255, 0, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
       </svg>
 
-      {/* Floating Flow Tooltip Badges on the Curved Paths */}
-      <div className="lp-flow-badge top-flow">
-        ⚡ Encrypted Direct Tunnel
-      </div>
-      <div className="lp-flow-badge bot-flow">
-        🔒 Zero Logs · 100% Private
-      </div>
-
       {/* Central Zoop Hub */}
       <div className="lp-node-center-hub" title="Zoop Direct Bridge">
         <img src="/zoopicontransparent.png" alt="Zoop Core" />
