@@ -1,8 +1,8 @@
 /* ═════════════════════════════════════════════════════════════════════════════
    ZOOP INTERNET — MARKETING & WEB PORTAL DESIGN SYSTEM
    Featuring high-contrast dark theme, dotted grid background, glowing cyber-gradient
-   accents, glassmorphic navigation, frameless abstract network topology, and
-   multi-page path routing.
+   accents, glassmorphic navigation, prominent bent-arrow network illustration, and
+   multi-page clean path routing.
    ═════════════════════════════════════════════════════════════════════════════ */
 
 .landing-shell {
@@ -12,7 +12,7 @@
   --ink-secondary: #c4d1de;
   --muted: #8b9bb0;
   --line: rgba(255, 255, 255, 0.11);
-  --line-strong: rgba(255, 255, 255, 0.2);
+  --line-strong: rgba(255, 255, 255, 0.22);
   --surface: #070a0e;
   --surface-card: #0c1219;
   --surface-hover: #121b24;
@@ -178,9 +178,9 @@
 }
 
 .lp-btn-primary.large {
-  min-height: 48px;
-  padding: 0 24px;
-  font-size: 0.95rem;
+  min-height: 50px;
+  padding: 0 26px;
+  font-size: 1rem;
 }
 
 .lp-btn-secondary {
@@ -209,29 +209,9 @@
 }
 
 .lp-btn-secondary.large {
-  min-height: 48px;
+  min-height: 50px;
   padding: 0 24px;
   font-size: 0.95rem;
-}
-
-.lp-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 0 12px;
-  min-height: 38px;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: color 0.18s ease;
-}
-
-.lp-btn-ghost:hover {
-  color: var(--ink);
 }
 
 .lp-menu-btn {
@@ -254,29 +234,29 @@
   min-height: calc(100vh - 80px);
   display: flex;
   align-items: center;
-  padding: 60px 36px 80px;
+  padding: 50px 36px 70px;
 }
 
 .lp-hero-inner {
-  max-width: 1240px;
+  max-width: 1260px;
   margin: 0 auto;
   width: 100%;
 }
 
 .lp-hero-grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 48px;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
   align-items: center;
 }
 
 .lp-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(8, 242, 255, 0.25);
-  padding: 6px 14px;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(8, 242, 255, 0.28);
+  padding: 7px 16px;
   border-radius: 99px;
   margin-bottom: 22px;
   backdrop-filter: blur(8px);
@@ -313,13 +293,13 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .lp-hero h1 {
-  font-size: clamp(2.75rem, 5.2vw, 4.75rem);
+  font-size: clamp(2.6rem, 4.8vw, 4.4rem);
   font-weight: 900;
-  line-height: 1.02;
+  line-height: 1.05;
   letter-spacing: -0.035em;
   margin: 0 0 20px;
 }
@@ -333,47 +313,47 @@
 }
 
 .lp-hero-desc {
-  font-size: clamp(1rem, 1.8vw, 1.15rem);
+  font-size: clamp(1.05rem, 1.6vw, 1.2rem);
   color: var(--muted);
-  line-height: 1.68;
-  max-width: 540px;
-  margin-bottom: 32px;
+  line-height: 1.7;
+  max-width: 520px;
+  margin-bottom: 34px;
 }
 
 .lp-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 
-/* ─── Abstract Mesh Topology (Frameless / Seamless Background Integration) ── */
-.lp-abstract-mesh-container {
+/* ─── Prominent Hero Mesh Illustration with Bent Curved Arrows ─────────── */
+.lp-bent-mesh-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.25;
+  aspect-ratio: 1.15;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.lp-abstract-glow-orb {
+.lp-mesh-ambient-glow {
   position: absolute;
-  width: 280px;
-  height: 280px;
+  width: 320px;
+  height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(8, 242, 255, 0.18) 0%, rgba(20, 240, 109, 0.1) 45%, transparent 70%);
-  filter: blur(40px);
+  background: radial-gradient(circle, rgba(8, 242, 255, 0.16) 0%, rgba(20, 240, 109, 0.1) 40%, transparent 70%);
+  filter: blur(45px);
   pointer-events: none;
   animation: lpOrbFloat 6s ease-in-out infinite alternate;
 }
 
 @keyframes lpOrbFloat {
   0% { transform: translate(-10px, -10px) scale(0.95); }
-  100% { transform: translate(15px, 15px) scale(1.08); }
+  100% { transform: translate(15px, 15px) scale(1.1); }
 }
 
-.lp-abstract-svg {
+.lp-bent-svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -381,9 +361,11 @@
   overflow: visible;
 }
 
-.lp-pulse-path {
-  stroke-dasharray: 6, 9;
-  stroke-dashoffset: 120;
+.lp-bent-arrow-path {
+  fill: none;
+  stroke-width: 3;
+  stroke-dasharray: 8, 10;
+  stroke-dashoffset: 160;
   animation: lpPathStroke 4s linear infinite;
 }
 
@@ -391,86 +373,110 @@
   to { stroke-dashoffset: 0; }
 }
 
-.lp-mesh-particle {
-  animation: lpParticleTravel 4s ease-in-out infinite;
+/* Device node badges */
+.lp-device-node {
+  position: absolute;
+  background: rgba(8, 14, 22, 0.94);
+  border: 1.5px solid rgba(8, 242, 255, 0.35);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 18px rgba(8, 242, 255, 0.15);
+  backdrop-filter: blur(12px);
+  z-index: 10;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  cursor: pointer;
 }
 
-.lp-abs-node {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(6, 10, 15, 0.9);
-  border: 1.5px solid rgba(8, 242, 255, 0.4);
-  box-shadow: 0 0 24px rgba(8, 242, 255, 0.25);
+.lp-device-node:hover {
+  transform: scale(1.06);
+  border-color: var(--cyan);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 28px rgba(8, 242, 255, 0.35);
+}
+
+.lp-node-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s ease, border-color 0.24s ease;
-  backdrop-filter: blur(10px);
+  flex-shrink: 0;
 }
 
-.lp-abs-node:hover {
-  transform: scale(1.18);
-  border-color: var(--cyan);
-  box-shadow: 0 0 32px rgba(8, 242, 255, 0.5);
+.lp-node-info {
+  display: flex;
+  flex-direction: column;
 }
 
-.lp-abs-node.core-hub {
-  width: 72px;
-  height: 72px;
+.lp-node-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.lp-node-subtitle {
+  font-size: 0.725rem;
+  color: var(--muted);
+}
+
+/* Node positions */
+.lp-node-home   { top: 8%; left: 6%; }
+.lp-node-home .lp-node-icon-box { background: rgba(18, 108, 255, 0.15); color: var(--blue); }
+
+.lp-node-laptop { top: 12%; right: 6%; }
+.lp-node-laptop .lp-node-icon-box { background: rgba(8, 242, 255, 0.15); color: var(--cyan); }
+
+.lp-node-phone  { bottom: 10%; left: 8%; }
+.lp-node-phone .lp-node-icon-box { background: rgba(20, 240, 109, 0.15); color: var(--green); }
+
+.lp-node-team   { bottom: 12%; right: 8%; }
+.lp-node-team .lp-node-icon-box { background: rgba(185, 255, 0, 0.15); color: var(--lime); }
+
+/* Central Core Hub */
+.lp-node-center-hub {
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  border: 2px solid rgba(8, 242, 255, 0.6);
-  box-shadow: 0 0 36px rgba(8, 242, 255, 0.35);
-}
-.lp-abs-node.core-hub:hover {
-  transform: translate(-50%, -50%) scale(1.12);
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(3, 6, 9, 0.96);
+  border: 2px solid rgba(8, 242, 255, 0.5);
+  box-shadow: 0 0 32px rgba(8, 242, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 12;
 }
 
-.lp-abs-node.core-hub img {
-  width: 42px;
-  height: 42px;
+.lp-node-center-hub img {
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
 
-.lp-abs-node.p1 { top: 12%; left: 14%; width: 52px; height: 52px; color: var(--cyan); }
-.lp-abs-node.p2 { top: 14%; right: 14%; width: 52px; height: 52px; color: var(--green); }
-.lp-abs-node.p3 { bottom: 14%; left: 18%; width: 52px; height: 52px; color: var(--blue); }
-.lp-abs-node.p4 { bottom: 12%; right: 16%; width: 52px; height: 52px; color: var(--lime); }
-
-.lp-abs-label {
+/* Flow pill indicators on paths */
+.lp-flow-badge {
   position: absolute;
-  bottom: -26px;
-  left: 50%;
-  transform: translateX(-50%);
-  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 99px;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-secondary);
-  background: rgba(0, 0, 0, 0.85);
-  padding: 2px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.03em;
+  background: rgba(4, 8, 13, 0.92);
+  border: 1px solid rgba(8, 242, 255, 0.3);
+  color: var(--cyan);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
   pointer-events: none;
+  z-index: 11;
 }
 
-.lp-orbit-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px dashed rgba(8, 242, 255, 0.2);
-  animation: lpSpinRing 30s linear infinite;
-  pointer-events: none;
-}
-.lp-orbit-ring.r1 { width: 140px; height: 140px; }
-.lp-orbit-ring.r2 { width: 280px; height: 280px; border-color: rgba(20, 240, 109, 0.15); animation-duration: 45s; animation-direction: reverse; }
-
-@keyframes lpSpinRing {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+.lp-flow-badge.top-flow { top: 22%; left: 42%; }
+.lp-flow-badge.bot-flow { bottom: 24%; right: 40%; }
 
 /* ─── Metric Strip ─────────────────────────────────────────────────────── */
 .lp-metric-strip {
@@ -478,7 +484,7 @@
   border-bottom: 1px solid var(--line);
   background: rgba(8, 12, 17, 0.7);
   backdrop-filter: blur(16px);
-  padding: 32px 36px;
+  padding: 34px 36px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
@@ -489,7 +495,7 @@
 .lp-metric-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .lp-metric-label {
@@ -499,7 +505,7 @@
 }
 
 .lp-metric-val {
-  font-size: clamp(1.85rem, 3.2vw, 2.75rem);
+  font-size: clamp(1.85rem, 3vw, 2.6rem);
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--ink);
@@ -1108,6 +1114,7 @@
 /* ─── Responsive Breakpoints ───────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .lp-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .lp-bent-mesh-wrap { min-height: 380px; }
   .lp-metric-strip { grid-template-columns: repeat(2, 1fr); }
   .lp-steps-grid { grid-template-columns: 1fr; }
   .lp-products-grid { grid-template-columns: 1fr; }
@@ -1130,4 +1137,7 @@
   .lp-security-grid { grid-template-columns: 1fr; }
   .lp-footer-grid { grid-template-columns: 1fr; }
   .lp-footer-bottom { flex-direction: column; gap: 14px; text-align: center; }
+  .lp-device-node { padding: 8px 10px; }
+  .lp-node-title { font-size: 0.75rem; }
+  .lp-node-subtitle { display: none; }
 }
