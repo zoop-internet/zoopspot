@@ -16,13 +16,13 @@
   --surface: #070a0e;
   --surface-card: #0c1219;
   --surface-hover: #121b24;
-  --blue: #126cff;
-  --cyan: #08f2ff;
-  --green: #14f06d;
-  --lime: #b9ff00;
+  --blue: #0284c7;
+  --cyan: #38bdf8;
+  --green: #34d399;
+  --lime: #a3e635;
   --amber: #f59e0b;
-  --grad: linear-gradient(135deg, var(--blue) 0%, var(--cyan) 40%, var(--green) 75%, var(--lime) 100%);
-  --shadow-glow: 0 0 35px rgba(8, 242, 255, 0.18);
+  --grad: linear-gradient(135deg, #38bdf8 0%, #34d399 100%);
+  --shadow-glow: 0 0 24px rgba(56, 189, 248, 0.14);
   --shadow-card: 0 20px 60px rgba(0, 0, 0, 0.65);
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', Menlo, Consolas, monospace;
@@ -35,15 +35,14 @@
   overflow-x: hidden;
   line-height: 1.55;
 
-  /* Signature micro-dot grid texture + ambient color orbs */
+  /* Prominent crisp micro-dot grid texture + soft ambient tones */
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
-    radial-gradient(circle at 80% 8%, rgba(8, 242, 255, 0.12), transparent 38rem),
-    radial-gradient(circle at 18% 70%, rgba(20, 240, 109, 0.09), transparent 42rem),
-    radial-gradient(circle at 50% 40%, rgba(18, 108, 255, 0.08), transparent 32rem);
-  background-size: 26px 26px, 100% 100%, 100% 100%, 100% 100%;
+    radial-gradient(circle, rgba(255, 255, 255, 0.3) 1.2px, transparent 1.2px),
+    radial-gradient(circle at 80% 8%, rgba(56, 189, 248, 0.05), transparent 38rem),
+    radial-gradient(circle at 18% 70%, rgba(52, 211, 153, 0.04), transparent 42rem);
+  background-size: 24px 24px, 100% 100%, 100% 100%;
   background-attachment: fixed;
-  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-repeat: repeat, no-repeat, no-repeat;
 }
 
 .landing-shell * { box-sizing: border-box; }
@@ -339,11 +338,11 @@
 
 .lp-mesh-ambient-glow {
   position: absolute;
-  width: 320px;
-  height: 320px;
+  width: 260px;
+  height: 260px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(8, 242, 255, 0.16) 0%, rgba(20, 240, 109, 0.1) 40%, transparent 70%);
-  filter: blur(45px);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(52, 211, 153, 0.04) 50%, transparent 70%);
+  filter: blur(40px);
   pointer-events: none;
   animation: lpOrbFloat 6s ease-in-out infinite alternate;
 }
