@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { PortalMode } from '../types';
 import './LandingPage.css';
 
@@ -154,12 +154,15 @@ function AnimatedCounter({ end, unit = '', decimals = 0 }: { end: number; unit?:
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setStarted(true);
-        obs.disconnect();
-      }
-    }, { threshold: 0.2 });
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStarted(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
@@ -190,78 +193,71 @@ function AnimatedCounter({ end, unit = '', decimals = 0 }: { end: number; unit?:
   );
 }
 
-/* ─── Animated Platform Mesh Visual ────────────────────────────────────── */
-const PlatformMeshVisual: React.FC = () => {
+/* ─── Abstract Mesh Topology Visual (Frameless) ────────────────────────── */
+const AbstractMeshTopology: React.FC = () => {
   return (
-    <div className="lp-visual-card" aria-label="Zoop WireGuard Mesh Visualization">
-      <div className="lp-visual-header">
-        <div className="lp-mac-dots">
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="lp-visual-title">wireguard-mesh · direct p2p handshake</div>
+    <div className="lp-abstract-mesh-container" aria-label="Abstract WireGuard Mesh Topology">
+      <div className="lp-abstract-glow-orb" />
+      <div className="lp-orbit-ring r1" />
+      <div className="lp-orbit-ring r2" />
+
+      <svg className="lp-abstract-svg" viewBox="0 0 440 340">
+        <defs>
+          <linearGradient id="absGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#126cff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#08f2ff" stopOpacity="0.9" />
+          </linearGradient>
+          <linearGradient id="absGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#08f2ff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#14f06d" stopOpacity="0.9" />
+          </linearGradient>
+          <linearGradient id="absGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#14f06d" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#b9ff00" stopOpacity="0.9" />
+          </linearGradient>
+          <linearGradient id="absGrad4" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#126cff" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#14f06d" stopOpacity="0.9" />
+          </linearGradient>
+        </defs>
+
+        {/* Ambient background constellation lines */}
+        <line x1="60" y1="45" x2="380" y2="45" stroke="rgba(8, 242, 255, 0.16)" strokeWidth="1" strokeDasharray="3,6" />
+        <line x1="80" y1="290" x2="360" y2="290" stroke="rgba(20, 240, 109, 0.16)" strokeWidth="1" strokeDasharray="3,6" />
+        <line x1="60" y1="45" x2="80" y2="290" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" />
+        <line x1="380" y1="45" x2="360" y2="290" stroke="rgba(255, 255, 255, 0.08)" strokeWidth="1" />
+
+        {/* Main animated laser beams from Central Core */}
+        <path d="M 220,170 L 60,45" stroke="url(#absGrad1)" strokeWidth="3" className="lp-pulse-path" />
+        <path d="M 220,170 L 380,45" stroke="url(#absGrad2)" strokeWidth="3" className="lp-pulse-path" />
+        <path d="M 220,170 L 80,290" stroke="url(#absGrad3)" strokeWidth="3" className="lp-pulse-path" />
+        <path d="M 220,170 L 360,290" stroke="url(#absGrad4)" strokeWidth="3" className="lp-pulse-path" />
+      </svg>
+
+      {/* Central Core Hub */}
+      <div className="lp-abs-node core-hub" title="Zoop Cloud Control Plane">
+        <img src="/zoopicontransparent.png" alt="Zoop Core" />
       </div>
-      <div className="lp-mesh-area">
-        <svg className="lp-mesh-svg" viewBox="0 0 400 300">
-          <defs>
-            <linearGradient id="meshGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#126cff" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#08f2ff" stopOpacity="0.85" />
-            </linearGradient>
-            <linearGradient id="meshGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#08f2ff" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#14f06d" stopOpacity="0.85" />
-            </linearGradient>
-            <linearGradient id="meshGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#14f06d" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#b9ff00" stopOpacity="0.85" />
-            </linearGradient>
-            <linearGradient id="meshGrad4" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#126cff" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#14f06d" stopOpacity="0.85" />
-            </linearGradient>
-          </defs>
 
-          {/* Connected Lines with glowing pulse */}
-          <path d="M 200,150 L 80,75" stroke="url(#meshGrad1)" strokeWidth="3" className="lp-pulse-path" />
-          <path d="M 200,150 L 320,75" stroke="url(#meshGrad2)" strokeWidth="3" className="lp-pulse-path" />
-          <path d="M 200,150 L 110,235" stroke="url(#meshGrad3)" strokeWidth="3" className="lp-pulse-path" />
-          <path d="M 200,150 L 290,235" stroke="url(#meshGrad4)" strokeWidth="3" className="lp-pulse-path" />
+      {/* Peripheral Topology Nodes */}
+      <div className="lp-abs-node p1" title="Provider Daemon">
+        <Ico d={Icons.server} size={22} />
+        <span className="lp-abs-label">Provider (zoopd)</span>
+      </div>
 
-          {/* Cross peer line (Direct P2P bypass) */}
-          <path d="M 80,75 L 320,75" stroke="rgba(8, 242, 255, 0.25)" strokeWidth="1.5" strokeDasharray="4,4" />
-        </svg>
+      <div className="lp-abs-node p2" title="Recipient Peer">
+        <Ico d={Icons.laptop} size={22} />
+        <span className="lp-abs-label">Recipient Peer</span>
+      </div>
 
-        {/* Central Core (Zoop Control Plane & Signaling) */}
-        <div className="lp-node core" title="Zoop Cloud Signaling & IPAM">
-          <img src="/zoopicontransparent.png" alt="Zoop Core" />
-          <span className="lp-node-ring" />
-        </div>
+      <div className="lp-abs-node p3" title="Mobile Node">
+        <Ico d={Icons.smartphone} size={22} />
+        <span className="lp-abs-label">Mobile Mesh</span>
+      </div>
 
-        {/* Node 1: Provider Daemon */}
-        <div className="lp-node n1" title="Provider Daemon (zoopd)">
-          <Ico d={Icons.server} size={20} />
-          <span className="lp-node-tooltip">Provider (zoopd)</span>
-        </div>
-
-        {/* Node 2: Recipient Device */}
-        <div className="lp-node n2" title="Recipient Peer">
-          <Ico d={Icons.laptop} size={20} />
-          <span className="lp-node-tooltip">Recipient Client</span>
-        </div>
-
-        {/* Node 3: Mobile Mesh Endpoint */}
-        <div className="lp-node n3" title="Mobile Node">
-          <Ico d={Icons.smartphone} size={20} />
-          <span className="lp-node-tooltip">Mobile Node</span>
-        </div>
-
-        {/* Node 4: Router / Edge Gateway */}
-        <div className="lp-node n4" title="OpenWrt Gateway">
-          <Ico d={Icons.router} size={20} />
-          <span className="lp-node-tooltip">Edge Router</span>
-        </div>
+      <div className="lp-abs-node p4" title="Edge Router">
+        <Ico d={Icons.router} size={22} />
+        <span className="lp-abs-label">Gateway Router</span>
       </div>
     </div>
   );
@@ -329,16 +325,17 @@ const DOWNLOAD_DATA: DownloadItem[] = [
   },
 ];
 
-/* ─── Main Landing Page Component ──────────────────────────────────────── */
-export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void }> = ({ onLaunchConsole }) => {
+/* ─── Main Landing Page / Multi-Page Marketing Component ───────────────── */
+export const LandingPage: React.FC<{
+  currentPath?: string;
+  onNavigate: (path: string) => void;
+  onLaunchConsole: (mode: PortalMode) => void;
+}> = ({ currentPath = '/', onNavigate, onLaunchConsole }) => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [simPolicy, setSimPolicy] = useState<'direct' | 'balanced' | 'relay'>('direct');
-  const [simShareLimit, setSimShareLimit] = useState(75);
   const [downloadModal, setDownloadModal] = useState<{ open: boolean; platform: string; file: string } | null>(null);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  // Track scroll for sticky topbar
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -355,548 +352,515 @@ export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void
     setDownloadModal({ open: true, platform, file });
   };
 
-  const simulatedMetrics = useMemo(() => {
-    if (simPolicy === 'direct') {
-      return { latency: '8.4 ms', throughput: '840 Mbps', overhead: '0.2%', transport: 'Direct UDP (WireGuard)' };
-    }
-    if (simPolicy === 'balanced') {
-      return { latency: '14.2 ms', throughput: '620 Mbps', overhead: '0.4%', transport: 'Hybrid Hole-Punch / NAT' };
-    }
-    return { latency: '32.1 ms', throughput: '280 Mbps', overhead: '1.2%', transport: 'Encrypted TURN Relay Cluster' };
-  }, [simPolicy]);
+  const activeRoute = currentPath.toLowerCase();
 
   return (
     <div className="landing-shell">
       {/* ─── Topbar ─────────────────────────────────────────────────── */}
       <header className={`lp-topbar ${scrolled ? 'scrolled' : ''}`}>
-        <a href="#home" className="lp-brand">
+        <div className="lp-brand" onClick={() => onNavigate('/')}>
           <div className="lp-brand-icon">
             <img src="/zoopicontransparent.png" alt="Zoop Internet" />
           </div>
           <span className="lp-brand-text">Zoop</span>
           <span className="lp-brand-badge">Internet</span>
-        </a>
+        </div>
 
         <nav className="lp-nav-pill" aria-label="Main Navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#architecture">Architecture</a>
-          <a href="#products">Products</a>
-          <a href="#simulator">Simulator</a>
-          <a href="#download">Download</a>
-          <a href="#security">Security</a>
+          <button className={activeRoute === '/' ? 'active' : ''} onClick={() => onNavigate('/')}>
+            Overview
+          </button>
+          <button className={activeRoute === '/architecture' ? 'active' : ''} onClick={() => onNavigate('/architecture')}>
+            Architecture
+          </button>
+          <button className={activeRoute === '/products' ? 'active' : ''} onClick={() => onNavigate('/products')}>
+            Products
+          </button>
+          <button className={activeRoute === '/downloads' ? 'active' : ''} onClick={() => onNavigate('/downloads')}>
+            Downloads
+          </button>
+          <button className={activeRoute === '/security' ? 'active' : ''} onClick={() => onNavigate('/security')}>
+            Security
+          </button>
         </nav>
 
         <div className="lp-topbar-actions">
-          <button
-            className="lp-btn-secondary"
-            onClick={() => onLaunchConsole('user')}
-            title="Open Web Management Console"
-          >
+          <button className="lp-btn-secondary" onClick={() => onLaunchConsole('user')} title="Open Web Management Console">
             Launch Console
           </button>
-          <a href="#download" className="lp-btn-primary">
+          <button className="lp-btn-primary" onClick={() => onNavigate('/downloads')}>
             <Ico d={Icons.download} size={15} />
             Get Zoop
-          </a>
-          <button
-            className="lp-menu-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation menu"
-          >
+          </button>
+          <button className="lp-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation menu">
             <Ico d={menuOpen ? Icons.close : Icons.menu} size={20} />
           </button>
         </div>
       </header>
 
-      {/* ─── Hero Section ───────────────────────────────────────────── */}
-      <section className="lp-hero" id="home">
-        <div className="lp-hero-inner">
-          <div className="lp-hero-grid">
-            <div>
-              <div className="lp-chip">
-                <span className="lp-chip-dot" />
-                <span className="lp-chip-text">Production Ready • WireGuard Mesh + STUN Traversal</span>
-              </div>
-              <p className="lp-eyebrow">Encrypted Direct Mesh &amp; Peer Connectivity</p>
-              <h1>
-                Direct connectivity.
-                <br />
-                <span className="lp-grad-text">Zero centralized choke points.</span>
-              </h1>
-              <p className="lp-hero-desc">
-                Zoop Internet connects devices peer-to-peer with user-space WireGuard encryption, reflexive
-                NAT hole-punching, and zero-drop roaming across Wi-Fi and cellular networks.
-              </p>
-              <div className="lp-hero-actions">
-                <a href="#download" className="lp-btn-primary large">
-                  <Ico d={Icons.download} size={18} />
-                  Download for Your Device
-                </a>
-                <button className="lp-btn-secondary large" onClick={() => onLaunchConsole('user')}>
-                  Launch Web Console
-                  <Ico d={Icons.arrowRight} size={16} />
-                </button>
-              </div>
-            </div>
+      {/* ─── VIEW ROUTER ────────────────────────────────────────────── */}
 
-            <div>
-              <PlatformMeshVisual />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Live Telemetry Metric Strip ────────────────────────────── */}
-      <section className="lp-metric-strip" aria-label="System Metrics">
-        <div className="lp-metric-item in-view">
-          <span className="lp-metric-label">Direct P2P Success Rate</span>
-          <span className="lp-metric-val">
-            <AnimatedCounter end={99.4} unit="%" decimals={1} />
-          </span>
-          <span className="lp-metric-sub">
-            <Ico d={Icons.check} size={12} /> Reflexive STUN Hole-Punching
-          </span>
-        </div>
-
-        <div className="lp-metric-item in-view">
-          <span className="lp-metric-label">Encrypted Tunnel Latency</span>
-          <span className="lp-metric-val">
-            &lt; <AnimatedCounter end={1} unit=" ms" />
-          </span>
-          <span className="lp-metric-sub">Noise_IK Protocol Handshake</span>
-        </div>
-
-        <div className="lp-metric-item in-view">
-          <span className="lp-metric-label">Transport Cryptography</span>
-          <span className="lp-metric-val">256-bit</span>
-          <span className="lp-metric-sub">ChaCha20-Poly1305 + Curve25519</span>
-        </div>
-
-        <div className="lp-metric-item in-view">
-          <span className="lp-metric-label">Roaming Drop Rate</span>
-          <span className="lp-metric-val">
-            <AnimatedCounter end={0.0} unit="%" decimals={1} />
-          </span>
-          <span className="lp-metric-sub">Kernel Netlink Roaming Event</span>
-        </div>
-      </section>
-
-      {/* ─── How It Works (3 Steps) ─────────────────────────────────── */}
-      <section className="lp-section" id="how-it-works">
-        <div className="lp-section-heading centered">
-          <p className="lp-eyebrow">Proven Architecture</p>
-          <h2>How Zoop establishes direct encrypted connectivity.</h2>
-          <p className="lp-subtext">
-            Strict decoupling between the Go Control Plane (discovery &amp; signaling) and the WireGuard Data Plane
-            (encrypted user payload).
-          </p>
-        </div>
-
-        <div className="lp-steps-grid">
-          {/* Step 1 */}
-          <div className="lp-step-card">
-            <div className="lp-step-header">
-              <div className="lp-step-icon-box">
-                <Ico d={Icons.shield} size={22} />
-              </div>
-              <span className="lp-step-num">01</span>
-            </div>
-            <h3>1. Ed25519 Identity &amp; Auth</h3>
+      {/* 1. DEDICATED DOWNLOADS PAGE */}
+      {activeRoute === '/downloads' && (
+        <main className="lp-page-wrapper">
+          <div className="lp-page-header">
+            <p className="lp-eyebrow">Production Binaries &amp; Drivers</p>
+            <h1>Download Zoop for every platform.</h1>
             <p>
-              Each device generates cryptographic Curve25519 public keys and authenticates with the Zoop Cloud Control
-              Plane over TLS to register its capabilities.
+              Pre-compiled Go binaries, background daemons (`zoopd`), and kernel TUN drivers for Linux, macOS,
+              Windows, Android, iOS, and OpenWrt routers.
             </p>
-            <div className="lp-code-snippet">$ zoop identity generate</div>
           </div>
 
-          {/* Step 2 */}
-          <div className="lp-step-card">
-            <div className="lp-step-header">
-              <div className="lp-step-icon-box">
-                <Ico d={Icons.zap} size={22} />
-              </div>
-              <span className="lp-step-num">02</span>
-            </div>
-            <h3>2. STUN Traversal &amp; Direct Mesh</h3>
-            <p>
-              Endpoints gather local LAN, UPnP, and reflexive STUN candidates. When mutual sharing is authorized, they
-              punch UDP holes to establish direct WireGuard tunnels.
-            </p>
-            <div className="lp-code-snippet">$ zoop connect 10.64.0.12</div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="lp-step-card">
-            <div className="lp-step-header">
-              <div className="lp-step-icon-box">
-                <Ico d={Icons.globe} size={22} />
-              </div>
-              <span className="lp-step-num">03</span>
-            </div>
-            <h3>3. Zero-Drop Roaming &amp; Relays</h3>
-            <p>
-              When switching interfaces (Wi-Fi ↔ LTE), kernel Netlink monitors update remote endpoints instantaneously
-              without dropping open TCP sessions.
-            </p>
-            <div className="lp-code-snippet">[zoopd] Netlink: wlan0 -&gt; rmnet0 (OK)</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Product Ecosystem ──────────────────────────────────────── */}
-      <section className="lp-section" id="products">
-        <div className="lp-section-heading">
-          <p className="lp-eyebrow">Comprehensive Ecosystem</p>
-          <h2>Purpose-built tools for every layer of your network.</h2>
-        </div>
-
-        <div className="lp-products-grid">
-          {/* zoopd */}
-          <div className="lp-product-card">
-            <span className="lp-product-badge">System Daemon</span>
-            <h3>zoopd</h3>
-            <p>
-              Privileged background daemon running natively on Linux (`systemd`), macOS (`launchd`), and Windows (`Wintun
-              Service`). Manages TUN adapter lifecycle and NAT forwarding.
-            </p>
-            <ul className="lp-product-features">
-              <li>
-                <Ico d={Icons.check} size={14} /> User-space WireGuard Engine
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> IPC via local Unix Domain Sockets
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> Automatic Netlink interface roaming
-              </li>
-            </ul>
-          </div>
-
-          {/* zoop CLI */}
-          <div className="lp-product-card">
-            <span className="lp-product-badge">Developer Tool</span>
-            <h3>zoop CLI</h3>
-            <p>
-              Fast, unprivileged command-line utility for engineers to inspect live peer latency, initiate tunnels,
-              verify routing tables, and run interactive diagnostic health checks.
-            </p>
-            <ul className="lp-product-features">
-              <li>
-                <Ico d={Icons.check} size={14} /> Interactive `zoop doctor` diagnostics
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> Real-time peer throughput monitoring
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> Scriptable JSON telemetry outputs
-              </li>
-            </ul>
-          </div>
-
-          {/* Zoop Web Console */}
-          <div className="lp-product-card">
-            <span className="lp-product-badge">Web Console</span>
-            <h3>Zoop Web Management</h3>
-            <p>
-              Unified browser command surface with dedicated Personal Device, Organization Fleet, and System Admin
-              consoles. Manage peer authorizations, access policies, and audit logs.
-            </p>
-            <ul className="lp-product-features">
-              <li>
-                <Ico d={Icons.check} size={14} /> Role-based organization access
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> One-click share relationship approvals
-              </li>
-              <li>
-                <Ico d={Icons.check} size={14} /> Signed security audit log telemetry
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Interactive Policy & Tunnel Simulator ───────────────────── */}
-      <section className="lp-section" id="simulator">
-        <div className="lp-simulator-wrap">
-          <div>
-            <p className="lp-eyebrow">Interactive Simulation</p>
-            <h2>Simulate policy rules &amp; mesh throughput in real time.</h2>
-            <p className="lp-subtext">
-              Test how Zoop adjusts between direct P2P WireGuard handshakes, hybrid NAT traversal, and fallback TURN
-              relays depending on network policy and restrictive firewall constraints.
-            </p>
-            <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
-              <button className="lp-btn-primary" onClick={() => onLaunchConsole('user')}>
-                Test with Real Devices
-                <Ico d={Icons.arrowRight} size={15} />
-              </button>
-            </div>
-          </div>
-
-          <div className="lp-sim-control">
-            <div className="lp-sim-header">
-              <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>Mesh Egress Policy</span>
-              <span className="lp-brand-badge">{simPolicy.toUpperCase()}</span>
-            </div>
-
-            <div className="lp-sim-mode-toggle">
-              <button
-                className={simPolicy === 'direct' ? 'active' : ''}
-                onClick={() => setSimPolicy('direct')}
-              >
-                Direct P2P
-              </button>
-              <button
-                className={simPolicy === 'balanced' ? 'active' : ''}
-                onClick={() => setSimPolicy('balanced')}
-              >
-                Balanced
-              </button>
-              <button
-                className={simPolicy === 'relay' ? 'active' : ''}
-                onClick={() => setSimPolicy('relay')}
-              >
-                Relay Mode
-              </button>
-            </div>
-
-            <div className="lp-sim-slider-box">
-              <label>
-                <span>Bandwidth Share Quota</span>
-                <strong style={{ color: 'var(--cyan)' }}>{simShareLimit}%</strong>
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="100"
-                value={simShareLimit}
-                onChange={(e) => setSimShareLimit(Number(e.target.value))}
-                className="lp-sim-slider"
-              />
-            </div>
-
-            <div className="lp-live-preview-box">
-              <div className="lp-live-peer-row">
-                <span style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>Active Transport</span>
-                <strong style={{ color: 'var(--ink)', fontSize: '0.8125rem' }}>{simualtedTransportLabel(simPolicy)}</strong>
-              </div>
-              <div className="lp-live-peer-row">
-                <span style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>RTT Roundtrip Latency</span>
-                <strong style={{ color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>{simulatedMetrics.latency}</strong>
-              </div>
-              <div className="lp-live-peer-row">
-                <span style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>Throughput Capacity</span>
-                <strong style={{ color: 'var(--cyan)', fontFamily: 'var(--font-mono)' }}>{simulatedMetrics.throughput}</strong>
-              </div>
-              <div className="lp-live-peer-row">
-                <span style={{ color: 'var(--muted)', fontSize: '0.8125rem' }}>Protocol Encryption Overhead</span>
-                <strong style={{ color: 'var(--lime)', fontFamily: 'var(--font-mono)' }}>{simulatedMetrics.overhead}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Downloads Matrix ───────────────────────────────────────── */}
-      <section className="lp-section" id="download">
-        <div className="lp-section-heading centered">
-          <p className="lp-eyebrow">Ready to Deploy</p>
-          <h2>Download Zoop for Linux, macOS, Windows &amp; Mobile.</h2>
-          <p className="lp-subtext">All packages include pre-compiled Go binaries, TUN drivers, and daemon services.</p>
-        </div>
-
-        <div className="lp-downloads-grid">
-          {DOWNLOAD_DATA.map((item) => (
-            <div key={item.id} className="lp-dl-card">
-              <div className="lp-dl-top">
-                <div className="lp-dl-icon">{item.icon}</div>
-                <span className="lp-brand-badge">v1.0.0</span>
-              </div>
-              <h3>{item.name}</h3>
-              <p className="lp-dl-sub">{item.sub}</p>
-
-              <div className="lp-dl-actions">
-                <button
-                  className="lp-dl-btn primary-dl"
-                  onClick={() => handleDownloadClick(item.name, item.primaryAction.file)}
-                >
-                  <span>{item.primaryAction.label}</span>
-                  <Ico d={Icons.download} size={14} />
-                </button>
-
-                {item.secondaryActions?.map((sec) => (
-                  <button
-                    key={sec.label}
-                    className="lp-dl-btn"
-                    onClick={() => handleDownloadClick(item.name, sec.file)}
-                  >
-                    <span>{sec.label}</span>
-                    <Ico d={Icons.arrowRight} size={12} />
-                  </button>
-                ))}
-              </div>
-
-              {item.installCommand && (
-                <div
-                  className="lp-code-snippet"
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                  onClick={() => copyText(item.installCommand!, item.id)}
-                  title="Click to copy install command"
-                >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.installCommand}
-                  </span>
-                  <Ico d={copiedCmd === item.id ? Icons.check : Icons.copy} size={13} />
+          <div className="lp-downloads-grid">
+            {DOWNLOAD_DATA.map((item) => (
+              <div key={item.id} className="lp-dl-card">
+                <div className="lp-dl-top">
+                  <div className="lp-dl-icon">{item.icon}</div>
+                  <span className="lp-brand-badge">v1.0.0</span>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+                <h3>{item.name}</h3>
+                <p className="lp-dl-sub">{item.sub}</p>
 
-      {/* ─── Security Band ──────────────────────────────────────────── */}
-      <section className="lp-section" id="security">
-        <div className="lp-section-heading centered">
-          <p className="lp-eyebrow">Zero-Trust Cryptography</p>
-          <h2>Engineered for privacy, integrity, and resilience.</h2>
-        </div>
+                <div className="lp-dl-actions">
+                  <button
+                    className="lp-dl-btn primary-dl"
+                    onClick={() => handleDownloadClick(item.name, item.primaryAction.file)}
+                  >
+                    <span>{item.primaryAction.label}</span>
+                    <Ico d={Icons.download} size={14} />
+                  </button>
 
-        <div className="lp-security-grid">
-          <div className="lp-sec-card">
-            <div className="lp-sec-icon">
-              <Ico d={Icons.shield} size={20} />
-            </div>
-            <h3>Noise_IK Handshake</h3>
-            <p>
-              1.5-RTT mutual cryptographic handshake using Curve25519 elliptic-curve Diffie-Hellman with identity hiding.
-            </p>
-          </div>
+                  {item.secondaryActions?.map((sec) => (
+                    <button
+                      key={sec.label}
+                      className="lp-dl-btn"
+                      onClick={() => handleDownloadClick(item.name, sec.file)}
+                    >
+                      <span>{sec.label}</span>
+                      <Ico d={Icons.arrowRight} size={12} />
+                    </button>
+                  ))}
+                </div>
 
-          <div className="lp-sec-card">
-            <div className="lp-sec-icon">
-              <Ico d={Icons.zap} size={20} />
-            </div>
-            <h3>ChaCha20-Poly1305</h3>
-            <p>
-              High-performance authenticated symmetric encryption with 128-bit MAC tag preventing payload tampering.
-            </p>
-          </div>
-
-          <div className="lp-sec-card">
-            <div className="lp-sec-icon">
-              <Ico d={Icons.server} size={20} />
-            </div>
-            <h3>Zero Payload Logging</h3>
-            <p>
-              The Zoop Control Plane never inspects, caches, or proxies user network packets. Data travels direct P2P.
-            </p>
-          </div>
-
-          <div className="lp-sec-card">
-            <div className="lp-sec-icon">
-              <Ico d={Icons.terminal} size={20} />
-            </div>
-            <h3>Deterministic IPAM</h3>
-            <p>
-              Overlay subnets assign stable, private, cryptographic addresses isolated from local LAN subnet collisions.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Testimonials ───────────────────────────────────────────── */}
-      <section className="lp-section">
-        <div className="lp-section-heading centered">
-          <p className="lp-eyebrow">Community &amp; Enterprise</p>
-          <h2>Trusted by network operators and engineers worldwide.</h2>
-        </div>
-
-        <div className="lp-testimonials-grid">
-          <div className="lp-test-card">
-            <div className="lp-test-stars">
-              {[...Array(5)].map((_, i) => (
-                <Ico key={i} d={Icons.star} size={14} />
-              ))}
-            </div>
-            <p className="lp-test-quote">
-              "Zoop's automatic STUN hole punching solved our remote edge server connectivity without needing static
-              public IPs or complex VPN concentrators."
-            </p>
-            <div className="lp-test-author">
-              <div className="lp-test-avatar">A</div>
-              <div>
-                <div className="lp-test-name">Amara N.</div>
-                <div className="lp-test-role">Infrastructure Lead · CloudScale Africa</div>
+                {item.installCommand && (
+                  <div
+                    className="lp-code-snippet"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                    onClick={() => copyText(item.installCommand!, item.id)}
+                    title="Click to copy install command"
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.installCommand}
+                    </span>
+                    <Ico d={copiedCmd === item.id ? Icons.check : Icons.copy} size={13} />
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
           </div>
 
-          <div className="lp-test-card">
-            <div className="lp-test-stars">
-              {[...Array(5)].map((_, i) => (
-                <Ico key={i} d={Icons.star} size={14} />
-              ))}
-            </div>
-            <p className="lp-test-quote">
-              "The zero-drop roaming is exceptional. Moving between Wi-Fi and 5G while maintaining active SSH sessions
-              and database connections without a single disconnect."
-            </p>
-            <div className="lp-test-author">
-              <div className="lp-test-avatar">D</div>
-              <div>
-                <div className="lp-test-name">David K.</div>
-                <div className="lp-test-role">Distributed Systems Architect · Nairobi</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="lp-test-card">
-            <div className="lp-test-stars">
-              {[...Array(5)].map((_, i) => (
-                <Ico key={i} d={Icons.star} size={14} />
-              ))}
-            </div>
-            <p className="lp-test-quote">
-              "We run community provider nodes with strict bandwidth sharing policies. The lightweight daemon uses
-              almost no CPU and throughput is near line-rate."
-            </p>
-            <div className="lp-test-author">
-              <div className="lp-test-avatar">S</div>
-              <div>
-                <div className="lp-test-name">Seline M.</div>
-                <div className="lp-test-role">Community Mesh Operator · Lagos</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Call to Action Banner ──────────────────────────────────── */}
-      <section className="lp-section">
-        <div className="lp-cta-banner">
-          <div className="lp-cta-copy">
-            <h2>Ready to build your direct encrypted mesh?</h2>
-            <p>Deploy the lightweight `zoopd` daemon or launch the web management console in seconds.</p>
-          </div>
-          <div className="lp-cta-actions">
-            <a href="#download" className="lp-btn-primary large">
-              <Ico d={Icons.download} size={18} />
-              Download Apps
-            </a>
-            <button className="lp-btn-secondary large" onClick={() => onLaunchConsole('user')}>
-              Open Web Console
+          <div style={{ marginTop: 64, textAlign: 'center' }}>
+            <button className="lp-btn-secondary" onClick={() => onNavigate('/')}>
+              ← Back to Overview
             </button>
           </div>
-        </div>
-      </section>
+        </main>
+      )}
+
+      {/* 2. DEDICATED ARCHITECTURE PAGE */}
+      {activeRoute === '/architecture' && (
+        <main className="lp-page-wrapper">
+          <div className="lp-page-header">
+            <p className="lp-eyebrow">Technical Architecture</p>
+            <h1>Strict separation of Control &amp; Data Planes.</h1>
+            <p>
+              Zoop coordinates identities and discovery over a lightweight Go signaling cluster, while all user payloads
+              travel directly between endpoints over authenticated WireGuard tunnels.
+            </p>
+          </div>
+
+          <div className="lp-arch-grid">
+            <div className="lp-arch-card">
+              <h3>Control Plane (`zoop-cloud`)</h3>
+              <p>
+                Handles cryptographic Ed25519 identity verification, mutual share authorization, WebSocket signaling, and
+                deterministic IPAM lease allocation. Never touches or proxies raw packet traffic.
+              </p>
+              <div className="lp-code-snippet">[Control Plane] Signaling: Session auth OK · Candidate exchange complete</div>
+            </div>
+
+            <div className="lp-arch-card">
+              <h3>Data Plane (`zoopd` &amp; WireGuard)</h3>
+              <p>
+                Runs as a local system daemon. Manages virtual TUN adapters, executes 1.5-RTT `Noise_IK` handshakes, gathers
+                reflexive STUN candidates for hole punching, and performs kernel-level NAT masquerading.
+              </p>
+              <div className="lp-code-snippet">[Data Plane] WireGuard direct tunnel established (UDP :51820)</div>
+            </div>
+
+            <div className="lp-arch-card">
+              <h3>Zero-Drop Netlink Roaming</h3>
+              <p>
+                Monitors kernel routing and interface state transitions (Wi-Fi ↔ LTE ↔ Ethernet). Automatically re-probes
+                endpoints and updates cryptographic routing tables without breaking TCP connections.
+              </p>
+              <div className="lp-code-snippet">[Netlink] Transition detected: wlan0 -&gt; rmnet0 · Re-keyed in 12ms</div>
+            </div>
+
+            <div className="lp-arch-card">
+              <h3>Distributed Relay Failover</h3>
+              <p>
+                Geographically distributed TURN/Relay cluster provides encrypted WebSocket fallback streaming for symmetric
+                and carrier-grade NATs where direct UDP hole punching is mathematically blocked.
+              </p>
+              <div className="lp-code-snippet">[Relay] Fallback enabled for Symmetric CGNAT (Region: us-east-va)</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 64, textAlign: 'center' }}>
+            <button className="lp-btn-secondary" onClick={() => onNavigate('/')}>
+              ← Back to Overview
+            </button>
+          </div>
+        </main>
+      )}
+
+      {/* 3. DEDICATED PRODUCTS PAGE */}
+      {activeRoute === '/products' && (
+        <main className="lp-page-wrapper">
+          <div className="lp-page-header">
+            <p className="lp-eyebrow">Product Ecosystem</p>
+            <h1>Built for developers, fleets &amp; network operators.</h1>
+            <p>Deploy native daemons, manage tunnels from the CLI, or oversee global mesh fleets via the web console.</p>
+          </div>
+
+          <div className="lp-products-grid">
+            <div className="lp-product-card">
+              <span className="lp-product-badge">System Daemon</span>
+              <h3>zoopd</h3>
+              <p>
+                Privileged background service running natively on Linux (`systemd`), macOS (`launchd`), and Windows
+                (`Wintun`). Manages adapter lifecycle, packet routing, and local IPC.
+              </p>
+              <ul className="lp-product-features">
+                <li><Ico d={Icons.check} size={14} /> User-space WireGuard Engine</li>
+                <li><Ico d={Icons.check} size={14} /> Unprivileged Unix Domain Socket IPC</li>
+                <li><Ico d={Icons.check} size={14} /> Automatic Netlink interface roaming</li>
+              </ul>
+            </div>
+
+            <div className="lp-product-card">
+              <span className="lp-product-badge">Developer Tool</span>
+              <h3>zoop CLI</h3>
+              <p>
+                Fast terminal tool for engineers to inspect live peer latency, initiate tunnels, verify routing tables, and
+                run interactive health checks with `zoop doctor`.
+              </p>
+              <ul className="lp-product-features">
+                <li><Ico d={Icons.check} size={14} /> Interactive diagnostics &amp; health checks</li>
+                <li><Ico d={Icons.check} size={14} /> Real-time peer throughput monitoring</li>
+                <li><Ico d={Icons.check} size={14} /> Scriptable JSON output for automation</li>
+              </ul>
+            </div>
+
+            <div className="lp-product-card">
+              <span className="lp-product-badge">Web Console</span>
+              <h3>Zoop Web Management</h3>
+              <p>
+                Unified browser command surface with dedicated Personal Device, Organization Fleet, and System Admin
+                consoles for policy control and signed audit logs.
+              </p>
+              <ul className="lp-product-features">
+                <li><Ico d={Icons.check} size={14} /> Role-based organization access</li>
+                <li><Ico d={Icons.check} size={14} /> One-click share relationship approvals</li>
+                <li><Ico d={Icons.check} size={14} /> Signed security audit log telemetry</li>
+              </ul>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 64, textAlign: 'center' }}>
+            <button className="lp-btn-secondary" onClick={() => onNavigate('/')}>
+              ← Back to Overview
+            </button>
+          </div>
+        </main>
+      )}
+
+      {/* 4. DEDICATED SECURITY PAGE */}
+      {activeRoute === '/security' && (
+        <main className="lp-page-wrapper">
+          <div className="lp-page-header">
+            <p className="lp-eyebrow">Zero-Trust Cryptography</p>
+            <h1>Cryptographic privacy and verified integrity.</h1>
+            <p>Every packet is encrypted at the source using state-of-the-art primitives. Zero central payload inspection.</p>
+          </div>
+
+          <div className="lp-security-grid">
+            <div className="lp-sec-card">
+              <div className="lp-sec-icon"><Ico d={Icons.shield} size={20} /></div>
+              <h3>Noise_IK Handshake</h3>
+              <p>
+                1.5-RTT mutual cryptographic handshake using Curve25519 elliptic-curve Diffie-Hellman with identity hiding.
+              </p>
+            </div>
+
+            <div className="lp-sec-card">
+              <div className="lp-sec-icon"><Ico d={Icons.zap} size={20} /></div>
+              <h3>ChaCha20-Poly1305</h3>
+              <p>
+                High-performance authenticated symmetric encryption with 128-bit MAC tag preventing payload tampering.
+              </p>
+            </div>
+
+            <div className="lp-sec-card">
+              <div className="lp-sec-icon"><Ico d={Icons.server} size={20} /></div>
+              <h3>Zero Payload Logging</h3>
+              <p>
+                The Zoop Control Plane never inspects, caches, or proxies user network packets. Data travels direct P2P.
+              </p>
+            </div>
+
+            <div className="lp-sec-card">
+              <div className="lp-sec-icon"><Ico d={Icons.terminal} size={20} /></div>
+              <h3>Deterministic IPAM</h3>
+              <p>
+                Overlay subnets assign stable, private, cryptographic addresses isolated from local LAN subnet collisions.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 64, textAlign: 'center' }}>
+            <button className="lp-btn-secondary" onClick={() => onNavigate('/')}>
+              ← Back to Overview
+            </button>
+          </div>
+        </main>
+      )}
+
+      {/* 5. DEFAULT HOME / OVERVIEW LANDING PAGE */}
+      {activeRoute === '/' && (
+        <>
+          {/* Hero Section */}
+          <section className="lp-hero">
+            <div className="lp-hero-inner">
+              <div className="lp-hero-grid">
+                <div>
+                  <div className="lp-chip">
+                    <span className="lp-chip-dot" />
+                    <span className="lp-chip-text">Production Ready • WireGuard Mesh + STUN Traversal</span>
+                  </div>
+                  <p className="lp-eyebrow">Encrypted Direct Mesh &amp; Peer Connectivity</p>
+                  <h1>
+                    Direct connectivity.
+                    <br />
+                    <span className="lp-grad-text">Zero centralized choke points.</span>
+                  </h1>
+                  <p className="lp-hero-desc">
+                    Zoop Internet connects devices peer-to-peer with user-space WireGuard encryption, reflexive
+                    NAT hole-punching, and zero-drop roaming across Wi-Fi and cellular networks.
+                  </p>
+                  <div className="lp-hero-actions">
+                    <button className="lp-btn-primary large" onClick={() => onNavigate('/downloads')}>
+                      <Ico d={Icons.download} size={18} />
+                      Download for Your Device
+                    </button>
+                    <button className="lp-btn-secondary large" onClick={() => onLaunchConsole('user')}>
+                      Launch Web Console
+                      <Ico d={Icons.arrowRight} size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <AbstractMeshTopology />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Metric Strip */}
+          <section className="lp-metric-strip" aria-label="System Metrics">
+            <div className="lp-metric-item in-view">
+              <span className="lp-metric-label">Direct P2P Success Rate</span>
+              <span className="lp-metric-val">
+                <AnimatedCounter end={99.4} unit="%" decimals={1} />
+              </span>
+              <span className="lp-metric-sub">
+                <Ico d={Icons.check} size={12} /> Reflexive STUN Hole-Punching
+              </span>
+            </div>
+
+            <div className="lp-metric-item in-view">
+              <span className="lp-metric-label">Encrypted Tunnel Latency</span>
+              <span className="lp-metric-val">
+                &lt; <AnimatedCounter end={1} unit=" ms" />
+              </span>
+              <span className="lp-metric-sub">Noise_IK Protocol Handshake</span>
+            </div>
+
+            <div className="lp-metric-item in-view">
+              <span className="lp-metric-label">Transport Cryptography</span>
+              <span className="lp-metric-val">256-bit</span>
+              <span className="lp-metric-sub">ChaCha20-Poly1305 + Curve25519</span>
+            </div>
+
+            <div className="lp-metric-item in-view">
+              <span className="lp-metric-label">Roaming Drop Rate</span>
+              <span className="lp-metric-val">
+                <AnimatedCounter end={0.0} unit="%" decimals={1} />
+              </span>
+              <span className="lp-metric-sub">Kernel Netlink Roaming Event</span>
+            </div>
+          </section>
+
+          {/* How It Works Section */}
+          <section className="lp-section">
+            <div className="lp-section-heading centered">
+              <p className="lp-eyebrow">Proven Architecture</p>
+              <h2>How Zoop establishes direct encrypted connectivity.</h2>
+              <p className="lp-subtext">
+                Strict decoupling between the Go Control Plane (discovery &amp; signaling) and the WireGuard Data Plane
+                (encrypted user payload).
+              </p>
+            </div>
+
+            <div className="lp-steps-grid">
+              <div className="lp-step-card">
+                <div className="lp-step-header">
+                  <div className="lp-step-icon-box"><Ico d={Icons.shield} size={22} /></div>
+                  <span className="lp-step-num">01</span>
+                </div>
+                <h3>1. Ed25519 Identity &amp; Auth</h3>
+                <p>
+                  Each device generates cryptographic Curve25519 public keys and authenticates with the Zoop Cloud Control
+                  Plane over TLS to register its capabilities.
+                </p>
+                <div className="lp-code-snippet">$ zoop identity generate</div>
+              </div>
+
+              <div className="lp-step-card">
+                <div className="lp-step-header">
+                  <div className="lp-step-icon-box"><Ico d={Icons.zap} size={22} /></div>
+                  <span className="lp-step-num">02</span>
+                </div>
+                <h3>2. STUN Traversal &amp; Direct Mesh</h3>
+                <p>
+                  Endpoints gather local LAN, UPnP, and reflexive STUN candidates. When mutual sharing is authorized, they
+                  punch UDP holes to establish direct WireGuard tunnels.
+                </p>
+                <div className="lp-code-snippet">$ zoop connect 10.64.0.12</div>
+              </div>
+
+              <div className="lp-step-card">
+                <div className="lp-step-header">
+                  <div className="lp-step-icon-box"><Ico d={Icons.globe} size={22} /></div>
+                  <span className="lp-step-num">03</span>
+                </div>
+                <h3>3. Zero-Drop Roaming &amp; Relays</h3>
+                <p>
+                  When switching interfaces (Wi-Fi ↔ LTE), kernel Netlink monitors update remote endpoints instantaneously
+                  without dropping open TCP sessions.
+                </p>
+                <div className="lp-code-snippet">[zoopd] Netlink: wlan0 -&gt; rmnet0 (OK)</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Testimonials */}
+          <section className="lp-section">
+            <div className="lp-section-heading centered">
+              <p className="lp-eyebrow">Community &amp; Enterprise</p>
+              <h2>Trusted by network operators and engineers worldwide.</h2>
+            </div>
+
+            <div className="lp-testimonials-grid">
+              <div className="lp-test-card">
+                <div className="lp-test-stars">
+                  {[...Array(5)].map((_, i) => (
+                    <Ico key={i} d={Icons.star} size={14} />
+                  ))}
+                </div>
+                <p className="lp-test-quote">
+                  "Zoop's automatic STUN hole punching solved our remote edge server connectivity without needing static
+                  public IPs or complex VPN concentrators."
+                </p>
+                <div className="lp-test-author">
+                  <div className="lp-test-avatar">A</div>
+                  <div>
+                    <div className="lp-test-name">Amara N.</div>
+                    <div className="lp-test-role">Infrastructure Lead · CloudScale Africa</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lp-test-card">
+                <div className="lp-test-stars">
+                  {[...Array(5)].map((_, i) => (
+                    <Ico key={i} d={Icons.star} size={14} />
+                  ))}
+                </div>
+                <p className="lp-test-quote">
+                  "The zero-drop roaming is exceptional. Moving between Wi-Fi and 5G while maintaining active SSH sessions
+                  and database connections without a single disconnect."
+                </p>
+                <div className="lp-test-author">
+                  <div className="lp-test-avatar">D</div>
+                  <div>
+                    <div className="lp-test-name">David K.</div>
+                    <div className="lp-test-role">Distributed Systems Architect · Nairobi</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lp-test-card">
+                <div className="lp-test-stars">
+                  {[...Array(5)].map((_, i) => (
+                    <Ico key={i} d={Icons.star} size={14} />
+                  ))}
+                </div>
+                <p className="lp-test-quote">
+                  "We run community provider nodes with strict bandwidth sharing policies. The lightweight daemon uses
+                  almost no CPU and throughput is near line-rate."
+                </p>
+                <div className="lp-test-author">
+                  <div className="lp-test-avatar">S</div>
+                  <div>
+                    <div className="lp-test-name">Seline M.</div>
+                    <div className="lp-test-role">Community Mesh Operator · Lagos</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* CTA Banner */}
+          <section className="lp-section">
+            <div className="lp-cta-banner">
+              <div className="lp-cta-copy">
+                <h2>Ready to build your direct encrypted mesh?</h2>
+                <p>Deploy the lightweight `zoopd` daemon or launch the web management console in seconds.</p>
+              </div>
+              <div className="lp-cta-actions">
+                <button className="lp-btn-primary large" onClick={() => onNavigate('/downloads')}>
+                  <Ico d={Icons.download} size={18} />
+                  Download Apps
+                </button>
+                <button className="lp-btn-secondary large" onClick={() => onLaunchConsole('user')}>
+                  Open Web Console
+                </button>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       {/* ─── Footer ─────────────────────────────────────────────────── */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
           <div className="lp-footer-grid">
             <div className="lp-footer-brand">
-              <div className="lp-brand">
+              <div className="lp-brand" onClick={() => onNavigate('/')}>
                 <div className="lp-brand-icon">
                   <img src="/zoopicontransparent.png" alt="Zoop" />
                 </div>
@@ -911,30 +875,30 @@ export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void
             <div className="lp-footer-col">
               <h4>Products</h4>
               <ul>
-                <li><a href="#products">zoopd Daemon</a></li>
-                <li><a href="#products">zoop CLI</a></li>
-                <li><a href="#download">Desktop Nodes</a></li>
-                <li><a href="#download">Mobile Core</a></li>
+                <li><a onClick={() => onNavigate('/products')}>zoopd Daemon</a></li>
+                <li><a onClick={() => onNavigate('/products')}>zoop CLI</a></li>
+                <li><a onClick={() => onNavigate('/downloads')}>Desktop Nodes</a></li>
+                <li><a onClick={() => onNavigate('/downloads')}>Mobile Core</a></li>
               </ul>
             </div>
 
             <div className="lp-footer-col">
               <h4>Consoles</h4>
               <ul>
-                <li><a href="#app" onClick={(e) => { e.preventDefault(); onLaunchConsole('user'); }}>Personal Device</a></li>
-                <li><a href="#org" onClick={(e) => { e.preventDefault(); onLaunchConsole('org'); }}>Organization</a></li>
-                <li><a href="#admin" onClick={(e) => { e.preventDefault(); onLaunchConsole('admin'); }}>Admin Center</a></li>
-                <li><a href="#simulator">Simulator</a></li>
+                <li><a onClick={() => onLaunchConsole('user')}>Personal Device</a></li>
+                <li><a onClick={() => onLaunchConsole('org')}>Organization Fleet</a></li>
+                <li><a onClick={() => onLaunchConsole('admin')}>Admin Center</a></li>
+                <li><a onClick={() => onNavigate('/downloads')}>Downloads</a></li>
               </ul>
             </div>
 
             <div className="lp-footer-col">
               <h4>Technology</h4>
               <ul>
-                <li><a href="#architecture">Noise_IK Protocol</a></li>
-                <li><a href="#architecture">STUN / TURN Traversal</a></li>
-                <li><a href="#security">Zero-Trust IPAM</a></li>
-                <li><a href="#security">Netlink Roaming</a></li>
+                <li><a onClick={() => onNavigate('/architecture')}>Noise_IK Protocol</a></li>
+                <li><a onClick={() => onNavigate('/architecture')}>STUN / TURN Traversal</a></li>
+                <li><a onClick={() => onNavigate('/security')}>Zero-Trust IPAM</a></li>
+                <li><a onClick={() => onNavigate('/architecture')}>Netlink Roaming</a></li>
               </ul>
             </div>
 
@@ -942,9 +906,9 @@ export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void
               <h4>Community</h4>
               <ul>
                 <li><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub Repo</a></li>
-                <li><a href="#docs">Documentation</a></li>
+                <li><a onClick={() => onNavigate('/architecture')}>Documentation</a></li>
                 <li><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Issue Tracker</a></li>
-                <li><a href="#security">Security Bug Bounty</a></li>
+                <li><a onClick={() => onNavigate('/security')}>Security Bug Bounty</a></li>
               </ul>
             </div>
           </div>
@@ -952,8 +916,8 @@ export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void
           <div className="lp-footer-bottom">
             <span>© {new Date().getFullYear()} Zoop Internet. Open source under MIT License.</span>
             <div className="lp-footer-links">
-              <a href="#privacy">Privacy</a>
-              <a href="#terms">Terms</a>
+              <a onClick={() => onNavigate('/security')}>Privacy &amp; Security</a>
+              <a onClick={() => onNavigate('/architecture')}>Architecture</a>
               <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
             </div>
           </div>
@@ -992,9 +956,3 @@ export const LandingPage: React.FC<{ onLaunchConsole: (mode: PortalMode) => void
     </div>
   );
 };
-
-function simualtedTransportLabel(policy: 'direct' | 'balanced' | 'relay'): string {
-  if (policy === 'direct') return 'Direct WireGuard UDP (Noise_IK)';
-  if (policy === 'balanced') return 'Hybrid STUN Reflexive Mesh';
-  return 'WebSocket / TURN Cluster Relay';
-}
