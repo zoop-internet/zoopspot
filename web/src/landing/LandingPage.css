@@ -423,16 +423,16 @@
 }
 
 /* Node positions */
-.lp-node-home   { top: 8%; left: 6%; }
+.lp-node-home   { top: 5%; left: 2%; width: 205px; }
 .lp-node-home .lp-node-icon-box { background: rgba(18, 108, 255, 0.15); color: var(--blue); }
 
-.lp-node-laptop { top: 12%; right: 6%; }
+.lp-node-laptop { top: 5%; right: 2%; width: 205px; }
 .lp-node-laptop .lp-node-icon-box { background: rgba(8, 242, 255, 0.15); color: var(--cyan); }
 
-.lp-node-phone  { bottom: 10%; left: 8%; }
+.lp-node-phone  { bottom: 5%; left: 2%; width: 205px; }
 .lp-node-phone .lp-node-icon-box { background: rgba(20, 240, 109, 0.15); color: var(--green); }
 
-.lp-node-team   { bottom: 12%; right: 8%; }
+.lp-node-team   { bottom: 5%; right: 2%; width: 205px; }
 .lp-node-team .lp-node-icon-box { background: rgba(185, 255, 0, 0.15); color: var(--lime); }
 
 /* Central Core Hub */
@@ -475,8 +475,8 @@
   z-index: 11;
 }
 
-.lp-flow-badge.top-flow { top: 22%; left: 42%; }
-.lp-flow-badge.bot-flow { bottom: 24%; right: 40%; }
+.lp-flow-badge.top-flow { top: 12%; left: 50%; transform: translateX(-50%); }
+.lp-flow-badge.bot-flow { bottom: 13%; left: 50%; transform: translateX(-50%); }
 
 /* ─── Metric Strip ─────────────────────────────────────────────────────── */
 .lp-metric-strip {

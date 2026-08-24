@@ -212,7 +212,7 @@ const BentArrowMeshIllustration: React.FC = () => {
     <div className="lp-bent-mesh-wrap" aria-label="Direct Internet Sharing Between Devices">
       <div className="lp-mesh-ambient-glow" />
 
-      <svg className="lp-bent-svg" viewBox="0 0 540 440">
+      <svg className="lp-bent-svg" viewBox="0 0 600 440">
         <defs>
           <linearGradient id="curveGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#126cff" stopOpacity="0.95" />
@@ -228,24 +228,24 @@ const BentArrowMeshIllustration: React.FC = () => {
           </linearGradient>
 
           {/* Arrow markers */}
-          <marker id="arrowCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#08f2ff" />
+          <marker id="arrowCyan" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#08f2ff" />
           </marker>
-          <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#14f06d" />
+          <marker id="arrowGreen" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#14f06d" />
           </marker>
-          <marker id="arrowLime" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#b9ff00" />
+          <marker id="arrowLime" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#b9ff00" />
           </marker>
         </defs>
 
         {/* Ambient faint guide rings */}
-        <circle cx="270" cy="220" r="140" fill="none" stroke="rgba(8, 242, 255, 0.1)" strokeWidth="1" strokeDasharray="4,6" />
-        <circle cx="270" cy="220" r="220" fill="none" stroke="rgba(20, 240, 109, 0.08)" strokeWidth="1" strokeDasharray="4,8" />
+        <circle cx="300" cy="220" r="130" fill="none" stroke="rgba(8, 242, 255, 0.1)" strokeWidth="1" strokeDasharray="4,6" />
+        <circle cx="300" cy="220" r="210" fill="none" stroke="rgba(20, 240, 109, 0.08)" strokeWidth="1" strokeDasharray="4,8" />
 
         {/* 1. Curved Bent Arrow from Home Broadband (top-left) -> Laptop on the Road (top-right) */}
         <path
-          d="M 130 90 C 220 15, 320 20, 410 95"
+          d="M 225 55 C 290 12, 340 12, 375 55"
           stroke="url(#curveGradCyan)"
           className="lp-bent-arrow-path"
           markerEnd="url(#arrowCyan)"
@@ -253,7 +253,7 @@ const BentArrowMeshIllustration: React.FC = () => {
 
         {/* 2. Curved Bent Arrow from Mobile Phone (bottom-left) -> Laptop on the Road (top-right) */}
         <path
-          d="M 130 350 C 200 240, 310 200, 420 140"
+          d="M 225 375 C 310 330, 390 230, 475 95"
           stroke="url(#curveGradGreen)"
           className="lp-bent-arrow-path"
           markerEnd="url(#arrowGreen)"
@@ -261,17 +261,17 @@ const BentArrowMeshIllustration: React.FC = () => {
 
         {/* 3. Curved Bent Arrow from Home Broadband (top-left) -> Friends / Team Device (bottom-right) */}
         <path
-          d="M 140 130 C 220 240, 310 280, 410 340"
+          d="M 115 92 C 115 230, 240 375, 375 380"
           stroke="url(#curveGradLime)"
           className="lp-bent-arrow-path"
           markerEnd="url(#arrowLime)"
         />
 
         {/* 4. Direct Bridge Rays to Central Zoop Core */}
-        <line x1="270" y1="220" x2="110" y2="80" stroke="rgba(8, 242, 255, 0.22)" strokeWidth="1.5" strokeDasharray="3,4" />
-        <line x1="270" y1="220" x2="430" y2="80" stroke="rgba(8, 242, 255, 0.22)" strokeWidth="1.5" strokeDasharray="3,4" />
-        <line x1="270" y1="220" x2="110" y2="360" stroke="rgba(20, 240, 109, 0.22)" strokeWidth="1.5" strokeDasharray="3,4" />
-        <line x1="270" y1="220" x2="430" y2="360" stroke="rgba(185, 255, 0, 0.22)" strokeWidth="1.5" strokeDasharray="3,4" />
+        <line x1="300" y1="220" x2="215" y2="75" stroke="rgba(8, 242, 255, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
+        <line x1="300" y1="220" x2="385" y2="75" stroke="rgba(8, 242, 255, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
+        <line x1="300" y1="220" x2="215" y2="365" stroke="rgba(20, 240, 109, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
+        <line x1="300" y1="220" x2="385" y2="365" stroke="rgba(185, 255, 0, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
       </svg>
 
       {/* Floating Flow Tooltip Badges on the Curved Paths */}
@@ -694,10 +694,6 @@ export const LandingPage: React.FC<{
             <div className="lp-hero-inner">
               <div className="lp-hero-grid">
                 <div>
-                  <div className="lp-chip">
-                    <span className="lp-chip-dot" />
-                    <span className="lp-chip-text">Direct, private internet for you and your loved ones</span>
-                  </div>
                   <p className="lp-eyebrow">Personal Internet Sharing</p>
                   <h1>
                     Share internet securely across all your devices.
