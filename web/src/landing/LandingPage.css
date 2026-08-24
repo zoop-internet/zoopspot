@@ -49,6 +49,34 @@
 .landing-shell a { color: inherit; text-decoration: none; cursor: pointer; }
 .landing-shell button, .landing-shell input, .landing-shell select { font-family: inherit; }
 
+/* ─── Top Loading Progress Bar (YouTube/GitHub Style) ──────────────────── */
+.lp-top-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 45%, #34d399 80%, #a3e635 100%);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8), 0 0 6px rgba(52, 211, 153, 0.6);
+  z-index: 99999;
+  transition: width 0.18s ease-out, opacity 0.22s ease-out;
+  pointer-events: none;
+}
+
+.lp-page-content-animated {
+  animation: lpPageEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes lpPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ─── Topbar ───────────────────────────────────────────────────────────── */
 .lp-topbar {
   position: sticky;
