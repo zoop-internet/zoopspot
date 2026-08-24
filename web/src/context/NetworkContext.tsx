@@ -41,9 +41,11 @@ export interface AppState {
   // Connections
   connections: ApiConnection[];
   connectionsLoading: boolean;
+  connectionsError: boolean;
   refreshConnections: () => void;
   doConnect: (providerId: string, shareId?: string) => Promise<ApiConnection | null>;
   doDisconnect: (connId: string) => Promise<void>;
+  doAcceptConnection: (connId: string) => Promise<void>;
 
   // Organizations
   organizations: ApiOrg[];
@@ -83,6 +85,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [connections, setConnections] = useState<ApiConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
+  const [connectionsError, setConnectionsError] = useState(false);
 
   const [organizations, setOrganizations] = useState<ApiOrg[]>([]);
   const [currentOrg, setCurrentOrg] = useState<ApiOrg | null>(null);
@@ -238,13 +241,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshConnections = useCallback(() => {
     if (!deviceId) return;
     setConnectionsLoading(true);
+    setConnectionsError(false);
     Promise.all([getPendingConnections(deviceId), listConnections()])
       .then(([pending, all]) => {
         const merged = new Map<string, ApiConnection>();
         for (const c of [...all, ...pending]) merged.set(c.id.toString(), c);
         setConnections([...merged.values()]);
       })
-      .catch(() => setConnections([]))
+      .catch(() => {
+        setConnectionsError(true);
+        setConnections([]);
+      })
       .finally(() => setConnectionsLoading(false));
   }, [deviceId]);
 
@@ -304,6 +311,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConnections(prev => prev.filter(c => c.id.toString() !== connId));
   }, [deviceId]);
 
+  // Provider approves an incoming connection request by moving it to AUTHORIZED.
+  const doAcceptConnection = useCallback(async (connId: string) => {
+    if (!deviceId) return;
+    await updateConnectionState(connId, 'AUTHORIZED');
+    refreshConnections();
+  }, [deviceId, refreshConnections]);
+
   // Organizations logic
   const refreshOrganizations = useCallback(() => {
     setOrgsLoading(true);
@@ -360,8 +374,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       register, unregister,
       allDevices, devicesLoading, refreshAllDevices,
       shares, sharesLoading, refreshShares, doCreateShare,
-      connections, connectionsLoading, refreshConnections,
-      doConnect, doDisconnect,
+      connections, connectionsLoading, connectionsError, refreshConnections,
+      doConnect, doDisconnect, doAcceptConnection,
       organizations, currentOrg, orgMembers, orgsLoading,
       refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,
       localMode, daemonChecking, daemonStatus, daemonPeers, daemonTelemetry, refreshDaemon,

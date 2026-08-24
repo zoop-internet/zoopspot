@@ -3,7 +3,7 @@ import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 
-/* Shared icon helper */
+/* ─── Icons ──────────────────────────────────────────────────── */
 const Ico: React.FC<{ d: React.ReactNode; size?: number }> = ({ d, size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>
 );
@@ -16,10 +16,9 @@ const I = {
   home:     <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
   user:     <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
   chevronR: <polyline points="9 18 15 12 9 6"/>,
-  chevronD: <polyline points="6 9 12 15 18 9"/>,
-  check:    <polyline points="20 6 9 17 4 12"/>,
   plus:     <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
   alert:    <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
+  copy:     <><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
 };
 
 type OrgTab = 'overview' | 'members' | 'devices' | 'policies' | 'logs';
@@ -27,17 +26,34 @@ type OrgTab = 'overview' | 'members' | 'devices' | 'policies' | 'logs';
 const NAV: { id: OrgTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview',        icon: <Ico d={I.home}     /> },
   { id: 'members',  label: 'Members',          icon: <Ico d={I.users}    /> },
-  { id: 'devices',  label: 'Managed Devices',  icon: <Ico d={I.layers}   /> },
-  { id: 'policies', label: 'Access Policies',  icon: <Ico d={I.globe}    /> },
-  { id: 'logs',     label: 'Audit Logs',       icon: <Ico d={I.fileText} /> },
+  { id: 'devices',  label: 'Managed devices',  icon: <Ico d={I.layers}   /> },
+  { id: 'policies', label: 'Access policies',  icon: <Ico d={I.globe}    /> },
+  { id: 'logs',     label: 'Audit logs',       icon: <Ico d={I.fileText} /> },
 ];
 
-const TAB_META: Record<OrgTab, { title: string; subtitle: string }> = {
-  overview: { title: 'Organization Overview',  subtitle: 'Real-time overview of active organization resources.' },
-  members:  { title: 'Members & Roles',        subtitle: 'Manage organization team members and access levels.' },
-  devices:  { title: 'Managed Devices',        subtitle: 'All devices registered across the organization fleet.' },
-  policies: { title: 'Access Policies',        subtitle: 'Zero-trust egress routing rules for teams and devices.' },
-  logs:     { title: 'Audit Logs',             subtitle: 'Signed activity records for organization configuration changes.' },
+const TAB_TITLES: Record<OrgTab, string> = {
+  overview: 'Overview',
+  members:  'Members',
+  devices:  'Managed devices',
+  policies: 'Access policies',
+  logs:     'Audit logs',
+};
+
+/* ─── Toast ───────────────────────────────────────────────────── */
+interface Toast { id: string; type: 'success' | 'error' | 'info'; message: string; }
+
+const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
+  if (toasts.length === 0) return null;
+  return (
+    <div role="status" aria-live="polite" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 380 }}>
+      {toasts.map(t => (
+        <div key={t.id} className={`toast toast-${t.type}`}>
+          <span>{t.message}</span>
+          <button className="btn btn-ghost btn-xs" style={{ padding: '2px 4px', flexShrink: 0 }} onClick={() => onDismiss(t.id)} aria-label="Dismiss">✕</button>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 /* ─── Create Org Modal ────────────────────────────────────────── */
@@ -66,13 +82,13 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 440 }}>
         <div className="modal-header">
-          <span className="modal-title">Create Organization</span>
-          <button className="btn btn-ghost btn-xs" onClick={onClose}>✕</button>
+          <span className="modal-title">Create organization</span>
+          <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close">✕</button>
         </div>
         {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="field">
-            <label>Organization Name</label>
+            <label>Organization name</label>
             <input id="org-name-input" type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. Acme Corp Infrastructure" required autoFocus />
           </div>
@@ -80,7 +96,7 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary btn-sm" id="org-create-submit" disabled={loading}>
               {loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
-              Create Organization
+              Create organization
             </button>
           </div>
         </form>
@@ -117,18 +133,18 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 440 }}>
         <div className="modal-header">
-          <span className="modal-title">Invite Member to Organization</span>
-          <button className="btn btn-ghost btn-xs" onClick={onClose}>✕</button>
+          <span className="modal-title">Invite member</span>
+          <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close">✕</button>
         </div>
         {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="field">
-            <label>Full Name</label>
+            <label>Full name</label>
             <input id="member-name-input" type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. Sarah Chen" required autoFocus />
           </div>
           <div className="field">
-            <label>Email Address</label>
+            <label>Email address</label>
             <input id="member-email-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="sarah@acme-corp.com" required />
           </div>
@@ -136,7 +152,7 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <label>Role</label>
             <select id="member-role-select" value={role} onChange={e => setRole(e.target.value)}>
               <option value="member">Member</option>
-              <option value="network_engineer">Network Engineer</option>
+              <option value="network_engineer">Network engineer</option>
               <option value="admin">Administrator</option>
             </select>
           </div>
@@ -144,7 +160,7 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary btn-sm" id="member-add-submit" disabled={loading}>
               {loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
-              Add Member
+              Add member
             </button>
           </div>
         </form>
@@ -153,34 +169,7 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-/* ─── Toast Notification Helper ───────────────────────────────── */
-interface Toast {
-  id: string;
-  type: 'success' | 'error' | 'info';
-  message: string;
-}
-
-const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="toast-container" style={{
-      position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360
-    }}>
-      {toasts.map(t => (
-        <div key={t.id} className={`toast toast-${t.type}`} style={{
-          padding: '10px 14px', borderRadius: 'var(--r-md)', background: 'var(--bg-surface-3)',
-          border: `1px solid ${t.type === 'success' ? 'var(--accent-green)' : t.type === 'error' ? 'var(--accent-red)' : 'var(--accent-blue)'}`,
-          boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-          fontSize: '0.8125rem', color: 'var(--text-primary)', animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <span>{t.message}</span>
-          <button className="btn btn-ghost btn-xs" style={{ padding: '2px 4px', lineHeight: 1 }} onClick={() => onDismiss(t.id)}>✕</button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
+/* ─── Main OrgDashboard ───────────────────────────────────────── */
 export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const {
     organizations, currentOrg, orgMembers, selectOrg,
@@ -197,14 +186,9 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   };
-
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const filteredMembers = orgMembers.filter(m =>
     m.name.toLowerCase().includes(memberFilter.toLowerCase()) ||
@@ -221,21 +205,19 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   return (
     <div className="portal" role="main">
       <aside className="sidebar" aria-label="Organization navigation">
+        {/* Brand */}
         <div className="sidebar-brand">
           <div className="sidebar-brand-icon">
             <img src="/zoopicontransparent.png" alt="Zoop" width={28} height={28} />
           </div>
-          <div>
-            <div className="sidebar-brand-name">Organization <span className="org-badge">Live API</span></div>
-            <div className="sidebar-brand-tagline">Fleet Control Plane</div>
-          </div>
+          <div className="sidebar-brand-name">Zoop</div>
         </div>
 
         <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
 
-        {/* Organization Switcher Dropdown */}
-        <div style={{ padding: '4px 10px 8px' }}>
-          {organizations.length > 0 ? (
+        {/* Org selector */}
+        {organizations.length > 0 && (
+          <div style={{ padding: '4px 10px 8px' }}>
             <select
               id="org-select-dropdown"
               value={currentOrg?.id.toString() ?? ''}
@@ -244,25 +226,18 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                 if (found) selectOrg(found);
               }}
               style={{
-                width: '100%', padding: '6px 8px', background: 'var(--bg-surface-2)',
+                width: '100%', padding: '7px 10px', background: 'var(--bg-input)',
                 border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
-                color: 'var(--text-primary)', fontSize: '0.75rem', fontFamily: 'var(--font-sans)',
+                color: 'var(--text-primary)', fontSize: '0.8125rem', fontFamily: 'var(--font-sans)',
+                outline: 'none',
               }}
             >
               {organizations.map(o => (
                 <option key={o.id.toString()} value={o.id.toString()}>{o.name}</option>
               ))}
             </select>
-          ) : (
-            <button
-              className="btn btn-secondary btn-xs"
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => setShowCreateOrg(true)}
-            >
-              <Ico d={I.plus} size={12} />Create Org
-            </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <nav className="sidebar-nav" aria-label="Org navigation">
           {NAV.map(item => (
@@ -280,8 +255,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           <div className="sidebar-user">
             <div className="sidebar-avatar"><Ico d={I.user} size={14} /></div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{currentOrg?.name ?? 'No Organization'}</div>
-              <div className="sidebar-user-role">{currentOrg ? `${orgMembers.length} Members` : 'Create one to begin'}</div>
+              <div className="sidebar-user-name">{currentOrg?.name ?? 'No organization'}</div>
+              <div className="sidebar-user-role">{currentOrg ? `${orgMembers.length} members` : 'Create one to begin'}</div>
             </div>
             <Ico d={I.chevronR} size={12} />
           </div>
@@ -290,17 +265,14 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
       <div className="portal-content">
         <header className="page-header">
-          <div>
-            <h1 className="page-title">{TAB_META[tab].title}</h1>
-            <p className="page-subtitle">{TAB_META[tab].subtitle}</p>
-          </div>
+          <h1 className="page-title">{TAB_TITLES[tab]}</h1>
           <div className="page-header-actions">
             <button className="btn btn-secondary btn-sm" id="create-org-btn" onClick={() => setShowCreateOrg(true)}>
-              <Ico d={I.plus} />New Org
+              <Ico d={I.plus} />New org
             </button>
             {currentOrg && tab === 'members' && (
               <button className="btn btn-primary btn-sm" id="invite-member-btn" onClick={() => setShowAddMember(true)}>
-                <Ico d={I.plus} />Invite Member
+                <Ico d={I.plus} />Invite member
               </button>
             )}
           </div>
@@ -309,34 +281,35 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         <div className="page-body">
           {!currentOrg && organizations.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon" style={{ color: 'var(--accent-blue)' }}><Ico d={I.home} size={22} /></div>
-              <h3>No Organizations Created</h3>
-              <p>Create your first Organization on the Zoop Control Plane to manage multi-user fleets.</p>
+              <div className="empty-icon"><Ico d={I.home} size={22} /></div>
+              <h3>No organizations yet</h3>
+              <p>Create your first organization to manage multi-user device fleets.</p>
               <button className="btn btn-primary btn-sm" onClick={() => setShowCreateOrg(true)} style={{ marginTop: 8 }}>
-                <Ico d={I.plus} />Create Organization
+                <Ico d={I.plus} />Create organization
               </button>
             </div>
           ) : (
             <>
+              {/* Overview */}
               {tab === 'overview' && (
                 <>
                   <div className="metrics-bar">
                     <div className="metric-item">
-                      <div className="metric-label">Active Organization</div>
-                      <div className="metric-value" style={{ fontSize: '1.25rem', fontFamily: 'var(--font-sans)' }}>
+                      <div className="metric-label">Organization</div>
+                      <div className="metric-value" style={{ fontSize: '1.1rem', fontFamily: 'var(--font-sans)', letterSpacing: '-0.02em' }}>
                         {currentOrg?.name ?? '—'}
                       </div>
                       <div className="metric-sub" style={{ fontFamily: 'var(--font-mono)' }}>
-                        ID: {currentOrg?.id.toString().slice(0, 13)}…
+                        {currentOrg?.id.toString().slice(0, 13)}…
                       </div>
                     </div>
                     <div className="metric-item">
-                      <div className="metric-label">Total Members</div>
+                      <div className="metric-label">Members</div>
                       <div className="metric-value">{orgMembers.length}</div>
                       <div className="metric-sub">Active members</div>
                     </div>
                     <div className="metric-item">
-                      <div className="metric-label">System Fleet Devices</div>
+                      <div className="metric-label">Fleet devices</div>
                       <div className="metric-value">{allDevices.length}</div>
                       <div className="metric-sub">Registered endpoints</div>
                     </div>
@@ -344,7 +317,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
                   <div className="section">
                     <div className="section-header">
-                      <span className="section-title">Organization Details</span>
+                      <span className="section-title">Organization details</span>
                       <button className="btn btn-ghost btn-xs" onClick={refreshOrganizations}>Refresh</button>
                     </div>
                     <div className="info-row">
@@ -354,129 +327,156 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                     </div>
                     <div className="info-row">
                       <span className="info-key">Organization ID</span>
-                      <span className="info-val">{currentOrg?.id.toString()}</span>
-                      <button className="btn btn-ghost btn-xs" onClick={() => navigator.clipboard.writeText(currentOrg?.id.toString() ?? '')}>
-                        Copy
+                      <span className="info-val" style={{ fontSize: '0.75rem' }}>{currentOrg?.id.toString()}</span>
+                      <button className="btn btn-ghost btn-xs" onClick={() => {
+                        navigator.clipboard.writeText(currentOrg?.id.toString() ?? '');
+                        addToast('Organization ID copied');
+                      }}>
+                        <Ico d={I.copy} size={11} />Copy
                       </button>
                     </div>
+                    {currentOrg?.slug && (
+                      <div className="info-row">
+                        <span className="info-key">Slug</span>
+                        <span className="info-val">{currentOrg.slug}</span>
+                        <span />
+                      </div>
+                    )}
                   </div>
                 </>
               )}
 
+              {/* Members */}
               {tab === 'members' && (
                 <div className="section">
                   <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-                    <span className="section-title">Team Roster ({orgMembers.length})</span>
+                    <span className="section-title">Team roster ({orgMembers.length})</span>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Search members…"
+                        placeholder="Search…"
                         value={memberFilter}
                         onChange={e => setMemberFilter(e.target.value)}
                         style={{
-                          padding: '4px 8px', fontSize: '0.75rem', borderRadius: 'var(--r-md)',
-                          border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)'
+                          padding: '5px 10px', fontSize: '0.8125rem', borderRadius: 'var(--r-md)',
+                          border: '1px solid var(--border)', background: 'var(--bg-input)',
+                          color: 'var(--text-primary)', outline: 'none', width: 160,
                         }}
                       />
                       <button className="btn btn-ghost btn-xs" onClick={() => refreshOrgMembers()}>Refresh</button>
                     </div>
                   </div>
                   {orgMembers.length === 0 ? (
-                    <div className="empty-state" style={{ padding: '36px 24px' }}>
+                    <div className="empty-state" style={{ padding: '40px 24px' }}>
                       <div className="empty-icon"><Ico d={I.users} size={20} /></div>
-                      <h3>No members in this organization</h3>
-                      <p>Invite your first team member above.</p>
+                      <h3>No members yet</h3>
+                      <p>Invite your first team member using the button above.</p>
                     </div>
                   ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Member Name</th>
-                          <th>Email</th>
-                          <th>Role</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredMembers.map(m => (
-                          <tr key={m.id.toString()}>
-                            <td style={{ fontWeight: 600 }}>{m.name}</td>
-                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                              <span style={{ cursor: 'pointer' }} title="Click to copy email" onClick={() => {
-                                navigator.clipboard.writeText(m.email);
-                                addToast(`Copied ${m.email} to clipboard`);
-                              }}>
-                                {m.email}
-                              </span>
-                            </td>
-                            <td><span className="badge badge-neutral">{m.role}</span></td>
-                            <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{m.status}</span></td>
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {filteredMembers.map(m => (
+                            <tr key={m.id.toString()}>
+                              <td><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span></td>
+                              <td
+                                style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', cursor: 'pointer' }}
+                                title="Click to copy email"
+                                onClick={() => { navigator.clipboard.writeText(m.email); addToast(`Copied ${m.email}`); }}
+                              >
+                                {m.email}
+                              </td>
+                              <td><span className="badge badge-neutral">{m.role}</span></td>
+                              <td>
+                                <span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
+                                  {m.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               )}
 
+              {/* Devices */}
               {tab === 'devices' && (
                 <div className="section">
                   <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-                    <span className="section-title">System Devices ({allDevices.length})</span>
+                    <span className="section-title">System devices ({allDevices.length})</span>
                     <input
                       type="text"
-                      placeholder="Search devices…"
+                      placeholder="Search…"
                       value={deviceFilter}
                       onChange={e => setDeviceFilter(e.target.value)}
                       style={{
-                        padding: '4px 8px', fontSize: '0.75rem', borderRadius: 'var(--r-md)',
-                        border: '1px solid var(--border)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)'
+                        padding: '5px 10px', fontSize: '0.8125rem', borderRadius: 'var(--r-md)',
+                        border: '1px solid var(--border)', background: 'var(--bg-input)',
+                        color: 'var(--text-primary)', outline: 'none', width: 160,
                       }}
                     />
                   </div>
                   {allDevices.length === 0 ? (
-                    <div className="empty-state" style={{ padding: '36px 24px' }}>
+                    <div className="empty-state" style={{ padding: '40px 24px' }}>
                       <div className="empty-icon"><Ico d={I.layers} size={20} /></div>
                       <h3>No devices registered</h3>
                       <p>Registered endpoints will appear here.</p>
                     </div>
                   ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Device Name</th>
-                          <th>ID</th>
-                          <th>Platform</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDevices.map(d => (
-                          <tr key={d.id.toString()}>
-                            <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                              <span style={{ cursor: 'pointer' }} title="Click to copy ID" onClick={() => {
-                                navigator.clipboard.writeText(d.id.toString());
-                                addToast(`Copied device ID`);
-                              }}>
-                                {d.id.toString()}
-                              </span>
-                            </td>
-                            <td>{d.os || d.platform || '—'}</td>
-                            <td><span className="badge badge-success">{d.status}</span></td>
+                    <div className="table-wrap">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Device name</th>
+                            <th>ID</th>
+                            <th>Platform</th>
+                            <th>Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {filteredDevices.map(d => (
+                            <tr key={d.id.toString()}>
+                              <td><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.name || 'Unnamed device'}</span></td>
+                              <td
+                                style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', cursor: 'pointer' }}
+                                title="Click to copy ID"
+                                onClick={() => { navigator.clipboard.writeText(d.id.toString()); addToast('Copied device ID'); }}
+                              >
+                                {d.id.toString()}
+                              </td>
+                              <td>{d.os || d.platform || '—'}</td>
+                              <td><span className="badge badge-success">{d.status}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               )}
 
+              {/* Policies / Logs — coming soon */}
               {(tab === 'policies' || tab === 'logs') && (
-                <div className="empty-state" style={{ padding: '48px 24px' }}>
-                  <div className="empty-icon"><Ico d={I.globe} size={20} /></div>
-                  <h3>No {tab === 'policies' ? 'policies' : 'logs'} configured</h3>
-                  <p>As you add nodes and route policies to {currentOrg?.name}, activity history will be recorded here.</p>
+                <div className="section">
+                  <div className="coming-soon">
+                    <Ico d={tab === 'policies' ? I.globe : I.fileText} size={28} />
+                    <h3>{tab === 'policies' ? 'Access policies' : 'Audit logs'} — coming soon</h3>
+                    <p>
+                      {tab === 'policies'
+                        ? 'Zero-trust egress routing rules for teams and devices will be configurable here.'
+                        : 'Signed activity records for organization configuration changes will appear here.'}
+                    </p>
+                  </div>
                 </div>
               )}
             </>
@@ -484,7 +484,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </div>
       </div>
 
-      {showCreateOrg && <CreateOrgModal onClose={() => { setShowCreateOrg(false); addToast('Organization state updated', 'info'); }} />}
+      {showCreateOrg && <CreateOrgModal onClose={() => { setShowCreateOrg(false); addToast('Organization updated', 'info'); }} />}
       {showAddMember  && <AddMemberModal  onClose={() => { setShowAddMember(false); addToast('Member roster updated', 'info'); }} />}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
