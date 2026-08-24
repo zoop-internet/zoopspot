@@ -24,12 +24,14 @@ const I = {
 };
 
 const WORKSPACE_LABELS: Record<PortalMode, string> = {
+  landing: 'Website & Docs',
   user: 'Personal',
   org: 'Organization',
   admin: 'Platform Admin',
 };
 
 const WORKSPACE_COLORS: Record<PortalMode, string> = {
+  landing: 'var(--cyan)',
   user: 'var(--accent-green)',
   org: 'var(--accent-blue)',
   admin: 'var(--accent-amber)',
@@ -148,6 +150,13 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
             {mode === 'admin' ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
             <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.admin }} />
             {WORKSPACE_LABELS.admin}
+          </button>
+
+          <button id="switch-to-landing" className={`portal-switcher-option${mode === 'landing' ? ' ps-selected' : ''}`}
+            onClick={() => { onSwitch('landing'); setOpen(false); }} role="option" aria-selected={mode === 'landing'}>
+            {mode === 'landing' ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
+            <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.landing }} />
+            Website &amp; Overview
           </button>
         </div>
       )}

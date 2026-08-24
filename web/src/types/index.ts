@@ -1,4 +1,4 @@
-export type PortalMode = 'user' | 'org' | 'admin';
+export type PortalMode = 'landing' | 'user' | 'org' | 'admin';
 
 export type DeviceType = 'desktop' | 'laptop' | 'phone' | 'router' | 'server' | 'gateway';
 export type DevicePlatform = 'linux' | 'darwin' | 'windows' | 'android' | 'ios' | 'openwrt';
