@@ -1,4 +1,16 @@
-export type PortalMode = 'landing' | 'user' | 'org' | 'admin';
+export type PortalMode = 'landing' | 'user' | 'org' | 'admin' | 'auth';
+
+export interface UserProfile {
+  id: string; // Zoop ID e.g. ZP-7K4M9X (per docs/identity.md §2)
+  zoopId: string; // permanent platform identity, same as id for clarity
+  username: string; // human-readable handle without @ prefix, e.g. "alex" (@alex)
+  name: string; // display name
+  email?: string; // deprecated — Zoop does not require email (identity.md §3, §7). Kept optional for legacy compat.
+  avatar?: string;
+  plan?: 'free' | 'pro' | 'business' | 'enterprise';
+  role?: string;
+  createdAt?: string;
+}
 
 export type DeviceType = 'desktop' | 'laptop' | 'phone' | 'router' | 'server' | 'gateway';
 export type DevicePlatform = 'linux' | 'darwin' | 'windows' | 'android' | 'ios' | 'openwrt';
@@ -58,7 +70,7 @@ export interface ConnectionSession {
 export interface SharingPolicy {
   id: string;
   providerDeviceId: string;
-  recipientIdentifier: string; // Account email or Device ID
+  recipientIdentifier: string; // Zoop ID (ZP-...) or @username or Device ID — never email (identity.md §2, §7)
   recipientName: string;
   status: 'active' | 'pending' | 'revoked';
   maxBandwidthMbps?: number;
@@ -73,7 +85,9 @@ export interface SharingPolicy {
 export interface OrgMember {
   id: string;
   name: string;
-  email: string;
+  zoopId?: string; // ZP-... permanent identity (identity.md §2) — preferred identifier
+  username?: string; // @handle (identity.md §2) — preferred human identifier
+  email?: string; // deprecated optional — Zoop does not require email (identity.md §7)
   role: 'owner' | 'admin' | 'network_engineer' | 'member';
   devicesCount: number;
   status: 'active' | 'invited' | 'suspended';

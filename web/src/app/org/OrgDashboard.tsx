@@ -109,18 +109,18 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { doAddOrgMember } = useApp();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [handle, setHandle] = useState('');
   const [role, setRole] = useState('member');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !handle.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      await doAddOrgMember(name.trim(), email.trim(), role);
+      await doAddOrgMember(name.trim(), handle.trim(), role);
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to add member');
@@ -144,9 +144,10 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               placeholder="e.g. Sarah Chen" required autoFocus />
           </div>
           <div className="field">
-            <label>Email address</label>
-            <input id="member-email-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="sarah@acme-corp.com" required />
+            <label>Zoop ID or Username</label>
+            <input id="member-handle-input" type="text" value={handle} onChange={e => setHandle(e.target.value)}
+              placeholder="ZP-7K4M9X  or  @alex" required />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>No email needed — invite by permanent Zoop ID or @username (docs/identity.md §2)</span>
           </div>
           <div className="field">
             <label>Role</label>
@@ -190,11 +191,12 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   };
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
-  const filteredMembers = orgMembers.filter(m =>
-    m.name.toLowerCase().includes(memberFilter.toLowerCase()) ||
-    m.email.toLowerCase().includes(memberFilter.toLowerCase()) ||
-    m.role.toLowerCase().includes(memberFilter.toLowerCase())
-  );
+  const filteredMembers = orgMembers.filter(m => {
+    const handle = (m as any).username || (m as any).zoop_id || m.email || '';
+    return m.name.toLowerCase().includes(memberFilter.toLowerCase()) ||
+    handle.toLowerCase().includes(memberFilter.toLowerCase()) ||
+    m.role.toLowerCase().includes(memberFilter.toLowerCase());
+  });
 
   const filteredDevices = allDevices.filter(d =>
     (d.name || '').toLowerCase().includes(deviceFilter.toLowerCase()) ||
@@ -205,12 +207,13 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   return (
     <div className="portal" role="main">
       <aside className="sidebar" aria-label="Organization navigation">
-        {/* Brand */}
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">
-            <img src="/zoopicontransparent.png" alt="Zoop" width={28} height={28} />
+        {/* Brand — matches landing: Zoop Internet */}
+        <div className="sidebar-brand" style={{ cursor: 'default', gap: 8 }}>
+          <div className="sidebar-brand-icon" style={{ width: 32, height: 32, borderRadius: 8, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 10px rgba(8,242,255,0.15)' }}>
+            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={24} height={24} />
           </div>
           <div className="sidebar-brand-name">Zoop</div>
+          <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 99, background: 'rgba(8,242,255,0.12)', color: '#38bdf8', border: '1px solid rgba(8,242,255,0.28)' }}>Internet</span>
         </div>
 
         <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
@@ -378,21 +381,23 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                         <thead>
                           <tr>
                             <th>Name</th>
-                            <th>Email</th>
+                            <th>Zoop ID / Username</th>
                             <th>Role</th>
                             <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredMembers.map(m => (
+                          {filteredMembers.map(m => {
+                            const handle = (m as any).username ? `@${(m as any).username}` : (m as any).zoop_id || m.email || '—';
+                            return (
                             <tr key={m.id.toString()}>
                               <td><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span></td>
                               <td
                                 style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', cursor: 'pointer' }}
-                                title="Click to copy email"
-                                onClick={() => { navigator.clipboard.writeText(m.email); addToast(`Copied ${m.email}`); }}
+                                title="Click to copy handle"
+                                onClick={() => { navigator.clipboard.writeText(handle); addToast(`Copied ${handle}`); }}
                               >
-                                {m.email}
+                                {handle}
                               </td>
                               <td><span className="badge badge-neutral">{m.role}</span></td>
                               <td>
@@ -401,7 +406,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                                 </span>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

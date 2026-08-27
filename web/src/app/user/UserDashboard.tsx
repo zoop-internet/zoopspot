@@ -54,64 +54,7 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
   );
 };
 
-/* ─── Register device modal ───────────────────────────────────── */
-const RegisterModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { register, isRegistering, registerError } = useApp();
-  const [name, setName] = useState('');
-  const [platform, setPlatform] = useState('linux');
-  const [isProvider, setIsProvider] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    await register(name.trim(), platform, isProvider);
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 440 }}>
-        <div className="modal-header">
-          <span className="modal-title">Register this device</span>
-          <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        {registerError && <div className="error-banner"><Ico d={I.alert} />Registration failed: {registerError}</div>}
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="field">
-            <label>Device name</label>
-            <input id="reg-name" type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. My Laptop" required autoFocus />
-          </div>
-          <div className="field-row">
-            <div className="field">
-              <label>Platform</label>
-              <select id="reg-platform" value={platform} onChange={e => setPlatform(e.target.value)}>
-                <option value="linux">Linux</option>
-                <option value="darwin">macOS</option>
-                <option value="windows">Windows</option>
-                <option value="android">Android</option>
-                <option value="ios">iOS</option>
-              </select>
-            </div>
-            <div className="field" style={{ justifyContent: 'flex-end', paddingBottom: 6 }}>
-              <label style={{ marginBottom: 'auto' }}>Act as provider</label>
-              <label className="toggle" aria-label="Enable provider mode">
-                <input type="checkbox" id="reg-provider" checked={isProvider} onChange={e => setIsProvider(e.target.checked)} />
-                <span className="toggle-slider" />
-              </label>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary btn-sm" id="reg-submit" disabled={isRegistering}>
-              {isRegistering ? <><span className="spinner" style={{ width: 13, height: 13 }} />Registering…</> : <><Ico d={I.plus} />Register device</>}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+/* ─── Daemon status card ──────────────────────────────────────── */
 
 /* ─── Daemon status card ──────────────────────────────────────── */
 const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
@@ -829,8 +772,11 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
 };
 
 /* ─── Settings tab ────────────────────────────────────────────── */
-const SettingsTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
-  const { deviceId, deviceName, deviceInfo, unregister } = useApp();
+const SettingsTab: React.FC<{
+  onSwitch: (m: PortalMode) => void;
+  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+}> = ({ onSwitch, onToast }) => {
+  const { user, deviceId, deviceName, deviceInfo, unregister, logout } = useApp();
   const [confirming, setConfirming] = useState(false);
   const [unregistering, setUnregistering] = useState(false);
 
@@ -846,63 +792,109 @@ const SettingsTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' 
     }
   };
 
+  const handleSignOut = async () => {
+    await logout();
+    onToast('Signed out of Zoop account', 'info');
+    onSwitch('auth');
+  };
+
   return (
-    <div className="section settings-section">
-      <div className="settings-section-header">
-        <h3>Device identity</h3>
-        <p>Cryptographic device identity registered with the Zoop control plane.</p>
-      </div>
-      <div className="info-row">
-        <span className="info-key">Device name</span>
-        <span className="info-val">{deviceName ?? '—'}</span>
-        <span />
-      </div>
-      <div className="info-row">
-        <span className="info-key">Device ID</span>
-        <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId ?? '—'}</span>
-        {deviceId && (
-          <button className="btn btn-ghost btn-xs" onClick={() => { navigator.clipboard.writeText(deviceId); onToast('Device ID copied'); }}>
-            <Ico d={I.copy} size={11} />Copy
-          </button>
-        )}
-      </div>
-      {deviceInfo?.assigned_ip && (
+    <>
+      {/* Account Identity */}
+      <div className="section settings-section">
+        <div className="settings-section-header">
+          <h3>Account profile</h3>
+          <p>Authenticated user identity and account subscription tier.</p>
+        </div>
         <div className="info-row">
-          <span className="info-key">Assigned IP</span>
-          <span className="info-val">{deviceInfo.assigned_ip}</span>
+          <span className="info-key">Name</span>
+          <span className="info-val">{user?.name ?? (deviceName ? `${deviceName} Owner` : 'Local User')}</span>
           <span />
         </div>
-      )}
-      {deviceId && (
-        <div style={{ padding: '16px 18px', borderTop: '1px solid var(--border-subtle)' }}>
-          {confirming ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', flex: 1 }}>
-                Remove this device from the control plane? This deletes its identity and cannot be undone.
-              </span>
-              <button className="btn btn-danger btn-sm" id="settings-unregister-confirm-btn"
-                disabled={unregistering} onClick={handleUnregister}>
-                {unregistering ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}Unregister
-              </button>
-              <button className="btn btn-ghost btn-sm" disabled={unregistering} onClick={() => setConfirming(false)}>Cancel</button>
-            </div>
-          ) : (
-            <button className="btn btn-ghost btn-sm" id="settings-unregister-btn"
-              onClick={() => setConfirming(true)} style={{ color: 'var(--red)' }}>
-              <Ico d={I.logOut} />Unregister device
+        <div className="info-row">
+          <span className="info-key">Zoop ID</span>
+          <span className="info-val" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{user?.zoopId ?? user?.id ?? '—'}</span>
+          <span />
+        </div>
+        <div className="info-row">
+          <span className="info-key">Username</span>
+          <span className="info-val">@{user?.username ?? '—'}</span>
+          <span />
+        </div>
+        <div className="info-row">
+          <span className="info-key">Plan</span>
+          <span className="info-val">
+            <span className="badge badge-info">{user?.plan?.toUpperCase() ?? 'FREE PLAN'}</span>
+          </span>
+          <span />
+        </div>
+        <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 12 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => onSwitch('auth')}>
+            Switch Account / Sign In
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={handleSignOut} style={{ color: 'var(--red)' }}>
+            <Ico d={I.logOut} />Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Device Identity */}
+      <div className="section settings-section" style={{ marginTop: 20 }}>
+        <div className="settings-section-header">
+          <h3>Device identity</h3>
+          <p>Cryptographic device identity registered with the Zoop control plane.</p>
+        </div>
+        <div className="info-row">
+          <span className="info-key">Device name</span>
+          <span className="info-val">{deviceName ?? '—'}</span>
+          <span />
+        </div>
+        <div className="info-row">
+          <span className="info-key">Device ID</span>
+          <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId ?? '—'}</span>
+          {deviceId && (
+            <button className="btn btn-ghost btn-xs" onClick={() => { navigator.clipboard.writeText(deviceId); onToast('Device ID copied'); }}>
+              <Ico d={I.copy} size={11} />Copy
             </button>
           )}
         </div>
-      )}
-    </div>
+        {deviceInfo?.assigned_ip && (
+          <div className="info-row">
+            <span className="info-key">Assigned IP</span>
+            <span className="info-val">{deviceInfo.assigned_ip}</span>
+            <span />
+          </div>
+        )}
+        {deviceId && (
+          <div style={{ padding: '16px 18px', borderTop: '1px solid var(--border-subtle)' }}>
+            {confirming ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', flex: 1 }}>
+                  Remove this device from the control plane? This deletes its identity and cannot be undone.
+                </span>
+                <button className="btn btn-danger btn-sm" id="settings-unregister-confirm-btn"
+                  disabled={unregistering} onClick={handleUnregister}>
+                  {unregistering ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}Unregister
+                </button>
+                <button className="btn btn-ghost btn-sm" disabled={unregistering} onClick={() => setConfirming(false)}>Cancel</button>
+              </div>
+            ) : (
+              <button className="btn btn-ghost btn-sm" id="settings-unregister-btn"
+                onClick={() => setConfirming(true)} style={{ color: 'var(--red)' }}>
+                <Ico d={I.logOut} />Unregister device
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 
 /* ─── Main UserDashboard ──────────────────────────────────────── */
 export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const { deviceId, deviceName } = useApp();
+  const { user, deviceId, deviceName } = useApp();
   const [tab, setTab] = useState<UserTab>('overview');
-  const [showRegister, setShowRegister] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -920,15 +912,20 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
     settings:    'Settings',
   };
 
+  const handleRegisterDirect = () => {
+    onSwitch('auth');
+  };
+
   return (
     <div className="portal" role="main">
       <aside className="sidebar" aria-label="Navigation">
-        {/* Brand */}
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">
-            <img src="/zoopicontransparent.png" alt="Zoop" width={28} height={28} />
+        {/* Brand — matches landing: Zoop Internet */}
+        <div className="sidebar-brand" onClick={() => onSwitch('landing')} style={{ cursor: 'pointer', gap: 8 }}>
+          <div className="sidebar-brand-icon" style={{ width: 32, height: 32, borderRadius: 8, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 10px rgba(8,242,255,0.15)' }}>
+            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={24} height={24} />
           </div>
           <div className="sidebar-brand-name">Zoop</div>
+          <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 99, background: 'rgba(8,242,255,0.12)', color: '#38bdf8', border: '1px solid rgba(8,242,255,0.28)' }}>Internet</span>
         </div>
 
         <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
@@ -946,11 +943,19 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user" id="user-profile-area">
-            <div className="sidebar-avatar"><Ico d={I.user} size={14} /></div>
+          <div
+            className="sidebar-user"
+            id="user-profile-area"
+            onClick={() => setTab('settings')}
+            title="Open Account & Settings"
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="sidebar-avatar">
+              {user?.name ? user.name.charAt(0).toUpperCase() : <Ico d={I.user} size={14} />}
+            </div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{deviceName ?? 'Not registered'}</div>
-              <div className="sidebar-user-role">{deviceId ? 'Personal device' : 'Tap to register'}</div>
+              <div className="sidebar-user-name">{user?.name || deviceName || 'Personal User'}</div>
+              <div className="sidebar-user-role">{user?.username ? `@${user.username} · ${user.zoopId}` : (deviceId ? 'Personal device' : 'Tap to sign in')}</div>
             </div>
             <Ico d={I.chevronR} size={12} />
           </div>
@@ -962,23 +967,22 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           <h1 className="page-title">{TAB_TITLES[tab]}</h1>
           <div className="page-header-actions">
             {!deviceId && (
-              <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={() => setShowRegister(true)}>
-                <Ico d={I.plus} />Register device
+              <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={handleRegisterDirect}>
+                <Ico d={I.plus} />Sign In / Register
               </button>
             )}
           </div>
         </header>
 
         <div className="page-body">
-          {tab === 'overview'    && <OverviewTab onRegister={() => setShowRegister(true)} onToast={addToast} />}
-          {tab === 'devices'     && <DevicesTab  onRegister={() => setShowRegister(true)} onToast={addToast} />}
+          {tab === 'overview'    && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
+          {tab === 'devices'     && <DevicesTab  onRegister={handleRegisterDirect} onToast={addToast} />}
           {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => setTab('sharing')} />}
           {tab === 'sharing'     && <SharingTab onToast={addToast} />}
-          {tab === 'settings'    && <SettingsTab onToast={addToast} />}
+          {tab === 'settings'    && <SettingsTab onSwitch={onSwitch} onToast={addToast} />}
         </div>
       </div>
 
-      {showRegister && <RegisterModal onClose={() => setShowRegister(false)} />}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );

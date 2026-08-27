@@ -112,8 +112,25 @@ func (s *OrganizationService) ListOrgs(ctx context.Context, callerID types.ID) (
 }
 
 func (s *OrganizationService) AddMember(ctx context.Context, callerID types.ID, orgID types.ID, req api.AddOrgMemberRequest) (*api.OrgMemberResponse, error) {
-	if req.Name == "" || req.Email == "" {
-		return nil, fmt.Errorf("member name and email are required")
+	if req.Name == "" {
+		return nil, fmt.Errorf("member name is required")
+	}
+	// Email is optional per docs/identity.md §7 — Zoop does not require email.
+	// Generate a deterministic placeholder if neither email nor username/zoopId provided,
+	// to satisfy NOT NULL storage while preserving privacy.
+	if req.Email == "" && req.Username == "" && req.ZoopID == "" {
+		req.Email = fmt.Sprintf("%s@zoop.local", slugify(req.Name))
+	}
+	if req.Email == "" && req.Username != "" {
+		// Derive placeholder email from username for legacy storage
+		u := slugify(req.Username)
+		if u == "" {
+			u = slugify(req.Name)
+		}
+		req.Email = fmt.Sprintf("%s@zoop.local", u)
+	}
+	if req.Email == "" && req.ZoopID != "" {
+		req.Email = fmt.Sprintf("%s@zoop.local", strings.ToLower(strings.TrimSpace(req.ZoopID)))
 	}
 
 	org, err := s.store.GetOrganization(ctx, orgID)
@@ -155,6 +172,8 @@ func (s *OrganizationService) AddMember(ctx context.Context, callerID types.ID, 
 		DeviceID:       member.DeviceID,
 		Name:           member.Name,
 		Email:          member.Email,
+		Username:       req.Username,
+		ZoopID:         req.ZoopID,
 		Role:           member.Role,
 		Status:         member.Status,
 	}, nil

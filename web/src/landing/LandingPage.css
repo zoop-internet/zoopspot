@@ -1100,42 +1100,180 @@
 
 .lp-footer-links a:hover { color: var(--ink); }
 
-/* ─── Download Modal ───────────────────────────────────────────────────── */
-.lp-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(12px);
-  z-index: 1000;
+/* ─── OpenRouter-Style User Nav Badge ───────────────────────────────────── */
+.lp-user-badge-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-user-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.lp-user-badge-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(8, 242, 255, 0.4);
+}
+
+.lp-user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--grad);
+  color: #020904;
+  font-weight: 800;
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
 }
 
-.lp-modal-card {
-  background: var(--surface-card);
+.lp-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-user-plan-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(8, 242, 255, 0.15);
+  color: var(--cyan);
+  border: 1px solid rgba(8, 242, 255, 0.3);
+}
+
+.lp-btn-ghost-logout {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.775rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.lp-btn-ghost-logout:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/* ─── Mobile Navigation Drawer ─────────────────────────────────────────── */
+.lp-mobile-drawer {
+  position: fixed;
+  top: 70px;
+  left: 16px;
+  right: 16px;
+  background: rgba(10, 15, 22, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--line-strong);
   border-radius: 16px;
-  max-width: 480px;
-  width: 100%;
-  padding: 32px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
-  text-align: center;
-  position: relative;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 99;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  animation: authFadeIn 0.2s ease-out;
 }
 
-.lp-modal-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(20, 240, 109, 0.12);
-  border: 1px solid rgba(20, 240, 109, 0.35);
+.lp-mobile-drawer button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 12px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.lp-mobile-drawer button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lp-mobile-drawer button.primary {
+  background: var(--grad);
+  color: #020904;
+  font-weight: 700;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.lp-mobile-drawer-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 6px 0;
+}
+
+/* ─── Non-Intrusive Download Toast ─────────────────────────────────────── */
+.lp-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(16, 22, 34, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(8, 242, 255, 0.35);
+  border-radius: 10px;
+  padding: 12px 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(8, 242, 255, 0.15);
+  animation: authFadeIn 0.25s ease-out;
+  color: #fff;
+  font-size: 0.875rem;
+}
+
+.lp-toast-icon {
   color: var(--green);
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
+}
+
+.lp-toast-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 2px 4px;
+}
+.lp-toast-close:hover {
+  color: #fff;
 }
 
 /* ─── Responsive Breakpoints ───────────────────────────────────────────── */

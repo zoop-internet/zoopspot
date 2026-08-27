@@ -6,6 +6,7 @@
  * The private key (PKCS8) is preserved in storage/memory for signing authenticated API calls.
  */
 
+const USER_PROFILE_KEY = 'zoop:web:user_profile';
 const IDENTITY_KEY = 'zoop:web:device_id';
 const ENDPOINT_KEY = 'zoop:web:endpoint_id';
 const NAME_KEY = 'zoop:web:device_name';
@@ -13,6 +14,23 @@ const PRIV_KEY = 'zoop:web:priv_key';
 const PUB_KEY = 'zoop:web:pub_key';
 
 let cachedPrivateKey: CryptoKey | null = null;
+
+export function getSavedUserProfile(): any | null {
+  try {
+    const raw = localStorage.getItem(USER_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveUserProfile(profile: any) {
+  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
+}
+
+export function clearUserProfile() {
+  localStorage.removeItem(USER_PROFILE_KEY);
+}
 
 export function getSavedDeviceId(): string | null {
   return localStorage.getItem(IDENTITY_KEY);

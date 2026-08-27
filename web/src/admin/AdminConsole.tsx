@@ -655,18 +655,19 @@ const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data })
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return data.users;
-    return data.users.filter(u =>
-      (u.name || '').toLowerCase().includes(query) ||
-      (u.email || '').toLowerCase().includes(query) ||
+    return data.users.filter(u => {
+      const handle = (u as any).username || (u as any).zoop_id || u.email || '';
+      return (u.name || '').toLowerCase().includes(query) ||
+      handle.toLowerCase().includes(query) ||
       (u.role || '').toLowerCase().includes(query) ||
       (u.status || '').toLowerCase().includes(query) ||
-      u.id.toString().toLowerCase().includes(query)
-    );
+      u.id.toString().toLowerCase().includes(query);
+    });
   }, [q, data.users]);
 
   return (
     <>
-      <SearchBar id="admin-users-search" placeholder="Search by name, email, role, status or ID…" label="Search user accounts" value={q} onChange={setQ} />
+      <SearchBar id="admin-users-search" placeholder="Search by name, Zoop ID, @username, role, status or ID…" label="Search user accounts" value={q} onChange={setQ} />
       <div className="section">
         <div className="section-header">
           <span className="section-title">Accounts {q.trim() ? `(${filtered.length}/${data.users.length})` : `(${data.users.length})`}</span>
@@ -680,16 +681,19 @@ const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data })
           <EmptyState icon={<I.search />} title="No matching accounts" desc={`No accounts match "${q.trim()}".`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Zoop ID / Username</th><th>Role</th><th>Status</th></tr></thead>
             <tbody>
-              {filtered.map(u => (
+              {filtered.map(u => {
+                const handle = (u as any).username ? `@${(u as any).username}` : (u as any).zoop_id || u.email || '—';
+                return (
                 <tr key={u.id.toString()}>
                   <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
-                  <td>{u.email || '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{handle}</td>
                   <td><span className="badge badge-neutral">{u.role}</span></td>
                   <td><span className={`badge ${u.status === 'active' || u.status === 'trusted' ? 'badge-success' : 'badge-neutral'}`}>{u.status}</span></td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -1367,12 +1371,12 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   return (
     <div className="admin-portal" role="main">
       <aside className="admin-sidebar" aria-label="Admin navigation">
-        <div className="admin-brand">
-          <div className="admin-brand-icon">
-            <img src="/zoopicontransparent.png" alt="Zoop" width={32} height={32} />
+        <div className="admin-brand" style={{ gap: 10 }}>
+          <div className="admin-brand-icon" style={{ width: 36, height: 36, borderRadius: 9, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 14px rgba(8,242,255,0.2)' }}>
+            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} />
           </div>
           <div>
-            <div className="admin-brand-name">Zoop</div>
+            <div className="admin-brand-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Zoop <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 99, background: 'rgba(8,242,255,0.12)', color: '#38bdf8', border: '1px solid rgba(8,242,255,0.28)' }}>Internet</span></div>
             <div className="admin-brand-sub">Admin Console</div>
           </div>
         </div>

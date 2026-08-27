@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PortalMode } from '../types';
+import { useApp } from '../context/NetworkContext';
 import './LandingPage.css';
 
 /* ─── SVG Icon Helper ─────────────────────────────────────────────────── */
@@ -386,9 +387,10 @@ export const LandingPage: React.FC<{
   onNavigate: (path: string) => void;
   onLaunchConsole: (mode: PortalMode) => void;
 }> = ({ currentPath = '/', onNavigate, onLaunchConsole }) => {
+  const { user, isAuthenticated, logout } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [downloadModal, setDownloadModal] = useState<{ open: boolean; platform: string; file: string } | null>(null);
+  const [downloadToast, setDownloadToast] = useState<{ platform: string; file: string } | null>(null);
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingVisible, setLoadingVisible] = useState(false);
@@ -421,7 +423,10 @@ export const LandingPage: React.FC<{
   };
 
   const handleDownloadClick = (platform: string, file: string) => {
-    setDownloadModal({ open: true, platform, file });
+    setDownloadToast({ platform, file });
+    setTimeout(() => {
+      setDownloadToast(null);
+    }, 4500);
   };
 
   const activeRoute = currentPath.toLowerCase();
@@ -468,18 +473,65 @@ export const LandingPage: React.FC<{
         </nav>
 
         <div className="lp-topbar-actions">
-          <button className="lp-btn-secondary" onClick={() => onLaunchConsole('user')} title="Open Web Management Console">
-            Launch Console
-          </button>
-          <button className="lp-btn-primary" onClick={() => handleNav('/downloads')}>
-            <Ico d={Icons.download} size={15} />
-            Get Zoop Free
-          </button>
+          {isAuthenticated ? (
+            <div className="lp-user-badge-container">
+              <button
+                className="lp-user-badge-btn"
+                onClick={() => onLaunchConsole('user')}
+                title="Go to Console"
+              >
+                <div className="lp-user-avatar">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'Z'}
+                </div>
+                <span className="lp-user-name">{user?.name || 'Account'}</span>
+                <span className="lp-user-plan-badge">{user?.plan || 'Free'}</span>
+              </button>
+              <button className="lp-btn-secondary" onClick={() => onLaunchConsole('user')} title="Open Web Management Console">
+                Console
+              </button>
+              <button className="lp-btn-ghost-logout" onClick={() => logout()} title="Sign Out">
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <>
+              <button className="lp-btn-secondary" onClick={() => handleNav('/auth?tab=signin')} title="Sign In">
+                Sign In
+              </button>
+              <button className="lp-btn-primary" onClick={() => handleNav('/auth?tab=signup')}>
+                <Ico d={Icons.arrowRight} size={14} />
+                Sign Up
+              </button>
+            </>
+          )}
           <button className="lp-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation menu">
             <Ico d={menuOpen ? Icons.close : Icons.menu} size={20} />
           </button>
         </div>
       </header>
+
+      {/* ─── Mobile Navigation Drawer ───────────────────────────────── */}
+      {menuOpen && (
+        <div className="lp-mobile-drawer">
+          <button onClick={() => { handleNav('/'); setMenuOpen(false); }}>Overview</button>
+          <button onClick={() => { handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</button>
+          <button onClick={() => { handleNav('/products'); setMenuOpen(false); }}>Products</button>
+          <button onClick={() => { handleNav('/downloads'); setMenuOpen(false); }}>Downloads</button>
+          <button onClick={() => { handleNav('/security'); setMenuOpen(false); }}>Security</button>
+          <div className="lp-mobile-drawer-divider" />
+          {isAuthenticated ? (
+            <>
+              <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
+              <button onClick={() => { logout(); setMenuOpen(false); }}>Sign Out</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { handleNav('/auth?tab=signin'); setMenuOpen(false); }}>Sign In</button>
+              <button className="primary" onClick={() => { handleNav('/auth?tab=signup'); setMenuOpen(false); }}>Create Account</button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <div className="lp-page-content-animated" key={activeRoute}>
@@ -727,14 +779,28 @@ export const LandingPage: React.FC<{
                       friends nearby, or family across town. Fast, private, and always connected with zero hassle.
                     </p>
                     <div className="lp-hero-actions">
-                      <button className="lp-btn-primary large" onClick={() => handleNav('/downloads')}>
-                        <Ico d={Icons.download} size={18} />
-                        Get Zoop Free
-                      </button>
-                      <button className="lp-btn-secondary large" onClick={() => onLaunchConsole('user')}>
-                        Open Web Console
-                        <Ico d={Icons.arrowRight} size={16} />
-                      </button>
+                      {isAuthenticated ? (
+                        <>
+                          <button className="lp-btn-primary large" onClick={() => onLaunchConsole('user')}>
+                            Open Web Console
+                            <Ico d={Icons.arrowRight} size={16} />
+                          </button>
+                          <button className="lp-btn-secondary large" onClick={() => handleNav('/downloads')}>
+                            <Ico d={Icons.download} size={18} />
+                            Download Apps
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="lp-btn-primary large" onClick={() => handleNav('/auth?tab=signup')}>
+                            Get Started Free
+                            <Ico d={Icons.arrowRight} size={16} />
+                          </button>
+                          <button className="lp-btn-secondary large" onClick={() => handleNav('/how-it-works')}>
+                            Explore How It Works
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -972,25 +1038,23 @@ export const LandingPage: React.FC<{
         </div>
       </footer>
 
-      {/* ─── Download Confirmation Modal ────────────────────────────── */}
-      {downloadModal?.open && (
-        <div className="lp-modal-backdrop" onClick={() => setDownloadModal(null)}>
-          <div className="lp-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="lp-modal-icon">
-              <Ico d={Icons.download} size={28} />
+      {/* ─── Non-Intrusive Download Feedback Toast ─────────────────── */}
+      {downloadToast && (
+        <div className="lp-toast-container">
+          <div className="lp-toast" role="status">
+            <div className="lp-toast-icon">
+              <Ico d={Icons.check} size={18} />
             </div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 8px' }}>
-              Downloading Zoop for {downloadModal.platform}
-            </h3>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: 24, lineHeight: 1.6 }}>
-              Package <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--cyan)' }}>{downloadModal.file}</code> is downloading.
-              Open the installer once finished to connect your device.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button className="lp-btn-primary" onClick={() => setDownloadModal(null)}>
-                Done &amp; Continue
-              </button>
+            <div>
+              <strong>Starting download:</strong> {downloadToast.platform} (<code>{downloadToast.file}</code>)
             </div>
+            <button
+              className="lp-toast-close"
+              onClick={() => setDownloadToast(null)}
+              aria-label="Close notification"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

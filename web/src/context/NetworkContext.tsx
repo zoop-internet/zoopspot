@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
@@ -9,6 +9,7 @@ import {
 } from '../api/client';
 import {
   getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice,
+  getSavedUserProfile, saveUserProfile, clearUserProfile,
   generateAndSaveIdentity,
 } from '../api/identity';
 import {
@@ -17,8 +18,33 @@ import {
 } from '../api/daemon';
 import type { DaemonStatus, DaemonPeer, DaemonTelemetryEntry, DaemonStreamSnapshot } from '../api/daemon';
 
+import type { UserProfile } from '../types';
+
+// Helpers per docs/identity.md — Zoop ID is permanent, username is mutable handle, PIN is 6 digits
+function generateZoopId(): string {
+  const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let suffix = '';
+  for (let i = 0; i < 6; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return `ZP-${suffix}`;
+}
+function normalizeUsername(raw: string): string {
+  return raw.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 32) || 'zoopuser';
+}
+function formatUsername(raw: string): string {
+  const n = normalizeUsername(raw);
+  return n;
+}
+
 export interface AppState {
-  // Auth / identity
+  // Auth / user profile — per docs/identity.md: Zoop ID + @username + 6-digit PIN, no email required
+  user: UserProfile | null;
+  isAuthenticated: boolean;
+  login: (identifier: string, pin?: string, remember?: boolean) => Promise<void>;
+  signup: (username: string, pin: string, displayName?: string, deviceName?: string, isProvider?: boolean) => Promise<void>;
+  loginWithKey: (keyData: string, name?: string) => Promise<void>;
+  logout: () => Promise<void>;
+
+  // Device identity
   deviceId: string | null;
   deviceName: string | null;
   deviceInfo: ApiDevice | null;
@@ -55,7 +81,7 @@ export interface AppState {
   refreshOrganizations: () => void;
   doCreateOrg: (name: string, slug?: string) => Promise<ApiOrg>;
   selectOrg: (org: ApiOrg) => void;
-  doAddOrgMember: (name: string, email: string, role: string) => Promise<void>;
+  doAddOrgMember: (name: string, handle: string, role: string) => Promise<void>;
   refreshOrgMembers: (orgId?: string) => void;
 
   // Local daemon mode
@@ -70,12 +96,12 @@ export interface AppState {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserProfile | null>(() => getSavedUserProfile());
   const [deviceId, setDeviceId] = useState<string | null>(getSavedDeviceId());
   const [deviceName, setDeviceName] = useState<string | null>(getSavedDeviceName());
   const [deviceInfo, setDeviceInfo] = useState<ApiDevice | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
-  const autoRegisteredRef = useRef(false);
 
   const [allDevices, setAllDevices] = useState<ApiDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
@@ -190,18 +216,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllDevices();
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Registration failed');
+      throw err;
     } finally {
       setIsRegistering(false);
     }
   }, [refreshAllDevices]);
 
-  // Auto-register the browser as a device on first load so the portal
-  // starts populated instead of showing "Not registered" empty states.
-  useEffect(() => {
-    if (deviceId || autoRegisteredRef.current) return;
-    autoRegisteredRef.current = true;
-    register('My Device', 'web', false).catch(() => {});
+  const login = useCallback(async (identifier: string, _pin?: string, remember: boolean = true) => {
+    setIsRegistering(true);
+    setRegisterError(null);
+    try {
+      const raw = identifier.trim();
+      const isZoopId = /^ZP-[A-Z0-9]{4,}$/i.test(raw);
+      // Support legacy email login by extracting username part
+      const handleRaw = raw.includes('@') && raw.includes('.') ? raw.split('@')[0] : raw;
+      const username = formatUsername(handleRaw);
+      const zoopId = isZoopId ? raw.toUpperCase() : (getSavedUserProfile()?.zoopId || generateZoopId());
+      const displayName = username.charAt(0).toUpperCase() + username.slice(1);
+      if (_pin && !/^\d{6}$/.test(_pin)) throw new Error('Zoop PIN must be exactly 6 digits');
+
+      const profile: UserProfile = {
+        id: zoopId,
+        zoopId,
+        username,
+        name: displayName,
+        plan: 'free',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+      };
+
+      if (remember) saveUserProfile(profile);
+      setUser(profile);
+
+      if (!deviceId) {
+        const devName = `${displayName}'s Web Client`;
+        await register(devName, 'web', false);
+      }
+    } catch (err: unknown) {
+      setRegisterError(err instanceof Error ? err.message : 'Login failed');
+      throw err;
+    } finally {
+      setIsRegistering(false);
+    }
   }, [deviceId, register]);
+
+  const signup = useCallback(async (username: string, pin: string, displayName?: string, deviceName?: string, isProvider: boolean = false) => {
+    setIsRegistering(true);
+    setRegisterError(null);
+    try {
+      if (!/^\d{6}$/.test(pin)) throw new Error('Zoop PIN must be exactly 6 digits');
+      const cleanUsername = formatUsername(username);
+      if (cleanUsername.length < 2) throw new Error('Username must be at least 2 characters');
+      const zoopId = generateZoopId();
+      const cleanName = displayName?.trim() || cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1);
+      const cleanDevName = deviceName?.trim() || `${cleanName}'s Web Client`;
+
+      const profile: UserProfile = {
+        id: zoopId,
+        zoopId,
+        username: cleanUsername,
+        name: cleanName,
+        plan: 'free',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+      };
+
+      saveUserProfile(profile);
+      setUser(profile);
+
+      await register(cleanDevName, 'web', isProvider);
+    } catch (err: unknown) {
+      setRegisterError(err instanceof Error ? err.message : 'Registration failed');
+      throw err;
+    } finally {
+      setIsRegistering(false);
+    }
+  }, [register]);
+
+  const loginWithKey = useCallback(async (_keyData: string, name?: string) => {
+    setIsRegistering(true);
+    setRegisterError(null);
+    try {
+      const devName = name?.trim() || 'Imported Key Device';
+      await register(devName, 'web', false);
+      const zoopId = generateZoopId();
+      const username = normalizeUsername(devName).slice(0, 16) || 'device';
+      const profile: UserProfile = {
+        id: zoopId,
+        zoopId,
+        username,
+        name: devName,
+        plan: 'free',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+      };
+      saveUserProfile(profile);
+      setUser(profile);
+    } catch (err: unknown) {
+      setRegisterError(err instanceof Error ? err.message : 'Key import failed');
+      throw err;
+    } finally {
+      setIsRegistering(false);
+    }
+  }, [register]);
 
   const unregister = useCallback(async () => {
     if (deviceId) {
@@ -218,6 +335,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShares([]);
     setConnections([]);
   }, [deviceId]);
+
+  const logout = useCallback(async () => {
+    clearUserProfile();
+    setUser(null);
+    await unregister();
+  }, [unregister]);
 
   const refreshShares = useCallback(() => {
     if (!deviceId) return;
@@ -362,14 +485,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshOrgMembers(org.id.toString());
   }, [refreshOrgMembers]);
 
-  const doAddOrgMember = useCallback(async (name: string, email: string, role: string) => {
+  const doAddOrgMember = useCallback(async (name: string, handle: string, role: string) => {
     if (!currentOrg) throw new Error('No active organization');
-    const member = await addOrgMember(currentOrg.id.toString(), name, email, role);
+    const member = await addOrgMember(currentOrg.id.toString(), name, handle, role);
     setOrgMembers(prev => [...prev, member]);
   }, [currentOrg]);
 
   return (
     <AppContext.Provider value={{
+      user,
+      isAuthenticated: Boolean(user || deviceId),
+      login,
+      signup,
+      loginWithKey,
+      logout,
       deviceId, deviceName, deviceInfo, isRegistering, registerError,
       register, unregister,
       allDevices, devicesLoading, refreshAllDevices,

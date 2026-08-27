@@ -46,10 +46,14 @@ type OrgResponse struct {
 }
 
 // AddOrgMemberRequest is the payload for POST /v1/organizations/{id}/members
+// Per docs/identity.md §2, §7 — Zoop does not require email. Email is kept
+// optional for legacy compat; preferred member identifier is device_id / Zoop ID / username.
 type AddOrgMemberRequest struct {
 	DeviceID types.ID `json:"device_id,omitempty"`
 	Name     string   `json:"name"`
-	Email    string   `json:"email"`
+	Email    string   `json:"email,omitempty"`
+	Username string   `json:"username,omitempty"`
+	ZoopID   string   `json:"zoop_id,omitempty"`
 	Role     string   `json:"role"`
 }
 
@@ -59,7 +63,9 @@ type OrgMemberResponse struct {
 	OrganizationID types.ID `json:"organization_id"`
 	DeviceID       types.ID `json:"device_id,omitempty"`
 	Name           string   `json:"name"`
-	Email          string   `json:"email"`
+	Email          string   `json:"email,omitempty"`
+	Username       string   `json:"username,omitempty"`
+	ZoopID         string   `json:"zoop_id,omitempty"`
 	Role           string   `json:"role"`
 	Status         string   `json:"status"`
 }

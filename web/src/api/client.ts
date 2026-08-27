@@ -62,7 +62,9 @@ export interface ApiOrgMember {
   organization_id: string;
   device_id?: string;
   name: string;
-  email: string;
+  email?: string; // deprecated optional — Zoop prefers username/zoop_id (docs/identity.md §7)
+  username?: string; // @handle
+  zoop_id?: string; // ZP-... permanent identity
   role: string;
   status: string;
 }
@@ -190,9 +192,25 @@ export async function getOrganization(orgId: string): Promise<ApiOrg> {
   return apiFetch<ApiOrg>(path, { headers: authHeaders });
 }
 
-export async function addOrgMember(orgId: string, name: string, email: string, role: string, deviceId?: string): Promise<ApiOrgMember> {
+export async function addOrgMember(orgId: string, name: string, handle: string, role: string, deviceId?: string): Promise<ApiOrgMember> {
+  // handle is Zoop ID (ZP-...) or @username — sent as username/zoop_id, with legacy email placeholder
+  const isZoopId = /^ZP-[A-Z0-9]{4,}$/i.test(handle.trim());
+  const payload: Record<string, string> = { name, role };
+  if (deviceId) (payload as any).device_id = deviceId;
+  if (isZoopId) {
+    payload.zoop_id = handle.trim();
+    payload.email = `${handle.trim().toLowerCase()}@zoop.local`; // legacy compat placeholder
+  } else if (handle.includes('@') && handle.includes('.')) {
+    // legacy email still accepted — forward as email + username
+    payload.email = handle.trim();
+    payload.username = handle.split('@')[0].replace(/^@/, '');
+  } else {
+    const username = handle.trim().replace(/^@/, '');
+    payload.username = username;
+    payload.email = `${username.toLowerCase()}@zoop.local`; // placeholder for storage NOT NULL
+  }
   const path = `/v1/organizations/${orgId}/members`;
-  const body = JSON.stringify({ name, email, role, device_id: deviceId });
+  const body = JSON.stringify(payload);
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
   return apiFetch<ApiOrgMember>(path, {
     method: 'POST',
@@ -241,7 +259,9 @@ export async function adminServices(): Promise<Record<string, ApiServiceHealth>>
 export interface ApiAdminUser {
   id: string;
   name: string;
-  email: string;
+  email?: string; // deprecated optional — may be placeholder
+  username?: string;
+  zoop_id?: string;
   role: string;
   status: string;
   device_id?: string;

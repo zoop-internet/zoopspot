@@ -28,6 +28,7 @@ const WORKSPACE_LABELS: Record<PortalMode, string> = {
   user: 'Personal',
   org: 'Organization',
   admin: 'Platform Admin',
+  auth: 'Sign In / Register',
 };
 
 const WORKSPACE_COLORS: Record<PortalMode, string> = {
@@ -35,6 +36,7 @@ const WORKSPACE_COLORS: Record<PortalMode, string> = {
   user: 'var(--accent-green)',
   org: 'var(--accent-blue)',
   admin: 'var(--accent-amber)',
+  auth: 'var(--primary)',
 };
 
 export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
