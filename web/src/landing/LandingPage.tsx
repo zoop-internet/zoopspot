@@ -588,6 +588,12 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
         <div className="docs-llms-banner" role="note">
           <span style={{fontWeight:800}}>Documentation Index</span> — Fetch the complete index at <a href="/llms.txt">/llms.txt</a> · <a href="/llms-full.txt">full</a> · Use before exploring further.
         </div>
+        <div className="docs-tabs" role="tablist" aria-label="Docs sections">
+          {DOCS_SECTIONS.map(sec => {
+            const isActive = sec.items.some(i => i.id === activeId);
+            return <button key={sec.label} role="tab" aria-selected={isActive} className={`docs-tab ${isActive ? 'active' : ''}`} onClick={() => setActiveId(sec.items[0].id)}>{sec.label}</button>;
+          })}
+        </div>
         <div className="docs-breadcrumb" aria-label="Breadcrumb">
           <a onClick={onNavigateHome} style={{cursor:'pointer', color:'#0284c7'}}>Home</a>
           <span style={{color:'#d4d4d4'}}>›</span>
