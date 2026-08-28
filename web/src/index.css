@@ -1343,9 +1343,21 @@ html, body, #root {
   .pin-box { height: 44px; font-size: 1.15rem; }
 }
 
-/* Ensure switcher dropdown is top and not clipped behind */
+/* Ensure switcher dropdown is top and not clipped behind — especially Admin */
 @media (max-width: 768px) {
   .portal-content, .admin-content { overflow: visible !important; }
   .page-header, .admin-header, .admin-page-header { overflow: visible !important; }
-  .portal-switcher-menu { z-index: 400 !important; }
+  .portal-switcher-menu {
+    position: fixed !important;
+    top: 62px !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-height: calc(100vh - 76px) !important;
+    z-index: 999 !important;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7) !important;
+  }
+  .admin-sidebar .portal-switcher-menu {
+    left: 12px !important;
+    right: 12px !important;
+  }
 }
