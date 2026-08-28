@@ -110,8 +110,8 @@ for (const [route, meta] of Object.entries(ROUTES)) {
   count++;
   console.log(`Prerendered ${route} -> ${file}`);
 }
-// Prerender docs subpages (each doc as /docs/<id>) for deep linking + SEO
-const DOCS_IDS = ['quickstart','installation','configuration','web-console','architecture','entities','identity','organizations','networking','control-plane','data-plane','ipam-relays','security','api','abuse-safety','technology','platforms','future'];
+// Prerender docs subpages — user-focused curated (not internal architecture dump)
+const DOCS_IDS = ['quickstart','installation','configuration','web-console','connect-share','devices','mobile-router','identity','organizations','permissions','troubleshooting','security-privacy','faq'];
 for (const id of DOCS_IDS) {
   const route = `/docs/${id}`;
   const meta = {

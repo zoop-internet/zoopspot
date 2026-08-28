@@ -163,33 +163,26 @@ const Icons = {
 type DocItem = { id: string; title: string; file: string; desc: string };
 type DocSection = { label: string; items: DocItem[] };
 const DOCS_SECTIONS: DocSection[] = [
-  { label: 'Getting Started', items: [
-    { id: 'quickstart', title: 'Quick Start', file: 'README', desc: 'Build, run cloud + daemon, connect in 30s' },
-    { id: 'installation', title: 'Installation', file: 'platforms', desc: 'Linux, macOS, Windows, Android, iOS, OpenWrt' },
-    { id: 'configuration', title: 'Configuration', file: 'control-plane', desc: 'Env vars, STUN, TUN, ports, DB/Redis' },
-    { id: 'web-console', title: 'Web Console', file: 'web', desc: 'App + org + admin consoles, flows' },
+  { label: 'Start Here', items: [
+    { id: 'quickstart', title: 'Quick Start', file: 'README', desc: 'Self-host in 2 min — build, run, connect' },
+    { id: 'installation', title: 'Install Zoop', file: 'platforms', desc: 'Linux, macOS, Windows, phones, routers' },
+    { id: 'configuration', title: 'Configure', file: 'control-plane', desc: 'Env vars, STUN, TUN, ports' },
   ]},
-  { label: 'Core Concepts', items: [
-    { id: 'architecture', title: 'Architecture', file: 'architecture', desc: 'Control vs Data plane, direct first' },
-    { id: 'entities', title: 'Entities', file: 'entities', desc: 'Devices, shares, connections, roles' },
-    { id: 'identity', title: 'Identity & Auth', file: 'identity', desc: 'Zoop ID ZP-…, @username, 6-digit PIN' },
-    { id: 'organizations', title: 'Organizations', file: 'organizations', desc: 'Owner/Admin/Member, policies' },
+  { label: 'Use Zoop', items: [
+    { id: 'web-console', title: 'Web Console', file: 'web', desc: 'Manage devices, shares, tunnels' },
+    { id: 'connect-share', title: 'Connect & Share', file: 'entities', desc: 'Share home/phone with laptop/family' },
+    { id: 'devices', title: 'Devices', file: 'web', desc: 'Add, rename, revoke, check status' },
+    { id: 'mobile-router', title: 'Mobile & Router', file: 'platforms', desc: 'Android, iOS, OpenWrt' },
   ]},
-  { label: 'Networking', items: [
-    { id: 'networking', title: 'Networking', file: 'networking', desc: 'NAT types, hole punch, STUN/TURN' },
-    { id: 'control-plane', title: 'Control Plane', file: 'control-plane', desc: 'Identity, signaling, IPAM 100.64/10' },
-    { id: 'data-plane', title: 'Data Plane', file: 'data-plane', desc: 'WireGuard, routing, roaming' },
-    { id: 'ipam-relays', title: 'IPAM & Relays', file: 'ipam-and-relays', desc: 'Subnet allocation, DERP relays' },
+  { label: 'Account & Team', items: [
+    { id: 'identity', title: 'Your Zoop ID', file: 'identity', desc: 'ZP-… + @username + 6-digit PIN' },
+    { id: 'organizations', title: 'Teams', file: 'organizations', desc: 'Create org, invite, roles' },
+    { id: 'permissions', title: 'Permissions', file: 'organizations', desc: 'Who can share, who can connect' },
   ]},
-  { label: 'Security & API', items: [
-    { id: 'security', title: 'Security', file: 'security', desc: 'Noise_IK, ChaCha20, Ed25519, 0600' },
-    { id: 'api', title: 'API Reference', file: 'api', desc: 'REST + WebSocket, auth, lifecycle' },
-    { id: 'abuse-safety', title: 'Abuse & Safety', file: 'abuse-and-safety', desc: 'Filtering, quota, logging' },
-  ]},
-  { label: 'Reference', items: [
-    { id: 'technology', title: 'Technology', file: 'technology', desc: 'Go, React, Kotlin, Swift, WireGuard' },
-    { id: 'platforms', title: 'Platforms Deep Dive', file: 'platforms', desc: 'Per-OS TUN, VpnService, NetworkExtension' },
-    { id: 'future', title: 'Roadmap & Future', file: 'future', desc: "What's next, not yet committed" },
+  { label: 'Help', items: [
+    { id: 'troubleshooting', title: 'Troubleshooting', file: 'networking', desc: 'NAT, relay, roaming, doctor' },
+    { id: 'security-privacy', title: 'Security & Privacy', file: 'security', desc: 'Encryption, no logs, keys' },
+    { id: 'faq', title: 'FAQ', file: 'api', desc: 'Common questions, quick answers' },
   ]},
 ];
 const DOCS_FLAT = DOCS_SECTIONS.flatMap(s => s.items);
@@ -289,6 +282,236 @@ zoop doctor   # TUN, privs, API, DNS, STUN/NAT
 | ZOOP_REDIS_URL | "" | multi-node signaling |
 `;
 
+const CURATED_MD: Record<string, string> = {
+  installation: `# Install Zoop — choose your device
+
+Zoop runs as a lightweight daemon (\`zoopd\`) on computers/routers and as a one-tap app on phones. Web console works in any browser.
+
+## Linux (systemd)
+\`\`\`bash
+curl -fsSL https://get.zoop.dev | sh   # .deb + systemd unit
+# or
+sudo ./bin/zoopd service install && sudo ./bin/zoopd service start
+sudo ./bin/zoopd service status
+\`\`\`
+
+## macOS (launchd, utun)
+\`\`\`bash
+brew install zoop-internet/tap/zoop
+# or download Zoop-macOS-universal.pkg
+sudo zoopd -tun zoop0   # foreground test
+\`\`\`
+
+## Windows (Wintun)
+Download \`.msi\` from /downloads — tray icon shows status. No admin after install.
+
+## Android / iOS
+- Android: APK from /downloads or Play (soon) — uses \`VpnService\`
+- iOS: TestFlight link on /downloads — uses \`NetworkExtension\`
+
+## OpenWrt Router
+\`\`\`bash
+opkg install zoop-router_mipsel.ipk
+uci set zoop.@zoop[0].enabled=1 && uci commit && /etc/init.d/zoop restart
+\`\`\`
+
+> **Tip:** One Zoop ID works everywhere. Install on 2 devices → they can find each other via cloud, then talk directly.
+
+`,
+  configuration: `# Configure Zoop
+
+Only set what you change. Defaults work for dev.
+
+## Most used
+| Var | Default | When to change |
+|---|---|---|
+| ZOOP_CONTROL_PLANE_URL | http://localhost:8080 | point app at hosted cloud e.g. https://cloud.zoop.network |
+| ZOOP_STUN_SERVER | stun.l.google.com:19302 | if you run your own STUN |
+| ZOOP_TUN_NAME | zoop0 | if name collides |
+| ZOOP_API_PORT | 9090 | Prometheus /metrics + /v1/health |
+| ZOOP_CONFIG_DIR | ~/.zoop | keys & identity |
+
+## Cloud persistence
+\`\`\`bash
+ZOOP_DATABASE_URL=postgres://user:pass@localhost:5432/zoop?sslmode=disable ./bin/zoop-cloud
+ZOOP_REDIS_URL=redis://localhost:6379 ./bin/zoop-cloud  # multi-node
+\`\`\`
+
+## Daemon flags
+\`\`\`bash
+sudo ./bin/zoopd -tun zoop0 -api-port 9090 -socket /var/run/zoopd.sock -config-dir ~/.zoop
+\`\`\`
+
+> Keys are \`0600\` and optional \`ZOOP_IDENTITY_PASSPHRASE\` (PBKDF2-AES-GCM).
+
+`,
+  "web-console": `# Web Console — manage in browser
+
+Open /app (Personal), /org (Teams), /admin (Operators). No email — sign in with Zoop ID \`ZP-XXXXXX\` + 6-digit PIN.
+
+## Personal — Devices
+- See fleet, platform, status (online/offline). Click ID to copy.
+- \`Register new\` creates a device on this browser (Web).
+
+## Connections
+- **Initiate:** pick a provider that shared to you → Connect.
+- **Pending:** provider sees Incoming → Accept / Decline. You see Awaiting approval → Cancel.
+- **Active:** shows tunnel IP, state (CONNECTED/CONNECTING). Disconnect to close.
+
+## Sharing
+- Select a recipient device → Authorize. That device can now connect *through you* as provider.
+
+## Tips
+- Daemon card (\`zoopd\` on 127.0.0.1:9090) shows live tunnels if running.
+- Toasts confirm copy/share. Search filters fleet.
+- Settings → Unregister removes device, not your Zoop ID.
+
+`,
+  "connect-share": `# Connect & Share — the core flow
+
+## 1. Share (provider authorizes recipient)
+On the **provider** device (home PC/phone that has internet):
+1. Open /app → Sharing → pick recipient device → Authorize.
+
+Provider now allows that recipient to route via it.
+
+## 2. Connect (recipient dials provider)
+On the **recipient** (laptop on road):
+1. Open /app → Connections → pick provider → Connect.
+2. Provider sees Incoming → Accept.
+3. State becomes CONNECTED — tunnel IP appears. Traffic now goes direct device-to-device.
+
+## 3. Direct vs relay
+- **DIRECT** (<1ms) — STUN discovered host/srflx, hole-punched — preferred.
+- **RELAY** — when both behind strict NAT/CGNAT — still end-to-end encrypted via WebSocket relay.
+
+> Roaming (Wi-Fi ↔ 5G) is automatic via Netlink re-probe — no drop. Check \`zoop telemetry\` for live bytes.
+
+`,
+  devices: `# Devices — add, rename, revoke
+
+## Statuses
+- **Trusted/Active** — registered, can be authorized
+- **Suspended** — paused by admin, reconnect blocked
+- **Revoked** — credential deleted, must re-register
+
+## Actions
+- **Copy ID** — click Device ID (monospace) to copy.
+- **Unregister** — Settings → Unregister device (per-device credential, not your Zoop ID).
+
+## Fleet search
+Filter by name, ID prefix, platform, status. Counts show in nav (e.g. Devices 5).
+
+> Losing a device credential does not lose your Zoop ID (\`ZP-…\`). Your ID is permanent; devices are revocable.
+`,
+  "mobile-router": `# Mobile & Router
+
+## Android (VpnService, Gomobile)
+- Install APK → allow VPN → toggle. Shows as WireGuard TUN. Battery-aware.
+
+## iOS (NetworkExtension)
+- TestFlight → allow VPN → toggle. Respects iOS background limits.
+
+## OpenWrt
+- \`.ipk\` via \`opkg\` → UCI configures NAT MASQUERADE + policy routing.
+- Whole-home sharing: router as provider → all LAN devices can route via it.
+
+> Phones as provider: share mobile hotspot securely without phone Settings hotspot.
+`,
+  identity: `# Your Zoop ID — ZP-… + @username + PIN
+
+- **Permanent:** \`ZP-7K4M9X\` — 6-char alphabet \`23456789ABCDEFGHJKLMNPQRSTUVWXYZ\`, derived from Ed25519 pubkey (UUIDv5). Never changes.
+- **Mutable:** \`@username\` — 2–24 chars, letters/numbers/._-, your handle.
+- **PIN:** 6 digits, revocable, never emailed. Used for sensitive ops, rate-limited. Show/Hide toggle.
+
+## Recovery
+- PIN forgot? Use **device key** (PKCS8) import on Sign In → Use device key.
+- Device lost? Unregister that device; your Zoop ID stays.
+
+> No email required. No password reset email — your devices *are* your factors.
+`,
+  organizations: `# Teams — create, invite, roles
+
+## Create
+Web → /org → Create Org → name + slug (e.g. acme). You become Owner.
+
+## Invite
+Orgs → Members → Add → Zoop ID (\`ZP-…\`) or \`@username\` + role.
+
+## Roles
+- **Owner** — billing, delete, all
+- **Admin** — members, devices, policies
+- **Member** — share/connect within org
+- **Viewer** — read only
+
+> Orgs isolate fleet, audit logs, IPAM. Personal devices stay separate unless shared.
+`,
+  permissions: `# Permissions — who can share & connect
+
+- **Share** = provider authorizes recipient (\`POST /v1/shares\`). Until shared, recipient cannot see provider in Connections.
+- **Connect** = recipient requests tunnel (\`POST /v1/connections\` → REQUESTED → provider Accept → AUTHORIZED → CONNECTED).
+- **Revoke** = provider or admin revokes device/org member — tunnel drops, future shares blocked.
+
+> Sharing is directional. A can share to B without B sharing to A. Make both directions for mutual.
+`,
+  troubleshooting: `# Troubleshooting — fix fast
+
+## \`zoop doctor\`
+Checks TUN, privs, cloud reachability, DNS, STUN/NAT. Run first.
+
+## NAT → relay, not direct
+- Both strict/CGNAT? Expected relay. Direct needs at least one host/srflx reachable via UDP.
+- Try different STUN: \`ZOOP_STUN_SERVER=stun.cloudflare.com:3478\`
+
+## Tunnel up, no internet
+- Provider NAT/forwarding? Check \`iptables -L\` / provider firewall.
+- IPAM: \`100.64.0.0/10\` (/30 per pair). Conflicts? Check /admin IPAM.
+
+## Roaming drops
+- Netlink events require daemon running. \`zoopd service status\` must be active.
+
+## Still stuck
+Open issue with \`zoop doctor\` output: https://github.com/zoop-internet/zoop/issues
+`,
+  "security-privacy": `# Security & Privacy — what we promise
+
+## Encryption
+- Data plane: **WireGuard** (Noise_IK, ChaCha20-Poly1305, Curve25519) — ephemeral keys, forward secrecy. Each tunnel fresh.
+- Control: **Ed25519** \`zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH\`, 5-min TTL, bounded nonce cache.
+
+## Keys
+- \`0600\` storage, optional \`ZOOP_IDENTITY_PASSPHRASE\` (PBKDF2-AES-GCM).
+
+## Relays
+- Zero-decryption: \`ws://\` forwards \`[senderID][payload]\` only. Cannot read traffic.
+
+## Logging
+- **Never:** packet contents, browsing history.
+- **Only:** signaling metadata (IDs, timestamps), IPAM, audit (\`connection_id, provider, recipient, established_at\`).
+
+> Traffic is opaque to cloud and relays. Self-host to verify — MIT.
+
+`,
+  faq: `# FAQ — quick answers
+
+**What is Zoop?** Direct device-to-device mesh so your home/phone internet follows your laptop — no VPN hop.
+
+**VPN vs Zoop?** VPN relays via company server (+30–120ms). Zoop direct (<1ms) or encrypted relay only if NAT forces.
+
+**Private?** Yes, end-to-end. Relays cannot decrypt.
+
+**Behind CGNAT?** Yes — STUN + hole punch + relay fallback + roaming.
+
+**Platforms?** Linux, macOS, Windows, Android, iOS, OpenWrt, web.
+
+**Zoop ID?** Permanent \`ZP-XXXXXX\` + mutable \`@username\`, 6-digit PIN.
+
+**Free?** MIT, free personal (5 devices), Teams $8/seat founding waitlist at /pricing.
+
+> Still stuck? Search docs (⌘K) or ask on GitHub Issues.
+`,
+};
+
 const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = ({ initialId, onNavigateHome }) => {
   const [activeId, setActiveId] = useState<string>(() => {
     const fromHash = window.location.hash.replace(/^#/, '');
@@ -307,10 +530,11 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
   useEffect(()=>{ window.history.replaceState({},'', activeId==='quickstart' ? '/docs' : `/docs/${activeId}`); },[activeId]);
   useEffect(()=>{
     if(!active) return;
-    if(active.file==='README'){ setMd(QUICKSTART_MD); setToc(extractToc(QUICKSTART_MD)); return; }
+    const curated = (CURATED_MD as Record<string,string>)[activeId] || (active.file==='README' ? QUICKSTART_MD : undefined);
+    if(curated){ setMd(curated); setToc(extractToc(curated)); setLoading(false); setErr(null); return; }
     setLoading(true); setErr(null);
     fetch(`/docs/${active.file}.md`).then(r=> r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))).then(t=> { setMd(t); setToc(extractToc(t)); }).catch(()=> setErr('Failed to load doc. Try GitHub.')).finally(()=> setLoading(false));
-  },[active]);
+  },[active, activeId]);
   // copy delegation + cmd+K
   useEffect(()=>{
     const onClick = (e: MouseEvent) => {
@@ -731,6 +955,7 @@ export const LandingPage: React.FC<{
   };
 
   const activeRoute = currentPath.toLowerCase();
+  const isDocs = activeRoute === '/docs' || activeRoute.startsWith('/docs/') || activeRoute === '/documentation' || activeRoute.startsWith('/documentation/');
 
   return (
     <div className="landing-shell">
@@ -745,8 +970,8 @@ export const LandingPage: React.FC<{
         />
       )}
 
-      {/* ─── Topbar ─────────────────────────────────────────────────── */}
-      <header className={`lp-topbar ${scrolled ? 'scrolled' : ''}`} role="banner">
+      {/* ─── Topbar — distinct on docs (solid, not glass) ─────────────────── */}
+      <header className={`lp-topbar ${scrolled ? 'scrolled' : ''} ${isDocs ? 'docs-topbar' : ''}`} role="banner">
         <div className="lp-brand" onClick={() => handleNav('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleNav('/');}}} aria-label="Zoop Internet — go to homepage">
           <div className="lp-brand-icon">
             <img src="/zoopicon-32.png" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.png 2x" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
