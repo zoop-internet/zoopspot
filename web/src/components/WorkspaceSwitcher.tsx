@@ -96,10 +96,6 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Global platform — active</span>
                   </span>
                 </button>
-                <div style={{ marginTop: 8, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f7fbff', display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} /> Platform controls</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>Manage organizations, users, devices, and relays from the sidebar. This is the global view — not a personal workspace.</div>
-                </div>
               </div>
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Platform view</span>

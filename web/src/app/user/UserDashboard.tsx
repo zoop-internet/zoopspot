@@ -987,9 +987,6 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
             </button>
-            <div className="mobile-switcher">
-              <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
-            </div>
             <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em' }} className="hide-mobile">{deviceName ? `· ${deviceName}` : ''}</span>
           </div>

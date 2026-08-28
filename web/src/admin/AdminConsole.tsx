@@ -1444,9 +1444,6 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               {sidebarOpen ? <I.close /> : <I.menu />}
             </button>
-            <div className="mobile-switcher">
-              <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
-            </div>
             <div>
               <h1 className="admin-page-title">{cur.title}</h1>
               <p className="admin-page-subtitle">{cur.subtitle}</p>
