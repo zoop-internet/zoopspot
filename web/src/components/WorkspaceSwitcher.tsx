@@ -97,20 +97,6 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                   </span>
                 </button>
 
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '12px 12px 4px' }}>
-                  Workspaces are not here
-                </div>
-                <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, fontSize: '0.75rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                  Admin does not have a Personal workspace and does not browse other users’ organizations from the switcher. Manage everything in the sidebar: <strong style={{ color: '#f7fbff' }}>Organizations</strong>, <strong style={{ color: '#f7fbff' }}>Users</strong>, <strong style={{ color: '#f7fbff' }}>Devices</strong>. Use <span style={{ fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>View as</span> only for support.
-                </div>
-                <button className="portal-switcher-option" onClick={() => { setOpen(false); onSwitch('user'); }} role="option" style={{ borderRadius: 10, padding: '10px 12px', marginTop: 8, border: '1px dashed rgba(255,255,255,0.12)' }}>
-                  <span className="ps-blank" />
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={I.user} size={14} /></span>
-                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>View as Personal (support)</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Switch to user context — not an admin workspace</span>
-                  </span>
-                </button>
               </div>
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Platform view</span>
