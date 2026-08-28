@@ -1,12 +1,17 @@
 /* TEAM */
-Developer: Zoop Internet — open-source community
-Contact: https://github.com/zoop-internet/zoop/issues
+Lead Product: Zoop Internet — Direct Device-to-Device Mesh
+Contact: founders@zoop.network
 Site: https://zoop.network
+Location: Remote — Nairobi · Kampala · Lagos · Global
+GitHub: https://github.com/zoop-internet/zoop
+Issues: https://github.com/zoop-internet/zoop/issues
 
 /* THANKS */
-WireGuard, Pion STUN, Go, React, Vite
+WireGuard® (Noise_IK, ChaCha20-Poly1305, Curve25519)
+Go, React 19, Vite, WebCrypto Ed25519
 
 /* SITE */
-Standards: HTML5, CSS3, WCAG 2.2 AA, WAI-ARIA
-Components: Inter, JetBrains Mono
+Standards: HTML5, CSS3, WCAG 2.2 AA, WAI-ARIA, CSP
+Fonts: Inter 400-900, JetBrains Mono (swap)
 Last update: 2026-08-28
+Build: Vite + prerender (8 routes), _headers, sitemap with hreflang

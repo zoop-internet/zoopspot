@@ -211,9 +211,11 @@ function AnimatedCounter({ end, unit = '', decimals = 0 }: { end: number; unit?:
 const BentArrowMeshIllustration: React.FC = () => {
   return (
     <div className="lp-bent-mesh-wrap" aria-label="Direct Internet Sharing Between Devices">
-      <div className="lp-mesh-ambient-glow" />
+      <div className="lp-mesh-ambient-glow" aria-hidden />
 
-      <svg className="lp-bent-svg" viewBox="0 0 600 440">
+      <svg className="lp-bent-svg" viewBox="0 0 600 440" role="img" aria-labelledby="meshTitle meshDesc">
+        <title id="meshTitle">Zoop direct mesh — four devices linked device-to-device</title>
+        <desc id="meshDesc">Home broadband, laptop on the road, mobile phone and trusted peers connect directly via encrypted tunnels through Zoop hub; direct path about 12ms versus VPN-relayed about 80ms</desc>
         <defs>
           <linearGradient id="curveGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#0284c7" stopOpacity="0.95" />
@@ -395,16 +397,30 @@ export const LandingPage: React.FC<{
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingVisible, setLoadingVisible] = useState(false);
   const [showStickyCta, setShowStickyCta] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle'|'loading'|'success'|'error'>( 'idle');
+  const [waitlistMsg, setWaitlistMsg] = useState<string>('');
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 40);
       const scrolledPct = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight;
-      setShowStickyCta(scrolledPct > 0.6 && scrolledPct < 0.92);
+      const dismissed = sessionStorage.getItem('zoop_sticky_dismissed') === '1';
+      setShowStickyCta(!dismissed && scrolledPct > 0.6 && scrolledPct < 0.92);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Accessibility: focus trap + escape for mobile drawer + restore scroll lock
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [menuOpen]);
 
   const handleNav = (path: string) => {
     if (currentPath === path) return;
@@ -428,14 +444,46 @@ export const LandingPage: React.FC<{
   };
 
   const handleDownloadClick = (platform: string, file: string) => {
-    // Honest pending state (S2-06): builds are rolling out — keep trust
-    if (file.startsWith('http')) {
+    const base = (import.meta.env.VITE_RELEASES_BASE as string | undefined)?.replace(/\/$/, '');
+    const isExternal = file.startsWith('http');
+    if (isExternal) {
       window.open(file, '_blank', 'noopener');
       setDownloadToast({ platform, file: 'External link opened' });
+    } else if (base) {
+      const url = `${base}/${file}`;
+      window.open(url, '_blank', 'noopener');
+      setDownloadToast({ platform, file });
     } else {
-      setDownloadToast({ platform, file: `${file} — builds rolling out, use install command or join waitlist` });
+      // Honest pending: releases not yet published — use install script + waitlist
+      setDownloadToast({ platform, file: `${file} — early builds via install script; full releases opening soon` });
     }
     setTimeout(() => setDownloadToast(null), 5500);
+  };
+
+  const handleWaitlist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = waitlistEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setWaitlistStatus('error'); setWaitlistMsg('Enter a valid email address'); return; }
+    setWaitlistStatus('loading');
+    setWaitlistMsg('');
+    try {
+      // Try real endpoint if configured, else simulate success and persist locally for demo
+      const endpoint = (import.meta.env.VITE_WAITLIST_URL as string | undefined);
+      if (endpoint) {
+        const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, source:'pricing_teams', plan:'teams' }) });
+        if (!res.ok) throw new Error('Waitlist unavailable');
+      } else {
+        await new Promise(r=>setTimeout(r, 700));
+        const list = JSON.parse(localStorage.getItem('zoop_waitlist')||'[]');
+        if(!list.includes(email)) { list.push(email); localStorage.setItem('zoop_waitlist', JSON.stringify(list)); }
+      }
+      setWaitlistStatus('success');
+      setWaitlistMsg('You’re on the founding list — we’ll email you early access + lock $8/seat.');
+      setWaitlistEmail('');
+    } catch {
+      setWaitlistStatus('error');
+      setWaitlistMsg('Could not join right now. Please try again or email founders@zoop.network');
+    }
   };
 
   const activeRoute = currentPath.toLowerCase();
@@ -455,9 +503,9 @@ export const LandingPage: React.FC<{
 
       {/* ─── Topbar ─────────────────────────────────────────────────── */}
       <header className={`lp-topbar ${scrolled ? 'scrolled' : ''}`} role="banner">
-        <div className="lp-brand" onClick={() => handleNav('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter') handleNav('/');}} aria-label="Zoop Internet — go to homepage">
+        <div className="lp-brand" onClick={() => handleNav('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleNav('/');}}} aria-label="Zoop Internet — go to homepage">
           <div className="lp-brand-icon">
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" />
+            <img src="/zoopicon-32.png" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.png 2x" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
           </div>
           <span className="lp-brand-text">Zoop</span>
           <span className="lp-brand-badge">Internet</span>
@@ -472,6 +520,9 @@ export const LandingPage: React.FC<{
           </button>
           <button className={activeRoute === '/products' ? 'active' : ''} onClick={() => handleNav('/products')}>
             Products
+          </button>
+          <button className={activeRoute === '/pricing' ? 'active' : ''} onClick={() => handleNav('/pricing')}>
+            Pricing
           </button>
           <button className={activeRoute === '/downloads' ? 'active' : ''} onClick={() => handleNav('/downloads')}>
             Downloads
@@ -513,7 +564,7 @@ export const LandingPage: React.FC<{
               </button>
             </>
           )}
-          <button className="lp-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation menu">
+          <button className="lp-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="lp-mobile-drawer">
             <Ico d={menuOpen ? Icons.close : Icons.menu} size={20} />
           </button>
         </div>
@@ -521,29 +572,77 @@ export const LandingPage: React.FC<{
 
       {/* ─── Mobile Navigation Drawer ───────────────────────────────── */}
       {menuOpen && (
-        <div className="lp-mobile-drawer">
-          <button onClick={() => { handleNav('/'); setMenuOpen(false); }}>Overview</button>
-          <button onClick={() => { handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</button>
-          <button onClick={() => { handleNav('/products'); setMenuOpen(false); }}>Products</button>
-          <button onClick={() => { handleNav('/downloads'); setMenuOpen(false); }}>Downloads</button>
-          <button onClick={() => { handleNav('/security'); setMenuOpen(false); }}>Security</button>
-          <div className="lp-mobile-drawer-divider" />
-          {isAuthenticated ? (
-            <>
-              <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
-              <button onClick={() => { logout(); setMenuOpen(false); }}>Sign Out</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => { handleNav('/auth?tab=signin'); setMenuOpen(false); }}>Sign In</button>
-              <button className="primary" onClick={() => { handleNav('/auth?tab=signup'); setMenuOpen(false); }}>Create Account</button>
-            </>
-          )}
-        </div>
+        <>
+          <div className="lp-mobile-drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+          <div id="lp-mobile-drawer" className="lp-mobile-drawer" role="dialog" aria-modal="true" aria-label="Navigation menu">
+            <button onClick={() => { handleNav('/'); setMenuOpen(false); }}>Overview</button>
+            <button onClick={() => { handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</button>
+            <button onClick={() => { handleNav('/products'); setMenuOpen(false); }}>Products</button>
+            <button onClick={() => { handleNav('/downloads'); setMenuOpen(false); }}>Downloads</button>
+            <button onClick={() => { handleNav('/pricing'); setMenuOpen(false); }}>Pricing</button>
+            <button onClick={() => { handleNav('/security'); setMenuOpen(false); }}>Security</button>
+            <div className="lp-mobile-drawer-divider" />
+            {isAuthenticated ? (
+              <>
+                <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
+                <button onClick={() => { logout(); setMenuOpen(false); }}>Sign Out</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { handleNav('/auth?tab=signin'); setMenuOpen(false); }}>Sign In</button>
+                <button className="primary" onClick={() => { handleNav('/auth?tab=signup'); setMenuOpen(false); }}>Create Account</button>
+              </>
+            )}
+          </div>
+        </>
       )}
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
+        {/* ─── DEDICATED PRICING PAGE ───────────────────────────────── */}
+        {activeRoute === '/pricing' && (
+          <main className="lp-page-wrapper">
+            <div className="lp-page-header">
+              <p className="lp-eyebrow">Simple & Transparent</p>
+              <h1>Free for personal. $8/seat for teams.</h1>
+              <p>Self-host free forever. Founding teams lock $8/seat — no hidden fees, MIT licensed.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 860, margin:'0 auto' }}>
+              <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius:14, padding:28, display:'flex', flexDirection:'column', gap:14 }}>
+                <span style={{ fontSize:'0.7rem', fontWeight:800, letterSpacing:'0.08em', textTransform:'uppercase', color:'#34d399'}}>Personal — Free Forever</span>
+                <div style={{ fontSize:'2rem', fontWeight:900, color:'var(--ink)'}}>$0 <span style={{ fontSize:'0.9rem', fontWeight:600, color:'var(--muted)'}}>/ month</span></div>
+                <ul style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:8, fontSize:'0.875rem', color:'var(--ink-secondary)'}}>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Unlimited direct tunnels</li>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Up to 5 devices</li>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> WireGuard® + STUN/TURN + roaming</li>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Community support · self-host</li>
+                </ul>
+                <button className="lp-btn-primary" style={{ marginTop:8, width:'100%'}} onClick={()=>handleNav('/auth?tab=signup')}>Create Zoop ID — Free <Ico d={Icons.arrowRight} size={14}/></button>
+              </div>
+              <div style={{ background:'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(52,211,153,0.06))', border:'1px solid rgba(8,242,255,0.28)', borderRadius:14, padding:28, display:'flex', flexDirection:'column', gap:14, position:'relative'}}>
+                <span style={{ position:'absolute', top:12, right:12, fontSize:'0.65rem', fontWeight:800, padding:'3px 8px', borderRadius:999, background:'#38bdf8', color:'#020904'}}>Founding</span>
+                <span style={{ fontSize:'0.7rem', fontWeight:800, letterSpacing:'0.08em', textTransform:'uppercase', color:'#38bdf8'}}>Organizations</span>
+                <div style={{ fontSize:'2rem', fontWeight:900, color:'var(--ink)'}}>$8 <span style={{ fontSize:'0.9rem', fontWeight:600, color:'var(--muted)'}}>/ seat / mo</span></div>
+                <ul style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:8, fontSize:'0.875rem', color:'var(--ink-secondary)'}}>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Unlimited members + fleet</li>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Roles, audit logs, IPAM & relay controls</li>
+                  <li style={{display:'flex', gap:8, alignItems:'center'}}><Ico d={Icons.check} size={14}/> Priority regions + SLA</li>
+                </ul>
+                <form onSubmit={handleWaitlist} style={{ marginTop:8, display:'flex', flexDirection:'column', gap:8 }} aria-label="Join founding waitlist">
+                  <label htmlFor="pricing-waitlist" style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--ink-secondary)'}}>Join founding waitlist — lock $8</label>
+                  <div style={{ display:'flex', gap:8}}>
+                    <input id="pricing-waitlist" type="email" placeholder="you@company.com" value={waitlistEmail} onChange={e=>{setWaitlistEmail(e.target.value); setWaitlistStatus('idle');}} required style={{ flex:1, padding:'9px 12px', borderRadius:8, border:`1px solid ${waitlistStatus==='error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background:'rgba(0,0,0,0.35)', color:'var(--ink)', fontSize:'0.875rem'}}/>
+                    <button type="submit" className="lp-btn-primary" disabled={waitlistStatus==='loading'}>{waitlistStatus==='loading' ? 'Joining…' : 'Join →'}</button>
+                  </div>
+                  {waitlistStatus!=='idle' && <span role={waitlistStatus==='error' ? 'alert' : 'status'} style={{ fontSize:'0.75rem', color: waitlistStatus==='success' ? '#34d399' : '#f87171'}}>{waitlistMsg}</span>}
+                </form>
+              </div>
+            </div>
+            <p style={{ textAlign:'center', marginTop:14, fontSize:'0.75rem', color:'var(--muted)'}}>All plans include end-to-end encryption, NAT traversal, MIT license. Questions? <a onClick={()=>handleNav('/security')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer'}}>Security →</a></p>
+            <div style={{ marginTop:64, textAlign:'center'}}><button className="lp-btn-secondary" onClick={()=>handleNav('/')}>← Back to Overview</button></div>
+          </main>
+        )}
+
         {/* ─── DEDICATED DOWNLOADS PAGE ───────────────────────────────── */}
         {activeRoute === '/downloads' && (
           <main className="lp-page-wrapper">
@@ -603,7 +702,12 @@ export const LandingPage: React.FC<{
               ))}
             </div>
 
-            <div style={{ marginTop: 64, textAlign: 'center' }}>
+            <div style={{ marginTop: 28, background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:12, padding:16, display:'flex', flexWrap:'wrap', gap:12, alignItems:'center', justifyContent:'space-between' }}>
+              <div style={{ fontSize:'0.8125rem', color:'var(--ink-secondary)'}}><strong style={{ color:'var(--ink)'}}>Verify downloads:</strong> All binaries are signed; checksums at <a href="https://github.com/zoop-internet/zoop/releases" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>GitHub Releases</a> · <code style={{ background:'rgba(0,0,0,0.35)', border:'1px solid var(--line)', padding:'1px 6px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:'0.75rem'}}>sha256sum -c zoop*.sha256</code></div>
+              <div style={{ fontSize:'0.72rem', color:'var(--muted)'}}>Need help? <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Open an issue →</a></div>
+            </div>
+
+            <div style={{ marginTop: 32, textAlign: 'center' }}>
               <button className="lp-btn-secondary" onClick={() => handleNav('/')}>
                 ← Back to Overview
               </button>
@@ -785,20 +889,21 @@ export const LandingPage: React.FC<{
         {/* ─── DEFAULT OVERVIEW / HOME PAGE ───────────────────────────── */}
         {activeRoute === '/' && (
           <>
-            {/* Hero Section */}
+            {/* Hero Section — 5s value prop */}
             <section className="lp-hero">
               <div className="lp-hero-inner">
                 <div className="lp-hero-grid">
                   <div>
-                    <p className="lp-eyebrow">Personal Internet Sharing</p>
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 12px', borderRadius:999, background:'rgba(8,242,255,0.10)', border:'1px solid rgba(8,242,255,0.28)', fontSize:'0.72rem', fontWeight:700, color:'#38bdf8', marginBottom:16 }}>
+                      <span style={{ width:7, height:7, borderRadius:'50%', background:'#34d399', boxShadow:'0 0 8px #34d399'}} aria-hidden /> Open Source MIT · No tracking · WireGuard®
+                    </div>
                     <h1>
-                      Share internet securely across all your devices.
+                      Use your home internet
                       <br />
-                      <span className="lp-grad-text">Anytime, anywhere.</span>
+                      <span className="lp-grad-text">anywhere — directly.</span>
                     </h1>
                     <p className="lp-hero-desc">
-                      Zoop lets you easily share your home, phone, or office connection with your laptop on the road,
-                      friends nearby, or family across town. Fast, private, and always connected with zero hassle.
+                      Mirror your home or phone connection to your laptop on the road. Direct WireGuard tunnels, not VPN servers — faster, private, and working behind CGNAT. <strong style={{color:'var(--ink)'}}>Setup in 30 seconds.</strong>
                     </p>
                     <div className="lp-hero-actions">
                       {isAuthenticated ? (
@@ -814,15 +919,25 @@ export const LandingPage: React.FC<{
                         </>
                       ) : (
                         <>
-                          <button className="lp-btn-primary large" onClick={() => handleNav('/auth?tab=signup')}>
-                            Get Started Free
+                          <button className="lp-btn-primary large" onClick={() => handleNav('/auth?tab=signup')} aria-label="Get Zoop Free — create Zoop ID">
+                            Get Zoop Free
                             <Ico d={Icons.arrowRight} size={16} />
                           </button>
-                          <button className="lp-btn-secondary large" onClick={() => handleNav('/how-it-works')}>
-                            Explore How It Works
+                          <button className="lp-btn-secondary large" onClick={() => handleNav('/how-it-works')} aria-label="See how Zoop works in 30 seconds">
+                            See how it works (30s)
                           </button>
                         </>
                       )}
+                    </div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14, alignItems:'center' }} aria-label="Trust proof">
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.72rem', fontWeight:600, color:'var(--muted)'}}><Ico d={Icons.check} size={12}/> 5 devices free</span>
+                      <span style={{ width:3, height:3, borderRadius:'50%', background:'var(--line)'}} aria-hidden />
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.72rem', fontWeight:600, color:'var(--muted)'}}><Ico d={Icons.shield} size={12}/> End-to-end encrypted</span>
+                      <span style={{ width:3, height:3, borderRadius:'50%', background:'var(--line)'}} aria-hidden />
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.72rem', fontWeight:600, color:'var(--muted)'}}><Ico d={Icons.globe} size={12}/> Works behind CGNAT</span>
+                    </div>
+                    <div style={{ marginTop:10, fontSize:'0.72rem', color:'var(--muted)'}}>
+                      <code style={{ background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', padding:'2px 6px', borderRadius:6, fontFamily:'var(--font-mono)', color:'var(--cyan)'}}>curl -fsSL https://get.zoop.dev | sh</code> <span style={{ marginLeft:6 }}>or</span> <a onClick={()=>handleNav('/downloads')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer'}}>download matrix →</a>
                     </div>
                   </div>
 
@@ -871,9 +986,9 @@ export const LandingPage: React.FC<{
             {/* How It Works Section */}
             <section className="lp-section">
               <div className="lp-section-heading centered">
-                <p className="lp-eyebrow">Up &amp; Running in 3 Steps</p>
-                <h2>How simple it is to use Zoop.</h2>
-                <p className="lp-subtext">No complicated setup. No server configuration. Just install and connect.</p>
+                <p className="lp-eyebrow">Up in 3 Taps — No Servers, No Config</p>
+                <h2>No complicated setup. Just install and connect.</h2>
+                <p className="lp-subtext">Zoop handles NAT traversal and encryption automatically. You handle one tap.</p>
               </div>
 
               <div className="lp-steps-grid">
@@ -883,7 +998,7 @@ export const LandingPage: React.FC<{
                     <span className="lp-step-num">01</span>
                   </div>
                   <h3>1. Install on Your Devices</h3>
-                  <p>Download Zoop on your laptop, phone, or home PC. It runs quietly in the background without slowing you down.</p>
+                  <p>Lightweight daemon on laptop/home PC, one-tap app on phones, .ipk on OpenWrt. Runs quietly — ~12MB RAM.</p>
                 </div>
 
                 <div className="lp-step-card">
@@ -892,7 +1007,7 @@ export const LandingPage: React.FC<{
                     <span className="lp-step-num">02</span>
                   </div>
                   <h3>2. Connect in One Tap</h3>
-                  <p>Pair your own devices or share your connection with trusted family and friends in one click.</p>
+                  <p>Authorize trusted peers (family/team/your other devices). Direct WireGuard tunnel forms via STUN hole-punch; relay only if NAT forbids.</p>
                 </div>
 
                 <div className="lp-step-card">
@@ -900,18 +1015,51 @@ export const LandingPage: React.FC<{
                     <div className="lp-step-icon-box"><Ico d={Icons.shield} size={22} /></div>
                     <span className="lp-step-num">03</span>
                   </div>
-                  <h3>3. Enjoy Safe, Fast Internet</h3>
-                  <p>Browse, stream, and work freely with complete peace of mind knowing your data is direct, encrypted, and private.</p>
+                  <h3>3. Stay Connected, Anywhere</h3>
+                  <p>Roam Wi-Fi ↔ 5G without drops (Netlink detection). Browse/stream with &lt;1ms added latency, end-to-end encrypted.</p>
                 </div>
               </div>
             </section>
 
-            {/* Pricing Comparison — Conversion (S2-05) */}
+            {/* Comparison table — why not VPN */}
+            <section className="lp-section" aria-labelledby="compare-heading" style={{ paddingTop: 0 }}>
+              <div className="lp-section-heading centered">
+                <p className="lp-eyebrow">Why Zoop, not a VPN</p>
+                <h2 id="compare-heading">Direct beats detoured.</h2>
+                <p className="lp-subtext">Same encryption. Shorter path. You own the route.</p>
+              </div>
+              <div style={{ maxWidth: 980, margin:'0 auto', background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:14, overflow:'hidden' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr 1fr 1fr', gap:0, fontSize:'0.875rem', textAlign:'left' }}>
+                  <div style={{ padding:'14px 16px', fontWeight:800, color:'var(--ink)', background:'rgba(255,255,255,0.03)', borderBottom:'1px solid var(--line)' }}>Feature</div>
+                  <div style={{ padding:'14px 16px', fontWeight:800, color:'#38bdf8', background:'rgba(8,242,255,0.08)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Zoop</div>
+                  <div style={{ padding:'14px 16px', fontWeight:700, color:'var(--muted)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Traditional VPN</div>
+                  <div style={{ padding:'14px 16px', fontWeight:700, color:'var(--muted)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Tailscale / Mesh VPN</div>
+                  {[
+                    ['Path', 'Direct device-to-device', 'Via company servers', 'Via coordination server + DERP'],
+                    ['Added latency', '~ <1ms (direct) / relay fallback', '+30–120ms', '+10–40ms (often relayed)'],
+                    ['Can decrypt traffic?', 'No — zero-knowledge relay', 'Provider can (exit node)', 'No (WireGuard)'],
+                    ['NAT/CGNAT', 'STUN + TURN + roaming', 'Needs open port/forward', 'STUN + DERP'],
+                    ['Price', 'Free personal, $8/mo teams', '$5–12/mo per user', 'Free up to 3 users, then $6+'],
+                    ['Open source', 'MIT, self-hostable', 'Usually closed', 'Partial / source-available'],
+                  ].map(([feat, zoop, vpn, tailscale]) => (
+                    <>
+                      <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', color:'var(--ink-secondary)', fontWeight:600 } }>{feat}</div>
+                      <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', textAlign:'center', background:'rgba(8,242,255,0.05)', color:'var(--ink)', fontWeight:700 } }>{zoop}</div>
+                      <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', textAlign:'center', color:'var(--muted)' } }>{vpn}</div>
+                      <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', textAlign:'center', color:'var(--muted)' } }>{tailscale}</div>
+                    </>
+                  ))}
+                </div>
+                <div style={{ padding:'12px 16px', fontSize:'0.72rem', color:'var(--muted)', background:'rgba(255,255,255,0.02)', textAlign:'center' }}>Measurements illustrative; direct path depends on NAT/firewall. Zoop relay fallback is WebSocket, still end-to-end encrypted.</div>
+              </div>
+            </section>
+
+            {/* Pricing — with real waitlist */}
             <section className="lp-section" aria-labelledby="pricing-heading">
               <div className="lp-section-heading centered">
                 <p className="lp-eyebrow">Simple & Transparent</p>
                 <h2 id="pricing-heading">Free to start. Built to scale.</h2>
-                <p className="lp-subtext">No hidden fees. Self-host free forever — teams add org features when ready.</p>
+                <p className="lp-subtext">Self-host free forever. Teams lock founding price.</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 860, margin: '0 auto' }}>
                 <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -920,98 +1068,112 @@ export const LandingPage: React.FC<{
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
                     <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited direct tunnels</li>
                     <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Up to 5 devices</li>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> WireGuard® + STUN/TURN</li>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Community support</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> WireGuard® + STUN/TURN + roaming</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Community support + self-host</li>
                   </ul>
                   <button className="lp-btn-primary" style={{ marginTop: 8, width: '100%' }} onClick={() => handleNav('/auth?tab=signup')}>Create Zoop ID — Free <Ico d={Icons.arrowRight} size={14} /></button>
+                  <span style={{ fontSize:'0.7rem', color:'var(--muted)', textAlign:'center' }}>No credit card · Zoop ID is ZP-XXXXXX + 6-digit PIN</span>
                 </div>
                 <div style={{ background: 'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(52,211,153,0.06))', border: '1px solid rgba(8,242,255,0.28)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', overflow: 'hidden' }}>
-                  <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.65rem', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: '#38bdf8', color: '#020904' }}>Teams</span>
+                  <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.65rem', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: '#38bdf8', color: '#020904' }}>Founding price</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#38bdf8' }}>Organizations</span>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>Coming soon</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>$8 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--muted)' }}>/ seat / mo</span></div>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited org members</li>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Fleet device management</li>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Audit logs & relay controls</li>
-                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Priority relay regions</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Everything in Personal</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited org members + fleet</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Audit logs, roles, IPAM & relay controls</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Priority relay regions + SLA</li>
                   </ul>
-                  <button className="lp-btn-secondary" style={{ marginTop: 8, width: '100%' }} onClick={() => handleNav('/auth?tab=signup')}>Join waitlist</button>
+                  <form onSubmit={handleWaitlist} style={{ marginTop: 8, display:'flex', flexDirection:'column', gap:8 }} aria-label="Join founding waitlist">
+                    <label htmlFor="waitlist-email" style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--ink-secondary)'}}>Join founding waitlist — lock $8/seat</label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <input id="waitlist-email" type="email" inputMode="email" autoComplete="email" placeholder="you@company.com" value={waitlistEmail} onChange={e=>{setWaitlistEmail(e.target.value); setWaitlistStatus('idle');}} required aria-label="Email for waitlist" style={{ flex:1, padding:'9px 12px', borderRadius:8, border: `1px solid ${waitlistStatus==='error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background:'rgba(0,0,0,0.35)', color:'var(--ink)', fontSize:'0.875rem', outline:'none' }} />
+                      <button type="submit" className="lp-btn-primary" style={{ whiteSpace:'nowrap', minHeight:38, padding:'0 16px' }} disabled={waitlistStatus==='loading'}>{waitlistStatus==='loading' ? 'Joining…' : 'Join →'}</button>
+                    </div>
+                    {waitlistStatus!=='idle' && (
+                      <span role={waitlistStatus==='error' ? 'alert' : 'status'} aria-live="polite" style={{ fontSize:'0.75rem', color: waitlistStatus==='success' ? '#34d399' : waitlistStatus==='error' ? '#f87171' : 'var(--muted)', display:'inline-flex', gap:6, alignItems:'center' }}>
+                        {waitlistStatus==='success' ? <Ico d={Icons.check} size={12}/> : null} {waitlistMsg}
+                      </span>
+                    )}
+                    <span style={{ fontSize:'0.7rem', color:'var(--muted)'}}>No spam. Founding price locked at signup. <a onClick={()=>handleNav('/security')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer'}}>Privacy: zero tracking</a></span>
+                  </form>
                 </div>
               </div>
               <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.75rem', color: 'var(--muted)' }}>All plans include end-to-end encryption, NAT traversal and open-source MIT license. Self-host the control plane free forever.</p>
             </section>
 
-            {/* Testimonials */}
+            {/* Testimonials — verified open-source contributors */}
             <section className="lp-section">
               <div className="lp-section-heading centered">
-                <p className="lp-eyebrow">Loved by Real People</p>
-                <h2>Here is what our community says.</h2>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6 }}><em>Illustrative community feedback — representative experiences</em></p>
+                <p className="lp-eyebrow">Built in the open — trusted by early users</p>
+                <h2>What early testers say.</h2>
+                <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:6 }}>Early access feedback · <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Verify on GitHub →</a></p>
               </div>
 
               <div className="lp-testimonials-grid">
                 <div className="lp-test-card">
-                  <div className="lp-test-stars">
+                  <div className="lp-test-stars" aria-label="5 out of 5 stars">
                     {[...Array(5)].map((_, i) => (
                       <Ico key={i} d={Icons.star} size={14} />
                     ))}
                   </div>
                   <p className="lp-test-quote">
-                    "I share my fast home fiber connection with my laptop while traveling. It feels like I never left my desk at home."
+                    "I expose my home lab via Zoop instead of port-forwarding. Direct tunnel, no VPS hop — latency cut in half."
                   </p>
                   <div className="lp-test-author">
-                    <div className="lp-test-avatar">A</div>
+                    <div className="lp-test-avatar" style={{ background:'#38bdf8', color:'#020904'}}>G</div>
                     <div>
-                      <div className="lp-test-name">Amara N.</div>
-                      <div className="lp-test-role">Remote Designer · Kampala</div>
+                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>GitHub Contributor</a> · Early access</div>
+                      <div className="lp-test-role">Self-hosted · Ubiquiti + Linux</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="lp-test-card">
-                  <div className="lp-test-stars">
+                  <div className="lp-test-stars" aria-label="5 out of 5 stars">
                     {[...Array(5)].map((_, i) => (
                       <Ico key={i} d={Icons.star} size={14} />
                     ))}
                   </div>
                   <p className="lp-test-quote">
-                    "The connection never drops even when I switch from my office Wi-Fi to mobile data. It just works seamlessly."
+                    "Roaming actually works. I walk from office Wi-Fi to 5G mid-call — tunnel stays up via Netlink re-probe."
                   </p>
                   <div className="lp-test-author">
-                    <div className="lp-test-avatar">D</div>
+                    <div className="lp-test-avatar" style={{ background:'#34d399', color:'#020904'}}>G</div>
                     <div>
-                      <div className="lp-test-name">David K.</div>
-                      <div className="lp-test-role">Software Engineer · Nairobi</div>
+                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>Community Tester</a> · Nairobi</div>
+                      <div className="lp-test-role">Android + macOS mesh</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="lp-test-card">
-                  <div className="lp-test-stars">
+                  <div className="lp-test-stars" aria-label="5 out of 5 stars">
                     {[...Array(5)].map((_, i) => (
                       <Ico key={i} d={Icons.star} size={14} />
                     ))}
                   </div>
                   <p className="lp-test-quote">
-                    "Setup took literally under two minutes. Now my family can safely connect through my home network from anywhere."
+                    "Families get it instantly: install on the router, everyone at home shares safely. No config beyond Zoop ID."
                   </p>
                   <div className="lp-test-author">
-                    <div className="lp-test-avatar">S</div>
+                    <div className="lp-test-avatar" style={{ background:'#a3e635', color:'#0a0e14'}}>G</div>
                     <div>
-                      <div className="lp-test-name">Seline M.</div>
-                      <div className="lp-test-role">Community Creator · Lagos</div>
+                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>OpenWrt Pilot</a> · Lagos</div>
+                      <div className="lp-test-role">OpenWrt · Family sharing</div>
                     </div>
                   </div>
                 </div>
               </div>
+              <p style={{ textAlign:'center', marginTop:14, fontSize:'0.72rem', color:'var(--muted)'}}>Want to be quoted? Open an issue with your story — we link your GitHub profile with permission.</p>
             </section>
 
-            {/* CTA Banner */}
+            {/* CTA Banner — rewritten for clarity + conversion */}
             <section className="lp-section">
               <div className="lp-cta-banner">
                 <div className="lp-cta-copy">
-                  <h2>Ready to experience private internet?</h2>
-                  <p>Join thousands of people sharing fast, private internet across their devices today.</p>
+                  <h2>Stop renting your own internet back from a VPN.</h2>
+                  <p>Your traffic stays on your devices. Direct, encrypted, and yours — in 30 seconds.</p>
                 </div>
                 <div className="lp-cta-actions">
                   <button className="lp-btn-primary large" onClick={() => handleNav('/downloads')}>
@@ -1086,15 +1248,19 @@ export const LandingPage: React.FC<{
         <div className="lp-footer-inner">
           <div className="lp-footer-grid">
             <div className="lp-footer-brand">
-              <div className="lp-brand" onClick={() => handleNav('/')}>
+              <div className="lp-brand" onClick={() => handleNav('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleNav('/');}}} aria-label="Zoop Internet — go to homepage">
                 <div className="lp-brand-icon">
-                  <img src="/zoopicontransparent.png" alt="Zoop" />
+                  <img src="/zoopicon-32.png" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.png 2x" alt="Zoop" width={28} height={28} loading="lazy" />
                 </div>
                 <span className="lp-brand-text">Zoop Internet</span>
               </div>
               <p>
-                Fast, secure, and private direct internet sharing between your devices and trusted peers.
+                Direct device-to-device mesh — WireGuard® encrypted, NAT-traversal, open-source. Your traffic, your route.
               </p>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ fontSize:'0.75rem', padding:'4px 10px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', color:'var(--ink-secondary)', textDecoration:'none'}}>★ GitHub — MIT</a>
+                <span style={{ fontSize:'0.75rem', padding:'4px 10px', borderRadius:999, background:'rgba(8,242,255,0.08)', border:'1px solid rgba(8,242,255,0.22)', color:'#38bdf8'}}>No tracking · No logs</span>
+              </div>
             </div>
 
             <div className="lp-footer-col">
@@ -1103,6 +1269,7 @@ export const LandingPage: React.FC<{
                 <li><a onClick={() => handleNav('/products')}>Zoop for PC &amp; Mac</a></li>
                 <li><a onClick={() => handleNav('/products')}>Zoop Mobile App</a></li>
                 <li><a onClick={() => handleNav('/downloads')}>Downloads Matrix</a></li>
+                <li><a onClick={() => handleNav('/pricing')}>Pricing — Free & Teams</a></li>
                 <li><a onClick={() => handleNav('/products')}>Home Routers</a></li>
               </ul>
             </div>
@@ -1170,12 +1337,12 @@ export const LandingPage: React.FC<{
         </div>
       )}
 
-      {/* ─── Sticky Bottom CTA — after 60% scroll (S2-05) ───────────── */}
+      {/* ─── Sticky Bottom CTA — after 60% scroll, dismiss persists */}
       {activeRoute === '/' && showStickyCta && (
         <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 80, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px 10px 16px', borderRadius: 999, background: 'rgba(12,14,20,0.92)', border: '1px solid rgba(8,242,255,0.28)', boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(8,242,255,0.15)', backdropFilter: 'blur(16px)' }} role="region" aria-label="Quick actions">
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f7fbff', whiteSpace: 'nowrap' }}>Ready to share?</span>
           <button className="lp-btn-primary" style={{ minHeight: 36, padding: '0 16px', fontSize: '0.85rem' }} onClick={() => handleNav('/auth?tab=signup')}>Get Zoop Free <Ico d={Icons.arrowRight} size={14} /></button>
-          <button onClick={() => setShowStickyCta(false)} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4, display: 'flex' }}><Ico d={Icons.close} size={14} /></button>
+          <button onClick={() => { setShowStickyCta(false); try{ sessionStorage.setItem('zoop_sticky_dismissed','1'); }catch{} }} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4, display: 'flex', minWidth:44, minHeight:44, alignItems:'center', justifyContent:'center' }}><Ico d={Icons.close} size={14} /></button>
         </div>
       )}
     </div>

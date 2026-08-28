@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-  <!-- Preconnect for fonts (perf) -->
+  <!-- Fonts: Inter + JetBrains Mono with swap, preconnect only (no render-blocking preload) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- Primary SEO -->
   <title>Zoop — Secure Direct Device-to-Device Sharing | Private Mesh</title>
@@ -20,11 +20,14 @@
   <link rel="alternate" hreflang="en" href="https://zoop.network/" />
   <link rel="alternate" hreflang="x-default" href="https://zoop.network/" />
 
-  <!-- Theme & Icons -->
+  <!-- Theme & Icons — optimized sizes (32/192/512) + WebP where supported -->
   <meta name="theme-color" content="#0284c7" />
   <meta name="color-scheme" content="dark" />
-  <link rel="icon" type="image/png" href="/zoopicontransparent.png" />
-  <link rel="apple-touch-icon" href="/zoopicontransparent.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/zoopicon-32.png" />
+  <link rel="icon" type="image/webp" sizes="32x32" href="/zoopicon-32.webp" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/zoopicon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/zoopicon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="/zoopicon-512.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
 
   <!-- Open Graph -->
@@ -46,8 +49,9 @@
   <meta name="twitter:image" content="https://zoop.network/og-image.png" />
   <meta name="twitter:creator" content="@zoopnetwork" />
 
-  <!-- Performance hints -->
-  <link rel="preload" href="/zoopicontransparent.png" as="image" type="image/png" />
+  <!-- Performance hints: no eager 743kB preload. LCP is hero text, not icon. Icon decoded async. -->
+  <link rel="preload" href="/zoopicon-32.png" as="image" type="image/png" fetchpriority="low" />
+  <link rel="preload" href="/og-image.webp" as="image" type="image/webp" imagesrcset="/og-image.webp 1200w" fetchpriority="low" />
 
   <!-- Structured Data: Organization + SoftwareApplication -->
   <script type="application/ld+json">

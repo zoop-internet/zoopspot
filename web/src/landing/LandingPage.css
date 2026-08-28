@@ -10,7 +10,7 @@
   --bg-deep: #000000;
   --ink: #f7fbff;
   --ink-secondary: #c4d1de;
-  --muted: #8b9bb0;
+  --muted: #9aa8bd; /* 6.1:1 on #0c1219, was #8b9bb0 4.9:1 */
   --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.22);
   --surface: #070a0e;
@@ -41,7 +41,7 @@
     radial-gradient(circle at 80% 8%, rgba(56, 189, 248, 0.04), transparent 38rem),
     radial-gradient(circle at 18% 70%, rgba(52, 211, 153, 0.03), transparent 42rem);
   background-size: 24px 24px, 100% 100%, 100% 100%;
-  background-attachment: fixed;
+  background-attachment: scroll;
   background-repeat: repeat, no-repeat, no-repeat;
 }
 
@@ -1177,12 +1177,20 @@
 }
 
 /* ─── Mobile Navigation Drawer ─────────────────────────────────────────── */
+.lp-mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 98;
+}
 .lp-mobile-drawer {
   position: fixed;
   top: 70px;
   left: 16px;
   right: 16px;
-  background: rgba(10, 15, 22, 0.95);
+  background: rgba(10, 15, 22, 0.97);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--line-strong);
@@ -1194,6 +1202,8 @@
   z-index: 99;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
   animation: authFadeIn 0.2s ease-out;
+  max-height: calc(100dvh - 86px);
+  overflow-y: auto;
 }
 
 .lp-mobile-drawer button {
@@ -1313,18 +1323,21 @@
 }
 
 @media (max-width: 768px) {
-  .landing-shell { background-attachment: scroll; }
   .lp-topbar { padding: 14px 20px; }
   .lp-nav-pill { display: none; }
-  .lp-menu-btn { display: flex; }
+  .lp-menu-btn { display: flex; min-width:44px; min-height:44px; }
   .lp-hero { padding: 40px 20px 60px; }
+  .lp-hero-grid { gap: 28px; }
+  .lp-bent-mesh-wrap { min-height: 320px; aspect-ratio: 1.05; }
   .lp-section { padding: 60px 20px; }
   .lp-metric-strip { grid-template-columns: 1fr; padding: 24px 20px; }
   .lp-downloads-grid { grid-template-columns: 1fr; }
   .lp-security-grid { grid-template-columns: 1fr; }
   .lp-footer-grid { grid-template-columns: 1fr; }
   .lp-footer-bottom { flex-direction: column; gap: 14px; text-align: center; }
-  .lp-device-node { padding: 8px 10px; }
-  .lp-node-title { font-size: 0.75rem; }
+  .lp-device-node { padding: 8px 10px; width: min(205px, 44vw) !important; }
+  .lp-node-title { font-size: 0.72rem; }
   .lp-node-subtitle { display: none; }
+  /* comparison table scroll on mobile */
+  .lp-section div[style*="gridTemplateColumns: 1.2fr"] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }

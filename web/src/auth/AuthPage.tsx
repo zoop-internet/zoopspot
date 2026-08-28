@@ -62,7 +62,8 @@ const PinBoxes: React.FC<{
   error?: boolean;
   disabled?: boolean;
   idPrefix?: string;
-}> = ({ value, onChange, length = PIN_LENGTH, showDigits = false, error = false, disabled = false, idPrefix = 'pin' }) => {
+  describedBy?: string;
+}> = ({ value, onChange, length = PIN_LENGTH, showDigits = false, error = false, disabled = false, idPrefix = 'pin', describedBy }) => {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const digits = value.padEnd(length, ' ').split('').slice(0, length);
 
@@ -112,7 +113,7 @@ const PinBoxes: React.FC<{
   const isComplete = value.replace(/\D/g,'').length === length;
 
   return (
-    <div className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`} onPaste={handlePaste} role="group" aria-label="Zoop PIN">
+    <div className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`} onPaste={handlePaste} role="group" aria-label="Zoop PIN — 6 digits, revocable, never emailed">
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}
@@ -127,7 +128,9 @@ const PinBoxes: React.FC<{
           onKeyDown={e => handleKeyDown(i, e)}
           onFocus={e => e.target.select()}
           disabled={disabled}
-          aria-label={`PIN digit ${i + 1}`}
+          aria-label={`PIN digit ${i + 1} of ${length}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           className="pin-box"
         />
       ))}
@@ -362,9 +365,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       <a href="#demo" onClick={(e) => { e.preventDefault(); handleDemoAccess(); }} className="auth-forgot-link">Try Demo</a>
                     </div>
                   </div>
-                  <PinBoxes value={signInPin} onChange={setSignInPin} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signin-pin" />
+                  <PinBoxes value={signInPin} onChange={setSignInPin} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signin-pin" describedBy={fieldErrors.pin ? 'signin-pin-error' : 'signin-pin-hint'} />
                   <div className="pin-meta">
-                    {fieldErrors.pin ? <span className="field-feedback error">{fieldErrors.pin}</span> : <span className="auth-hint">{signInPin.length}/{PIN_LENGTH} digits</span>}
+                    {fieldErrors.pin ? <span id="signin-pin-error" className="field-feedback error" role="alert">{fieldErrors.pin}</span> : <span id="signin-pin-hint" className="auth-hint">{signInPin.length}/{PIN_LENGTH} digits — recoverable via device key</span>}
                     {signInPin.length === PIN_LENGTH && !fieldErrors.pin && <span className="field-feedback success">{Icons.check} Ready</span>}
                   </div>
                 </div>
@@ -451,18 +454,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <label>Create Zoop PIN</label>
                   <button type="button" className="auth-link-btn" onClick={() => setShowPin(v => !v)}>{showPin ? Icons.eyeOff : Icons.eye} {showPin ? 'Hide' : 'Show'}</button>
                 </div>
-                <PinBoxes value={signUpPin} onChange={v => { setSignUpPin(v); setFieldErrors(f => ({ ...f, pin: '' })); }} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signup-pin" />
+                <PinBoxes value={signUpPin} onChange={v => { setSignUpPin(v); setFieldErrors(f => ({ ...f, pin: '' })); }} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signup-pin" describedBy={fieldErrors.pin ? 'signup-pin-error' : 'signup-pin-hint'} />
                 <div className="pin-meta">
-                  {fieldErrors.pin ? <span className="field-feedback error">{fieldErrors.pin}</span> : <span className="auth-hint">{signUpPin.length}/{PIN_LENGTH} digits</span>}
+                  {fieldErrors.pin ? <span id="signup-pin-error" className="field-feedback error" role="alert">{fieldErrors.pin}</span> : <span id="signup-pin-hint" className="auth-hint">{signUpPin.length}/{PIN_LENGTH} digits — your Zoop ID stays safe even if PIN is reset</span>}
                   {signUpPin.length === PIN_LENGTH && !fieldErrors.pin && <span className="field-feedback success">{Icons.check} PIN set</span>}
                 </div>
               </div>
 
               <div className="auth-field">
                 <label>Confirm PIN</label>
-                <PinBoxes value={signUpPinConfirm} onChange={v => { setSignUpPinConfirm(v); setFieldErrors(f => ({ ...f, pinConfirm: '' })); }} showDigits={showPin} error={!!fieldErrors.pinConfirm || (signUpPinConfirm.length === PIN_LENGTH && signUpPin !== signUpPinConfirm)} idPrefix="signup-pin-confirm" />
+                <PinBoxes value={signUpPinConfirm} onChange={v => { setSignUpPinConfirm(v); setFieldErrors(f => ({ ...f, pinConfirm: '' })); }} showDigits={showPin} error={!!fieldErrors.pinConfirm || (signUpPinConfirm.length === PIN_LENGTH && signUpPin !== signUpPinConfirm)} idPrefix="signup-pin-confirm" describedBy={fieldErrors.pinConfirm ? 'signup-pin-confirm-error' : 'signup-pin-confirm-hint'} />
                 <div className="pin-meta">
-                  {fieldErrors.pinConfirm ? <span className="field-feedback error">{fieldErrors.pinConfirm}</span> : signUpPinConfirm.length === PIN_LENGTH ? (signUpPin === signUpPinConfirm ? <span className="field-feedback success">{Icons.check} PINs match</span> : <span className="field-feedback error">PINs do not match</span>) : <span className="auth-hint">Repeat your PIN</span>}
+                  {fieldErrors.pinConfirm ? <span id="signup-pin-confirm-error" className="field-feedback error" role="alert">{fieldErrors.pinConfirm}</span> : signUpPinConfirm.length === PIN_LENGTH ? (signUpPin === signUpPinConfirm ? <span className="field-feedback success">{Icons.check} PINs match</span> : <span id="signup-pin-confirm-error" className="field-feedback error" role="alert">PINs do not match</span>) : <span id="signup-pin-confirm-hint" className="auth-hint">Repeat your PIN exactly</span>}
                 </div>
               </div>
 

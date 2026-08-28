@@ -353,12 +353,13 @@ const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type
         ) : (
           <div className="table-wrap">
             <table className="data-table">
+              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Fleet — {filteredDevices.length} device{filteredDevices.length===1?'':'s'} · Click ID to copy</caption>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Device ID</th>
-                  <th>Platform</th>
-                  <th>Status</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Device ID</th>
+                  <th scope="col">Platform</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -370,7 +371,7 @@ const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type
                     </td>
                     <td
                       style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', cursor: 'pointer' }}
-                      title="Click to copy"
+                      title="Click to copy device ID"
                       onClick={() => {
                         navigator.clipboard.writeText(d.id.toString());
                         onToast(`Copied ${d.name || 'device'} ID`);

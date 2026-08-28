@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://zoop.network/</loc><priority>1.0</priority><changefreq>weekly</changefreq></url>
-  <url><loc>https://zoop.network/how-it-works</loc><priority>0.9</priority><changefreq>monthly</changefreq></url>
-  <url><loc>https://zoop.network/products</loc><priority>0.8</priority><changefreq>monthly</changefreq></url>
-  <url><loc>https://zoop.network/downloads</loc><priority>0.9</priority><changefreq>weekly</changefreq></url>
-  <url><loc>https://zoop.network/security</loc><priority>0.7</priority><changefreq>monthly</changefreq></url>
-  <url><loc>https://zoop.network/auth</loc><priority>0.5</priority><changefreq>monthly</changefreq></url>
-  <url><loc>https://zoop.network/app</loc><priority>0.6</priority><changefreq>weekly</changefreq></url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url><loc>https://zoop.network/</loc><lastmod>2026-08-28</lastmod><priority>1.0</priority><changefreq>weekly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/"/><xhtml:link rel="alternate" hreflang="x-default" href="https://zoop.network/"/></url>
+  <url><loc>https://zoop.network/how-it-works</loc><lastmod>2026-08-28</lastmod><priority>0.9</priority><changefreq>monthly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/how-it-works"/></url>
+  <url><loc>https://zoop.network/products</loc><lastmod>2026-08-28</lastmod><priority>0.8</priority><changefreq>monthly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/products"/></url>
+  <url><loc>https://zoop.network/downloads</loc><lastmod>2026-08-28</lastmod><priority>0.9</priority><changefreq>weekly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/downloads"/></url>
+  <url><loc>https://zoop.network/security</loc><lastmod>2026-08-28</lastmod><priority>0.7</priority><changefreq>monthly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/security"/></url>
+  <url><loc>https://zoop.network/pricing</loc><lastmod>2026-08-28</lastmod><priority>0.8</priority><changefreq>monthly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/pricing"/></url>
+  <url><loc>https://zoop.network/auth</loc><lastmod>2026-08-28</lastmod><priority>0.5</priority><changefreq>monthly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/auth"/></url>
+  <url><loc>https://zoop.network/app</loc><lastmod>2026-08-28</lastmod><priority>0.6</priority><changefreq>weekly</changefreq><xhtml:link rel="alternate" hreflang="en" href="https://zoop.network/app"/></url>
 </urlset>
