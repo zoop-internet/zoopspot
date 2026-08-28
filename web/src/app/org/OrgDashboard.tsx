@@ -360,6 +360,9 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
             </button>
+            <div className="mobile-switcher">
+              <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
+            </div>
             <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
           </div>
           <div className="page-header-actions">

@@ -1342,3 +1342,13 @@ html, body, #root {
   .pin-boxes { gap: 6px; }
   .pin-box { height: 44px; font-size: 1.15rem; }
 }
+
+/* Mobile switcher — header duplicate when sidebar hidden */
+.mobile-switcher { display: none; }
+@media (max-width: 768px) {
+  .sidebar .portal-switcher { display: none !important; }
+  .admin-sidebar .portal-switcher { display: none !important; }
+  .mobile-switcher { display: block; }
+  .mobile-switcher .portal-switcher { padding: 0; }
+  .mobile-switcher .portal-switcher-menu { left: 12px; right: 12px; min-width: auto; top: calc(100% + 8px); }
+}
