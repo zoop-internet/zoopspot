@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
+import { MobileBottomNav } from '../../components/MobileBottomNav';
 
 /* ─── Icons ──────────────────────────────────────────────────── */
 const Ico: React.FC<{ d: React.ReactNode; size?: number }> = ({ d, size = 15 }) => (
@@ -292,7 +293,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   );
 
   return (
-    <div className="portal" role="main">
+    <div className="portal">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Organization navigation">
         {/* Brand — matches landing: Zoop Internet */}
@@ -355,7 +357,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
       </aside>
 
       <div className="portal-content">
-        <header className="page-header">
+        <header className="page-header" role="banner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
@@ -374,7 +376,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           </div>
         </header>
 
-        <div className="page-body">
+        <main id="main-content" className="page-body" tabIndex={-1}>
           {!currentOrg && organizations.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon"><Ico d={I.home} size={22} /></div>
@@ -580,7 +582,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
               )}
             </>
           )}
-        </div>
+        </main>
+        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon:n.icon }))} activeId={tab} onChange={v=>setTab(v as typeof tab)} />
       </div>
 
       {showCreateOrg && <CreateOrgModal onClose={() => { setShowCreateOrg(false); addToast('Organization updated', 'info'); }} />}

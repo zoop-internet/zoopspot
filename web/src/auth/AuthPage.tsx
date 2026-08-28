@@ -271,10 +271,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   return (
     <div className="auth-shell">
-      <header className="auth-topbar">
-        <div className="auth-brand" onClick={() => onNavigate('/')}>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+      <header className="auth-topbar" role="banner">
+        <div className="auth-brand" onClick={() => onNavigate('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter') onNavigate('/');}} aria-label="Zoop Internet — go to homepage">
           <div className="auth-brand-logo">
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" />
+            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} />
           </div>
           <span className="auth-brand-name">Zoop</span>
           <span className="auth-brand-tag">Internet</span>
@@ -285,7 +286,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         </button>
       </header>
 
-      <main className="auth-main">
+      <main id="main-content" className="auth-main" tabIndex={-1}>
         <div key={shakeKey} className={`auth-card ${Object.keys(fieldErrors).length || errorMsg ? 'auth-shake' : ''}`}>
           <div className="auth-header">
             <h1>{tab === 'signin' ? 'Sign in to Zoop' : 'Create your Zoop identity'}</h1>
@@ -508,14 +509,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
         </div>
 
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 18 }} aria-label="Trust signals">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#34d399', display: 'inline-block' }} />WireGuard® encrypted</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#38bdf8', display: 'inline-block' }} />Ed25519 auth</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#a3e635', display: 'inline-block' }} />No tracking · MIT</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#f59e0b', display: 'inline-block' }} />PIN is 6 digits · Revocable</span>
+        </div>
+
         <footer className="auth-footer">
-          <p>End-to-end encrypted with WireGuard &amp; Ed25519</p>
+          <p>End-to-end encrypted with WireGuard &amp; Ed25519 · Zero tracking logs</p>
           <div className="auth-footer-links">
             <a href="#terms" onClick={(e) => { e.preventDefault(); onNavigate('/security'); }}>Security</a>
             <span>·</span>
             <a href="#privacy" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>How It Works</a>
             <span>·</span>
             <a href="#downloads" onClick={(e) => { e.preventDefault(); onNavigate('/downloads'); }}>Downloads</a>
+            <span>·</span>
+            <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
           </div>
         </footer>
       </main>

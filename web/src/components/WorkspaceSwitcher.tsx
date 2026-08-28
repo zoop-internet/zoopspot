@@ -8,7 +8,7 @@ interface Props {
 }
 
 const Ico = ({ d, size = 14 }: { d: React.ReactNode; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
     {d}
   </svg>
 );
@@ -42,12 +42,19 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
   const { organizations, currentOrg, selectOrg } = useApp();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
+  // Close on outside click + Escape
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); (ref.current?.querySelector('button') as HTMLElement)?.focus(); } };
     document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('keydown', esc); };
   }, []);
+
+  // Focus first option when opened
+  useEffect(() => { if (open) { const first = listRef.current?.querySelector<HTMLElement>('[role="option"]'); first?.focus(); } }, [open]);
 
   let label = WORKSPACE_LABELS[mode];
   let color = WORKSPACE_COLORS[mode];
@@ -66,21 +73,29 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
   const goCreateOrg = () => {
     setOpen(false);
     onSwitch('org');
-    // Let OrgDashboard open the dedicated create screen
     setTimeout(() => window.dispatchEvent(new CustomEvent('zoop:open-create-org')), 80);
   };
 
   const orgSelected = mode === 'org' && currentOrg;
 
+  const onListKeyDown = (e: React.KeyboardEvent) => {
+    const opts = Array.from(listRef.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
+    const idx = opts.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); opts[Math.min(idx + 1, opts.length - 1)]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); opts[Math.max(idx - 1, 0)]?.focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); opts[0]?.focus(); }
+    else if (e.key === 'End') { e.preventDefault(); opts[opts.length - 1]?.focus(); }
+  };
+
   return (
     <div className="portal-switcher" ref={ref}>
-      <button className="portal-switcher-trigger" id="portal-switch-trigger" onClick={() => setOpen(v => !v)} aria-haspopup="listbox" aria-expanded={open}>
-        <span className="switcher-dot" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
+      <button className="portal-switcher-trigger" id="portal-switch-trigger" onClick={() => setOpen(v => !v)} aria-haspopup="listbox" aria-expanded={open} aria-controls="workspace-listbox">
+        <span className="switcher-dot" style={{ background: color, boxShadow: `0 0 8px ${color}` }} aria-hidden />
         <span className="switcher-domain">{label}</span>
         <Ico d={I.chevronD} size={12} />
       </button>
       {open && (
-        <div className="portal-switcher-menu" role="listbox" style={{ minWidth: 300, overflow: 'hidden', borderRadius: 12 }}>
+        <div className="portal-switcher-menu" role="listbox" id="workspace-listbox" ref={listRef} onKeyDown={onListKeyDown} tabIndex={-1} aria-label="Workspaces" style={{ minWidth: 300, overflow: 'hidden', borderRadius: 12 }}>
           {mode === 'admin' ? (
             <>
               <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(180deg, rgba(245,158,11,0.08), transparent)' }}>
@@ -88,9 +103,9 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>Global controls — not a workspace</div>
               </div>
               <div style={{ padding: '8px' }}>
-                <button className="portal-switcher-option ps-selected" style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.22)' }}>
+                <button className="portal-switcher-option ps-selected" role="option" aria-selected tabIndex={0} style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.22)' }}>
                   <Ico d={I.check} size={12} />
-                  <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.admin, width: 8, height: 8, boxShadow: '0 0 8px #f59e0b' }} />
+                  <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.admin, width: 8, height: 8, boxShadow: '0 0 8px #f59e0b' }} aria-hidden />
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
                     <span style={{ fontWeight: 700, color: '#f7fbff', fontSize: '0.875rem' }}>Platform Admin</span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Global platform — active</span>
@@ -112,9 +127,9 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
               </div>
               <div style={{ padding: '8px' }}>
                 <button id="switch-to-user" className={`portal-switcher-option${mode === 'user' ? ' ps-selected' : ''}`}
-                  onClick={goPersonal} role="option" aria-selected={mode === 'user'} style={{ borderRadius: 10, padding: '10px 12px' }}>
-                  {mode === 'user' ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
-                  <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.user, width: 8, height: 8 }} />
+                  onClick={goPersonal} role="option" aria-selected={mode === 'user'} tabIndex={0} style={{ borderRadius: 10, padding: '10px 12px' }}>
+                  {mode === 'user' ? <Ico d={I.check} size={12} /> : <span className="ps-blank" aria-hidden />}
+                  <span className="switcher-dot" style={{ background: WORKSPACE_COLORS.user, width: 8, height: 8 }} aria-hidden />
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>Personal</span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Private devices & connections</span>
@@ -131,9 +146,9 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                       return (
                         <button key={o.id.toString()} id={`switch-org-${o.slug || o.id}`}
                           className={`portal-switcher-option${active ? ' ps-selected' : ''}`}
-                          onClick={() => goOrg(o.id.toString())} role="option" aria-selected={!!active} style={{ borderRadius: 10, padding: '10px 12px' }}>
-                          {active ? <Ico d={I.check} size={12} /> : <span className="ps-blank" />}
-                          <span style={{ width: 28, height: 28, borderRadius: 8, background: active ? 'rgba(56,189,248,0.14)' : 'rgba(255,255,255,0.06)', border: active ? '1px solid rgba(56,189,248,0.28)' : '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: active ? '#38bdf8' : 'var(--text-secondary)', flexShrink: 0 }}>{initial}</span>
+                          onClick={() => goOrg(o.id.toString())} role="option" aria-selected={!!active} tabIndex={0} style={{ borderRadius: 10, padding: '10px 12px' }}>
+                          {active ? <Ico d={I.check} size={12} /> : <span className="ps-blank" aria-hidden />}
+                          <span style={{ width: 28, height: 28, borderRadius: 8, background: active ? 'rgba(56,189,248,0.14)' : 'rgba(255,255,255,0.06)', border: active ? '1px solid rgba(56,189,248,0.28)' : '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: active ? '#38bdf8' : 'var(--text-secondary)', flexShrink: 0 }} aria-hidden>{initial}</span>
                           <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, minWidth: 0, flex: 1 }}>
                             <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{o.name}</span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{o.slug ? `/${o.slug}` : o.id.toString().slice(0, 8)}</span>
@@ -147,9 +162,9 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                     No team workspaces yet. Your organizations will appear here once you create or are invited to one.
                   </div>
                 )}
-                <button id="create-org-btn" className="portal-switcher-option" role="option" onClick={goCreateOrg} style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', marginTop: 6 }}>
-                  <span className="ps-blank" />
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #38bdf8 0%, #34d399 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#020904', flexShrink: 0 }}><Ico d={I.plus} size={14} /></span>
+                <button id="create-org-btn" className="portal-switcher-option" role="option" tabIndex={0} onClick={goCreateOrg} style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', marginTop: 6 }}>
+                  <span className="ps-blank" aria-hidden />
+                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #38bdf8 0%, #34d399 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#020904', flexShrink: 0 }} aria-hidden><Ico d={I.plus} size={14} /></span>
                   <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ fontWeight: 700, color: '#f7fbff', fontSize: '0.875rem' }}>New organization</span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Create a team workspace</span>

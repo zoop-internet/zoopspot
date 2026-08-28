@@ -1,0 +1,12 @@
+/* TEAM */
+Developer: Zoop Internet — open-source community
+Contact: https://github.com/zoop-internet/zoop/issues
+Site: https://zoop.network
+
+/* THANKS */
+WireGuard, Pion STUN, Go, React, Vite
+
+/* SITE */
+Standards: HTML5, CSS3, WCAG 2.2 AA, WAI-ARIA
+Components: Inter, JetBrains Mono
+Last update: 2026-08-28

@@ -1389,7 +1389,8 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   };
 
   return (
-    <div className="admin-portal" role="main">
+    <div className="admin-portal">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {sidebarOpen && <div className="admin-sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
       <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Admin navigation">
         <div className="admin-brand" style={{ gap: 10 }}>
@@ -1439,7 +1440,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
       </aside>
 
       <div className="admin-content">
-        <header className="admin-page-header">
+        <header className="admin-page-header" role="banner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               {sidebarOpen ? <I.close /> : <I.menu />}
@@ -1452,9 +1453,9 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           {cur.action && <div className="admin-page-actions">{cur.action}</div>}
         </header>
 
-        <div className="admin-page-body" role="region" aria-label={cur.title}>
+        <main id="main-content" className="admin-page-body" tabIndex={-1} aria-label={cur.title}>
           {cur.render(data, setTab, addToast)}
-        </div>
+        </main>
       </div>
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>

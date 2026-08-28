@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Zoop Internet allows AI training and retrieval for public documentation and marketing pages.
+# API and admin endpoints are not for training.
+
+# See llms.txt for entity summary
+# https://zoop.network/llms.txt

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
+import { MobileBottomNav } from '../../components/MobileBottomNav';
 
 /* ─── Icon helpers ───────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) =>
@@ -931,7 +932,8 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="portal" role="main">
+    <div className="portal">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Navigation">
         {/* Brand — matches landing: Zoop Internet */}
@@ -982,7 +984,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
       </aside>
 
       <div className="portal-content">
-        <header className="page-header">
+        <header className="page-header" role="banner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
@@ -1001,13 +1003,14 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           </div>
         </header>
 
-        <div className="page-body">
+        <main id="main-content" className="page-body" tabIndex={-1} aria-labelledby="page-title">
           {tab === 'overview'    && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
           {tab === 'devices'     && <DevicesTab  onRegister={handleRegisterDirect} onToast={addToast} />}
           {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => setTab('sharing')} />}
           {tab === 'sharing'     && <SharingTab onToast={addToast} />}
           {tab === 'settings'    && <SettingsTab onSwitch={onSwitch} onToast={addToast} />}
-        </div>
+        </main>
+        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon: n.icon }))} activeId={tab} onChange={v=>setTab(v as typeof tab)} />
       </div>
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />

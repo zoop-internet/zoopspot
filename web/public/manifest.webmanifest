@@ -1,0 +1,14 @@
+{
+  "name": "Zoop Internet — Secure Direct Device-to-Device Sharing",
+  "short_name": "Zoop",
+  "description": "Share your home or phone internet directly with trusted devices — WireGuard-encrypted, NAT-traversal, open-source.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0284c7",
+  "icons": [
+    { "src": "/zoopicontransparent.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/zoopicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "categories": ["utilities", "networking"]
+}

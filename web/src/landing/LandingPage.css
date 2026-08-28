@@ -1276,6 +1276,27 @@
   color: #fff;
 }
 
+/* ─── Trust Bar ────────────────────────────────────────────────────────── */
+.lp-trust-bar { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(8,12,17,0.6); backdrop-filter: blur(12px); padding: 18px 36px; }
+.lp-trust-inner { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.lp-trust-label { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lp-trust-badges { display: flex; flex-wrap: wrap; gap: 10px; }
+.lp-trust-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); font-size: 0.75rem; font-weight: 600; color: var(--ink-secondary); white-space: nowrap; }
+.lp-trust-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── FAQ ────────────────────────────────────────────────────────────── */
+.lp-faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.lp-faq-item { background: var(--surface-card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; transition: border-color 0.18s; }
+.lp-faq-item[open] { border-color: rgba(8,242,255,0.3); }
+.lp-faq-item summary { font-weight: 700; font-size: 0.9375rem; cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink); }
+.lp-faq-item summary::after { content: '+'; font-weight: 800; color: var(--cyan); flex-shrink: 0; }
+.lp-faq-item[open] summary::after { content: '−'; }
+.lp-faq-item summary::-webkit-details-marker { display: none; }
+.lp-faq-item p { margin: 12px 0 0; font-size: 0.875rem; line-height: 1.65; color: var(--muted); }
+.lp-faq-note { text-align: center; margin-top: 18px; font-size: 0.75rem; color: var(--muted); }
+.lp-faq-note abbr { text-decoration: underline dotted; cursor: help; }
+@media (max-width: 768px) { .lp-faq-grid { grid-template-columns: 1fr; } }
+
 /* ─── Responsive Breakpoints ───────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .lp-hero-grid { grid-template-columns: 1fr; gap: 40px; }

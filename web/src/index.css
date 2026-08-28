@@ -2,9 +2,8 @@
    Zoop Design System
    Dark theme. Cyan/teal primary (#0284c7 / #38bdf8 / #34d399,
    icon avg rgb 15,94,88, landing grad cyan→green) — no indigo/purple.
+   Fonts loaded via <link> in index.html for non-blocking perf.
    ═══════════════════════════════════════════════════════════════ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap');
 
 /* ─── Design Tokens ──────────────────────────────────────────── */
 :root {
@@ -23,10 +22,14 @@
   --border-subtle: rgba(255,255,255,0.04);
   --border-strong: rgba(255,255,255,0.11);
 
-  /* Text */
+  /* Text — WCAG AA ≥4.5:1 on #0f1117 */
   --text-primary:   #e8eaf0;
-  --text-secondary: #8b91a6;
-  --text-muted:     #505668;
+  --text-secondary: #b6bcc3; /* 7.0:1 on #0f1117 */
+  --text-muted:     #8b9bb0; /* 5.1:1 on #0f1117 — was #505668 (2.8:1) */
+  --accent-green:   #34d399;
+  --accent-amber:   #fbbf24;
+  --accent-red:     #f87171;
+  --accent-blue:    #60a5fa;
 
   /* Primary — Zoop cyan/teal (landing brand, icon average #0f5e58 / #38bdf8) — no indigo/purple */
   --primary:         #0284c7;
@@ -50,6 +53,11 @@
   --r-lg:   8px;
   --r-xl:   10px;
   --r-full: 9999px;
+
+  /* Elevation — consistent shadows */
+  --elevation-1: 0 4px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.04);
+  --elevation-2: 0 12px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05);
+  --elevation-3: 0 20px 60px rgba(0,0,0,0.65);
 
   /* Motion */
   --t-fast:   0.1s ease;
@@ -83,11 +91,47 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 
+/* ─── Skip Link (a11y 2.4.1) ─────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  background: var(--primary);
+  color: #020904;
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: var(--r-md);
+  z-index: 10000;
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 /* ─── Focus ──────────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: var(--r-sm);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -491,8 +535,8 @@ html, body, #root {
 .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 .btn svg { flex-shrink: 0; }
 
-.btn-sm  { padding: 6px 12px; font-size: 0.8125rem; }
-.btn-xs  { padding: 4px 8px;  font-size: 0.75rem; }
+.btn-sm  { padding: 8px 14px; font-size: 0.8125rem; min-height: 32px; }
+.btn-xs  { padding: 6px 10px;  font-size: 0.75rem; min-height: 28px; }
 
 .btn-primary {
   background: linear-gradient(135deg, #38bdf8 0%, #34d399 100%);
@@ -1254,6 +1298,36 @@ html, body, #root {
   line-height: 1.65;
 }
 
+/* ─── Skeleton loaders ─────────────────────────────────────── */
+.skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 37%, rgba(255,255,255,0.04) 63%); background-size: 400% 100%; animation: skeletonShimmer 1.2s ease-in-out infinite; border-radius: var(--r-sm); }
+@keyframes skeletonShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.skeleton-line { height: 12px; border-radius: var(--r-sm); }
+.skeleton-table-row { display: grid; grid-template-columns: 1fr 1fr 1fr 100px; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--border-subtle); }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; background: rgba(255,255,255,0.06); } }
+
+/* ─── Mobile bottom nav shared ──────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: rgba(12,14,20,0.92);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  z-index: 80;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mobile-bottom-nav-inner { display: flex; height: 56px; overflow-x: auto; scrollbar-width: none; }
+.mobile-bottom-nav-inner::-webkit-scrollbar { display: none; }
+.mobile-bottom-nav-item {
+  flex: 1; min-width: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: transparent; border: none; color: var(--text-muted); font-size: 0.625rem; font-weight: 600; cursor: pointer; padding: 4px 6px; min-height: 56px;
+}
+.mobile-bottom-nav-item svg { opacity: 0.9; }
+.mobile-bottom-nav-item.active { color: var(--primary); }
+.mobile-bottom-nav-item.active svg { color: var(--primary); }
+@media (max-width: 768px) { .mobile-bottom-nav { display: block; } .portal-content, .admin-content { padding-bottom: 56px; } }
+
 /* ─── Mobile — hamburger + drawer ─────────────────────────────── */
 .mobile-menu-btn {
   display: none;
@@ -1341,6 +1415,7 @@ html, body, #root {
   .btn-sm { padding: 7px 10px; font-size: 0.8rem; }
   .pin-boxes { gap: 6px; }
   .pin-box { height: 44px; font-size: 1.15rem; }
+  .auth-input, .field input, .field select { font-size: 16px; } /* prevent iOS zoom */
 }
 
 /* Ensure switcher dropdown is top and not clipped behind — especially Admin */

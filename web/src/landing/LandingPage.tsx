@@ -445,10 +445,10 @@ export const LandingPage: React.FC<{
       )}
 
       {/* ─── Topbar ─────────────────────────────────────────────────── */}
-      <header className={`lp-topbar ${scrolled ? 'scrolled' : ''}`}>
-        <div className="lp-brand" onClick={() => handleNav('/')}>
+      <header className={`lp-topbar ${scrolled ? 'scrolled' : ''}`} role="banner">
+        <div className="lp-brand" onClick={() => handleNav('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter') handleNav('/');}} aria-label="Zoop Internet — go to homepage">
           <div className="lp-brand-icon">
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" />
+            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" />
           </div>
           <span className="lp-brand-text">Zoop</span>
           <span className="lp-brand-badge">Internet</span>
@@ -534,7 +534,7 @@ export const LandingPage: React.FC<{
       )}
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
-      <div className="lp-page-content-animated" key={activeRoute}>
+      <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
         {/* ─── DEDICATED DOWNLOADS PAGE ───────────────────────────────── */}
         {activeRoute === '/downloads' && (
           <main className="lp-page-wrapper">
@@ -968,7 +968,60 @@ export const LandingPage: React.FC<{
             </section>
           </>
         )}
-      </div>
+      </main>
+
+      {/* ─── Trust Bar + FAQ — SEO/AI & Conversion (S2-05, S4-02) ─── */}
+      {activeRoute === '/' && (
+        <>
+          <section className="lp-trust-bar" aria-label="Trusted technology">
+            <div className="lp-trust-inner">
+              <span className="lp-trust-label">Built with proven, audited technology</span>
+              <div className="lp-trust-badges">
+                <span className="lp-trust-badge"><span className="lp-trust-dot" style={{ background: '#34d399' }} aria-hidden />WireGuard® encrypted</span>
+                <span className="lp-trust-badge"><span className="lp-trust-dot" style={{ background: '#38bdf8' }} aria-hidden />Ed25519 auth</span>
+                <span className="lp-trust-badge"><span className="lp-trust-dot" style={{ background: '#a3e635' }} aria-hidden />Open source MIT</span>
+                <span className="lp-trust-badge"><span className="lp-trust-dot" style={{ background: '#f59e0b' }} aria-hidden />No tracking · No logs</span>
+                <span className="lp-trust-badge"><span className="lp-trust-dot" style={{ background: '#60a5fa' }} aria-hidden />STUN/TURN NAT traversal</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="lp-section lp-faq" aria-labelledby="faq-heading">
+            <div className="lp-section-heading centered">
+              <p className="lp-eyebrow">Answers at a Glance</p>
+              <h2 id="faq-heading">Frequently asked questions.</h2>
+              <p className="lp-subtext">Everything decision-makers and LLM assistants need to cite Zoop correctly.</p>
+            </div>
+            <div className="lp-faq-grid">
+              {[
+                { q: 'What is Zoop?', a: 'Zoop is an open-source direct device-to-device mesh that lets you share your home, phone or office internet with trusted devices — laptops, family phones or routers — via encrypted tunnels, not centralized VPN servers.' },
+                { q: 'How is Zoop different from a VPN?', a: 'Traditional VPNs route all your traffic through company servers, adding hops and latency. Zoop creates direct WireGuard tunnels device-to-device; your data takes the fastest path and stays private. Relays only act as fallback for strict NAT.' },
+                { q: 'Is my traffic private and encrypted?', a: 'Yes. Every payload is end-to-end encrypted with WireGuard (ChaCha20-Poly1305 + Curve25519) and authenticated with Ed25519. The control plane and relays coordinate signaling and IP allocation — they cannot decrypt your traffic. Zero tracking logs.' },
+                { q: 'Does it work behind NAT and mobile carriers (CGNAT)?', a: 'Yes — Zoop discovers local (host) and public (server-reflexive via STUN) candidates, hole-punches with UDP probes, and falls back to low-latency WebSocket relays when direct is impossible. Roaming between Wi-Fi ↔ cellular is automatic via Netlink events.' },
+                { q: 'What platforms can I run it on?', a: 'Linux (systemd/TUN), macOS (utun/launchd), Windows (Wintun), Android (VpnService), iOS (NetworkExtension) and OpenWrt routers. The web console manages devices, sharing and orgs in any browser.' },
+                { q: 'What is the Zoop ID and PIN?', a: 'Your permanent Zoop ID looks like ZP-7K4M9X and your mutable handle is @username; you sign in with your 6-digit PIN. No email required. Devices derive a deterministic Endpoint ID from your Ed25519 public key.' },
+                { q: 'Is Zoop free and open source?', a: 'Yes — MIT-licensed. Self-host the control plane with Postgres or use the ephemeral in-memory store for development. Download for Linux, macOS, Windows, Android, iOS and routers.' },
+              ].map(({ q, a }) => (
+                <details key={q} className="lp-faq-item">
+                  <summary>{q}</summary>
+                  <p>{a}</p>
+                </details>
+              ))}
+            </div>
+            <p className="lp-faq-note"><abbr title="STUN — Session Traversal Utilities for NAT: discovers your public IP/port">STUN</abbr> · <abbr title="TURN — Traversal Using Relays around NAT: relay fallback">TURN</abbr> · <abbr title="CGNAT — Carrier-Grade NAT: large-scale NAT by mobile ISPs">CGNAT</abbr> · <abbr title="WireGuard — modern VPN cryptography">WireGuard</abbr> — hover for definitions.</p>
+          </section>
+
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [
+            { '@type': 'Question', name: 'What is Zoop?', acceptedAnswer: { '@type': 'Answer', text: 'Zoop is an open-source direct device-to-device mesh that lets you share your home, phone or office internet with trusted devices via encrypted tunnels.' } },
+            { '@type': 'Question', name: 'How is Zoop different from a VPN?', acceptedAnswer: { '@type': 'Answer', text: 'Traditional VPNs route all your traffic through company servers. Zoop creates direct WireGuard tunnels device-to-device, so your data takes the fastest path and stays private.' } },
+            { '@type': 'Question', name: 'Is my traffic private and encrypted?', acceptedAnswer: { '@type': 'Answer', text: 'Every payload is end-to-end encrypted with WireGuard and authenticated with Ed25519. The control plane and relays cannot decrypt your traffic.' } },
+            { '@type': 'Question', name: 'Does it work behind NAT and mobile carriers (CGNAT)?', acceptedAnswer: { '@type': 'Answer', text: 'Zoop discovers host and server-reflexive candidates via STUN, hole-punches, and falls back to relay when direct fails. Roaming is automatic.' } },
+            { '@type': 'Question', name: 'What platforms are supported?', acceptedAnswer: { '@type': 'Answer', text: 'Linux, macOS, Windows, Android, iOS and OpenWrt, plus a web console for management.' } },
+            { '@type': 'Question', name: 'What is the Zoop ID and PIN?', acceptedAnswer: { '@type': 'Answer', text: 'Your permanent Zoop ID is ZP-XXXXXX plus a mutable @username; sign in with a 6-digit PIN. No email required.' } },
+            { '@type': 'Question', name: 'Is Zoop free and open source?', acceptedAnswer: { '@type': 'Answer', text: 'MIT-licensed and free. Self-hostable control plane with Postgres or in-memory store.' } },
+          ]}) }} />
+        </>
+      )}
 
       {/* ─── Footer ─────────────────────────────────────────────────── */}
       <footer className="lp-footer">

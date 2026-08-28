@@ -1,0 +1,49 @@
+# Zoop Internet
+
+> Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal, and Ed25519 identities.
+
+- **Website:** https://zoop.network
+- **GitHub:** https://github.com/zoop-internet/zoop
+- **Docs:** https://zoop.network/how-it-works
+- **Downloads:** https://zoop.network/downloads
+- **Security:** https://zoop.network/security
+- **API docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
+
+## What Zoop Does
+- Provider endpoints (home broadband, phone hotspot, office) share connectivity with Recipient endpoints (laptop on road, family device) via direct encrypted tunnels.
+- Control Plane (identity, auth, signaling, IPAM 100.64.0.0/10) coordinates; Data Plane carries traffic directly (preferred) or via relay fallback.
+- Daemon `zoopd` manages TUN/WireGuard; CLI `zoop` manages via Unix socket; Cloud `zoop-cloud` is coordinator.
+
+## Why Not a VPN?
+- No centralized payload routing; lower latency; end-to-end encrypted; zero-knowledge relays; roaming (Wi-Fi↔cellular) via Netlink.
+
+## Quick Start
+```bash
+make build
+./bin/zoop-cloud
+sudo ./bin/zoopd -tun zoop0 -api-port 9090
+zoop status && zoop connect <peer-id>
+```
+
+## FAQ
+
+**Q: What is Zoop?** A: Direct device-to-device internet sharing mesh, open-source, WireGuard-encrypted.
+
+**Q: How is it different from a VPN?** A: Payload goes directly device-to-device, not via company servers—faster and more private.
+
+**Q: Is traffic private?** A: Yes, end-to-end encrypted; control plane and relays cannot decrypt.
+
+**Q: Does it work behind NAT/CGNAT?** A: Yes, via STUN discovery (host + srflx candidates), UDP hole punching, relay fallback.
+
+**Q: What platforms?** A: Linux, macOS, Windows, Android, iOS, OpenWrt.
+
+**Q: What is the Zoop ID?** A: Permanent identity `ZP-XXXXXX` (6-char alphabet 23456789ABCDEFGHJKLMNPQRSTUVWXYZ) plus mutable @username; PIN is 6 digits.
+
+**Q: Is it free?** A: Yes, MIT-licensed. Self-hostable control plane.
+
+## Sections
+- [Overview](/)
+- [How It Works](/how-it-works)
+- [Products](/products)
+- [Downloads](/downloads)
+- [Security](/security)

@@ -14,4 +14,22 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: 'esnext',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (id.includes('src/landing/LandingPage')) return 'landing';
+          if (id.includes('src/admin/AdminConsole')) return 'admin';
+          if (id.includes('src/app/user/UserDashboard')) return 'app-user';
+          if (id.includes('src/app/org/OrgDashboard')) return 'app-org';
+          if (id.includes('src/auth/AuthPage')) return 'auth';
+          return undefined;
+        },
+      },
+    },
+  },
 })
