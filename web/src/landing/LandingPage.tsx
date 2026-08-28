@@ -585,10 +585,13 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
         </div>
       </aside>
       <section className="docs-main" aria-live="polite">
+        <div className="docs-llms-banner" role="note">
+          <span style={{fontWeight:800}}>Documentation Index</span> — Fetch the complete index at <a href="/llms.txt">/llms.txt</a> · <a href="/llms-full.txt">full</a> · Use before exploring further.
+        </div>
         <div className="docs-breadcrumb" aria-label="Breadcrumb">
-          <a onClick={onNavigateHome} style={{cursor:'pointer', color:'#38bdf8'}}>Home</a>
-          <span style={{color:'var(--line-strong)'}}>›</span>
-          <a onClick={()=>setActiveId('quickstart')} style={{cursor:'pointer', color:'#38bdf8'}}>Docs</a>
+          <a onClick={onNavigateHome} style={{cursor:'pointer', color:'#0284c7'}}>Home</a>
+          <span style={{color:'#d4d4d4'}}>›</span>
+          <a onClick={()=>setActiveId('quickstart')} style={{cursor:'pointer', color:'#0284c7'}}>Docs</a>
           <span>›</span> {active?.title}
           <span className="docs-breadcrumb-ver">MIT</span>
         </div>
@@ -599,7 +602,16 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
             <button className="docs-copy-page" onClick={()=>{ navigator.clipboard.writeText(window.location.href); setCopied('link'); setTimeout(()=>setCopied(null),1200); }}>{copied==='link' ? 'Copied!' : 'Copy link'}</button>
           </div>
         </div>
-        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#38bdf8'}}>source</a> · <a href="/llms.txt" style={{color:'#38bdf8'}}>llms.txt</a></p>
+        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>source</a> · <a href="/llms.txt" style={{color:'#0284c7'}}>llms.txt</a></p>
+        <div className="docs-meta-bar">
+          <span>Last updated Aug 28, 2026</span>
+          <span>·</span>
+          <a onClick={()=>{ navigator.clipboard.writeText(md); setCopied('md'); setTimeout(()=>setCopied(null),1200); }} style={{cursor:'pointer'}}>{copied==='md' ? 'Copied!' : 'Copy as Markdown'}</a>
+          <span>·</span>
+          <a href={active?.file==='README' ? 'https://github.com/zoop-internet/zoop#quick-start' : `/docs/${active?.file}.md`} target="_blank" rel="noreferrer">View as Markdown</a>
+          <span>·</span>
+          <a href="https://developers.cloudflare.com/agent-setup/" target="_blank" rel="noreferrer">Agent setup</a>
+        </div>
         {loading && <div className="docs-loading"><span className="spinner" style={{width:16,height:16,display:'inline-block'}}/> Loading {active?.file}.md…</div>}
         {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
         {!loading && !err && (
@@ -607,7 +619,7 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
             <article className="docs-article" dangerouslySetInnerHTML={{__html: mdToHtml(md)}} />
             <aside className="docs-toc" aria-label="On this page">
               <div className="docs-toc-title">On this page</div>
-              {toc.length===0 ? <span style={{color:'var(--muted)', fontSize:'0.75rem'}}>No headings</span> : toc.map(h=>(
+              {toc.length===0 ? <span style={{color:'#5a5a5c', fontSize:'0.75rem'}}>No headings</span> : toc.map(h=>(
                 <a key={h.id} href={`#${h.id}`} className={`docs-toc-item lvl-${h.level}`} onClick={e=>{ e.preventDefault(); document.getElementById(h.id)?.scrollIntoView({behavior:'smooth', block:'start'}); history.replaceState({},'', `#${h.id}`); }}>{h.title}</a>
               ))}
               <div className="docs-toc-foot">
@@ -616,6 +628,15 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
                 <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Ask AI</a>
               </div>
             </aside>
+          </div>
+        )}
+        {!loading && !err && (
+          <div className="docs-helpful">
+            <span>Was this helpful?</span>
+            <button className={copied==='yes' ? 'active' : ''} onClick={()=>{ setCopied('yes'); setTimeout(()=>setCopied(null),2000); }}>Yes</button>
+            <button className={copied==='no' ? 'active' : ''} onClick={()=>{ setCopied('no'); setTimeout(()=>setCopied(null),4000); }}>No</button>
+            {copied==='yes' && <span style={{color:'#0284c7'}}>Thanks!</span>}
+            {copied==='no' && <span>Thanks — <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>open issue</a></span>}
           </div>
         )}
         <div className="docs-footer-nav">
