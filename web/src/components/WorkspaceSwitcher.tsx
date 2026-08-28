@@ -121,10 +121,10 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Private devices & connections</span>
                   </span>
                 </button>
-                {organizations.length > 0 && (
+                {organizations.length > 0 ? (
                   <>
                     <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '10px 12px 4px' }}>
-                      Organizations · {organizations.length}
+                      Your organizations · {organizations.length}
                     </div>
                     {organizations.map(o => {
                       const active = orgSelected && currentOrg.id.toString() === o.id.toString();
@@ -143,6 +143,10 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                       );
                     })}
                   </>
+                ) : (
+                  <div style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, marginTop: 6 }}>
+                    No team workspaces yet. Your organizations will appear here once you create or are invited to one.
+                  </div>
                 )}
                 <button id="create-org-btn" className="portal-switcher-option" role="option" onClick={goCreateOrg} style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', marginTop: 6 }}>
                   <span className="ps-blank" />

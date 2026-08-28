@@ -111,7 +111,7 @@ html, body, #root {
   border-right: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   flex-shrink: 0;
 }
 
@@ -196,8 +196,12 @@ html, body, #root {
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
   overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 68vh;
   z-index: 300;
   box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  -webkit-overflow-scrolling: touch;
 }
 
 .portal-switcher-option {
@@ -1008,7 +1012,7 @@ html, body, #root {
   border-right: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .admin-brand {
