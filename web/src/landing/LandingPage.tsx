@@ -193,15 +193,34 @@ const DOCS_SECTIONS: DocSection[] = [
   ]},
 ];
 const DOCS_FLAT = DOCS_SECTIONS.flatMap(s => s.items);
+function slugify(s: string){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60); }
+function escapeHtmlRaw(s:string){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function mdToHtml(md: string): string {
-  let html = md
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_m, lang, code) => `<pre data-lang="${lang||''}"><button class="docs-copy" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(code)}'))" aria-label="Copy code">Copy</button><code>${code}</code></pre>`)
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+  // Extract code fences first to avoid escaping inside
+  const fences: string[] = [];
+  let tmp = md.replace(/```(\w+)?\n([\s\S]*?)```/g, (_m, lang, code) => {
+    const idx = fences.length;
+    const safe = escapeHtmlRaw(code);
+    const hdr = lang ? `<div class="docs-code-hdr"><span class="docs-code-lang">${escapeHtmlRaw(lang)}</span><button class="docs-copy" data-copy="${encodeURIComponent(code)}" aria-label="Copy code">Copy</button></div>` : `<div class="docs-code-hdr"><span class="docs-code-lang">code</span><button class="docs-copy" data-copy="${encodeURIComponent(code)}" aria-label="Copy code">Copy</button></div>`;
+    fences.push(`${hdr}<pre><code>${safe}</code></pre>`);
+    return `\uE000${idx}\uE001`;
+  });
+  tmp = tmp.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // tables: | a | b |\n|---|---|\n| c | d |
+  tmp = tmp.replace(/^\|(.+)\|\n\|[-| :]*\|\n((?:\|.*\|\n?)+)/gm, (_m, head, body)=>{
+    const ths = head.split('|').filter(Boolean).map((c:string)=>`<th>${c.trim()}</th>`).join('');
+    const trs = body.trim().split('\n').map((row:string)=>{
+      const tds = row.split('|').filter(Boolean).map((c:string)=>`<td>${c.trim()}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  });
+  let html = tmp
+    .replace(/^### (.+)$/gm, (_m, t)=> `<h3 id="${slugify(t)}">${t}</h3>`)
+    .replace(/^## (.+)$/gm, (_m, t)=> `<h2 id="${slugify(t)}">${t}</h2>`)
+    .replace(/^# (.+)$/gm, (_m, t)=> `<h1 id="${slugify(t)}">${t}</h1>`)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/`([^`]+)`/g, (_m, c)=> `<code>${c}</code>`)
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
     .replace(/^\s*---\s*$/gm, '<hr/>')
     .replace(/^\s*> (.+)$/gm, '<blockquote>$1</blockquote>')
@@ -210,8 +229,18 @@ function mdToHtml(md: string): string {
   html = html.replace(/<\/ul>\s*<ul>/g, '');
   html = html.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
   html = `<p>${html}</p>`;
-  html = html.replace(/<p><h/g, '<h').replace(/<\/h([1-3])><\/p>/g, '</h$1>').replace(/<p><pre/g, '<pre').replace(/<\/pre><\/p>/g, '</pre>').replace(/<p><ul/g, '<ul').replace(/<\/ul><\/p>/g, '</ul>').replace(/<p><blockquote/g, '<blockquote').replace(/<\/blockquote><\/p>/g, '</blockquote>').replace(/<p><hr\/><\/p>/g, '<hr/>').replace(/<p>\s*<\/p>/g, '');
+  html = html.replace(/<p><h/g, '<h').replace(/<\/h([1-3])><\/p>/g, '</h$1>').replace(/<p><div class="docs-code-hdr/g, '<div class="docs-code-hdr').replace(/<\/pre><\/p>/g, '</pre>').replace(/<p><ul/g, '<ul').replace(/<\/ul><\/p>/g, '</ul>').replace(/<p><blockquote/g, '<blockquote').replace(/<\/blockquote><\/p>/g, '</blockquote>').replace(/<p><hr\/><\/p>/g, '<hr/>').replace(/<p><table/g,'<table').replace(/<\/table><\/p>/g,'</table>').replace(/<p>\s*<\/p>/g, '');
+  // restore fences
+  html = html.replace(/\uE000(\d+)\uE001/g, (_m, i)=> `<div class="docs-code-wrap">${fences[Number(i)]}</div>`);
   return html;
+}
+function extractToc(md: string): Array<{level:number, title:string, id:string}> {
+  const out: Array<{level:number,title:string,id:string}> = [];
+  for(const m of md.matchAll(/^### (.+)$/gm)) out.push({level:3, title:m[1], id:slugify(m[1])});
+  for(const m of md.matchAll(/^## (.+)$/gm)) out.push({level:2, title:m[1], id:slugify(m[1])});
+  // sort by appearance
+  out.sort((a,b)=> md.indexOf(a.title)-md.indexOf(b.title));
+  return out.slice(0,12);
 }
 const QUICKSTART_MD = `# Quick Start — self-host in 2 minutes
 
@@ -264,26 +293,49 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
   const [activeId, setActiveId] = useState<string>(() => {
     const fromHash = window.location.hash.replace(/^#/, '');
     const fromPath = window.location.pathname.split('/').pop();
-    return initialId || fromHash || fromPath && DOCS_FLAT.some(d=>d.id===fromPath) ? (fromPath as string) : DOCS_FLAT[0]?.id || 'quickstart';
+    const cand = initialId || fromHash || (fromPath && DOCS_FLAT.some(d=>d.id===fromPath) ? fromPath : '');
+    return cand && DOCS_FLAT.some(d=>d.id===cand) ? cand : DOCS_FLAT[0]?.id || 'quickstart';
   });
   const [search, setSearch] = useState('');
   const [md, setMd] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string|null>(null);
+  const [toc, setToc] = useState<Array<{level:number,title:string,id:string}>>([]);
+  const [copied, setCopied] = useState<string | null>(null);
   const active = DOCS_FLAT.find(d=>d.id===activeId) || DOCS_FLAT[0];
+  const searchRef = useRef<HTMLInputElement>(null);
   useEffect(()=>{ window.history.replaceState({},'', activeId==='quickstart' ? '/docs' : `/docs/${activeId}`); },[activeId]);
   useEffect(()=>{
     if(!active) return;
-    if(active.file==='README'){ setMd(QUICKSTART_MD); return; }
+    if(active.file==='README'){ setMd(QUICKSTART_MD); setToc(extractToc(QUICKSTART_MD)); return; }
     setLoading(true); setErr(null);
-    fetch(`/docs/${active.file}.md`).then(r=> r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))).then(t=> setMd(t)).catch(()=> setErr('Failed to load doc. Try GitHub.')).finally(()=> setLoading(false));
+    fetch(`/docs/${active.file}.md`).then(r=> r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))).then(t=> { setMd(t); setToc(extractToc(t)); }).catch(()=> setErr('Failed to load doc. Try GitHub.')).finally(()=> setLoading(false));
   },[active]);
+  // copy delegation + cmd+K
+  useEffect(()=>{
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if(t.closest('.docs-copy')){
+        const btn = t.closest('.docs-copy') as HTMLElement;
+        const data = btn.getAttribute('data-copy');
+        if(data){ navigator.clipboard.writeText(decodeURIComponent(data)); setCopied(data.slice(0,20)); setTimeout(()=>setCopied(null),1200); btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',1200); }
+      }
+    };
+    const onKey = (e: KeyboardEvent)=>{ if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); searchRef.current?.focus(); } };
+    document.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKey);
+    return ()=>{ document.removeEventListener('click', onClick); window.removeEventListener('keydown', onKey); };
+  },[]);
   const filteredSections = DOCS_SECTIONS.map(s=> ({...s, items: s.items.filter(it=> !search || it.title.toLowerCase().includes(search.toLowerCase()) || it.desc.toLowerCase().includes(search.toLowerCase()))})).filter(s=> s.items.length>0);
+  const activeIdx = DOCS_FLAT.findIndex(d=>d.id===activeId);
   return (
     <div className="docs-layout">
       <aside className="docs-sidebar" aria-label="Docs navigation">
-        <div className="docs-search-wrap">
-          <input className="docs-search" placeholder="Search docs…" aria-label="Search docs" value={search} onChange={e=>setSearch(e.target.value)} />
+        <div className="docs-sidebar-head">
+          <div className="docs-brand-mini"><img src="/zoopicon-32.png" alt="" width={18} height={18}/><span>Zoop</span><span className="docs-ver">v0.1.0-alpha</span></div>
+          <div className="docs-search-wrap">
+            <input ref={searchRef} className="docs-search" placeholder="Search docs…  ⌘K" aria-label="Search docs" value={search} onChange={e=>setSearch(e.target.value)} />
+          </div>
         </div>
         <nav className="docs-nav">
           {filteredSections.map(sec=>(
@@ -303,25 +355,48 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
           <span>·</span>
           <a href="/llms.txt">llms.txt</a>
           <span>·</span>
+          <a href="/llms-full.txt">full</a>
+          <span>·</span>
           <a onClick={onNavigateHome} style={{cursor:'pointer'}}>Home</a>
         </div>
       </aside>
       <section className="docs-main" aria-live="polite">
-        <div className="docs-breadcrumb"><a onClick={onNavigateHome} style={{cursor:'pointer', color:'#38bdf8'}}>Home</a> <span style={{color:'var(--line-strong)'}}>›</span> <a onClick={()=>setActiveId('quickstart')} style={{cursor:'pointer', color:'#38bdf8'}}>Docs</a> <span>›</span> {active?.title}</div>
+        <div className="docs-breadcrumb" aria-label="Breadcrumb">
+          <a onClick={onNavigateHome} style={{cursor:'pointer', color:'#38bdf8'}}>Home</a>
+          <span style={{color:'var(--line-strong)'}}>›</span>
+          <a onClick={()=>setActiveId('quickstart')} style={{cursor:'pointer', color:'#38bdf8'}}>Docs</a>
+          <span>›</span> {active?.title}
+          <span className="docs-breadcrumb-ver">MIT</span>
+        </div>
         <div className="docs-toolbar">
           <h1>{active?.title}</h1>
           <div className="docs-toolbar-actions">
             <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" className="docs-gh-link">Edit on GitHub</a>
-            <button className="docs-copy-page" onClick={()=>navigator.clipboard.writeText(window.location.href)}>Copy link</button>
+            <button className="docs-copy-page" onClick={()=>{ navigator.clipboard.writeText(window.location.href); setCopied('link'); setTimeout(()=>setCopied(null),1200); }}>{copied==='link' ? 'Copied!' : 'Copy link'}</button>
           </div>
         </div>
-        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#38bdf8'}}>source</a></p>
+        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#38bdf8'}}>source</a> · <a href="/llms.txt" style={{color:'#38bdf8'}}>llms.txt</a></p>
         {loading && <div className="docs-loading"><span className="spinner" style={{width:16,height:16,display:'inline-block'}}/> Loading {active?.file}.md…</div>}
         {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
-        {!loading && !err && <article className="docs-article" dangerouslySetInnerHTML={{__html: mdToHtml(md)}} />}
+        {!loading && !err && (
+          <div className="docs-prose-wrap">
+            <article className="docs-article" dangerouslySetInnerHTML={{__html: mdToHtml(md)}} />
+            <aside className="docs-toc" aria-label="On this page">
+              <div className="docs-toc-title">On this page</div>
+              {toc.length===0 ? <span style={{color:'var(--muted)', fontSize:'0.75rem'}}>No headings</span> : toc.map(h=>(
+                <a key={h.id} href={`#${h.id}`} className={`docs-toc-item lvl-${h.level}`} onClick={e=>{ e.preventDefault(); document.getElementById(h.id)?.scrollIntoView({behavior:'smooth', block:'start'}); history.replaceState({},'', `#${h.id}`); }}>{h.title}</a>
+              ))}
+              <div className="docs-toc-foot">
+                <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Edit this page</a>
+                <span>·</span>
+                <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Ask AI</a>
+              </div>
+            </aside>
+          </div>
+        )}
         <div className="docs-footer-nav">
-          <button className="lp-btn-secondary" onClick={()=>{ const idx=DOCS_FLAT.findIndex(d=>d.id===activeId); if(idx>0) setActiveId(DOCS_FLAT[idx-1].id); window.scrollTo(0,0);}} disabled={DOCS_FLAT.findIndex(d=>d.id===activeId)===0}>← Prev</button>
-          <button className="lp-btn-secondary" onClick={()=>{ const idx=DOCS_FLAT.findIndex(d=>d.id===activeId); if(idx<DOCS_FLAT.length-1) setActiveId(DOCS_FLAT[idx+1].id); window.scrollTo(0,0);}} disabled={DOCS_FLAT.findIndex(d=>d.id===activeId)===DOCS_FLAT.length-1}>Next →</button>
+          <button className="lp-btn-secondary" onClick={()=>{ if(activeIdx>0) setActiveId(DOCS_FLAT[activeIdx-1].id); window.scrollTo(0,0);}} disabled={activeIdx===0}>← {activeIdx>0 ? DOCS_FLAT[activeIdx-1].title : 'Prev'}</button>
+          <button className="lp-btn-primary" onClick={()=>{ if(activeIdx<DOCS_FLAT.length-1) setActiveId(DOCS_FLAT[activeIdx+1].id); window.scrollTo(0,0);}} disabled={activeIdx===DOCS_FLAT.length-1}>{activeIdx<DOCS_FLAT.length-1 ? DOCS_FLAT[activeIdx+1].title : 'Next'} →</button>
         </div>
       </section>
     </div>
