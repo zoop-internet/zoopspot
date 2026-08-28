@@ -891,11 +891,19 @@ const SettingsTab: React.FC<{
   );
 };
 
-/* ─── Main UserDashboard ──────────────────────────────────────── */
+/* ─── Main UserDashboard — modern nav ─────────────────────────── */
 export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const { user, deviceId, deviceName } = useApp();
+  const { user, deviceId, deviceName, allDevices, connections } = useApp();
   const [tab, setTab] = useState<UserTab>('overview');
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const navCounts: Record<UserTab, number | null> = {
+    overview: null,
+    devices: allDevices.length || null,
+    connections: connections.filter(c => ['REQUESTED','CONNECTING','CONNECTED','AUTHORIZED'].includes(c.state)).length || null,
+    sharing: null,
+    settings: null,
+  };
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
@@ -931,13 +939,17 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
         <WorkspaceSwitcher mode={mode} onSwitch={onSwitch} />
 
         <nav className="sidebar-nav" aria-label="User navigation">
+          <div className="nav-section-label">Personal</div>
           {NAV.map(item => (
             <button key={item.id} id={`nav-${item.id}`}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
               onClick={() => setTab(item.id)}
               aria-current={tab === item.id ? 'page' : undefined}>
-              {item.icon}
-              {item.label}
+              <span className="nav-icon-box">{item.icon}</span>
+              <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+              {navCounts[item.id] != null && (
+                <span className="nav-count">{navCounts[item.id]}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -964,12 +976,17 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
 
       <div className="portal-content">
         <header className="page-header">
-          <h1 className="page-title">{TAB_TITLES[tab]}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em' }}>{deviceName ? `· ${deviceName}` : ''}</span>
+          </div>
           <div className="page-header-actions">
-            {!deviceId && (
+            {!deviceId ? (
               <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={handleRegisterDirect}>
                 <Ico d={I.plus} />Sign In / Register
               </button>
+            ) : (
+              <span className="badge badge-info" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>{connections.filter(c=>c.state==='CONNECTED').length} tunnels</span>
             )}
           </div>
         </header>
