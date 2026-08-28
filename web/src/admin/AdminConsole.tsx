@@ -266,6 +266,7 @@ const KpiCard: React.FC<{
   </button>
 );
 
+// @ts-ignore — retained for OperationsTab / legacy panels; Overview now uses bespoke modern cards
 const Panel: React.FC<{
   title: string;
   link?: { label: string; tab: AdminTab };
@@ -291,28 +292,20 @@ const Panel: React.FC<{
 
 const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate: (t: AdminTab) => void }> = ({ data, onNavigate }) => {
   const {
-    devices, orgs, orgMembers, connections, services, network, usage, audit, relays,
+    devices, connections, services, network, usage, relays,
     loading, hasLoaded, error, reload, lastUpdated,
   } = data;
 
   const stateCounts = useMemo(() => usage?.connections_by_state ?? {}, [usage]);
   const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => c.state === 'CONNECTED').length;
   const pendingRequests = stateCounts['REQUESTED'] ?? connections.filter(c => c.state === 'REQUESTED').length;
-  const members = Object.values(orgMembers).reduce((n, m) => n + m.length, 0);
   const utilization = network?.utilization_pct ?? null;
   const ipamWarn = utilization !== null && utilization > 80;
   const ipamDanger = utilization !== null && utilization > 95;
 
-  const nameOf = useMemo(() => {
-    const byId = new Map(devices.map(d => [d.id.toString(), d.name || 'Unnamed Device']));
-    return (id?: string) => {
-      if (!id) return '—';
-      return byId.get(id.toString()) ?? `${id.toString().slice(0, 8)}…`;
-    };
-  }, [devices]);
-
   const serviceEntries = Object.entries(services);
   const servicesOk = serviceEntries.length > 0 && serviceEntries.every(([, s]) => s.status === 'ok');
+  const hasDegraded = serviceEntries.some(([, s]) => s.status !== 'ok');
 
   const stateSegments = useMemo(() => {
     const order = ['CONNECTED', 'REQUESTED', 'AUTHORIZED', 'CONNECTING', 'DISCONNECTED'] as const;
@@ -321,6 +314,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
       .map(s => ({ key: s, ...STATE_META[s], count: stateCounts[s] ?? 0 }));
   }, [stateCounts]);
   const stateTotal = stateSegments.reduce((n, s) => n + s.count, 0);
+  const totalConnections = connections.length;
 
   const platformMix = useMemo(() => {
     const counts = new Map<string, number>();
@@ -328,21 +322,20 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
       const key = (d.os || d.platform || 'unknown').toLowerCase();
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const total = devices.length || 1;
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }));
   }, [devices]);
 
-  const relayNodes = useMemo(() => {
-    return (relays as Array<{ id?: string; host?: string; region?: string; status?: string }>)
-      .slice(0, 5);
+  const relaySummary = useMemo(() => {
+    const nodes = relays as Array<{ id?: string; host?: string; region?: string; status?: string }>;
+    const total = nodes.length;
+    const online = nodes.filter(r => !r.status || !['offline', 'draining', 'unknown'].includes(r.status)).length;
+    const regions = [...new Set(nodes.map(r => r.region).filter(Boolean) as string[])].slice(0, 3);
+    return { total, online, regions, nodes };
   }, [relays]);
-  const relayOnline = relayNodes.filter(r => r.status && !['offline', 'draining', 'unknown'].includes(r.status)).length;
-
-  const topOrgs = useMemo(() => {
-    return orgs
-      .map(o => ({ ...o, members: orgMembers[o.id.toString()]?.length ?? 0 }))
-      .sort((a, b) => b.members - a.members)
-      .slice(0, 4);
-  }, [orgs, orgMembers]);
 
   if (!hasLoaded && loading) {
     return (
@@ -366,20 +359,46 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
       )}
 
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Service Status</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="section-note">Updated {timeAgo(lastUpdated)}</span>
-            <button className="btn btn-secondary btn-xs" onClick={reload}>
-              {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
-            </button>
-          </div>
+      {/* Inline alerts — only when attention is needed */}
+      {(ipamDanger || hasDegraded) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {hasDegraded && (
+            <div className="error-banner" style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.22)', color: '#fbbf24' }}>
+              <I.alert />
+              <span style={{ flex: 1 }}><strong>Service attention required</strong> — one or more subsystems is degraded. Check System for details.</span>
+              <button className="btn btn-secondary btn-xs" onClick={() => onNavigate('system')}>Open System</button>
+            </div>
+          )}
+          {ipamDanger && (
+            <div className="error-banner" style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.22)', color: '#f87171' }}>
+              <I.layers />
+              <span style={{ flex: 1 }}><strong>IPAM critical</strong> — {utilization?.toFixed(1)}% of 100.64.0.0/10 exhausted. Capacity will run out soon.</span>
+              <button className="btn btn-secondary btn-xs" onClick={() => onNavigate('network')}>Manage IPAM</button>
+            </div>
+          )}
+          {ipamWarn && !ipamDanger && (
+            <div className="error-banner" style={{ background: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.18)', color: '#fbbf24' }}>
+              <I.layers />
+              <span style={{ flex: 1 }}>IPAM at {utilization?.toFixed(1)}% — consider planning additional capacity.</span>
+              <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('network')}>View</button>
+            </div>
+          )}
         </div>
-        <div className="service-chips">
-          <span className={`service-chip ${servicesOk ? 'service-chip-ok' : serviceEntries.length === 0 ? 'service-chip-warn' : 'service-chip-down'}`}>
-            <span className="chip-dot" />API
-          </span>
+      )}
+
+      {/* Service status — compact single row */}
+      <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: servicesOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280', boxShadow: servicesOk ? '0 0 0 4px rgba(34,197,94,0.14)' : undefined, flexShrink: 0 }} />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>{servicesOk ? 'All systems operational' : hasDegraded ? 'Degraded service' : 'Checking services…'}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>· Updated {timeAgo(lastUpdated)}</span>
+          </div>
+          <button className="btn btn-ghost btn-xs" onClick={reload} aria-label="Refresh platform data">
+            {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
+          </button>
+        </div>
+        <div className="service-chips" style={{ padding: '10px 16px' }}>
           {serviceEntries.length === 0 ? (
             <span className="service-chip service-chip-warn"><span className="chip-dot" />No health data</span>
           ) : (
@@ -397,143 +416,132 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
       </div>
 
+      {/* KPIs — 5 cards, modern accent */}
       <div className="ov-kpis">
-        <KpiCard color="#06b6d4" icon={<I.monitor />} label="Registered Devices" value={devices.length} sub="across all accounts" onClick={() => onNavigate('devices')} />
-        <KpiCard color="#22c55e" icon={<I.zap />} label="Active Tunnels" value={activeTunnels} sub="CONNECTED" onClick={() => onNavigate('connections')} />
-        <KpiCard color="#f59e0b" icon={<I.alert />} label="Pending Requests" value={pendingRequests} sub="awaiting approval" onClick={() => onNavigate('connections')} />
-        <KpiCard color="#3b82f6" icon={<I.building />} label="Organizations" value={orgs.length} sub={`${members} members`} onClick={() => onNavigate('organizations')} />
-        <KpiCard color={ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : '#22c55e'} icon={<I.layers />} label="IPAM Utilization" value={utilization !== null ? `${utilization.toFixed(1)}%` : '—'} sub="of 1,048,576 /30 pairs" onClick={() => onNavigate('network')} />
+        <KpiCard color="#38bdf8" icon={<I.monitor />} label="Devices" value={devices.length} sub="registered" onClick={() => onNavigate('devices')} />
+        <KpiCard color="#22c55e" icon={<I.zap />} label="Active Tunnels" value={activeTunnels} sub={totalConnections ? `of ${totalConnections}` : 'CONNECTED'} onClick={() => onNavigate('connections')} />
+        <KpiCard color="#f59e0b" icon={<I.alert />} label="Pending" value={pendingRequests} sub="awaiting approval" onClick={() => onNavigate('connections')} />
+        <KpiCard color="#a3e635" icon={<I.globe />} label="Relays" value={`${relaySummary.online}/${relaySummary.total || 0}`} sub={relaySummary.total ? (relaySummary.regions.join(' · ') || 'global') : 'no relays'} onClick={() => onNavigate('relays')} />
+        <KpiCard color={ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : '#22c55e'} icon={<I.layers />} label="IPAM" value={utilization !== null ? `${utilization.toFixed(1)}%` : '—'} sub={`${(network?.subnets_allocated ?? 0).toLocaleString()} /30`} onClick={() => onNavigate('network')} />
       </div>
 
-      <div className="ov-grid">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Panel title="Connection States" note={`${stateTotal} tunnels`} link={{ label: 'View connections', tab: 'connections' }} onNavigate={onNavigate}>
-            {stateTotal === 0 ? (
-              <div className="empty-state" style={{ padding: '28px 20px' }}>
-                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.zap /></div>
-                <h3>No connections yet</h3>
-                <p>Approved tunnels across the overlay will appear here.</p>
+      {/* Modern two-panel grid — decluttered */}
+      <div className="ov-grid" style={{ gap: 14 }}>
+        {/* Left: Tunnel health */}
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="section-header">
+            <span className="section-title">Tunnel Health</span>
+            <button className="ov-panel-link" onClick={() => onNavigate('connections')}>View connections <I.chevronR /></button>
+          </div>
+          {stateTotal === 0 ? (
+            <div className="empty-state" style={{ padding: '32px 20px', flex: 1 }}>
+              <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.zap /></div>
+              <h3>No tunnels yet</h3>
+              <p>When devices connect, live state appears here.</p>
+            </div>
+          ) : (
+            <div style={{ padding: '16px 16px 14px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                <span style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{stateTotal.toLocaleString()}</span>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>total tunnels · <strong style={{ color: '#22c55e' }}>{activeTunnels} connected</strong></span>
               </div>
-            ) : (
-              <div className="ov-seg-wrap">
-                <div className="ov-seg">
-                  {stateSegments.map(s => (
-                    <div key={s.key} style={{ width: `${(s.count / stateTotal) * 100}%`, background: s.color }} />
-                  ))}
-                </div>
-                <div className="ov-seg-legend">
-                  {stateSegments.map(s => (
-                    <span key={s.key} className="ov-seg-item">
-                      <span className="ov-seg-dot" style={{ background: s.color }} />
-                      {s.label} <b>{s.count}</b>
-                    </span>
-                  ))}
-                </div>
+              <div className="ov-seg" style={{ height: 12 }}>
+                {stateSegments.map(s => (
+                  <div key={s.key} title={`${s.label}: ${s.count}`} style={{ width: `${(s.count / stateTotal) * 100}%`, background: s.color }} />
+                ))}
               </div>
-            )}
-          </Panel>
+              <div className="ov-seg-legend" style={{ marginTop: 2 }}>
+                {stateSegments.map(s => (
+                  <span key={s.key} className="ov-seg-item">
+                    <span className="ov-seg-dot" style={{ background: s.color }} />
+                    {s.label} <b>{s.count}</b>
+                  </span>
+                ))}
+              </div>
+              {pendingRequests > 0 && (
+                <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', color: '#fbbf24', fontWeight: 600 }}>{pendingRequests} pending approval</span>
+                  <button className="btn btn-secondary btn-xs" onClick={() => onNavigate('connections')}>Review</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-          <Panel title="Overlay Network" link={{ label: 'Manage IPAM', tab: 'network' }} onNavigate={onNavigate}>
-            <div className="ov-ipam">
-              <div className="ov-bar">
+        {/* Right: Network & fleet — compact unified */}
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="section-header">
+            <span className="section-title">Network & Fleet</span>
+            <button className="ov-panel-link" onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
+          </div>
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+            {/* IPAM gauge */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Overlay IPAM — 100.64.0.0/10</span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : 'var(--text-primary)' }}>{utilization !== null ? `${utilization.toFixed(1)}%` : '—'}</span>
+              </div>
+              <div className="ov-bar" style={{ height: 10 }}>
                 <div className={`ov-bar-fill ${ipamDanger ? 'danger' : ipamWarn ? 'warn' : 'ok'}`} style={{ width: `${Math.min(100, utilization ?? 0)}%` }} />
               </div>
-              <div className="ov-bar-meta">
-                <span>{network ? `${network.subnets_allocated.toLocaleString()} /30 allocated` : 'No IPAM data'}</span>
+              <div className="ov-bar-meta" style={{ marginTop: 6 }}>
+                <span>{network ? `${network.subnets_allocated.toLocaleString()} allocated` : 'No data'}</span>
                 <span>{network ? `${network.capacity.toLocaleString()} capacity` : ''}</span>
               </div>
             </div>
-            <div className="ov-divider" />
-            <div className="ov-mix-label">Devices by platform</div>
-            <div className="ov-mix">
+
+            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
+
+            {/* Fleet mix — compact */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Fleet by platform</span>
+                <button className="ov-panel-link" style={{ padding: '2px 4px' }} onClick={() => onNavigate('devices')}>{devices.length} devices <I.chevronR /></button>
+              </div>
               {platformMix.length === 0 ? (
-                <div className="section-note" style={{ padding: '4px 0' }}>No device platform data.</div>
+                <span className="section-note">No device data.</span>
               ) : (
-                platformMix.map(([name, count]) => (
-                  <div key={name} className="ov-mix-row">
-                    <span className="ov-mix-name">{name}</span>
-                    <div className="ov-mix-bar">
-                      <div className="ov-mix-fill" style={{ width: `${(count / Math.max(1, platformMix[0][1])) * 100}%` }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {platformMix.map(({ name, pct }) => (
+                    <div key={name} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 44px', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                      <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--portal-accent)', borderRadius: 999 }} />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textAlign: 'right' }}>{pct}%</span>
                     </div>
-                    <span className="ov-mix-count">{count}</span>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
-          </Panel>
+
+            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
+
+            {/* Relay inline */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: relaySummary.total === 0 ? '#6b7280' : relaySummary.online === relaySummary.total ? '#22c55e' : '#f59e0b', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {relaySummary.total === 0 ? 'No relays' : `${relaySummary.online}/${relaySummary.total} relays online`}
+                </span>
+                {relaySummary.regions.length > 0 && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {relaySummary.regions.join(' · ')}</span>
+                )}
+              </div>
+              <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Panel title="Recent Activity" link={{ label: 'Audit log', tab: 'security' }} onNavigate={onNavigate}>
-            {audit.length === 0 ? (
-              <div className="empty-state" style={{ padding: '28px 20px' }}>
-                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.activity /></div>
-                <h3>No activity recorded</h3>
-                <p>Audit events will appear here as operators and devices act.</p>
-              </div>
-            ) : (
-              <div className="ov-list">
-                {audit.slice(0, 6).map(ev => (
-                  <div key={ev.id.toString()} className="ov-list-row">
-                    <span className={`status-dot ${ev.action === 'device.revoked' ? 'offline' : 'online'}`} />
-                    <div className="ov-list-main">
-                      <div className="ov-list-name">{ev.action}</div>
-                      <div className="ov-list-sub">{nameOf(ev.actor_id)} · {new Date(ev.timestamp).toLocaleString()}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Relay Cluster" note={`${relayOnline}/${relayNodes.length} online`} link={{ label: 'Manage relays', tab: 'relays' }} onNavigate={onNavigate}>
-            {relayNodes.length === 0 ? (
-              <div className="empty-state" style={{ padding: '28px 20px' }}>
-                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.server /></div>
-                <h3>No relay nodes</h3>
-                <p>Add fallback relays for NAT-traversal across regions.</p>
-              </div>
-            ) : (
-              <div className="ov-list">
-                {relayNodes.map(r => {
-                  const up = r.status && !['offline', 'draining', 'unknown'].includes(r.status);
-                  return (
-                    <div key={r.id ?? r.host} className="ov-list-row">
-                      <span className={`status-dot ${up ? 'online' : 'offline'}`} />
-                      <div className="ov-list-main">
-                        <div className="ov-list-name">{r.id || 'relay'}</div>
-                        <div className="ov-list-sub">{r.host || '—'} · {r.region || 'global'}</div>
-                      </div>
-                      <span className={`badge ${up ? 'badge-success' : 'badge-neutral'}`}>{r.status || 'online'}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Organizations" link={{ label: 'View all', tab: 'organizations' }} onNavigate={onNavigate}>
-            {topOrgs.length === 0 ? (
-              <div className="empty-state" style={{ padding: '28px 20px' }}>
-                <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.building /></div>
-                <h3>No organizations</h3>
-                <p>Enterprise teams will appear here.</p>
-              </div>
-            ) : (
-              <div className="ov-list">
-                {topOrgs.map(o => (
-                  <div key={o.id.toString()} className="ov-list-row">
-                    <div className="ov-list-main">
-                      <div className="ov-list-name">{o.name}</div>
-                      <div className="ov-list-sub">{o.slug ? `/${o.slug}` : ''} · {o.status || 'active'}</div>
-                    </div>
-                    <span className="badge badge-neutral">{o.members} members</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
-        </div>
+      {/* Subtle helper — directs to dedicated tabs instead of repeating lists */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', padding: '4px 0 2px' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Need more detail?</span>
+        <button className="ov-panel-link" onClick={() => onNavigate('security')}>Audit log <I.chevronR /></button>
+        <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
+        <button className="ov-panel-link" onClick={() => onNavigate('organizations')}>Organizations <I.chevronR /></button>
+        <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
+        <button className="ov-panel-link" onClick={() => onNavigate('users')}>Users <I.chevronR /></button>
       </div>
     </>
   );
