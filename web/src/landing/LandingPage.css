@@ -1241,7 +1241,7 @@
   margin: 6px 0;
 }
 
-/* ─── Non-Intrusive Download Toast ─────────────────────────────────────── */
+/* ─── Non-Intrusive Download Toast — raised on mobile to clear bottom nav ─ */
 .lp-toast-container {
   position: fixed;
   bottom: 24px;
@@ -1250,6 +1250,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+@media (max-width: 768px) {
+  .lp-toast-container { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px; }
+  .lp-toast { width: 100%; }
 }
 
 .lp-toast {

@@ -586,7 +586,8 @@ const ConnectionsTab: React.FC<{
         ) : (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Peer</th><th>Direction</th><th>State</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Pending — awaiting provider approval</caption>
+              <thead><tr><th scope="col">Peer</th><th scope="col">Direction</th><th scope="col">State</th><th scope="col" style={{ textAlign: 'right' }}>Actions</th></tr></thead>
               <tbody>
                 {pending.map(c => {
                   const isProvider = c.provider_id.toString() === deviceId;
@@ -659,7 +660,8 @@ const ConnectionsTab: React.FC<{
         ) : (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Peer</th><th>Direction</th><th>State</th><th>Tunnel IP</th><th /></tr></thead>
+              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Active tunnels — encrypted, direct or relay fallback</caption>
+              <thead><tr><th scope="col">Peer</th><th scope="col">Direction</th><th scope="col">State</th><th scope="col">Tunnel IP</th><th scope="col" /></tr></thead>
               <tbody>
                 {active.map(c => {
                   const isProvider = c.provider_id.toString() === deviceId;
@@ -773,7 +775,8 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
           <div className="inline-empty">No sharing relationships yet. Authorize a recipient above.</div>
         ) : (
           <table className="data-table">
-            <thead><tr><th>Direction</th><th>Peer</th><th>Status</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient</caption>
+            <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th></tr></thead>
             <tbody>
               {shares.map(s => {
                 const isProvider = s.provider_id.toString() === deviceId;

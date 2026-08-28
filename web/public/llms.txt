@@ -41,9 +41,15 @@ zoop status && zoop connect <peer-id>
 
 **Q: Is it free?** A: Yes, MIT-licensed. Self-hostable control plane.
 
+## Full Reference
+- **Full dump for answer engines:** https://zoop.network/llms-full.txt
+- **Pricing:** https://zoop.network/pricing
+- **Markdown alternative:** Append `.md` to any marketing route (e.g. `/how-it-works.md` returns markdown via `Accept: text/markdown` in future)
+
 ## Sections
 - [Overview](/)
 - [How It Works](/how-it-works)
 - [Products](/products)
+- [Pricing](/pricing)
 - [Downloads](/downloads)
 - [Security](/security)
