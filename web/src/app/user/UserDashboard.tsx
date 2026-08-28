@@ -13,6 +13,8 @@ const I = {
   home:      <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
   monitor:   <><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>,
   zap:       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
+  link:      <><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></>,
+  linkNodes: <><circle cx="12" cy="12" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="9.2" y1="10.3" x2="14.8" y2="6.7"/><line x1="9.2" y1="13.7" x2="14.8" y2="17.3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></>,
   share:     <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>,
   settings:  <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
   user:      <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
@@ -20,6 +22,8 @@ const I = {
   logOut:    <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
   chevronR:  <polyline points="9 18 15 12 9 6"/>,
   check:     <polyline points="20 6 9 17 4 12"/>,
+  menu:      <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+  close:     <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
   copy:      <><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
   wifi:      <><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>,
   wifiOff:   <><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a11 11 0 0 1 5.17-2.39"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>,
@@ -32,7 +36,7 @@ type UserTab = 'overview' | 'devices' | 'connections' | 'sharing' | 'settings';
 const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',    label: 'Overview',    icon: <Ico d={I.home}    /> },
   { id: 'devices',     label: 'Devices',     icon: <Ico d={I.monitor} /> },
-  { id: 'connections', label: 'Connections', icon: <Ico d={I.zap}     /> },
+  { id: 'connections', label: 'Connections', icon: <Ico d={I.link}    /> },
   { id: 'sharing',     label: 'Sharing',     icon: <Ico d={I.share}   /> },
   { id: 'settings',    label: 'Settings',    icon: <Ico d={I.settings}/> },
 ];
@@ -924,9 +928,12 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
     onSwitch('auth');
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="portal" role="main">
-      <aside className="sidebar" aria-label="Navigation">
+      {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Navigation">
         {/* Brand — matches landing: Zoop Internet */}
         <div className="sidebar-brand" onClick={() => onSwitch('landing')} style={{ cursor: 'pointer', gap: 8 }}>
           <div className="sidebar-brand-icon" style={{ width: 32, height: 32, borderRadius: 8, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 10px rgba(8,242,255,0.15)' }}>
@@ -943,7 +950,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           {NAV.map(item => (
             <button key={item.id} id={`nav-${item.id}`}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
-              onClick={() => setTab(item.id)}
+              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
               aria-current={tab === item.id ? 'page' : undefined}>
               <span className="nav-icon-box">{item.icon}</span>
               <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
@@ -958,7 +965,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           <div
             className="sidebar-user"
             id="user-profile-area"
-            onClick={() => setTab('settings')}
+            onClick={() => { setTab('settings'); setSidebarOpen(false); }}
             title="Open Account & Settings"
             style={{ cursor: 'pointer' }}
           >
@@ -977,8 +984,11 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
       <div className="portal-content">
         <header className="page-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
+              <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
+            </button>
             <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em' }}>{deviceName ? `· ${deviceName}` : ''}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em' }} className="hide-mobile">{deviceName ? `· ${deviceName}` : ''}</span>
           </div>
           <div className="page-header-actions">
             {!deviceId ? (

@@ -23,6 +23,7 @@ const I = {
   building:   () => <Ico><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z"/><path d="M6 12H4a2 2 0 0 0-2 2v6h4"/><path d="M18 9h2a2 2 0 0 1 2 2v9h-4"/><line x1="10" y1="6" x2="10.01" y2="6"/><line x1="14" y1="6" x2="14.01" y2="6"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/></Ico>,
   monitor:    () => <Ico><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></Ico>,
   zap:        () => <Ico><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Ico>,
+  link:       () => <Ico><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></Ico>,
   globe:      () => <Ico><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ico>,
   server:     () => <Ico><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></Ico>,
   shield:     () => <Ico><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Ico>,
@@ -36,6 +37,8 @@ const I = {
   chevronD:   () => <Ico size={13}><polyline points="6 9 12 15 18 9"/></Ico>,
   flag:       () => <Ico><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></Ico>,
   check:      () => <Ico size={14}><polyline points="20 6 9 17 4 12"/></Ico>,
+  menu:       () => <Ico><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ico>,
+  close:      () => <Ico><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>,
 };
 
 /* ─── Navigation Types & Structure ────────────────────────────────── */
@@ -72,7 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Network',
     items: [
-      { id: 'connections', label: 'Connections', icon: <I.zap /> },
+      { id: 'connections', label: 'Connections', icon: <I.link /> },
       { id: 'network',     label: 'Network',     icon: <I.layers /> },
       { id: 'relays',      label: 'Relays',      icon: <I.globe /> },
     ],
@@ -1353,8 +1356,25 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
 export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const data = useAdminData();
   const cur = SCREENS[tab];
+
+  const navCounts: Record<AdminTab, number | null> = {
+    overview: null,
+    operations: null,
+    usage: null,
+    billing: null,
+    users: data.users.length || null,
+    organizations: data.orgs.length || null,
+    devices: data.devices.length || null,
+    connections: data.connections.length || null,
+    network: data.network ? data.network.subnets_allocated : null,
+    relays: (data.relays as unknown[]).length || null,
+    security: data.audit.length || null,
+    abuse: null,
+    system: null,
+  };
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
@@ -1370,7 +1390,8 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
   return (
     <div className="admin-portal" role="main">
-      <aside className="admin-sidebar" aria-label="Admin navigation">
+      {sidebarOpen && <div className="admin-sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
+      <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Admin navigation">
         <div className="admin-brand" style={{ gap: 10 }}>
           <div className="admin-brand-icon" style={{ width: 36, height: 36, borderRadius: 9, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 14px rgba(8,242,255,0.2)' }}>
             <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} />
@@ -1392,10 +1413,13 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                 {section.items.map(item => (
                   <button key={item.id} id={`admin-nav-${item.id}`}
                     className={`admin-nav-item${tab === item.id ? ' active' : ''}`}
-                    onClick={() => setTab(item.id)}
+                    onClick={() => { setTab(item.id); setSidebarOpen(false); }}
                     aria-current={tab === item.id ? 'page' : undefined}>
                     {item.icon}
-                    <span className="admin-nav-item-label">{item.label}</span>
+                    <span className="admin-nav-item-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                    {navCounts[item.id] != null && (
+                      <span className="nav-count admin-nav-count">{navCounts[item.id]}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1416,9 +1440,14 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
       <div className="admin-content">
         <header className="admin-page-header">
-          <div>
-            <h1 className="admin-page-title">{cur.title}</h1>
-            <p className="admin-page-subtitle">{cur.subtitle}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
+              {sidebarOpen ? <I.close /> : <I.menu />}
+            </button>
+            <div>
+              <h1 className="admin-page-title">{cur.title}</h1>
+              <p className="admin-page-subtitle">{cur.subtitle}</p>
+            </div>
           </div>
           {cur.action && <div className="admin-page-actions">{cur.action}</div>}
         </header>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
@@ -19,6 +19,8 @@ const I = {
   plus:     <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
   alert:    <><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>,
   copy:     <><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
+  menu:     <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+  close:    <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
 };
 
 type OrgTab = 'overview' | 'members' | 'devices' | 'policies' | 'logs';
@@ -56,20 +58,39 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
   );
 };
 
-/* ─── Create Org Modal ────────────────────────────────────────── */
+/* ─── Create Org — dedicated screen (replaces nav inline form) ─── */
 const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { doCreateOrg } = useApp();
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugEdited, setSlugEdited] = useState(false);
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('team');
+  const [region, setRegion] = useState('auto');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32);
+
+  useEffect(() => {
+    if (!slugEdited) setSlug(slugify(name));
+  }, [name, slugEdited]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || name.trim().length < 2) {
+      setError('Organization name must be at least 2 characters');
+      return;
+    }
+    if (slug && !/^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/.test(slug)) {
+      setError('Slug must be 3–32 lowercase letters, numbers, hyphens (a-z0-9-)');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await doCreateOrg(name.trim());
+      await doCreateOrg(name.trim(), slug.trim() || undefined);
+      // Description/category/region are stored locally for now (backend accepts name+slug; metadata future)
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create organization');
@@ -79,22 +100,81 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 440 }}>
-        <div className="modal-header">
-          <span className="modal-title">Create organization</span>
-          <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="field">
-            <label>Organization name</label>
-            <input id="org-name-input" type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Acme Corp Infrastructure" required autoFocus />
+    <div className="modal-overlay" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.65)' }}>
+      <div className="modal" style={{ maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-header" style={{ alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #38bdf8 0%, #34d399 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#020904', flexShrink: 0 }}>
+            <Ico d={I.layers} size={18} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary btn-sm" id="org-create-submit" disabled={loading}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="modal-title" style={{ fontSize: '1.05rem' }}>Create organization</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>A dedicated workspace for your team — invite by Zoop ID, not email</div>
+          </div>
+          <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close" style={{ flexShrink: 0 }}>✕</button>
+        </div>
+
+        {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="field">
+            <label>Organization name <span style={{ color: 'var(--red)' }}>*</span></label>
+            <input id="org-name-input" type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Acme Corp — Engineering" required autoFocus maxLength={48} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{name.length}/48 · Shown in switcher and header</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="field">
+              <label>Slug <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(URL handle)</span></label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>/</span>
+                <input id="org-slug-input" type="text" value={slug} onChange={e => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32)); }}
+                  placeholder="acme-eng" pattern="^[a-z0-9-]+$" style={{ fontFamily: 'var(--font-mono)' }} />
+              </div>
+              <span style={{ fontSize: '0.7rem', color: slug && !/^[a-z0-9-]{3,32}$/.test(slug) ? 'var(--red)' : 'var(--text-muted)' }}>
+                {slug ? (slug.length < 3 ? 'At least 3 characters' : 'a-z, 0-9, hyphen') : 'Auto from name — editable'}
+              </span>
+            </div>
+            <div className="field">
+              <label>Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value)}>
+                <option value="team">Team</option>
+                <option value="company">Company</option>
+                <option value="family">Family</option>
+                <option value="community">Community</option>
+                <option value="project">Project</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Description <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What does this organization share? e.g. Office fiber for remote team" rows={3} maxLength={200} style={{ width: '100%', padding: '9px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', resize: 'vertical' }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{description.length}/200</span>
+          </div>
+
+          <div className="field">
+            <label>Preferred region <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(routing hint)</span></label>
+            <select value={region} onChange={e => setRegion(e.target.value)}>
+              <option value="auto">Auto — closest relay</option>
+              <option value="us-east">US East (Virginia)</option>
+              <option value="us-west">US West (Oregon)</option>
+              <option value="eu-central">EU Central (Frankfurt)</option>
+              <option value="ap-southeast">AP Southeast (Singapore)</option>
+            </select>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Helps pick lowest-latency relay; not enforced</span>
+          </div>
+
+          <div style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.14)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ color: '#38bdf8', marginTop: 1 }}><Ico d={I.users} size={16} /></span>
+            <div style={{ fontSize: '0.75rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+              <strong style={{ color: '#f7fbff' }}>Invite by Zoop ID</strong> — after creating, add members via <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>ZP-…</span> or <span style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8' }}>@username</span>. No email required.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={loading}>Cancel</button>
+            <button type="submit" className="btn btn-primary btn-sm" id="org-create-submit" disabled={loading || !name.trim()}>
               {loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
               Create organization
             </button>
@@ -183,6 +263,13 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [memberFilter, setMemberFilter] = useState('');
   const [deviceFilter, setDeviceFilter] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const h = () => setShowCreateOrg(true);
+    window.addEventListener('zoop:open-create-org' as any, h);
+    return () => window.removeEventListener('zoop:open-create-org' as any, h);
+  }, []);
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
@@ -206,7 +293,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
   return (
     <div className="portal" role="main">
-      <aside className="sidebar" aria-label="Organization navigation">
+      {sidebarOpen && <div className="sidebar-overlay open" onClick={() => setSidebarOpen(false)} aria-hidden />}
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Organization navigation">
         {/* Brand — matches landing: Zoop Internet */}
         <div className="sidebar-brand" style={{ cursor: 'default', gap: 8 }}>
           <div className="sidebar-brand-icon" style={{ width: 32, height: 32, borderRadius: 8, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 10px rgba(8,242,255,0.15)' }}>
@@ -246,10 +334,10 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           {NAV.map(item => (
             <button key={item.id} id={`org-nav-${item.id}`}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
-              onClick={() => setTab(item.id)}
+              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
               aria-current={tab === item.id ? 'page' : undefined}>
-              {item.icon}
-              {item.label}
+              <span className="nav-icon-box">{item.icon}</span>
+              <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
             </button>
           ))}
         </nav>
@@ -268,9 +356,14 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
 
       <div className="portal-content">
         <header className="page-header">
-          <h1 className="page-title">{TAB_TITLES[tab]}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
+              <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
+            </button>
+            <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
+          </div>
           <div className="page-header-actions">
-            <button className="btn btn-secondary btn-sm" id="create-org-btn" onClick={() => setShowCreateOrg(true)}>
+            <button className="btn btn-secondary btn-sm hide-mobile" id="create-org-btn" onClick={() => setShowCreateOrg(true)}>
               <Ico d={I.plus} />New org
             </button>
             {currentOrg && tab === 'members' && (
