@@ -1313,6 +1313,7 @@
 }
 
 @media (max-width: 768px) {
+  .landing-shell { background-attachment: scroll; }
   .lp-topbar { padding: 14px 20px; }
   .lp-nav-pill { display: none; }
   .lp-menu-btn { display: flex; }

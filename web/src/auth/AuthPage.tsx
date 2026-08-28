@@ -346,8 +346,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   autoFocus
                   required
                   aria-invalid={!!fieldErrors.identifier}
+                  aria-describedby={fieldErrors.identifier ? 'auth-identifier-error' : 'auth-identifier-hint'}
                 />
-                {fieldErrors.identifier ? <span className="field-feedback error">{fieldErrors.identifier}</span> : <span className="auth-hint">Your permanent Zoop ID or @username</span>}
+                {fieldErrors.identifier ? <span id="auth-identifier-error" className="field-feedback error" role="alert">{fieldErrors.identifier}</span> : <span id="auth-identifier-hint" className="auth-hint">Your permanent Zoop ID or @username</span>}
               </div>
 
               {!showKeyImport ? (

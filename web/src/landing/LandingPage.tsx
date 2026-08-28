@@ -394,9 +394,14 @@ export const LandingPage: React.FC<{
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingVisible, setLoadingVisible] = useState(false);
+  const [showStickyCta, setShowStickyCta] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+      const scrolledPct = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight;
+      setShowStickyCta(scrolledPct > 0.6 && scrolledPct < 0.92);
+    };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -423,10 +428,14 @@ export const LandingPage: React.FC<{
   };
 
   const handleDownloadClick = (platform: string, file: string) => {
-    setDownloadToast({ platform, file });
-    setTimeout(() => {
-      setDownloadToast(null);
-    }, 4500);
+    // Honest pending state (S2-06): builds are rolling out — keep trust
+    if (file.startsWith('http')) {
+      window.open(file, '_blank', 'noopener');
+      setDownloadToast({ platform, file: 'External link opened' });
+    } else {
+      setDownloadToast({ platform, file: `${file} — builds rolling out, use install command or join waitlist` });
+    }
+    setTimeout(() => setDownloadToast(null), 5500);
   };
 
   const activeRoute = currentPath.toLowerCase();
@@ -730,25 +739,38 @@ export const LandingPage: React.FC<{
               <div className="lp-sec-card">
                 <div className="lp-sec-icon"><Ico d={Icons.shield} size={20} /></div>
                 <h3>Direct Device-to-Device</h3>
-                <p>Your data flows straight between your devices. It does not pass through intermediate company servers.</p>
+                <p>Your data flows straight between your devices. It does not pass through intermediate company servers — relays only forward opaque encrypted frames when direct hole-punch fails.</p>
               </div>
 
               <div className="lp-sec-card">
                 <div className="lp-sec-icon"><Ico d={Icons.zap} size={20} /></div>
-                <h3>Modern Encryption</h3>
-                <p>Protected by top-tier modern cryptography that prevents eavesdropping and tampering on any network.</p>
+                <h3>WireGuard® Encryption</h3>
+                <p><abbr title="WireGuard — Noise_IK handshake, ChaCha20-Poly1305, Curve25519, BLAKE2s">WireGuard®</abbr> with ChaCha20-Poly1305 & Curve25519. Forward-secrecy via Noise_IK; each tunnel uses ephemeral keys.</p>
               </div>
 
               <div className="lp-sec-card">
                 <div className="lp-sec-icon"><Ico d={Icons.server} size={20} /></div>
                 <h3>Zero Activity Tracking</h3>
-                <p>No tracking logs, no history records, and no ads. Your online activity stays strictly yours.</p>
+                <p>No tracking logs, no history records, no ads. Control plane stores only signaling metadata & IPAM; payload is opaque to relays.</p>
               </div>
 
               <div className="lp-sec-card">
                 <div className="lp-sec-icon"><Ico d={Icons.terminal} size={20} /></div>
                 <h3>Open Source &amp; Audited</h3>
-                <p>Built transparently in the open so you and the security community can verify how your data is protected.</p>
+                <p>MIT-licensed, built in the open. Ed25519 identities signed with canonical `zoop-auth-v2` payload + replay nonces (bounded cache) & 5-min TTL.</p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 32, background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 10 }}>How we encrypt — in 80 words</h3>
+              <p style={{ fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--muted)', margin: 0 }}>
+                Zoop uses <abbr title="WireGuard — modern VPN protocol"><strong>WireGuard</strong></abbr> (Noise_IK, ChaCha20-Poly1305, Curve25519) for the data plane and <strong>Ed25519</strong> for control-plane auth. Devices derive a deterministic Endpoint ID from their public key (UUIDv5). Signaling uses `zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH` with bounded 100k nonce cache and strict 0600 key storage (PBKDF2-AES-GCM optional via <code>ZOOP_IDENTITY_PASSPHRASE</code>). Relays are zero-decryption — DERP-style `ws://` forwarding of `[senderID][payload]` only. IPAM from <code>100.64.0.0/10</code> per-RFC6598 assigns /30 pairs (1,048,576 capacity) atomically via Postgres.
+              </p>
+              <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <span className="lp-trust-badge">WireGuard® · ChaCha20</span>
+                <span className="lp-trust-badge">Ed25519 · Nonce + TTL</span>
+                <span className="lp-trust-badge">0600 · PBKDF2 · AES-GCM</span>
+                <span className="lp-trust-badge">100.64.0.0/10 · /30</span>
               </div>
             </div>
 
@@ -884,11 +906,47 @@ export const LandingPage: React.FC<{
               </div>
             </section>
 
+            {/* Pricing Comparison — Conversion (S2-05) */}
+            <section className="lp-section" aria-labelledby="pricing-heading">
+              <div className="lp-section-heading centered">
+                <p className="lp-eyebrow">Simple & Transparent</p>
+                <h2 id="pricing-heading">Free to start. Built to scale.</h2>
+                <p className="lp-subtext">No hidden fees. Self-host free forever — teams add org features when ready.</p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 860, margin: '0 auto' }}>
+                <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#34d399' }}>Personal — Free Forever</span>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>$0 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--muted)' }}>/ month</span></div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited direct tunnels</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Up to 5 devices</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> WireGuard® + STUN/TURN</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Community support</li>
+                  </ul>
+                  <button className="lp-btn-primary" style={{ marginTop: 8, width: '100%' }} onClick={() => handleNav('/auth?tab=signup')}>Create Zoop ID — Free <Ico d={Icons.arrowRight} size={14} /></button>
+                </div>
+                <div style={{ background: 'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(52,211,153,0.06))', border: '1px solid rgba(8,242,255,0.28)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', overflow: 'hidden' }}>
+                  <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.65rem', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: '#38bdf8', color: '#020904' }}>Teams</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#38bdf8' }}>Organizations</span>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>Coming soon</div>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited org members</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Fleet device management</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Audit logs & relay controls</li>
+                    <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Priority relay regions</li>
+                  </ul>
+                  <button className="lp-btn-secondary" style={{ marginTop: 8, width: '100%' }} onClick={() => handleNav('/auth?tab=signup')}>Join waitlist</button>
+                </div>
+              </div>
+              <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.75rem', color: 'var(--muted)' }}>All plans include end-to-end encryption, NAT traversal and open-source MIT license. Self-host the control plane free forever.</p>
+            </section>
+
             {/* Testimonials */}
             <section className="lp-section">
               <div className="lp-section-heading centered">
                 <p className="lp-eyebrow">Loved by Real People</p>
                 <h2>Here is what our community says.</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6 }}><em>Illustrative community feedback — representative experiences</em></p>
               </div>
 
               <div className="lp-testimonials-grid">
@@ -1094,12 +1152,12 @@ export const LandingPage: React.FC<{
       {/* ─── Non-Intrusive Download Feedback Toast ─────────────────── */}
       {downloadToast && (
         <div className="lp-toast-container">
-          <div className="lp-toast" role="status">
+          <div className="lp-toast" role="status" aria-live="polite">
             <div className="lp-toast-icon">
               <Ico d={Icons.check} size={18} />
             </div>
             <div>
-              <strong>Starting download:</strong> {downloadToast.platform} (<code>{downloadToast.file}</code>)
+              <strong>Download:</strong> {downloadToast.platform} — <code>{downloadToast.file}</code>
             </div>
             <button
               className="lp-toast-close"
@@ -1109,6 +1167,15 @@ export const LandingPage: React.FC<{
               ✕
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ─── Sticky Bottom CTA — after 60% scroll (S2-05) ───────────── */}
+      {activeRoute === '/' && showStickyCta && (
+        <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 80, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px 10px 16px', borderRadius: 999, background: 'rgba(12,14,20,0.92)', border: '1px solid rgba(8,242,255,0.28)', boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(8,242,255,0.15)', backdropFilter: 'blur(16px)' }} role="region" aria-label="Quick actions">
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f7fbff', whiteSpace: 'nowrap' }}>Ready to share?</span>
+          <button className="lp-btn-primary" style={{ minHeight: 36, padding: '0 16px', fontSize: '0.85rem' }} onClick={() => handleNav('/auth?tab=signup')}>Get Zoop Free <Ico d={Icons.arrowRight} size={14} /></button>
+          <button onClick={() => setShowStickyCta(false)} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4, display: 'flex' }}><Ico d={Icons.close} size={14} /></button>
         </div>
       )}
     </div>

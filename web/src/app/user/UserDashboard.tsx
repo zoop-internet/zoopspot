@@ -183,13 +183,34 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
 
   if (!deviceId) {
     return (
-      <div className="empty-state">
-        <div className="empty-icon"><Ico d={I.wifi} size={22} /></div>
-        <h3>Not registered</h3>
-        <p>Register this device with the Zoop control plane to get started.</p>
-        <button className="btn btn-primary btn-sm" id="overview-register-btn" onClick={onRegister} style={{ marginTop: 8 }}>
-          <Ico d={I.plus} />Register device
-        </button>
+      <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="empty-state" style={{ padding: '48px 24px 32px' }}>
+          <div className="empty-icon"><Ico d={I.wifi} size={22} /></div>
+          <h3 style={{ marginTop: 6 }}>Connect this device in 30 seconds</h3>
+          <p style={{ maxWidth: 520 }}>Register to create your encrypted WireGuard identity. Zoop links your devices directly — no VPN server in the middle.</p>
+          <button className="btn btn-primary" id="overview-register-btn" onClick={onRegister} style={{ marginTop: 8 }}>
+            <Ico d={I.plus} />Create device identity — free
+          </button>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>WireGuard® · Ed25519 · Open source MIT · No tracking</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, borderTop: '1px solid var(--border)', background: 'rgba(255,255,255,0.015)' }}>
+          {[
+            { n: '01', t: 'Register', d: 'Creates your Ed25519 identity + WireGuard keys locally.' },
+            { n: '02', t: 'Share', d: 'Authorize trusted peers — family, team or your other devices.' },
+            { n: '03', t: 'Connect', d: 'Direct tunnel in one tap. Roaming between Wi-Fi ↔ 5G is automatic.' },
+          ].map(s => (
+            <div key={s.n} style={{ padding: '16px 18px', borderRight: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>{s.n}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: 4 }}>{s.t}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 4 }}>{s.d}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '12px 18px', display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)' }}>
+          <span className="badge badge-info">30 sec setup</span>
+          <span className="badge badge-neutral">Works behind NAT/CGNAT</span>
+          <span className="badge badge-success">End-to-end encrypted</span>
+        </div>
       </div>
     );
   }
@@ -261,6 +282,7 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
 const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onRegister, onToast }) => {
   const { deviceId, deviceName, deviceInfo, allDevices, devicesLoading, refreshAllDevices } = useApp();
   const [filter, setFilter] = useState('');
+  // skeletons handled via inline shimmer (S2-02)
 
   const filteredDevices = allDevices.filter(d =>
     (d.name || '').toLowerCase().includes(filter.toLowerCase()) ||
