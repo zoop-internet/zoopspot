@@ -79,8 +79,9 @@ function replaceMeta(html, route, meta) {
   out = out.replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${meta.canonical}$2`);
   // hreflang alternates — point to canonical
   out = out.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/, `$1${meta.canonical}$2`);
-  // Inject route marker for crawlers (helps verify prerender)
-  out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n</head>`);
+  // Inject route marker + BreadcrumbList for SEO (helps verify prerender + rich results)
+  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://zoop.network/"},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}<\/script>\n`;
+  out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}</head>`);
   return out;
 }
 function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

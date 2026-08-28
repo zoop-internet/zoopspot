@@ -684,7 +684,8 @@ const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data })
           <EmptyState icon={<I.search />} title="No matching accounts" desc={`No accounts match "${q.trim()}".`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Zoop ID / Username</th><th>Role</th><th>Status</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Accounts — search by name, Zoop ID, role or status</caption>
+            <thead><tr><th scope="col">Name</th><th scope="col">Zoop ID / Username</th><th scope="col">Role</th><th scope="col">Status</th></tr></thead>
             <tbody>
               {filtered.map(u => {
                 const handle = (u as any).username ? `@${(u as any).username}` : (u as any).zoop_id || u.email || '—';
@@ -788,7 +789,8 @@ const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) 
           <EmptyState icon={<I.search />} title="No matching organizations" desc={`No organizations match "${q.trim()}".`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Slug</th><th>Organization ID</th><th>Members</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Organizations — click row for detail</caption>
+            <thead><tr><th scope="col">Name</th><th scope="col">Slug</th><th scope="col">Organization ID</th><th scope="col">Members</th></tr></thead>
             <tbody>
               {filtered.map(o => (
                 <tr key={o.id.toString()}>
@@ -956,7 +958,8 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast: (ms
           <EmptyState icon={<I.search />} title="No matching devices" desc={`No endpoints match "${q.trim()}". Try a different name, OS, ID or status.`} pad="36px 24px" />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Device ID</th><th>OS</th><th>Status</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Endpoints — {filtered.length} of {data.devices.length} · Revoke suspends immediately</caption>
+            <thead><tr><th scope="col">Name</th><th scope="col">Device ID</th><th scope="col">OS</th><th scope="col">Status</th><th scope="col" style={{ textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
               {filtered.map(d => (
                 <tr key={d.id.toString()}>
@@ -1010,7 +1013,8 @@ const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ d
           <EmptyState icon={<I.zap />} title="No connections" desc="WireGuard sessions between Providers and Recipients will appear here." />
         ) : (
           <table className="data-table">
-            <thead><tr><th>Provider</th><th>Recipient</th><th>State</th><th>Provider IP</th><th>Recipient IP</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Tunnels — provider → recipient, WireGuard state</caption>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Recipient</th><th scope="col">State</th><th scope="col">Provider IP</th><th scope="col">Recipient IP</th></tr></thead>
             <tbody>
               {data.connections.map(c => (
                 <tr key={c.id.toString()}>
