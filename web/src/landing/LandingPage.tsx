@@ -159,6 +159,175 @@ const Icons = {
   ),
 };
 
+/* ─── Docs IA & Helpers — professional docs for real users ─────────────── */
+type DocItem = { id: string; title: string; file: string; desc: string };
+type DocSection = { label: string; items: DocItem[] };
+const DOCS_SECTIONS: DocSection[] = [
+  { label: 'Getting Started', items: [
+    { id: 'quickstart', title: 'Quick Start', file: 'README', desc: 'Build, run cloud + daemon, connect in 30s' },
+    { id: 'installation', title: 'Installation', file: 'platforms', desc: 'Linux, macOS, Windows, Android, iOS, OpenWrt' },
+    { id: 'configuration', title: 'Configuration', file: 'control-plane', desc: 'Env vars, STUN, TUN, ports, DB/Redis' },
+    { id: 'web-console', title: 'Web Console', file: 'web', desc: 'App + org + admin consoles, flows' },
+  ]},
+  { label: 'Core Concepts', items: [
+    { id: 'architecture', title: 'Architecture', file: 'architecture', desc: 'Control vs Data plane, direct first' },
+    { id: 'entities', title: 'Entities', file: 'entities', desc: 'Devices, shares, connections, roles' },
+    { id: 'identity', title: 'Identity & Auth', file: 'identity', desc: 'Zoop ID ZP-…, @username, 6-digit PIN' },
+    { id: 'organizations', title: 'Organizations', file: 'organizations', desc: 'Owner/Admin/Member, policies' },
+  ]},
+  { label: 'Networking', items: [
+    { id: 'networking', title: 'Networking', file: 'networking', desc: 'NAT types, hole punch, STUN/TURN' },
+    { id: 'control-plane', title: 'Control Plane', file: 'control-plane', desc: 'Identity, signaling, IPAM 100.64/10' },
+    { id: 'data-plane', title: 'Data Plane', file: 'data-plane', desc: 'WireGuard, routing, roaming' },
+    { id: 'ipam-relays', title: 'IPAM & Relays', file: 'ipam-and-relays', desc: 'Subnet allocation, DERP relays' },
+  ]},
+  { label: 'Security & API', items: [
+    { id: 'security', title: 'Security', file: 'security', desc: 'Noise_IK, ChaCha20, Ed25519, 0600' },
+    { id: 'api', title: 'API Reference', file: 'api', desc: 'REST + WebSocket, auth, lifecycle' },
+    { id: 'abuse-safety', title: 'Abuse & Safety', file: 'abuse-and-safety', desc: 'Filtering, quota, logging' },
+  ]},
+  { label: 'Reference', items: [
+    { id: 'technology', title: 'Technology', file: 'technology', desc: 'Go, React, Kotlin, Swift, WireGuard' },
+    { id: 'platforms', title: 'Platforms Deep Dive', file: 'platforms', desc: 'Per-OS TUN, VpnService, NetworkExtension' },
+    { id: 'future', title: 'Roadmap & Future', file: 'future', desc: "What's next, not yet committed" },
+  ]},
+];
+const DOCS_FLAT = DOCS_SECTIONS.flatMap(s => s.items);
+function mdToHtml(md: string): string {
+  let html = md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_m, lang, code) => `<pre data-lang="${lang||''}"><button class="docs-copy" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(code)}'))" aria-label="Copy code">Copy</button><code>${code}</code></pre>`)
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/^\s*---\s*$/gm, '<hr/>')
+    .replace(/^\s*> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+  html = html.replace(/<\/ul>\s*<ul>/g, '');
+  html = html.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+  html = `<p>${html}</p>`;
+  html = html.replace(/<p><h/g, '<h').replace(/<\/h([1-3])><\/p>/g, '</h$1>').replace(/<p><pre/g, '<pre').replace(/<\/pre><\/p>/g, '</pre>').replace(/<p><ul/g, '<ul').replace(/<\/ul><\/p>/g, '</ul>').replace(/<p><blockquote/g, '<blockquote').replace(/<\/blockquote><\/p>/g, '</blockquote>').replace(/<p><hr\/><\/p>/g, '<hr/>').replace(/<p>\s*<\/p>/g, '');
+  return html;
+}
+const QUICKSTART_MD = `# Quick Start — self-host in 2 minutes
+
+\`zoop-cloud\` is the control plane (identity, signaling, IPAM). \`zoopd\` is the daemon that owns the TUN/WireGuard tunnel. Payload never transits the cloud — direct device-to-device.
+
+## 1. Prerequisites
+- Go 1.22+, Docker (optional), TUN perms (sudo for daemon)
+
+## 2. Build
+\`\`\`bash
+git clone https://github.com/zoop-internet/zoop.git && cd zoop
+make build   # bin/zoop, bin/zoopd, bin/zoop-cloud, bin/zoop-router
+\`\`\`
+
+## 3. Run cloud (dev)
+\`\`\`bash
+./bin/zoop-cloud                      # in-mem
+# or
+ZOOP_DATABASE_URL=postgres://user:pass@localhost:5432/zoop?sslmode=disable ./bin/zoop-cloud
+\`\`\`
+
+## 4. Run daemon
+\`\`\`bash
+sudo ./bin/zoopd -tun zoop0 -api-port 9090        # foreground
+sudo ./bin/zoopd service install && sudo ./bin/zoopd service start  # systemd/launchd
+sudo ./bin/zoopd service status
+\`\`\`
+
+## 5. CLI
+\`\`\`bash
+zoop status
+zoop peers
+zoop connect <provider_endpoint_id>
+zoop telemetry
+zoop doctor   # TUN, privs, API, DNS, STUN/NAT
+\`\`\`
+
+## Env (most used)
+| Var | Default | What |
+|---|---|---|
+| ZOOP_CONTROL_PLANE_URL | http://localhost:8080 | cloud URL |
+| ZOOP_STUN_SERVER | stun.l.google.com:19302 | reflexive candidate |
+| ZOOP_TUN_NAME | zoop0 | iface |
+| ZOOP_API_PORT | 9090 | /metrics, /v1/health |
+| ZOOP_DATABASE_URL | "" | Postgres |
+| ZOOP_REDIS_URL | "" | multi-node signaling |
+`;
+
+const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = ({ initialId, onNavigateHome }) => {
+  const [activeId, setActiveId] = useState<string>(() => {
+    const fromHash = window.location.hash.replace(/^#/, '');
+    const fromPath = window.location.pathname.split('/').pop();
+    return initialId || fromHash || fromPath && DOCS_FLAT.some(d=>d.id===fromPath) ? (fromPath as string) : DOCS_FLAT[0]?.id || 'quickstart';
+  });
+  const [search, setSearch] = useState('');
+  const [md, setMd] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string|null>(null);
+  const active = DOCS_FLAT.find(d=>d.id===activeId) || DOCS_FLAT[0];
+  useEffect(()=>{ window.history.replaceState({},'', activeId==='quickstart' ? '/docs' : `/docs/${activeId}`); },[activeId]);
+  useEffect(()=>{
+    if(!active) return;
+    if(active.file==='README'){ setMd(QUICKSTART_MD); return; }
+    setLoading(true); setErr(null);
+    fetch(`/docs/${active.file}.md`).then(r=> r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))).then(t=> setMd(t)).catch(()=> setErr('Failed to load doc. Try GitHub.')).finally(()=> setLoading(false));
+  },[active]);
+  const filteredSections = DOCS_SECTIONS.map(s=> ({...s, items: s.items.filter(it=> !search || it.title.toLowerCase().includes(search.toLowerCase()) || it.desc.toLowerCase().includes(search.toLowerCase()))})).filter(s=> s.items.length>0);
+  return (
+    <div className="docs-layout">
+      <aside className="docs-sidebar" aria-label="Docs navigation">
+        <div className="docs-search-wrap">
+          <input className="docs-search" placeholder="Search docs…" aria-label="Search docs" value={search} onChange={e=>setSearch(e.target.value)} />
+        </div>
+        <nav className="docs-nav">
+          {filteredSections.map(sec=>(
+            <div key={sec.label} className="docs-sec">
+              <div className="docs-sec-label">{sec.label}</div>
+              {sec.items.map(it=>(
+                <button key={it.id} className={`docs-item ${activeId===it.id?'active':''}`} onClick={()=>setActiveId(it.id)} aria-current={activeId===it.id?'page':undefined}>
+                  <span className="docs-item-title">{it.title}</span>
+                  <span className="docs-item-desc">{it.desc}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="docs-sidebar-foot">
+          <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub →</a>
+          <span>·</span>
+          <a href="/llms.txt">llms.txt</a>
+          <span>·</span>
+          <a onClick={onNavigateHome} style={{cursor:'pointer'}}>Home</a>
+        </div>
+      </aside>
+      <section className="docs-main" aria-live="polite">
+        <div className="docs-breadcrumb"><a onClick={onNavigateHome} style={{cursor:'pointer', color:'#38bdf8'}}>Home</a> <span style={{color:'var(--line-strong)'}}>›</span> <a onClick={()=>setActiveId('quickstart')} style={{cursor:'pointer', color:'#38bdf8'}}>Docs</a> <span>›</span> {active?.title}</div>
+        <div className="docs-toolbar">
+          <h1>{active?.title}</h1>
+          <div className="docs-toolbar-actions">
+            <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" className="docs-gh-link">Edit on GitHub</a>
+            <button className="docs-copy-page" onClick={()=>navigator.clipboard.writeText(window.location.href)}>Copy link</button>
+          </div>
+        </div>
+        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#38bdf8'}}>source</a></p>
+        {loading && <div className="docs-loading"><span className="spinner" style={{width:16,height:16,display:'inline-block'}}/> Loading {active?.file}.md…</div>}
+        {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
+        {!loading && !err && <article className="docs-article" dangerouslySetInnerHTML={{__html: mdToHtml(md)}} />}
+        <div className="docs-footer-nav">
+          <button className="lp-btn-secondary" onClick={()=>{ const idx=DOCS_FLAT.findIndex(d=>d.id===activeId); if(idx>0) setActiveId(DOCS_FLAT[idx-1].id); window.scrollTo(0,0);}} disabled={DOCS_FLAT.findIndex(d=>d.id===activeId)===0}>← Prev</button>
+          <button className="lp-btn-secondary" onClick={()=>{ const idx=DOCS_FLAT.findIndex(d=>d.id===activeId); if(idx<DOCS_FLAT.length-1) setActiveId(DOCS_FLAT[idx+1].id); window.scrollTo(0,0);}} disabled={DOCS_FLAT.findIndex(d=>d.id===activeId)===DOCS_FLAT.length-1}>Next →</button>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 /* ─── Animated Counter Component ───────────────────────────────────────── */
 function AnimatedCounter({ end, unit = '', decimals = 0 }: { end: number; unit?: string; decimals?: number }) {
   const [val, setVal] = useState(0);
@@ -521,6 +690,9 @@ export const LandingPage: React.FC<{
           <button className={activeRoute === '/products' ? 'active' : ''} onClick={() => handleNav('/products')}>
             Products
           </button>
+          <button className={activeRoute === '/docs' || activeRoute.startsWith('/docs/') || activeRoute === '/documentation' || activeRoute.startsWith('/documentation/') ? 'active' : ''} onClick={() => handleNav('/docs')}>
+            Docs
+          </button>
           <button className={activeRoute === '/pricing' ? 'active' : ''} onClick={() => handleNav('/pricing')}>
             Pricing
           </button>
@@ -578,8 +750,9 @@ export const LandingPage: React.FC<{
             <button onClick={() => { handleNav('/'); setMenuOpen(false); }}>Overview</button>
             <button onClick={() => { handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</button>
             <button onClick={() => { handleNav('/products'); setMenuOpen(false); }}>Products</button>
-            <button onClick={() => { handleNav('/downloads'); setMenuOpen(false); }}>Downloads</button>
+            <button onClick={() => { handleNav('/docs'); setMenuOpen(false); }}>Docs</button>
             <button onClick={() => { handleNav('/pricing'); setMenuOpen(false); }}>Pricing</button>
+            <button onClick={() => { handleNav('/downloads'); setMenuOpen(false); }}>Downloads</button>
             <button onClick={() => { handleNav('/security'); setMenuOpen(false); }}>Security</button>
             <div className="lp-mobile-drawer-divider" />
             {isAuthenticated ? (
@@ -599,38 +772,12 @@ export const LandingPage: React.FC<{
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
-        {/* ─── DOCS HUB ───────────────────────────────── */}
-        {(activeRoute === '/docs' || activeRoute === '/documentation') && (
-          <main className="lp-page-wrapper">
-            <div className="lp-page-header">
-              <p className="lp-eyebrow">Documentation</p>
-              <h1>Zoop docs — open, verifiable, copy-paste ready.</h1>
-              <p>Quick start, architecture, security, and API. Everything is MIT and in GitHub.</p>
-            </div>
-            <div className="lp-arch-grid">
-              <a href="https://github.com/zoop-internet/zoop#quick-start" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
-                <h3>Quick Start →</h3>
-                <p><code style={{ background:'rgba(0,0,0,0.35)', border:'1px solid var(--line)', padding:'1px 6px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:'0.78rem'}}>make build && ./bin/zoop-cloud && sudo ./bin/zoopd</code> — full CLI guide in README.</p>
-              </a>
-              <a href="https://github.com/zoop-internet/zoop/blob/main/docs/api.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
-                <h3>API Reference →</h3>
-                <p>Control Plane REST + WebSocket signaling, auth `zoop-auth-v2`, IPAM `100.64.0.0/10`. OpenAPI in docs/api.md.</p>
-              </a>
-              <a href="https://github.com/zoop-internet/zoop/blob/main/docs/architecture.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
-                <h3>Architecture →</h3>
-                <p>Control vs Data plane, STUN/TURN, roaming via Netlink, relay fallback. Diagrams in docs/architecture.md.</p>
-              </a>
-              <a href="https://github.com/zoop-internet/zoop/blob/main/SECURITY.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
-                <h3>Security →</h3>
-                <p>WireGuard Noise_IK, Ed25519, 0600 keys, nonce cache. See SECURITY.md + /security page.</p>
-              </a>
-            </div>
-            <div style={{ marginTop:28, background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:12, padding:16 }}>
-              <h3 style={{ fontSize:'0.9rem', fontWeight:800, marginBottom:8}}>For AI / answer engines</h3>
-              <p style={{ fontSize:'0.8125rem', color:'var(--muted)', margin:0}}>Use <a href="/llms.txt" style={{color:'#38bdf8'}}>llms.txt</a> (summary) or <a href="/llms-full.txt" style={{color:'#38bdf8'}}>llms-full.txt</a> (4kB full dump). Every marketing page has prerendered HTML + FAQPage JSON-LD.</p>
-            </div>
-            <div style={{ marginTop:32, textAlign:'center'}}><button className="lp-btn-secondary" onClick={()=>handleNav('/')}>← Back to Overview</button></div>
-          </main>
+        {/* ─── DOCS — professional sidebar + rendered markdown from /docs/*.md ─ */}
+        {(activeRoute === '/docs' || activeRoute.startsWith('/docs/') || activeRoute === '/documentation' || activeRoute.startsWith('/documentation/')) && (
+          <DocsView key={activeRoute} initialId={(() => {
+            const seg = activeRoute.replace(/^\/docs\/?/,'').replace(/^\/documentation\/?/,'').split('/')[0].split('?')[0].split('#')[0];
+            return DOCS_FLAT.some(d=>d.id===seg) ? seg : (activeRoute.includes('quickstart') ? 'quickstart' : DOCS_FLAT[0].id);
+          })()} onNavigateHome={() => handleNav('/')} />
         )}
 
         {/* ─── DEDICATED PRICING PAGE ───────────────────────────────── */}

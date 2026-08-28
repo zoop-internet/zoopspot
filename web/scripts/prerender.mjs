@@ -86,7 +86,7 @@ function replaceMeta(html, route, meta) {
   // hreflang alternates — point to canonical
   out = out.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/, `$1${meta.canonical}$2`);
   // Inject route marker + BreadcrumbList for SEO (helps verify prerender + rich results)
-  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://zoop.network/"},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}<\/script>\n`;
+  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://zoop.network/"},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}</script>\n`;
   out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}</head>`);
   return out;
 }
@@ -109,6 +109,26 @@ for (const [route, meta] of Object.entries(ROUTES)) {
   writeFileSync(file, html, 'utf8');
   count++;
   console.log(`Prerendered ${route} -> ${file}`);
+}
+// Prerender docs subpages (each doc as /docs/<id>) for deep linking + SEO
+const DOCS_IDS = ['quickstart','installation','configuration','web-console','architecture','entities','identity','organizations','networking','control-plane','data-plane','ipam-relays','security','api','abuse-safety','technology','platforms','future'];
+for (const id of DOCS_IDS) {
+  const route = `/docs/${id}`;
+  const meta = {
+    title: `${id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} — Docs | Zoop`,
+    desc: `Zoop documentation — ${id.replace(/-/g,' ')}: open-source, WireGuard, STUN/TURN, self-hostable.`,
+    canonical: `https://zoop.network${route}`,
+    ogImage: 'https://zoop.network/og-image.png',
+  };
+  // Use /docs base template but with subroute meta
+  const baseMeta = ROUTES['/docs'];
+  const useMeta = { ...baseMeta, ...meta, title: meta.title.includes('Quickstart') ? 'Quick Start — Docs | Zoop' : meta.title };
+  const html = replaceMeta(template, route, useMeta);
+  const dir = join(DIST, route.replace(/^\//, ''));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'index.html'), html, 'utf8');
+  count++;
+  console.log(`Prerendered ${route} -> ${join(dir, 'index.html')}`);
 }
 // Also ensure root has prerender tag
 {
