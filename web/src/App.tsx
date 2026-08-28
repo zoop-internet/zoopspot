@@ -20,6 +20,7 @@ const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/downloads': { title: 'Download Zoop — Free for Linux, macOS, Windows, Mobile & Routers', desc: 'Download Zoop free: .deb, .pkg, .msi, APK, iOS beta & router .ipk. One-tap install, open-source MIT.' },
   '/security': { title: 'Security & Privacy — End-to-End Encrypted, Open Source, No Tracking', desc: 'Zoop is end-to-end encrypted (WireGuard), Ed25519 auth, zero tracking logs, open source & audited. Your traffic stays private.' },
   '/pricing': { title: 'Pricing — Free Personal, Teams Coming Soon | Zoop', desc: 'Free forever for personal (5 devices, unlimited tunnels). Organizations with fleet, audit and relay controls — join founding waitlist.' },
+  '/docs': { title: 'Documentation — Quick Start, API, Architecture | Zoop', desc: 'Start in 30s, read architecture and API reference. Open-source MIT — GitHub docs, examples, and llms.txt for AI.' },
   '/auth': { title: 'Sign In — Zoop ID & PIN | Create Your Permanent Identity', desc: 'Sign in with your Zoop ID (ZP-...) and 6-digit PIN or create a new identity in 30 seconds. No email required.' },
   '/app': { title: 'Console — Personal Devices & Connections | Zoop', desc: 'Manage your Zoop devices, connections and sharing — private device mesh console.' },
   '/org': { title: 'Organization — Teams & Fleet Management | Zoop', desc: 'Manage organization members, fleet devices and access policies.' },

@@ -599,6 +599,40 @@ export const LandingPage: React.FC<{
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
+        {/* ─── DOCS HUB ───────────────────────────────── */}
+        {(activeRoute === '/docs' || activeRoute === '/documentation') && (
+          <main className="lp-page-wrapper">
+            <div className="lp-page-header">
+              <p className="lp-eyebrow">Documentation</p>
+              <h1>Zoop docs — open, verifiable, copy-paste ready.</h1>
+              <p>Quick start, architecture, security, and API. Everything is MIT and in GitHub.</p>
+            </div>
+            <div className="lp-arch-grid">
+              <a href="https://github.com/zoop-internet/zoop#quick-start" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
+                <h3>Quick Start →</h3>
+                <p><code style={{ background:'rgba(0,0,0,0.35)', border:'1px solid var(--line)', padding:'1px 6px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:'0.78rem'}}>make build && ./bin/zoop-cloud && sudo ./bin/zoopd</code> — full CLI guide in README.</p>
+              </a>
+              <a href="https://github.com/zoop-internet/zoop/blob/main/docs/api.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
+                <h3>API Reference →</h3>
+                <p>Control Plane REST + WebSocket signaling, auth `zoop-auth-v2`, IPAM `100.64.0.0/10`. OpenAPI in docs/api.md.</p>
+              </a>
+              <a href="https://github.com/zoop-internet/zoop/blob/main/docs/architecture.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
+                <h3>Architecture →</h3>
+                <p>Control vs Data plane, STUN/TURN, roaming via Netlink, relay fallback. Diagrams in docs/architecture.md.</p>
+              </a>
+              <a href="https://github.com/zoop-internet/zoop/blob/main/SECURITY.md" target="_blank" rel="noreferrer" className="lp-arch-card" style={{ textDecoration:'none', cursor:'pointer'}}>
+                <h3>Security →</h3>
+                <p>WireGuard Noise_IK, Ed25519, 0600 keys, nonce cache. See SECURITY.md + /security page.</p>
+              </a>
+            </div>
+            <div style={{ marginTop:28, background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:12, padding:16 }}>
+              <h3 style={{ fontSize:'0.9rem', fontWeight:800, marginBottom:8}}>For AI / answer engines</h3>
+              <p style={{ fontSize:'0.8125rem', color:'var(--muted)', margin:0}}>Use <a href="/llms.txt" style={{color:'#38bdf8'}}>llms.txt</a> (summary) or <a href="/llms-full.txt" style={{color:'#38bdf8'}}>llms-full.txt</a> (4kB full dump). Every marketing page has prerendered HTML + FAQPage JSON-LD.</p>
+            </div>
+            <div style={{ marginTop:32, textAlign:'center'}}><button className="lp-btn-secondary" onClick={()=>handleNav('/')}>← Back to Overview</button></div>
+          </main>
+        )}
+
         {/* ─── DEDICATED PRICING PAGE ───────────────────────────────── */}
         {activeRoute === '/pricing' && (
           <main className="lp-page-wrapper">
@@ -1288,6 +1322,7 @@ export const LandingPage: React.FC<{
               <h4>Learn More</h4>
               <ul>
                 <li><a onClick={() => handleNav('/how-it-works')}>How It Works</a></li>
+                <li><a onClick={() => handleNav('/docs')}>Documentation</a></li>
                 <li><a onClick={() => handleNav('/security')}>Privacy &amp; Security</a></li>
                 <li><a onClick={() => handleNav('/products')}>Ecosystem Overview</a></li>
                 <li><a onClick={() => handleNav('/downloads')}>Supported Devices</a></li>
@@ -1298,7 +1333,7 @@ export const LandingPage: React.FC<{
               <h4>Community</h4>
               <ul>
                 <li><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
-                <li><a onClick={() => handleNav('/how-it-works')}>Documentation</a></li>
+                <li><a onClick={() => handleNav('/docs')}>Documentation Hub</a></li>
                 <li><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
                 <li><a onClick={() => handleNav('/security')}>Security Policy</a></li>
               </ul>

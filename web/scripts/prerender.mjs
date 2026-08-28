@@ -54,6 +54,12 @@ const ROUTES = {
     canonical: 'https://zoop.network/pricing',
     ogImage: 'https://zoop.network/og-image.png',
   },
+  '/docs': {
+    title: 'Documentation — Quick Start, API, Architecture | Zoop',
+    desc: 'Start in 30s, read architecture and API reference. Open-source MIT — GitHub docs, examples, and llms.txt for AI.',
+    canonical: 'https://zoop.network/docs',
+    ogImage: 'https://zoop.network/og-image.png',
+  },
   '/auth': {
     title: 'Sign In — Zoop ID & PIN | Create Your Permanent Identity',
     desc: 'Sign in with your Zoop ID (ZP-...) and 6-digit PIN or create a new identity in 30 seconds. No email required.',
