@@ -180,37 +180,58 @@ function useAdminData() {
   const hasLoadedRef = useRef(false);
 
   const reload = useCallback(() => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    Promise.all([
+    // Batch 1: core platform data — tolerate partial failures via allSettled
+    Promise.allSettled([
       listDevices(), adminListOrganizations(), adminListConnections(), adminServices(),
       adminUsers(), adminNetwork(), adminAudit(), adminUsage(), adminRelays(),
     ])
-      .then(async ([d, o, c, svc, u, nw, au, us, rl]) => {
-        setDevices(d ?? []);
-        setOrgs(o ?? []);
-        setConnections(c ?? []);
-        setServices(svc ?? {});
-        setUsers(u ?? []);
-        setNetwork(nw ?? null);
-        setAudit(au ?? []);
-        setUsage(us ?? null);
-        setRelays(rl ?? []);
+      .then(async (results) => {
+        if (controller.signal.aborted) return;
+        const [d, o, c, svc, u, nw, au, us, rl] = results.map(r => r.status === 'fulfilled' ? (r as PromiseFulfilledResult<unknown>).value : null);
+        if (results.some(r => r.status === 'rejected') && !hasLoadedRef.current) {
+          // surface first error on initial load
+          setError('Some platform data failed to load — retrying.');
+        }
+        setDevices((d as ApiDevice[]) ?? []);
+        setOrgs((o as ApiOrg[]) ?? []);
+        setConnections((c as ApiConnection[]) ?? []);
+        setServices((svc as Record<string, ApiServiceHealth>) ?? {});
+        setUsers((u as ApiAdminUser[]) ?? []);
+        setNetwork((nw as ApiNetworkUsage) ?? null);
+        setAudit((au as ApiAuditEvent[]) ?? []);
+        setUsage((us as ApiUsage) ?? null);
+        setRelays((rl as unknown[]) ?? []);
+        const orgsList = (o as ApiOrg[]) ?? [];
+        // Fetch members with concurrency limit 4 to avoid saturating RateLimiter (300/min)
         const memberMap: Record<string, ApiOrgMember[]> = {};
-        await Promise.all(o.map(async org => {
-          try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
-          catch { memberMap[org.id.toString()] = []; }
-        }));
+        const limit = 4;
+        for (let i = 0; i < orgsList.length; i += limit) {
+          const batch = orgsList.slice(i, i + limit);
+          await Promise.all(batch.map(async org => {
+            if (controller.signal.aborted) return;
+            try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
+            catch { memberMap[org.id.toString()] = []; }
+          }));
+        }
+        if (controller.signal.aborted) return;
         setOrgMembers(memberMap);
         setHasLoaded(true);
         hasLoadedRef.current = true;
         setLastUpdated(new Date());
+        if (results.every(r => r.status === 'rejected') && !hasLoadedRef.current) {
+          setError('Failed to load platform data. Check that the control plane is reachable.');
+        }
       })
       .catch(() => {
-        // Keep last known state on refresh failures; surface the error on first load.
         if (!hasLoadedRef.current) setError('Failed to load platform data. Check that the control plane is reachable.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -297,7 +318,8 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   } = data;
 
   const stateCounts = useMemo(() => usage?.connections_by_state ?? {}, [usage]);
-  const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => c.state === 'CONNECTED').length;
+  // Active = CONNECTED live tunnels; fallback to filtered connections for accuracy
+  const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => ['CONNECTED','AUTHORIZED','CONNECTING'].includes(c.state)).length;
   const pendingRequests = stateCounts['REQUESTED'] ?? connections.filter(c => c.state === 'REQUESTED').length;
   const utilization = network?.utilization_pct ?? null;
   const ipamWarn = utilization !== null && utilization > 80;
