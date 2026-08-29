@@ -462,6 +462,63 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
                   <button className="btn btn-secondary btn-xs" onClick={() => onNavigate('connections')}>Review</button>
                 </div>
               )}
+              {/* Relays — inside Tunnel Health (admin-created) */}
+              <div style={{ height: 1, background: 'var(--border-subtle)', marginTop: 6 }} />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                    Relays · {relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}
+                  </span>
+                  <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
+                </div>
+                {relaySummary.total === 0 ? (
+                  <div style={{ padding: '10px 12px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>No relays — tunnels use direct STUN. Admins add relays in <b>Relays → Add relay</b> for symmetric NAT fallback; active fallback count appears here.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
+                    {(relaySummary.nodes as Array<Record<string, any>>).slice(0, 3).map((r) => {
+                      const id = String(r.id ?? '');
+                      const region = String(r.region ?? '—');
+                      const host = String(r.host ?? '—');
+                      const port = r.port ? `:${r.port}` : '';
+                      const ws = String(r.websocket_url ?? r.WebSocketURL ?? '');
+                      const status = String(r.status ?? 'online');
+                      const active = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
+                      const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
+                      const stun = r.stun_port ?? r.STUNPort;
+                      const turn = r.turn_port ?? r.TURNPort;
+                      const pct = cap > 0 ? Math.min(100, Math.round((active / cap) * 100)) : 0;
+                      const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
+                      const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
+                      return (
+                        <div key={id} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{id}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, background: 'rgba(56,189,248,0.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.18)' }}>{region}</span>
+                              <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, boxShadow: status === 'online' ? `0 0 0 3px ${statusColor}22` : undefined }} title={status} />
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {host}{port} {ws ? `· ${ws}` : ''} {stun ? `· STUN:${stun}` : ''} {turn ? `· TURN:${turn}` : ''}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : pct > 65 ? '#f59e0b' : '#22c55e', borderRadius: 999 }} />
+                            </div>
+                            <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{active.toLocaleString()}/{cap.toLocaleString()} · {pct}%</span>
+                          </div>
+                          {heartbeat && <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Heartbeat {new Date(String(heartbeat)).toLocaleTimeString()} · {status}</div>}
+                        </div>
+                      );
+                    })}
+                    {relaySummary.total > 3 && (
+                      <button className="ov-panel-link" style={{ alignSelf: 'flex-start' }} onClick={() => onNavigate('relays')}>View all {relaySummary.total} relays <I.chevronR /></button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -513,65 +570,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               )}
             </div>
 
-            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
-
-            {/* Relays — admin-created, detailed */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  Relays · {relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}
-                </span>
-                <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
-              </div>
-              {relaySummary.total === 0 ? (
-                <div style={{ padding: '12px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>No relays yet</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Admins create relays to handle symmetric NATfallback. Add one in <b>Relays → Add relay</b> (region, host, ports). Once added, tunnels automatically select the lowest-latency relay.</div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
-                  {(relaySummary.nodes as Array<Record<string, any>>).slice(0, 3).map((r) => {
-                    const id = String(r.id ?? '');
-                    const region = String(r.region ?? '—');
-                    const host = String(r.host ?? '—');
-                    const port = r.port ? `:${r.port}` : '';
-                    const ws = String(r.websocket_url ?? r.WebSocketURL ?? '');
-                    const status = String(r.status ?? 'online');
-                    const active = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
-                    const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
-                    const stun = r.stun_port ?? r.STUNPort;
-                    const turn = r.turn_port ?? r.TURNPort;
-                    const pct = cap > 0 ? Math.min(100, Math.round((active / cap) * 100)) : 0;
-                    const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
-                    const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
-                    return (
-                      <div key={id} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{id}</span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, background: 'rgba(56,189,248,0.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.18)' }}>{region}</span>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, boxShadow: status === 'online' ? `0 0 0 3px ${statusColor}22` : undefined }} title={status} />
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {host}{port} {ws ? `· ${ws}` : ''} {stun ? `· STUN:${stun}` : ''} {turn ? `· TURN:${turn}` : ''}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : pct > 65 ? '#f59e0b' : '#22c55e', borderRadius: 999 }} />
-                          </div>
-                          <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{active.toLocaleString()}/{cap.toLocaleString()} · {pct}%</span>
-                        </div>
-                        {heartbeat && <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Heartbeat {new Date(String(heartbeat)).toLocaleTimeString()} · {status}</div>}
-                      </div>
-                    );
-                  })}
-                  {relaySummary.total > 3 && (
-                    <button className="ov-panel-link" style={{ alignSelf: 'flex-start' }} onClick={() => onNavigate('relays')}>View all {relaySummary.total} relays <I.chevronR /></button>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
