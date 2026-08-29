@@ -188,6 +188,17 @@ const DOCS_SECTIONS: DocSection[] = [
 const DOCS_FLAT = DOCS_SECTIONS.flatMap(s => s.items);
 function slugify(s: string){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60); }
 function escapeHtmlRaw(s:string){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function sanitizeHref(href: string): string {
+  const h = href.trim();
+  if (h.startsWith('#') || h.startsWith('/') || h.startsWith('./') || h.startsWith('../')) return h;
+  if (/^(https?:\/\/|mailto:)/i.test(h)) return h;
+  if (h.startsWith('http://') || h.startsWith('https://')) return h;
+  // block javascript:, data:, vbscript:
+  if (/^(javascript|data|vbscript):/i.test(h)) return '#';
+  // allow relative without slash
+  if (!/:/.test(h)) return h;
+  return '#';
+}
 function mdToHtml(md: string): string {
   // Extract code fences first to avoid escaping inside
   const fences: string[] = [];
@@ -198,6 +209,7 @@ function mdToHtml(md: string): string {
     fences.push(`${hdr}<pre><code>${safe}</code></pre>`);
     return `\uE000${idx}\uE001`;
   });
+  // Escape html once — fences already extracted, so no double-encode inside fences
   tmp = tmp.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // tables: | a | b |\n|---|---|\n| c | d |
   tmp = tmp.replace(/^\|(.+)\|\n\|[-| :]*\|\n((?:\|.*\|\n?)+)/gm, (_m, head, body)=>{
@@ -209,12 +221,12 @@ function mdToHtml(md: string): string {
     return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
   });
   let html = tmp
-    .replace(/^### (.+)$/gm, (_m, t)=> `<h3 id="${slugify(t)}">${t}</h3>`)
-    .replace(/^## (.+)$/gm, (_m, t)=> `<h2 id="${slugify(t)}">${t}</h2>`)
-    .replace(/^# (.+)$/gm, (_m, t)=> `<h1 id="${slugify(t)}">${t}</h1>`)
+    .replace(/^### (.+)$/gm, (_m, t)=> `<h3 id="${slugify(t)}">${escapeHtmlRaw(t)}</h3>`)
+    .replace(/^## (.+)$/gm, (_m, t)=> `<h2 id="${slugify(t)}">${escapeHtmlRaw(t)}</h2>`)
+    .replace(/^# (.+)$/gm, (_m, t)=> `<h1 id="${slugify(t)}">${escapeHtmlRaw(t)}</h1>`)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/`([^`]+)`/g, (_m, c)=> `<code>${c}</code>`)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, href)=> `<a href="${escapeHtmlRaw(sanitizeHref(href))}" target="_blank" rel="noreferrer noopener">${label}</a>`)
     .replace(/^\s*---\s*$/gm, '<hr/>')
     .replace(/^\s*> (.+)$/gm, '<blockquote>$1</blockquote>')
     .replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>');
@@ -678,6 +690,10 @@ function AnimatedCounter({ end, unit = '', decimals = 0 }: { end: number; unit?:
 
   useEffect(() => {
     if (!started) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setVal(end);
+      return;
+    }
     let startTimestamp: number | null = null;
     const duration = 1400;
     const step = (timestamp: number) => {
@@ -917,20 +933,29 @@ export const LandingPage: React.FC<{
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
   }, [menuOpen]);
 
+  const navTimersRef = React.useRef<number[]>([]);
   const handleNav = (path: string) => {
     if (currentPath === path) return;
+    // Clear any pending nav timers to avoid queueing
+    navTimersRef.current.forEach(id => clearTimeout(id));
+    navTimersRef.current = [];
     setLoadingVisible(true);
-    setLoadingProgress(35);
-    setTimeout(() => setLoadingProgress(75), 50);
-    setTimeout(() => {
+    setLoadingProgress(0);
+    // Use rAF for smooth progress, not nested timeouts
+    requestAnimationFrame(() => setLoadingProgress(35));
+    const t1 = window.setTimeout(() => setLoadingProgress(75), 80);
+    const t2 = window.setTimeout(() => {
       setLoadingProgress(100);
       onNavigate(path);
-      setTimeout(() => {
+      const t3 = window.setTimeout(() => {
         setLoadingVisible(false);
         setLoadingProgress(0);
-      }, 160);
-    }, 140);
+      }, 180);
+      navTimersRef.current.push(t3);
+    }, 180);
+    navTimersRef.current.push(t1, t2);
   };
+  useEffect(() => () => { navTimersRef.current.forEach(id => clearTimeout(id)); }, []);
 
   const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
