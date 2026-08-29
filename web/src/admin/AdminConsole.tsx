@@ -554,15 +554,38 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
   const [busy, setBusy] = useState<string|null>(null);
   const toast = (m:string, t:'success'|'error'|'info'='info')=> onToast ? onToast(m,t) : console.log(m);
 
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastCheck, setLastCheck] = useState<string|null>(null);
+  const [showIncident, setShowIncident] = useState(false);
+  const [sev, setSev] = useState('2');
+  const [incTitle, setIncTitle] = useState('');
+
+  useEffect(()=>{
+    if(!autoRefresh) return;
+    const id = window.setInterval(()=> { data.reload(); setLastCheck(new Date().toLocaleTimeString()); }, 30000);
+    return ()=> clearInterval(id);
+  },[autoRefresh, data]);
+
+  const runChecks = async ()=>{
+    setBusy('checks'); setLastCheck(new Date().toLocaleTimeString());
+    try { await data.reload(); toast('Checks refreshed — services, IPAM, relays re-queried','success'); } catch{ toast('Checks failed','error'); } finally{ setBusy(null); }
+  };
   const runScaleCoturn = async ()=>{
     setBusy('scale'); try { await adminAddRelay({ id:`relay-${Date.now()}`, region:'auto', host:`relay-${Date.now()%1000}.zoop.local`, port:3478 }); toast('Relay add queued — check Relays tab','success'); data.reload(); } catch(e){ toast(e instanceof Error? e.message:'Scale failed','error'); } finally{ setBusy(null); }
   };
   const runFlushRedis = async ()=>{
-    setBusy('redis'); toast('Redis flush — ephemeral signaling will re-heal (no backend yet, stub)','info'); setTimeout(()=>{ setBusy(null); data.reload(); }, 600);
+    setBusy('redis'); toast('Redis flush — ephemeral signaling will re-heal (stub POST /v1/admin/cache/flush)','info'); setTimeout(()=>{ setBusy(null); data.reload(); }, 600);
   };
   const runRestartStore = async ()=>{
-    setBusy('store'); toast('Store pool restart queued (stub — needs POST /v1/admin/services/store/restart)','info'); setTimeout(()=>setBusy(null), 800);
+    setBusy('store'); toast('Store pool restart queued (stub POST /v1/admin/services/store/restart)','info'); setTimeout(()=>setBusy(null), 800);
   };
+  const createIncident = async (e:React.FormEvent)=>{
+    e.preventDefault(); if(!incTitle.trim()) return;
+    toast(`Incident SEV-${sev}: ${incTitle.trim()} — stub POST /v1/admin/incidents`,'success');
+    setShowIncident(false); setIncTitle('');
+  };
+  // capacity forecast
+  const forecastDays = (()=>{ if(!data.network) return null; const cap=data.network.capacity; const alloc=data.network.subnets_allocated; const remaining=cap-alloc; const perDay=Math.max(1, Math.round(alloc/30)); return Math.round(remaining/perDay); })();
 
   return (
     <>
@@ -587,7 +610,10 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
       <div className="section">
         <div className="section-header">
           <span className="section-title">Live Service Health</span>
-          <div style={{ display:'flex', gap:6 }}>
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:'0.6875rem', color:'var(--text-muted)' }}><input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)} /> Auto 30s</label>
+            {lastCheck && <span style={{ fontSize:'0.6875rem', color:'var(--text-muted)' }}>Checked {lastCheck}</span>}
+            <button className="btn btn-ghost btn-xs" onClick={runChecks} disabled={!!busy}>{busy==='checks'?<span className="spinner" style={{width:12,height:12}}/>:'Run checks'}</button>
             <button className="btn btn-ghost btn-xs" onClick={runScaleCoturn} disabled={!!busy}>{busy==='scale'?<span className="spinner" style={{width:12,height:12}}/>:'Scale coturn +1'}</button>
             <button className="btn btn-ghost btn-xs" onClick={runFlushRedis} disabled={!!busy}>{busy==='redis'?<span className="spinner" style={{width:12,height:12}}/>:'Flush Redis'}</button>
             <button className="btn btn-ghost btn-xs" onClick={runRestartStore} disabled={!!busy}>{busy==='store'?<span className="spinner" style={{width:12,height:12}}/>:'Restart store'}</button>
@@ -602,16 +628,24 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
         </div>
         {data.network && (
           <div style={{ padding:'0 16px 12px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.6875rem', color:'var(--text-muted)', marginBottom:6 }}><span>IPAM 100.64.0.0/10</span><span>{data.network.utilization_pct.toFixed(1)}% · {data.network.subnets_allocated}/{data.network.capacity}</span></div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.6875rem', color:'var(--text-muted)', marginBottom:6 }}><span>IPAM 100.64.0.0/10 — forecast {forecastDays!==null? `~${forecastDays}d to full` : '—'}</span><span>{data.network.utilization_pct.toFixed(1)}% · {data.network.subnets_allocated}/{data.network.capacity}</span></div>
             <div className="ov-bar" style={{height:8}}><div className={`ov-bar-fill ${data.network.utilization_pct>85?'danger':data.network.utilization_pct>60?'warn':'ok'}`} style={{width:`${Math.min(100,data.network.utilization_pct)}%`}}/></div>
           </div>
         )}
       </div>
 
+      {showIncident && (
+        <form className="section" onSubmit={createIncident} style={{ padding:16, display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div className="field" style={{ flex:1, minWidth:160 }}><label>SEV</label><select value={sev} onChange={e=>setSev(e.target.value)}><option value="1">SEV-1 Critical</option><option value="2">SEV-2 High</option><option value="3">SEV-3 Medium</option></select></div>
+          <div className="field" style={{ flex:2, minWidth:240 }}><label>Title</label><input value={incTitle} onChange={e=>setIncTitle(e.target.value)} placeholder="e.g. coturn saturated us-east" required /></div>
+          <button type="submit" className="btn btn-primary btn-sm">Create</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={()=>setShowIncident(false)}>Cancel</button>
+        </form>
+      )}
       <div className="section">
         <div className="section-header">
           <span className="section-title">Incident Timeline</span>
-          <button className="btn btn-primary btn-xs" onClick={()=> toast('Create incident — stub POST /v1/admin/incidents','info')}><I.plus/> New incident</button>
+          <button className="btn btn-primary btn-xs" onClick={()=> setShowIncident(v=>!v)}><I.plus/> New incident</button>
         </div>
         {incidents.length===0 ? (
           <EmptyState icon={<I.activity />} title="No incidents" desc="SEV-1/2 incidents per docs/runbooks/incident-response.md appear here. Recent audit is quiet." />
