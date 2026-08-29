@@ -7,9 +7,11 @@
  * Signs authenticated requests using WebCrypto Ed25519 keys.
  */
 
-import { buildSignedAuthHeaders } from './identity';
+import { buildSignedAuthHeaders, NotAuthenticatedError } from './identity';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
+
+export { NotAuthenticatedError };
 
 // ─── Types matching the Go API ────────────────────────────────
 export interface ApiDevice {

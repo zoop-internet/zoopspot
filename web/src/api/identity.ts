@@ -85,7 +85,16 @@ export async function generateAndSaveIdentity(name: string): Promise<{ publicKey
 
   localStorage.setItem(NAME_KEY, name);
   localStorage.setItem(PUB_KEY, pubB64);
-  localStorage.setItem(PRIV_KEY, privB64);
+  // Private key in sessionStorage (tab-scoped, cleared on close) for reduced XSS persistence.
+  // Fallback to localStorage is handled in getPrivateKey for migration.
+  try {
+    sessionStorage.setItem(PRIV_KEY, privB64);
+    // Remove legacy localStorage copy if present
+    localStorage.removeItem(PRIV_KEY);
+  } catch {
+    // sessionStorage unavailable (e.g. in some private modes) — fallback to localStorage
+    localStorage.setItem(PRIV_KEY, privB64);
+  }
 
   return { publicKeyB64: pubB64 };
 }
@@ -98,9 +107,16 @@ export async function getPrivateKey(): Promise<CryptoKey | null> {
     return cachedPrivateKey;
   }
 
-  const privB64 = localStorage.getItem(PRIV_KEY) || sessionStorage.getItem(PRIV_KEY);
+  const privB64 = sessionStorage.getItem(PRIV_KEY) || localStorage.getItem(PRIV_KEY);
   if (!privB64) {
     return null;
+  }
+  // One-time migration: promote localStorage key to sessionStorage
+  if (!sessionStorage.getItem(PRIV_KEY) && localStorage.getItem(PRIV_KEY)) {
+    try {
+      sessionStorage.setItem(PRIV_KEY, privB64);
+      localStorage.removeItem(PRIV_KEY);
+    } catch { /* ignore */ }
   }
 
   try {
@@ -124,6 +140,17 @@ export async function getPrivateKey(): Promise<CryptoKey | null> {
  * Signs an HTTP request payload according to the Zoop Auth v2 specification:
  * Canonical String: `zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH`
  */
+export class NotAuthenticatedError extends Error {
+  constructor(msg = 'Not signed in — no device identity') {
+    super(msg);
+    this.name = 'NotAuthenticatedError';
+  }
+}
+
+export function isAuthenticated(): boolean {
+  return Boolean(getSavedEndpointId() ?? getSavedDeviceId());
+}
+
 export async function buildSignedAuthHeaders(
   method: string,
   path: string,
@@ -133,7 +160,7 @@ export async function buildSignedAuthHeaders(
   // the cloud AuthMiddleware resolves. The device_id is a separate registry record.
   const endpointId = getSavedEndpointId() ?? getSavedDeviceId();
   if (!endpointId) {
-    return {};
+    throw new NotAuthenticatedError();
   }
 
   const privKey = await getPrivateKey();

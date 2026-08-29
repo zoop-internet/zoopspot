@@ -169,12 +169,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return cleanup;
   }, [localMode]);
 
-  // Load device info when we have a deviceId
+  // Load device info when we have a deviceId — only clear on 404/not found, not on auth/network errors
   useEffect(() => {
     if (!deviceId) { setDeviceInfo(null); return; }
     getDevice(deviceId)
       .then(d => setDeviceInfo(d))
-      .catch(() => {
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : '';
+        const isNotFound = msg.toLowerCase().includes('not found') || msg.includes('404');
+        if (!isNotFound) {
+          setDeviceInfo(null);
+          return;
+        }
         // Stored identity no longer exists server-side (e.g. cloud reset).
         // Clear it so auto-register can create a fresh identity.
         setDeviceInfo(null);

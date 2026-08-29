@@ -3,6 +3,7 @@ import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 import { MobileBottomNav } from '../../components/MobileBottomNav';
+import { isDaemonMixedContentBlocked } from '../../api/daemon';
 
 /* ─── Icon helpers ───────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) =>
@@ -60,8 +61,6 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
 };
 
 /* ─── Daemon status card ──────────────────────────────────────── */
-
-/* ─── Daemon status card ──────────────────────────────────────── */
 const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { localMode, daemonChecking, daemonStatus, daemonTelemetry, daemonPeers, refreshDaemon } = useApp();
 
@@ -87,14 +86,22 @@ const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'e
   }
 
   if (!localMode || !daemonStatus) {
+    const blocked = isDaemonMixedContentBlocked();
     return (
       <div className="section">
         <div className="section-header">
           <span className="section-title">Local daemon (zoopd)</span>
           <span className="badge badge-neutral">Not detected</span>
         </div>
-        <div className="inline-empty">
-          Install and start <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>zoopd</code> to manage WireGuard tunnels from this device.
+        <div className="inline-empty" style={{ flexDirection: 'column', gap: 6 }}>
+          <div>
+            Install and start <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>zoopd</code> to manage WireGuard tunnels from this device.
+          </div>
+          {blocked && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--amber)', maxWidth: 520, lineHeight: 1.5 }}>
+              Page is on <b>https</b> — browsers block plain <code>http://127.0.0.1:9090</code> as mixed-content. Open via <code>http://localhost:5173</code> for local daemon or set <code>VITE_DAEMON_BASE</code> to an https tunnel.
+            </div>
+          )}
         </div>
       </div>
     );
