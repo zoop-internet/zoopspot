@@ -21,10 +21,17 @@ import type { DaemonStatus, DaemonPeer, DaemonTelemetryEntry, DaemonStreamSnapsh
 import type { UserProfile } from '../types';
 
 // Helpers per docs/identity.md — Zoop ID is permanent, username is mutable handle, PIN is 6 digits
+// Uses crypto.getRandomValues for unbiased entropy; ID is provisional until server confirms (no reserve endpoint yet).
 function generateZoopId(): string {
   const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const buf = new Uint32Array(6);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(buf);
+  } else {
+    for (let i = 0; i < 6; i++) buf[i] = Math.floor(Math.random() * 0xffffffff);
+  }
   let suffix = '';
-  for (let i = 0; i < 6; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 6; i++) suffix += alphabet[buf[i] % alphabet.length];
   return `ZP-${suffix}`;
 }
 function normalizeUsername(raw: string): string {
