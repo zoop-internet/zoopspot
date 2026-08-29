@@ -272,12 +272,22 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
     return () => window.removeEventListener('zoop:open-create-org' as any, h);
   }, []);
 
+  const toastTimers = React.useRef<Map<string, number>>(new Map());
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    const timer = window.setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimers.current.delete(id);
+    }, 4000);
+    toastTimers.current.set(id, timer);
   };
-  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+  const removeToast = (id: string) => {
+    const timer = toastTimers.current.get(id);
+    if (timer) { clearTimeout(timer); toastTimers.current.delete(id); }
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+  React.useEffect(() => () => { toastTimers.current.forEach(t => clearTimeout(t)); }, []);
 
   const filteredMembers = orgMembers.filter(m => {
     const handle = (m as any).username || (m as any).zoop_id || m.email || '';

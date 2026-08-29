@@ -348,7 +348,13 @@ const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type
             </button>
           </div>
         </div>
-        {allDevices.length === 0 ? (
+        {devicesLoading && allDevices.length === 0 ? (
+          <div style={{ padding: '16px' }}>
+            <div className="skeleton skeleton-line" style={{ height: 14, width: '40%', marginBottom: 12 }} />
+            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
+            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
+          </div>
+        ) : allDevices.length === 0 ? (
           <div className="empty-state" style={{ padding: '40px 24px' }}>
             <div className="empty-icon"><Ico d={I.monitor} size={22} /></div>
             <h3>No devices registered</h3>
@@ -943,12 +949,22 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
     settings: null,
   };
 
+  const toastTimers = React.useRef<Map<string, number>>(new Map());
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    const timer = window.setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimers.current.delete(id);
+    }, 4000);
+    toastTimers.current.set(id, timer);
   };
-  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+  const removeToast = (id: string) => {
+    const timer = toastTimers.current.get(id);
+    if (timer) { clearTimeout(timer); toastTimers.current.delete(id); }
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+  React.useEffect(() => () => { toastTimers.current.forEach(t => clearTimeout(t)); }, []);
 
   const TAB_TITLES: Record<UserTab, string> = {
     overview:    'Overview',

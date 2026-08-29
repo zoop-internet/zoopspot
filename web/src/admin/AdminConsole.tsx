@@ -287,30 +287,6 @@ const KpiCard: React.FC<{
   </button>
 );
 
-// @ts-ignore — retained for OperationsTab / legacy panels; Overview now uses bespoke modern cards
-const Panel: React.FC<{
-  title: string;
-  link?: { label: string; tab: AdminTab };
-  note?: string;
-  onNavigate: (t: AdminTab) => void;
-  children: React.ReactNode;
-}> = ({ title, link, note, onNavigate, children }) => (
-  <div className="section ov-panel">
-    <div className="section-header">
-      <span className="section-title">{title}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {note && <span className="section-note">{note}</span>}
-        {link && (
-          <button className="ov-panel-link" onClick={() => onNavigate(link.tab)}>
-            {link.label} <I.chevronR />
-          </button>
-        )}
-      </div>
-    </div>
-    {children}
-  </div>
-);
-
 const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate: (t: AdminTab) => void }> = ({ data, onNavigate }) => {
   const {
     devices, connections, services, network, usage, relays,
