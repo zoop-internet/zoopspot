@@ -540,49 +540,122 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   );
 };
 
-const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Registered Devices</div>
-        <div className="metric-value">{data.devices.length}</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Active Connections</div>
-        <div className="metric-value">{data.usage?.connections ?? '—'}</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Organizations</div>
-        <div className="metric-value">{data.orgs.length}</div>
-      </div>
-    </div>
+const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?: (msg: string, type?: 'success'|'error'|'info')=>void }> = ({ data, onToast }) => {
+  const svcEntries = Object.entries(data.services);
+  const svcOk = svcEntries.length>0 && svcEntries.every(([,s])=>s.status==='ok');
+  const hasDegraded = svcEntries.some(([,s])=>s.status!=='ok');
+  const relays = data.relays as Array<Record<string,any>>;
+  const saturated = relays.filter(r=> {
+    const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
+    const act = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
+    return cap>0 && act/cap > 0.85;
+  }).length;
+  const incidents = data.audit.filter(ev=> ev.action.includes('incident') || ev.action.includes('revoke') || ev.action.includes('suspend')).slice(0,8);
+  const [busy, setBusy] = useState<string|null>(null);
+  const toast = (m:string, t:'success'|'error'|'info'='info')=> onToast ? onToast(m,t) : console.log(m);
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Recent Activity</span>
-        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-        </button>
+  const runScaleCoturn = async ()=>{
+    setBusy('scale'); try { await adminAddRelay({ id:`relay-${Date.now()}`, region:'auto', host:`relay-${Date.now()%1000}.zoop.local`, port:3478 }); toast('Relay add queued — check Relays tab','success'); data.reload(); } catch(e){ toast(e instanceof Error? e.message:'Scale failed','error'); } finally{ setBusy(null); }
+  };
+  const runFlushRedis = async ()=>{
+    setBusy('redis'); toast('Redis flush — ephemeral signaling will re-heal (no backend yet, stub)','info'); setTimeout(()=>{ setBusy(null); data.reload(); }, 600);
+  };
+  const runRestartStore = async ()=>{
+    setBusy('store'); toast('Store pool restart queued (stub — needs POST /v1/admin/services/store/restart)','info'); setTimeout(()=>setBusy(null), 800);
+  };
+
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">API Health</div>
+          <div className="metric-value" style={{ color: svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : 'var(--text-primary)' }}>{svcOk ? 'Healthy' : hasDegraded ? 'Degraded' : 'Checking'}</div>
+          <div className="metric-sub">{svcEntries.length ? svcEntries.map(([k,s])=>`${k}:${s.status}`).join(' · ') : 'no data'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Relays Saturated</div>
+          <div className="metric-value" style={{ color: saturated? '#ef4444' : '#22c55e' }}>{saturated}/{relays.length || 0}</div>
+          <div className="metric-sub">{saturated? 'needs scale' : 'all under 85%'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">DB Pool</div>
+          <div className="metric-value">{data.services.store?.status==='ok' ? 'OK' : data.services.store?.status ?? '—'}</div>
+          <div className="metric-sub">store · {data.network ? `${data.network.subnets_allocated}/${data.network.capacity}` : 'IPAM n/a'}</div>
+        </div>
       </div>
-      {data.audit.length === 0 ? (
-        <EmptyState icon={<I.activity />} title="No activity recorded" desc="Platform incidents and scheduled maintenance windows will be tracked here." />
-      ) : (
-        <table className="data-table">
-          <thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead>
-          <tbody>
-            {data.audit.slice(0, 25).map(ev => (
-              <tr key={ev.id.toString()}>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
-                <td><span className="badge badge-neutral">{ev.action}</span></td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  </>
-);
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Live Service Health</span>
+          <div style={{ display:'flex', gap:6 }}>
+            <button className="btn btn-ghost btn-xs" onClick={runScaleCoturn} disabled={!!busy}>{busy==='scale'?<span className="spinner" style={{width:12,height:12}}/>:'Scale coturn +1'}</button>
+            <button className="btn btn-ghost btn-xs" onClick={runFlushRedis} disabled={!!busy}>{busy==='redis'?<span className="spinner" style={{width:12,height:12}}/>:'Flush Redis'}</button>
+            <button className="btn btn-ghost btn-xs" onClick={runRestartStore} disabled={!!busy}>{busy==='store'?<span className="spinner" style={{width:12,height:12}}/>:'Restart store'}</button>
+            <button className="btn btn-secondary btn-xs" onClick={data.reload}>{data.loading ? <span className="spinner" style={{width:12,height:12}}/> : 'Refresh'}</button>
+          </div>
+        </div>
+        <div style={{ padding:'12px 16px', display:'flex', flexWrap:'wrap', gap:8 }}>
+          {svcEntries.length===0 ? <span className="section-note">No health data — check /v1/admin/services</span> : svcEntries.map(([name,s])=>{
+            const ok = s.status==='ok', deg = s.status==='degraded';
+            return <span key={name} className={`service-chip ${ok?'service-chip-ok':deg?'service-chip-warn':'service-chip-down'}`}><span className="chip-dot"/>{SERVICE_LABELS[name] ?? name}: {s.status}</span>;
+          })}
+        </div>
+        {data.network && (
+          <div style={{ padding:'0 16px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.6875rem', color:'var(--text-muted)', marginBottom:6 }}><span>IPAM 100.64.0.0/10</span><span>{data.network.utilization_pct.toFixed(1)}% · {data.network.subnets_allocated}/{data.network.capacity}</span></div>
+            <div className="ov-bar" style={{height:8}}><div className={`ov-bar-fill ${data.network.utilization_pct>85?'danger':data.network.utilization_pct>60?'warn':'ok'}`} style={{width:`${Math.min(100,data.network.utilization_pct)}%`}}/></div>
+          </div>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Incident Timeline</span>
+          <button className="btn btn-primary btn-xs" onClick={()=> toast('Create incident — stub POST /v1/admin/incidents','info')}><I.plus/> New incident</button>
+        </div>
+        {incidents.length===0 ? (
+          <EmptyState icon={<I.activity />} title="No incidents" desc="SEV-1/2 incidents per docs/runbooks/incident-response.md appear here. Recent audit is quiet." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th/></tr></thead>
+            <tbody>
+              {incidents.map(ev=>(
+                <tr key={ev.id.toString()}>
+                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{new Date(ev.timestamp).toLocaleString()}</td>
+                  <td><span className={`badge ${ev.action.includes('revoke')?'badge-danger':ev.action.includes('incident')?'badge-warning':'badge-neutral'}`}>{ev.action}</span></td>
+                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{ev.actor_id.slice(0,13)}…</td>
+                  <td style={{textAlign:'right'}}><button className="btn btn-ghost btn-xs" onClick={()=> toast('Open runbook: docs/runbooks/incident-response.md','info')}>Runbook</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header"><span className="section-title">Runbook Shortcuts</span><span className="section-note">docs/runbooks/*.md</span></div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12, padding:16 }}>
+          {[
+            { title:'DB Exhaustion', sym:'High API latency, too many clients', act:'Increase max_connections → restart zoop-cloud pods', file:'disaster-recovery.md' },
+            { title:'STUN/TURN Saturation', sym:'Symmetric NAT fails, relay slow', act:'Scale coturn +1 or larger instance, check UDP ports', file:'scaling-and-capacity.md' },
+            { title:'Redis Eviction', sym:'Signaling delayed, agents flapping', act:'Scale Redis / flush — clients auto re-register', file:'incident-response.md' },
+          ].map(card=>(
+            <div key={card.title} style={{ padding:12, borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ fontWeight:700, color:'var(--text-primary)', fontSize:'0.875rem' }}>{card.title}</div>
+              <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', lineHeight:1.5 }}><b>Symptoms:</b> {card.sym}</div>
+              <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', lineHeight:1.5 }}><b>Mitigate:</b> {card.act}</div>
+              <div style={{ display:'flex', gap:6, marginTop:4 }}>
+                <button className="btn btn-secondary btn-xs" onClick={()=> toast(`Run checks for ${card.title} — GET /v1/admin/services`,'info')}>Run checks</button>
+                <button className="btn btn-primary btn-xs" onClick={()=> card.title.startsWith('STUN') ? runScaleCoturn() : card.title.startsWith('DB') ? runRestartStore() : runFlushRedis()}>Mitigate</button>
+                <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/runbooks/${card.file}`} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-xs" style={{ textDecoration:'none' }}>Runbook</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+};
 
 const UsageTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const u = data.usage;
@@ -1343,7 +1416,7 @@ type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<ty
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
   overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, connection states, overlay usage and service status',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
-  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: d => <OperationsTab data={d} /> },
+  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: (d, _nav, onToast) => <OperationsTab data={d} onToast={onToast} /> },
   usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: d => <UsageTab data={d} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
   users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
