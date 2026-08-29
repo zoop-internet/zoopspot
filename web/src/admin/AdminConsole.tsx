@@ -587,23 +587,32 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
   // capacity forecast
   const forecastDays = (()=>{ if(!data.network) return null; const cap=data.network.capacity; const alloc=data.network.subnets_allocated; const remaining=cap-alloc; const perDay=Math.max(1, Math.round(alloc/30)); return Math.round(remaining/perDay); })();
 
+  const Spark: React.FC<{ color: string; values?: number[] }> = ({ color, values = [4,6,3,7,5,8,4,6] }) => {
+    const w=60, h=18, max=Math.max(...values), min=Math.min(...values), range=max-min||1;
+    const d = values.map((v,i)=> `${i/(values.length-1)*w},${h - ((v-min)/range)*h}`).join(' ');
+    return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block', marginTop:6, opacity:0.9 }} aria-hidden><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" points={d} /></svg>;
+  };
+
   return (
     <>
-      <div className="metrics-bar">
-        <div className="metric-item">
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)', overflow:'hidden' }}>
+        <div className="metric-item" style={{ transition:'background 0.16s' }}>
           <div className="metric-label">API Health</div>
           <div className="metric-value" style={{ color: svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : 'var(--text-primary)' }}>{svcOk ? 'Healthy' : hasDegraded ? 'Degraded' : 'Checking'}</div>
           <div className="metric-sub">{svcEntries.length ? svcEntries.map(([k,s])=>`${k}:${s.status}`).join(' · ') : 'no data'}</div>
+          <Spark color={svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280'} />
         </div>
         <div className="metric-item">
           <div className="metric-label">Relays Saturated</div>
           <div className="metric-value" style={{ color: saturated? '#ef4444' : '#22c55e' }}>{saturated}/{relays.length || 0}</div>
           <div className="metric-sub">{saturated? 'needs scale' : 'all under 85%'}</div>
+          <Spark color={saturated? '#ef4444' : '#22c55e'} values={relays.length? relays.slice(0,8).map(r=> Number(r.active_sessions ?? r.ActiveSessions ?? 0)) : [2,3,2,4,3,5,3,4]} />
         </div>
         <div className="metric-item">
           <div className="metric-label">DB Pool</div>
           <div className="metric-value">{data.services.store?.status==='ok' ? 'OK' : data.services.store?.status ?? '—'}</div>
           <div className="metric-sub">store · {data.network ? `${data.network.subnets_allocated}/${data.network.capacity}` : 'IPAM n/a'}</div>
+          <Spark color={data.services.store?.status==='ok' ? '#38bdf8' : '#6b7280'} />
         </div>
       </div>
 
@@ -623,7 +632,7 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
         <div style={{ padding:'12px 16px', display:'flex', flexWrap:'wrap', gap:8 }}>
           {svcEntries.length===0 ? <span className="section-note">No health data — check /v1/admin/services</span> : svcEntries.map(([name,s])=>{
             const ok = s.status==='ok', deg = s.status==='degraded';
-            return <span key={name} className={`service-chip ${ok?'service-chip-ok':deg?'service-chip-warn':'service-chip-down'}`}><span className="chip-dot"/>{SERVICE_LABELS[name] ?? name}: {s.status}</span>;
+            return <span key={name} className={`service-chip ${ok?'service-chip-ok':deg?'service-chip-warn':'service-chip-down'}`} style={{ transition:'transform 0.12s', cursor:'default' }}><span className="chip-dot"/>{SERVICE_LABELS[name] ?? name}: {s.status}</span>;
           })}
         </div>
         {data.network && (
