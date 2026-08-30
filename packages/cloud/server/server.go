@@ -24,6 +24,11 @@ import (
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 
+func isValidationError(msg string) bool {
+	m := strings.ToLower(msg)
+	return strings.Contains(m, "must be") || strings.Contains(m, "invalid") || strings.Contains(m, "cannot be empty") || strings.Contains(m, "already taken")
+}
+
 type Server struct {
 	cfg           config.Config
 	logger        *slog.Logger
@@ -161,9 +166,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /v1/health", api.HealthHandler(s.startTime, s))
 	s.mux.Handle("GET /metrics", promhttp.Handler())
 
-	// Registration does not require Zoop Auth because the device doesn't exist yet
+	// Registration does not require Zoop Auth because the device doesn't exist yet (global RateLimitMiddleware applies)
 	s.mux.HandleFunc("POST /v1/devices", s.handleRegisterDevice())
-	s.mux.HandleFunc("GET /v1/devices", s.handleListDevices())
+	s.mux.Handle("GET /v1/devices", authMw(http.HandlerFunc(s.handleListDevices())))
 
 	// Authenticated routes
 	s.mux.Handle("GET /v1/devices/{id}", authMw(http.HandlerFunc(s.handleGetDevice())))
@@ -253,6 +258,11 @@ func (s *Server) handleRegisterDevice() http.HandlerFunc {
 
 		resp, err := s.devices.Register(r.Context(), req)
 		if err != nil {
+			msg := err.Error()
+			if isValidationError(msg) {
+				api.WriteError(w, "invalid_request", msg, http.StatusBadRequest)
+				return
+			}
 			s.logger.Error("failed to register device", "error", err)
 			api.WriteError(w, "internal_error", "failed to register device", http.StatusInternalServerError)
 			return
@@ -363,6 +373,15 @@ func (s *Server) handleCreateShare() http.HandlerFunc {
 
 		resp, err := s.shares.CreateShare(r.Context(), req)
 		if err != nil {
+			msg := err.Error()
+			if isValidationError(msg) || msg == "sharing relationship already exists" || msg == "provider and recipient must be different devices" {
+				status := http.StatusBadRequest
+				if msg == "sharing relationship already exists" {
+					status = http.StatusConflict
+				}
+				api.WriteError(w, "invalid_request", msg, status)
+				return
+			}
 			s.logger.Error("failed to create share", "error", err)
 			api.WriteError(w, "internal_error", "failed to create share", http.StatusInternalServerError)
 			return
@@ -1035,14 +1054,37 @@ func (s *Server) handleAdminAudit() http.HandlerFunc {
 	}
 }
 
-// handleAdminUsage aggregates platform usage counters.
+// handleAdminUsage aggregates platform usage counters with production telemetry.
+// Supports ?range=7|30|90 (days) and ?format=csv for export.
+// Returns extended usage analytics including bandwidth, timeseries, per-org breakdown,
+// growth trends and audit summaries while remaining backward compatible with the
+// original {devices, trusted_devices, ... connections_by_state} shape.
 func (s *Server) handleAdminUsage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		devices, _ := s.store.ListDevices(r.Context())
-		orgs, _ := s.store.ListOrganizations(r.Context())
-		members, _ := s.store.ListOrgMembersAll(r.Context())
-		shares, _ := s.store.ListSharesAll(r.Context())
-		conns, _ := s.store.ListAllConnections(r.Context())
+		ctx := r.Context()
+		devices, _ := s.store.ListDevices(ctx)
+		orgs, _ := s.store.ListOrganizations(ctx)
+		members, _ := s.store.ListOrgMembersAll(ctx)
+		shares, _ := s.store.ListSharesAll(ctx)
+		conns, _ := s.store.ListAllConnections(ctx)
+
+		// Parse range param (default 30)
+		rangeDays := 30
+		if q := r.URL.Query().Get("range"); q != "" {
+			q = strings.TrimSuffix(strings.TrimSpace(q), "d")
+			if v, err := fmt.Sscanf(q, "%d", &rangeDays); err == nil && v == 1 {
+				if rangeDays != 7 && rangeDays != 30 && rangeDays != 90 {
+					if rangeDays < 1 {
+						rangeDays = 7
+					} else if rangeDays > 90 {
+						rangeDays = 90
+					}
+				}
+			}
+		}
+		if rangeDays < 1 {
+			rangeDays = 30
+		}
 
 		stateCounts := map[string]int{}
 		for _, c := range conns {
@@ -1050,20 +1092,329 @@ func (s *Server) handleAdminUsage() http.HandlerFunc {
 		}
 
 		trusted := 0
+		suspended := 0
+		revoked := 0
 		for _, d := range devices {
-			if d.State == types.DeviceStateTrusted || d.State == types.DeviceStateRegistered {
+			switch d.State {
+			case types.DeviceStateTrusted, types.DeviceStateRegistered:
 				trusted++
+			case types.DeviceStateSuspended:
+				suspended++
+			case types.DeviceStateRevoked:
+				revoked++
 			}
 		}
 
+		// Bandwidth from relay meter
+		var bytesIn, bytesOut uint64
+		activeSessions := 0
+		if s.relayServer != nil && s.relayServer.GetMeter() != nil {
+			bytesIn, bytesOut = s.relayServer.GetMeter().GetTotalTraffic()
+			activeSessions = s.relayServer.ActiveConnections()
+		}
+
+		// IPAM
+		allocated, capacity, _ := s.store.IPAMUsage(ctx)
+		var utilization float64
+		if capacity > 0 {
+			utilization = float64(allocated) / float64(capacity) * 100
+		}
+
+		// Timeseries: bucket per day for last rangeDays
+		now := time.Now().UTC()
+		// Normalize to midnight UTC for bucketing
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		dateKeys := make([]string, rangeDays)
+		dateMap := make(map[string]int) // for index lookup
+		for i := 0; i < rangeDays; i++ {
+			d := today.AddDate(0, 0, -rangeDays+1+i)
+			k := d.Format("2006-01-02")
+			dateKeys[i] = k
+			dateMap[k] = i
+		}
+		deviceDaily := make([]int, rangeDays)
+		connDaily := make([]int, rangeDays)
+		memberDaily := make([]int, rangeDays)
+		shareDaily := make([]int, rangeDays)
+
+		countByDay := func(t time.Time, bucket []int) {
+			if t.IsZero() {
+				return
+			}
+			k := t.In(time.UTC).Format("2006-01-02")
+			if idx, ok := dateMap[k]; ok {
+				bucket[idx]++
+			} else if t.After(today.AddDate(0, 0, -rangeDays+1)) && t.Before(today.AddDate(0, 0, 1)) {
+				// fallback for time zone edge
+				bucket[rangeDays-1]++
+			}
+		}
+		for _, d := range devices {
+			countByDay(d.CreatedAt, deviceDaily)
+		}
+		for _, c := range conns {
+			countByDay(c.CreatedAt, connDaily)
+		}
+		for _, m := range members {
+			countByDay(m.CreatedAt, memberDaily)
+		}
+		for _, sh := range shares {
+			countByDay(sh.CreatedAt, shareDaily)
+		}
+		// Build timeseries payload with cumulative totals per day as well
+		type dailyPoint struct {
+			Date        string `json:"date"`
+			NewDevices  int    `json:"new_devices"`
+			NewConns    int    `json:"new_connections"`
+			NewMembers  int    `json:"new_members"`
+			NewShares   int    `json:"new_shares"`
+			CumDevices  int    `json:"cum_devices,omitempty"`
+			CumConns    int    `json:"cum_connections,omitempty"`
+		}
+		points := make([]dailyPoint, rangeDays)
+		cumD, cumC := 0, 0
+		// Need totals before range to compute cumulative start; approximate by subtracting daily sums from total?
+		// Instead compute cumulative incrementally: assume devices before range = total - sum(deviceDaily)
+		beforeD := len(devices)
+		beforeC := len(conns)
+		for _, v := range deviceDaily {
+			beforeD -= v
+		}
+		for _, v := range connDaily {
+			beforeC -= v
+		}
+		cumD = beforeD
+		cumC = beforeC
+		for i := 0; i < rangeDays; i++ {
+			cumD += deviceDaily[i]
+			cumC += connDaily[i]
+			points[i] = dailyPoint{
+				Date:       dateKeys[i],
+				NewDevices: deviceDaily[i],
+				NewConns:   connDaily[i],
+				NewMembers: memberDaily[i],
+				NewShares:  shareDaily[i],
+				CumDevices: cumD,
+				CumConns:   cumC,
+			}
+		}
+
+		// Growth trends: compare last 7 days vs previous 7 days
+		calcGrowth := func(daily []int) float64 {
+			if rangeDays < 14 {
+				return 0
+			}
+			last7 := 0
+			prev7 := 0
+			for i := rangeDays - 7; i < rangeDays; i++ {
+				last7 += daily[i]
+			}
+			for i := rangeDays - 14; i < rangeDays-7; i++ {
+				prev7 += daily[i]
+			}
+			if prev7 == 0 {
+				if last7 == 0 {
+					return 0
+				}
+				return 100
+			}
+			return float64(last7-prev7) / float64(prev7) * 100
+		}
+		devGrowth := calcGrowth(deviceDaily)
+		connGrowth := calcGrowth(connDaily)
+
+		// Per-org breakdown
+		// Build member count per org and device membership map
+		orgMemberCounts := make(map[string]int)
+		orgByID := make(map[string]*types.Organization)
+		for _, o := range orgs {
+			orgMemberCounts[o.ID.String()] = 0
+			orgByID[o.ID.String()] = o
+		}
+		for _, m := range members {
+			k := m.OrganizationID.String()
+			orgMemberCounts[k]++
+		}
+		// Map device -> orgs (via members)
+		deviceOrgs := make(map[string][]string)
+		for _, m := range members {
+			if m.DeviceID.String() != "" && m.DeviceID.String() != "00000000-0000-0000-0000-000000000000" {
+				deviceOrgs[m.DeviceID.String()] = append(deviceOrgs[m.DeviceID.String()], m.OrganizationID.String())
+			}
+		}
+		// Connections per org: if either provider or recipient device belongs to org, count
+		orgConnCounts := make(map[string]int)
+		for _, c := range conns {
+			seen := make(map[string]bool)
+			for _, did := range []string{c.ProviderID.String(), c.RecipientID.String()} {
+				for _, oid := range deviceOrgs[did] {
+					if !seen[oid] {
+						orgConnCounts[oid]++
+						seen[oid] = true
+					}
+				}
+			}
+		}
+		// Determine top orgs sorted by connections then members
+		type orgUsage struct {
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			Slug        string  `json:"slug,omitempty"`
+			Members     int     `json:"members"`
+			Devices     int     `json:"devices"`
+			Connections int     `json:"connections"`
+			Share       float64 `json:"share_pct,omitempty"`
+		}
+		var topOrgs []orgUsage
+		for _, o := range orgs {
+			id := o.ID.String()
+			membersCount := orgMemberCounts[id]
+			// devices for org is same as members with device linked? For now count members entries where DeviceID non-nil
+			devCount := 0
+			seenDev := make(map[string]bool)
+			for _, m := range members {
+				if m.OrganizationID.String() == id && m.DeviceID.String() != "" && m.DeviceID.String() != "00000000-0000-0000-0000-000000000000" {
+					if !seenDev[m.DeviceID.String()] {
+						devCount++
+						seenDev[m.DeviceID.String()] = true
+					}
+				}
+			}
+			topOrgs = append(topOrgs, orgUsage{
+				ID:          id,
+				Name:        o.Name,
+				Slug:        o.Slug,
+				Members:     membersCount,
+				Devices:     devCount,
+				Connections: orgConnCounts[id],
+			})
+		}
+		// sort descending by connections + members
+		// Simple sort
+		for i := 0; i < len(topOrgs); i++ {
+			for j := i + 1; j < len(topOrgs); j++ {
+				if topOrgs[j].Connections > topOrgs[i].Connections || (topOrgs[j].Connections == topOrgs[i].Connections && topOrgs[j].Members > topOrgs[i].Members) {
+					topOrgs[i], topOrgs[j] = topOrgs[j], topOrgs[i]
+				}
+			}
+		}
+		if len(topOrgs) > 10 {
+			topOrgs = topOrgs[:10]
+		}
+		// compute share pct for top orgs
+		totalConnsForShare := len(conns)
+		if totalConnsForShare == 0 {
+			totalConnsForShare = 1
+		}
+		for i := range topOrgs {
+			topOrgs[i].Share = float64(topOrgs[i].Connections) / float64(totalConnsForShare) * 100
+		}
+
+		// Audit summary last 7 days
+		events := s.audit.ListEvents()
+		cutoff := now.AddDate(0, 0, -7)
+		byAction := make(map[string]int)
+		last7Count := 0
+		for _, ev := range events {
+			if ev.Timestamp.After(cutoff) {
+				last7Count++
+				byAction[ev.Action]++
+			}
+		}
+
+		// Quotas and health hints
+		deviceLimit := 10000 // default platform-wide soft cap
+		quotas := map[string]interface{}{
+			"device_limit":     deviceLimit,
+			"devices_used_pct": float64(len(devices)) / float64(deviceLimit) * 100,
+			"ipam_warning":     80,
+			"ipam_critical":    95,
+			"ipam_pct":         utilization,
+			"bandwidth_cap_per_session": func() uint64 {
+				if s.relayServer != nil && s.relayServer.GetMeter() != nil {
+					// 0 = unlimited
+					return 0
+				}
+				return 0
+			}(),
+		}
+
+		// CSV export path
+		if strings.EqualFold(r.URL.Query().Get("format"), "csv") {
+			w.Header().Set("Content-Type", "text/csv")
+			w.Header().Set("Content-Disposition", "attachment; filename=zoop-usage-"+today.Format("2006-01-02")+".csv")
+			// Use csv writer
+			// We import encoding/csv dynamically via inline? Need to handle manually to avoid import bloat in this scope
+			// Write header
+			fmt.Fprintln(w, "metric,value")
+			fmt.Fprintf(w, "devices,%d\n", len(devices))
+			fmt.Fprintf(w, "trusted_devices,%d\n", trusted)
+			fmt.Fprintf(w, "suspended_devices,%d\n", suspended)
+			fmt.Fprintf(w, "revoked_devices,%d\n", revoked)
+			fmt.Fprintf(w, "organizations,%d\n", len(orgs))
+			fmt.Fprintf(w, "members,%d\n", len(members))
+			fmt.Fprintf(w, "shares,%d\n", len(shares))
+			fmt.Fprintf(w, "connections,%d\n", len(conns))
+			for k, v := range stateCounts {
+				fmt.Fprintf(w, "connections_%s,%d\n", strings.ToLower(k), v)
+			}
+			fmt.Fprintf(w, "bandwidth_bytes_in,%d\n", bytesIn)
+			fmt.Fprintf(w, "bandwidth_bytes_out,%d\n", bytesOut)
+			fmt.Fprintf(w, "bandwidth_total,%d\n", bytesIn+bytesOut)
+			fmt.Fprintf(w, "relay_active_sessions,%d\n", activeSessions)
+			fmt.Fprintf(w, "ipam_allocated,%d\n", allocated)
+			fmt.Fprintf(w, "ipam_capacity,%d\n", capacity)
+			fmt.Fprintf(w, "ipam_utilization_pct,%.2f\n", utilization)
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "date,new_devices,new_connections,new_members,new_shares,cum_devices,cum_connections")
+			for _, p := range points {
+				fmt.Fprintf(w, "%s,%d,%d,%d,%d,%d,%d\n", p.Date, p.NewDevices, p.NewConns, p.NewMembers, p.NewShares, p.CumDevices, p.CumConns)
+			}
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "org_id,org_name,members,devices,connections,share_pct")
+			for _, o := range topOrgs {
+				// escape commas in name
+				safeName := strings.ReplaceAll(o.Name, ",", " ")
+				fmt.Fprintf(w, "%s,%s,%d,%d,%d,%.1f\n", o.ID, safeName, o.Members, o.Devices, o.Connections, o.Share)
+			}
+			return
+		}
+
 		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
-			"devices":         len(devices),
-			"trusted_devices": trusted,
-			"organizations":   len(orgs),
-			"members":         len(members),
-			"shares":          len(shares),
-			"connections":     len(conns),
+			"devices":              len(devices),
+			"trusted_devices":      trusted,
+			"suspended_devices":    suspended,
+			"revoked_devices":      revoked,
+			"organizations":        len(orgs),
+			"members":              len(members),
+			"shares":               len(shares),
+			"connections":          len(conns),
 			"connections_by_state": stateCounts,
+			"bandwidth": map[string]interface{}{
+				"bytes_in":        bytesIn,
+				"bytes_out":       bytesOut,
+				"total":           bytesIn + bytesOut,
+				"active_sessions": activeSessions,
+			},
+			"ipam": map[string]interface{}{
+				"pool":               "100.64.0.0/10",
+				"subnets_allocated":  allocated,
+				"capacity":           capacity,
+				"utilization_pct":    utilization,
+			},
+			"timeseries": points,
+			"range_days": rangeDays,
+			"trends": map[string]interface{}{
+				"devices_growth_pct":     devGrowth,
+				"connections_growth_pct": connGrowth,
+			},
+			"top_orgs": topOrgs,
+			"audit_summary": map[string]interface{}{
+				"last_7_days": last7Count,
+				"by_action":   byAction,
+			},
+			"quotas":       quotas,
+			"generated_at": now.Format(time.RFC3339),
 		})
 	}
 }

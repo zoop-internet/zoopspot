@@ -82,13 +82,13 @@ func (s *PostgresStore) SaveDevice(ctx context.Context, device *types.Device) er
 }
 
 func (s *PostgresStore) GetDevice(ctx context.Context, id types.ID) (*types.Device, error) {
-	query := `SELECT id, name, os, description, state FROM devices WHERE id = $1`
+	query := `SELECT id, name, os, description, state, created_at, updated_at FROM devices WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var d types.Device
 	var stateStr string
 	var idStr string
-	err := row.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr)
+	err := row.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &d.CreatedAt, &d.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -106,7 +106,7 @@ func (s *PostgresStore) GetDevice(ctx context.Context, id types.ID) (*types.Devi
 }
 
 func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error) {
-	query := `SELECT id, name, os, description, state FROM devices ORDER BY created_at DESC`
+	query := `SELECT id, name, os, description, state, created_at, updated_at FROM devices ORDER BY created_at DESC`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error
 		var d types.Device
 		var stateStr string
 		var idStr string
-		if err := rows.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr); err != nil {
+		if err := rows.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
 		parsedID, err := types.ParseID(idStr)
@@ -292,13 +292,13 @@ func (s *PostgresStore) SaveOrganization(ctx context.Context, org *types.Organiz
 }
 
 func (s *PostgresStore) GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error) {
-	query := `SELECT id, name, owner_device_id, slug, status FROM organizations WHERE id = $1`
+	query := `SELECT id, name, owner_device_id, slug, status, created_at FROM organizations WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var o types.Organization
 	var idStr string
 	var ownerDevice, slug sql.NullString
-	err := row.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status)
+	err := row.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status, &o.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -323,7 +323,7 @@ func (s *PostgresStore) GetOrganization(ctx context.Context, id types.ID) (*type
 }
 
 func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organization, error) {
-	query := `SELECT id, name, owner_device_id, slug, status FROM organizations ORDER BY created_at DESC`
+	query := `SELECT id, name, owner_device_id, slug, status, created_at FROM organizations ORDER BY created_at DESC`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -335,7 +335,7 @@ func (s *PostgresStore) ListOrganizations(ctx context.Context) ([]*types.Organiz
 		var o types.Organization
 		var idStr string
 		var ownerDevice, slug sql.NullString
-		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status); err != nil {
+		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		parsedID, err := types.ParseID(idStr)
@@ -389,7 +389,7 @@ func (s *PostgresStore) SaveOrgMember(ctx context.Context, member *types.OrgMemb
 }
 
 func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error) {
-	query := `SELECT id, organization_id, device_id, name, email, role, status FROM org_members WHERE organization_id = $1 ORDER BY created_at ASC`
+	query := `SELECT id, organization_id, device_id, name, email, role, status, created_at FROM org_members WHERE organization_id = $1 ORDER BY created_at ASC`
 	rows, err := s.db.QueryContext(ctx, query, orgID.String())
 	if err != nil {
 		return nil, err
@@ -401,7 +401,7 @@ func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 		var m types.OrgMember
 		var idStr, orgIDStr string
 		var deviceID sql.NullString
-		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status); err != nil {
+		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		mID, err := types.ParseID(idStr)
@@ -414,6 +414,11 @@ func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 		}
 		m.ID = mID
 		m.OrganizationID = oID
+		if deviceID.Valid {
+			if dID, err := types.ParseID(deviceID.String); err == nil {
+				m.DeviceID = dID
+			}
+		}
 		members = append(members, &m)
 	}
 	if members == nil {
@@ -424,7 +429,7 @@ func (s *PostgresStore) GetOrgMembers(ctx context.Context, orgID types.ID) ([]*t
 
 // ListOrgMembersAll returns every org member across all organizations (admin use).
 func (s *PostgresStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMember, error) {
-	query := `SELECT id, organization_id, device_id, name, email, role, status FROM org_members ORDER BY created_at ASC`
+	query := `SELECT id, organization_id, device_id, name, email, role, status, created_at FROM org_members ORDER BY created_at ASC`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -436,7 +441,7 @@ func (s *PostgresStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMemb
 		var m types.OrgMember
 		var idStr, orgIDStr string
 		var deviceID sql.NullString
-		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status); err != nil {
+		if err := rows.Scan(&idStr, &orgIDStr, &deviceID, &m.Name, &m.Email, &m.Role, &m.Status, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		mID, err := types.ParseID(idStr)
@@ -465,7 +470,7 @@ func (s *PostgresStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMemb
 // ListOrgsByDevice returns organizations the given device is a member of.
 func (s *PostgresStore) ListOrgsByDevice(ctx context.Context, deviceID types.ID) ([]*types.Organization, error) {
 	query := `
-		SELECT o.id, o.name, o.owner_device_id, o.slug, o.status
+		SELECT o.id, o.name, o.owner_device_id, o.slug, o.status, o.created_at
 		FROM organizations o
 		JOIN org_members m ON m.organization_id = o.id
 		WHERE m.device_id = $1
@@ -482,7 +487,7 @@ func (s *PostgresStore) ListOrgsByDevice(ctx context.Context, deviceID types.ID)
 		var o types.Organization
 		var idStr string
 		var ownerDevice, slug sql.NullString
-		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status); err != nil {
+		if err := rows.Scan(&idStr, &o.Name, &ownerDevice, &slug, &o.Status, &o.CreatedAt); err != nil {
 			return nil, err
 		}
 		parsedID, err := types.ParseID(idStr)
@@ -524,12 +529,12 @@ func (s *PostgresStore) SaveSharingRelationship(ctx context.Context, share *type
 }
 
 func (s *PostgresStore) GetSharingRelationship(ctx context.Context, id types.ID) (*types.SharingRelationship, error) {
-	query := `SELECT id, provider_id, recipient_id, is_active FROM sharing_relationships WHERE id = $1`
+	query := `SELECT id, provider_id, recipient_id, is_active, created_at FROM sharing_relationships WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var sh types.SharingRelationship
 	var idStr, provStr, recStr string
-	err := row.Scan(&idStr, &provStr, &recStr, &sh.IsActive)
+	err := row.Scan(&idStr, &provStr, &recStr, &sh.IsActive, &sh.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -547,12 +552,12 @@ func (s *PostgresStore) GetSharingRelationship(ctx context.Context, id types.ID)
 }
 
 func (s *PostgresStore) GetSharingRelationshipByEndpoints(ctx context.Context, providerID, recipientID types.ID) (*types.SharingRelationship, error) {
-	query := `SELECT id, provider_id, recipient_id, is_active FROM sharing_relationships WHERE provider_id = $1 AND recipient_id = $2 AND is_active = TRUE LIMIT 1`
+	query := `SELECT id, provider_id, recipient_id, is_active, created_at FROM sharing_relationships WHERE provider_id = $1 AND recipient_id = $2 AND is_active = TRUE LIMIT 1`
 	row := s.db.QueryRowContext(ctx, query, providerID.String(), recipientID.String())
 
 	var sh types.SharingRelationship
 	var idStr, provStr, recStr string
-	err := row.Scan(&idStr, &provStr, &recStr, &sh.IsActive)
+	err := row.Scan(&idStr, &provStr, &recStr, &sh.IsActive, &sh.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -571,7 +576,7 @@ func (s *PostgresStore) GetSharingRelationshipByEndpoints(ctx context.Context, p
 
 func (s *PostgresStore) ListShares(ctx context.Context, endpointID types.ID) ([]*types.SharingRelationship, error) {
 	query := `
-		SELECT id, provider_id, recipient_id, is_active
+		SELECT id, provider_id, recipient_id, is_active, created_at
 		FROM sharing_relationships
 		WHERE provider_id = $1 OR recipient_id = $1
 		ORDER BY created_at DESC
@@ -586,7 +591,7 @@ func (s *PostgresStore) ListShares(ctx context.Context, endpointID types.ID) ([]
 	for rows.Next() {
 		var sh types.SharingRelationship
 		var idStr, provStr, recStr string
-		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive); err != nil {
+		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive, &sh.CreatedAt); err != nil {
 			return nil, err
 		}
 		pID, _ := types.ParseID(provStr)
@@ -606,7 +611,7 @@ func (s *PostgresStore) ListShares(ctx context.Context, endpointID types.ID) ([]
 // ListSharesAll returns every sharing relationship (admin use).
 func (s *PostgresStore) ListSharesAll(ctx context.Context) ([]*types.SharingRelationship, error) {
 	query := `
-		SELECT id, provider_id, recipient_id, is_active
+		SELECT id, provider_id, recipient_id, is_active, created_at
 		FROM sharing_relationships
 		ORDER BY created_at DESC
 	`
@@ -620,7 +625,7 @@ func (s *PostgresStore) ListSharesAll(ctx context.Context) ([]*types.SharingRela
 	for rows.Next() {
 		var sh types.SharingRelationship
 		var idStr, provStr, recStr string
-		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive); err != nil {
+		if err := rows.Scan(&idStr, &provStr, &recStr, &sh.IsActive, &sh.CreatedAt); err != nil {
 			return nil, err
 		}
 		pID, _ := types.ParseID(provStr)
@@ -661,13 +666,13 @@ func (s *PostgresStore) SaveConnection(ctx context.Context, conn *types.Connecti
 }
 
 func (s *PostgresStore) GetConnection(ctx context.Context, id types.ID) (*types.Connection, error) {
-	query := `SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip FROM connections WHERE id = $1`
+	query := `SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip, created_at, updated_at FROM connections WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var c types.Connection
 	var idStr, provStr, recStr, stateStr string
 	var provIP, recIP sql.NullString
-	err := row.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP)
+	err := row.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -693,7 +698,7 @@ func (s *PostgresStore) GetConnection(ctx context.Context, id types.ID) (*types.
 
 func (s *PostgresStore) GetPendingConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
 	query := `
-		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip
+		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip, created_at, updated_at
 		FROM connections
 		WHERE (provider_id = $1 OR recipient_id = $1) AND state = $2
 	`
@@ -708,7 +713,7 @@ func (s *PostgresStore) GetPendingConnections(ctx context.Context, endpointID ty
 		var c types.Connection
 		var idStr, provStr, recStr, stateStr string
 		var provIP, recIP sql.NullString
-		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP); err != nil {
+		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		cID, _ := types.ParseID(idStr)
@@ -734,7 +739,7 @@ func (s *PostgresStore) GetPendingConnections(ctx context.Context, endpointID ty
 
 func (s *PostgresStore) ListConnections(ctx context.Context, endpointID types.ID) ([]*types.Connection, error) {
 	query := `
-		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip
+		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip, created_at, updated_at
 		FROM connections
 		WHERE provider_id = $1 OR recipient_id = $1
 		ORDER BY created_at DESC
@@ -750,7 +755,7 @@ func (s *PostgresStore) ListConnections(ctx context.Context, endpointID types.ID
 		var c types.Connection
 		var idStr, provStr, recStr, stateStr string
 		var provIP, recIP sql.NullString
-		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP); err != nil {
+		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		cID, _ := types.ParseID(idStr)
@@ -777,7 +782,7 @@ func (s *PostgresStore) ListConnections(ctx context.Context, endpointID types.ID
 // ListAllConnections returns every connection across the platform (admin use).
 func (s *PostgresStore) ListAllConnections(ctx context.Context) ([]*types.Connection, error) {
 	query := `
-		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip
+		SELECT id, provider_id, recipient_id, state, provider_ip, recipient_ip, created_at, updated_at
 		FROM connections
 		ORDER BY created_at DESC
 	`
@@ -792,7 +797,7 @@ func (s *PostgresStore) ListAllConnections(ctx context.Context) ([]*types.Connec
 		var c types.Connection
 		var idStr, provStr, recStr, stateStr string
 		var provIP, recIP sql.NullString
-		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP); err != nil {
+		if err := rows.Scan(&idStr, &provStr, &recStr, &stateStr, &provIP, &recIP, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		cID, _ := types.ParseID(idStr)

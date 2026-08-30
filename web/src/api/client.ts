@@ -117,7 +117,17 @@ export async function registerDevice(req: RegisterDeviceRequest): Promise<ApiDev
 }
 
 export async function listDevices(): Promise<ApiDevice[]> {
-  return apiFetch<ApiDevice[]>('/v1/devices');
+  try {
+    const path = '/v1/devices';
+    const authHeaders = await buildSignedAuthHeaders('GET', path);
+    return await apiFetch<ApiDevice[]>(path, { headers: authHeaders });
+  } catch (err) {
+    if (err instanceof NotAuthenticatedError) {
+      // No identity yet — return empty until device is registered
+      return [];
+    }
+    throw err;
+  }
 }
 
 export async function getDevice(deviceId: string): Promise<ApiDevice> {
@@ -290,11 +300,22 @@ export interface ApiAuditEvent {
 export interface ApiUsage {
   devices: number;
   trusted_devices: number;
+  suspended_devices?: number;
+  revoked_devices?: number;
   organizations: number;
   members: number;
   shares: number;
   connections: number;
   connections_by_state: Record<string, number>;
+  bandwidth?: { bytes_in: number; bytes_out: number; total: number; active_sessions: number };
+  ipam?: { pool: string; subnets_allocated: number; capacity: number; utilization_pct: number };
+  timeseries?: Array<{ date: string; new_devices: number; new_connections: number; new_members: number; new_shares: number; cum_devices: number; cum_connections: number }>;
+  range_days?: number;
+  trends?: { devices_growth_pct: number; connections_growth_pct: number };
+  top_orgs?: Array<{ id: string; name: string; slug?: string; members: number; devices: number; connections: number; share_pct: number }>;
+  audit_summary?: { last_7_days: number; by_action: Record<string, number> };
+  quotas?: { device_limit: number; devices_used_pct: number; ipam_warning: number; ipam_critical: number; ipam_pct: number; bandwidth_cap_per_session: number };
+  generated_at?: string;
 }
 
 export async function adminUsers(): Promise<ApiAdminUser[]> {
@@ -315,10 +336,20 @@ export async function adminAudit(): Promise<ApiAuditEvent[]> {
   return apiFetch<ApiAuditEvent[]>(path, { headers: authHeaders });
 }
 
-export async function adminUsage(): Promise<ApiUsage> {
-  const path = '/v1/admin/usage';
-  const authHeaders = await buildSignedAuthHeaders('GET', path);
+export async function adminUsage(rangeDays: number = 30): Promise<ApiUsage> {
+  const basePath = '/v1/admin/usage';
+  const path = rangeDays ? `${basePath}?range=${rangeDays}` : basePath;
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
   return apiFetch<ApiUsage>(path, { headers: authHeaders });
+}
+
+export async function adminUsageCsv(rangeDays: number = 30): Promise<Blob> {
+  const basePath = '/v1/admin/usage';
+  const path = `${basePath}?range=${rangeDays}&format=csv`;
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders as Record<string, string> });
+  if (!res.ok) throw new Error(`CSV export failed (${res.status})`);
+  return await res.blob();
 }
 
 export async function adminRelays(): Promise<unknown[]> {

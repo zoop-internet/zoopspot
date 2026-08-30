@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
@@ -135,6 +136,14 @@ func (s *InMemoryStore) IPAMUsage(_ context.Context) (allocated, capacity uint32
 func (s *InMemoryStore) SaveDevice(ctx context.Context, device *types.Device) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if device.CreatedAt.IsZero() {
+		device.CreatedAt = time.Now().UTC()
+	}
+	if device.UpdatedAt.IsZero() {
+		device.UpdatedAt = device.CreatedAt
+	} else {
+		device.UpdatedAt = time.Now().UTC()
+	}
 	s.devices[device.ID] = device
 	return nil
 }
@@ -228,6 +237,9 @@ func (s *InMemoryStore) GetUser(ctx context.Context, id types.ID) (*types.Accoun
 func (s *InMemoryStore) SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if share.CreatedAt.IsZero() {
+		share.CreatedAt = time.Now().UTC()
+	}
 	s.shares[share.ID] = share
 	return nil
 }
@@ -286,6 +298,14 @@ func (s *InMemoryStore) ListSharesAll(ctx context.Context) ([]*types.SharingRela
 func (s *InMemoryStore) SaveConnection(ctx context.Context, conn *types.Connection) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if conn.CreatedAt.IsZero() {
+		conn.CreatedAt = time.Now().UTC()
+	}
+	if conn.UpdatedAt.IsZero() {
+		conn.UpdatedAt = conn.CreatedAt
+	} else {
+		conn.UpdatedAt = time.Now().UTC()
+	}
 	s.connections[conn.ID] = conn
 	return nil
 }
@@ -357,7 +377,9 @@ func (s *InMemoryStore) ListDevices(ctx context.Context) ([]*types.Device, error
 func (s *InMemoryStore) SaveOrganization(ctx context.Context, org *types.Organization) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
+	if org.CreatedAt.IsZero() {
+		org.CreatedAt = time.Now().UTC()
+	}
 	s.organizations[org.ID] = org
 	return nil
 }
@@ -387,7 +409,9 @@ func (s *InMemoryStore) ListOrganizations(ctx context.Context) ([]*types.Organiz
 func (s *InMemoryStore) SaveOrgMember(ctx context.Context, member *types.OrgMember) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
+	if member.CreatedAt.IsZero() {
+		member.CreatedAt = time.Now().UTC()
+	}
 	s.orgMembers[member.OrganizationID] = append(s.orgMembers[member.OrganizationID], member)
 	return nil
 }

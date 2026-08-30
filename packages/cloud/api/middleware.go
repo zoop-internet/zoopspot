@@ -157,10 +157,14 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				return
 			}
 
-			// 2. Verify Device is not Revoked
+			// 2. Verify Device is not Revoked or Suspended
 			if device, err := s.GetDevice(r.Context(), endpointID); err == nil {
 				if device.State == types.DeviceStateRevoked {
 					WriteError(w, "forbidden", "device identity has been revoked", http.StatusForbidden)
+					return
+				}
+				if device.State == types.DeviceStateSuspended {
+					WriteError(w, "forbidden", "device identity is suspended", http.StatusForbidden)
 					return
 				}
 			}

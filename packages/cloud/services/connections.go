@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -75,6 +76,7 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		return nil, err
 	}
 
+	now := time.Now().UTC()
 	conn := &types.Connection{
 		ID:          types.NewID(),
 		ProviderID:  req.ProviderID,
@@ -82,6 +84,8 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		State:       types.ConnectionStateRequested,
 		ProviderIP:  providerIP,
 		RecipientIP: recipientIP,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.store.SaveConnection(ctx, conn); err != nil {
@@ -181,6 +185,7 @@ func (s *ConnectionService) UpdateConnectionState(ctx context.Context, id types.
 	}
 
 	conn.State = newState
+	conn.UpdatedAt = time.Now().UTC()
 	if err := s.store.SaveConnection(ctx, conn); err != nil {
 		return err
 	}
