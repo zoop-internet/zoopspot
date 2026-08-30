@@ -264,10 +264,15 @@ func (s *Server) routes() {
 
 // serveWebApp registers SPA static file serving from the configured dist dir.
 // Non-API, non-file requests fall back to index.html so client-side routes work.
+// Unknown /v1/* or /metrics paths return JSON 404 instead of the SPA shell.
 func (s *Server) serveWebApp() {
 	fs := http.FileServer(http.Dir(s.cfg.WebDistDir))
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
+		if strings.HasPrefix(path, "/v1/") || path == "/v1" || path == "/metrics" || strings.HasPrefix(path, "/metrics") {
+			api.WriteError(w, "not_found", "endpoint not found", http.StatusNotFound)
+			return
+		}
 		if path == "/" || path == "" {
 			http.ServeFile(w, r, filepath.Join(s.cfg.WebDistDir, "index.html"))
 			return

@@ -131,11 +131,26 @@ const Fallback: React.FC = () => (
   </div>
 );
 
+const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({ path, onNavigate }) => (
+  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', background: '#020617', color: '#f1f5f9', textAlign: 'center' }}>
+    <div style={{ fontSize: '4rem', fontWeight: 800, letterSpacing: '-0.04em', color: '#38bdf8' }}>404</div>
+    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 8 }}>Page not found</h1>
+    <p style={{ color: '#94a3b8', marginTop: 8, maxWidth: 480, lineHeight: 1.6 }}>No route matches <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono, monospace)', fontSize:'0.8125rem' }}>{path}</code>. Check the URL or return home.</p>
+    <div style={{ display:'flex', gap:12, marginTop:20 }}>
+      <button className="lp-btn-primary" onClick={() => onNavigate('/')} style={{ padding:'10px 18px', borderRadius: 10, background: '#38bdf8', color:'#020617', border:0, fontWeight:700, cursor:'pointer' }}>Go to homepage</button>
+      <button className="lp-btn-secondary" onClick={() => window.history.back()} style={{ padding:'10px 18px', borderRadius:10, background:'rgba(255,255,255,0.06)', color:'#f1f5f9', border:'1px solid rgba(255,255,255,0.08)', fontWeight:600, cursor:'pointer' }}>Go back</button>
+    </div>
+    <div style={{ marginTop:24, fontSize:'0.75rem', color:'#64748b' }}><a href="/docs" onClick={e=>{e.preventDefault(); onNavigate('/docs');}} style={{ color:'#38bdf8' }}>Docs</a> · <a href="/downloads" onClick={e=>{e.preventDefault(); onNavigate('/downloads');}} style={{ color:'#38bdf8' }}>Downloads</a> · <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8' }}>GitHub</a></div>
+  </div>
+);
+
   return (
     <AppProvider>
       <ErrorBoundary>
         <Suspense fallback={<Fallback />}>
-          {isAuth ? (
+          {!isValidRoute ? (
+            <NotFound path={pathname} onNavigate={navigateTo} />
+          ) : isAuth ? (
             <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
           ) : isApp ? (
             <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} /></ErrorBoundary>

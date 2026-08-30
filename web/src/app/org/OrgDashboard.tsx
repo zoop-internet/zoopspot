@@ -65,17 +65,34 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('team');
-  const [region, setRegion] = useState('auto');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = React.useRef<HTMLDivElement>(null);
 
   const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32);
 
   useEffect(() => {
     if (!slugEdited) setSlug(slugify(name));
   }, [name, slugEdited]);
+
+  // Focus trap + Escape + restore
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const el = modalRef.current;
+    const first = el?.querySelector<HTMLElement>('input, button, select, textarea');
+    first?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key !== 'Tab' || !el) return;
+      const focusables = el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (focusables.length === 0) return;
+      const firstEl = focusables[0], lastEl = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+      else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); prev?.focus(); };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +108,6 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setError(null);
     try {
       await doCreateOrg(name.trim(), slug.trim() || undefined);
-      // Description/category/region are stored locally for now (backend accepts name+slug; metadata future)
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create organization');
@@ -101,69 +117,39 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="modal-overlay" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.65)' }}>
-      <div className="modal" style={{ maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="modal-overlay" role="presentation" onClick={e => { if (e.target === e.currentTarget) onClose(); }} style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.65)' }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="create-org-title" style={{ maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-header" style={{ alignItems: 'center', gap: 12 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #38bdf8 0%, #34d399 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#020904', flexShrink: 0 }}>
             <Ico d={I.layers} size={18} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="modal-title" style={{ fontSize: '1.05rem' }}>Create organization</div>
+            <div id="create-org-title" className="modal-title" style={{ fontSize: '1.05rem' }}>Create organization</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>A dedicated workspace for your team — invite by Zoop ID, not email</div>
           </div>
           <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close" style={{ flexShrink: 0 }}>✕</button>
         </div>
 
-        {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
+        {error && <div className="error-banner" role="alert"><Ico d={I.alert} />{error}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="field">
-            <label>Organization name <span style={{ color: 'var(--red)' }}>*</span></label>
+            <label htmlFor="org-name-input">Organization name <span style={{ color: 'var(--red)' }}>*</span></label>
             <input id="org-name-input" type="text" value={name} onChange={e => setName(e.target.value)}
               placeholder="e.g. Acme Corp — Engineering" required autoFocus maxLength={48} />
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{name.length}/48 · Shown in switcher and header</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div className="field">
-              <label>Slug <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(URL handle)</span></label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>/</span>
-                <input id="org-slug-input" type="text" value={slug} onChange={e => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32)); }}
-                  placeholder="acme-eng" pattern="^[a-z0-9-]+$" style={{ fontFamily: 'var(--font-mono)' }} />
-              </div>
-              <span style={{ fontSize: '0.7rem', color: slug && !/^[a-z0-9-]{3,32}$/.test(slug) ? 'var(--red)' : 'var(--text-muted)' }}>
-                {slug ? (slug.length < 3 ? 'At least 3 characters' : 'a-z, 0-9, hyphen') : 'Auto from name — editable'}
-              </span>
-            </div>
-            <div className="field">
-              <label>Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}>
-                <option value="team">Team</option>
-                <option value="company">Company</option>
-                <option value="family">Family</option>
-                <option value="community">Community</option>
-                <option value="project">Project</option>
-              </select>
-            </div>
-          </div>
-
           <div className="field">
-            <label>Description <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What does this organization share? e.g. Office fiber for remote team" rows={3} maxLength={200} style={{ width: '100%', padding: '9px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-md)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', resize: 'vertical' }} />
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{description.length}/200</span>
-          </div>
-
-          <div className="field">
-            <label>Preferred region <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(routing hint)</span></label>
-            <select value={region} onChange={e => setRegion(e.target.value)}>
-              <option value="auto">Auto — closest relay</option>
-              <option value="us-east">US East (Virginia)</option>
-              <option value="us-west">US West (Oregon)</option>
-              <option value="eu-central">EU Central (Frankfurt)</option>
-              <option value="ap-southeast">AP Southeast (Singapore)</option>
-            </select>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Helps pick lowest-latency relay; not enforced</span>
+            <label htmlFor="org-slug-input">Slug <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(URL handle)</span></label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>/</span>
+              <input id="org-slug-input" type="text" value={slug} onChange={e => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32)); }}
+                placeholder="acme-eng" pattern="^[a-z0-9-]+$" style={{ fontFamily: 'var(--font-mono)' }} />
+            </div>
+            <span style={{ fontSize: '0.7rem', color: slug && !/^[a-z0-9-]{3,32}$/.test(slug) ? 'var(--red)' : 'var(--text-muted)' }}>
+              {slug ? (slug.length < 3 ? 'At least 3 characters' : 'a-z, 0-9, hyphen') : 'Auto from name — editable'}
+            </span>
           </div>
 
           <div style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.14)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -194,6 +180,24 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [role, setRole] = useState('member');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const el = modalRef.current;
+    const first = el?.querySelector<HTMLElement>('input, button, select, textarea');
+    first?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key !== 'Tab' || !el) return;
+      const focusables = el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (focusables.length === 0) return;
+      const firstEl = focusables[0], lastEl = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+      else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); prev?.focus(); };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,10 +215,10 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 440 }}>
+    <div className="modal-overlay" role="presentation" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={modalRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-member-title" style={{ maxWidth: 440 }}>
         <div className="modal-header">
-          <span className="modal-title">Invite member</span>
+          <span id="invite-member-title" className="modal-title">Invite member</span>
           <button className="btn btn-ghost btn-xs" onClick={onClose} aria-label="Close">✕</button>
         </div>
         {error && <div className="error-banner"><Ico d={I.alert} />{error}</div>}
