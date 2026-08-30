@@ -116,11 +116,18 @@ export async function registerDevice(req: RegisterDeviceRequest): Promise<ApiDev
   });
 }
 
-export async function listDevices(): Promise<ApiDevice[]> {
+export async function listDevices(search?: string, limit: number = 100, offset: number = 0): Promise<ApiDevice[]> {
   try {
-    const path = '/v1/devices';
-    const authHeaders = await buildSignedAuthHeaders('GET', path);
-    return await apiFetch<ApiDevice[]>(path, { headers: authHeaders });
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (limit !== 100) params.set('limit', String(limit));
+    if (offset) params.set('offset', String(offset));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    // sign base path without query (middleware signs path only)
+    const basePath = '/v1/devices';
+    const fullPath = `${basePath}${qs}`;
+    const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+    return await apiFetch<ApiDevice[]>(fullPath, { headers: authHeaders });
   } catch (err) {
     if (err instanceof NotAuthenticatedError) {
       // No identity yet — return empty until device is registered

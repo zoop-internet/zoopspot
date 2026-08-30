@@ -845,6 +845,21 @@ func (s *Server) handleListDevices() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "failed to list devices", http.StatusInternalServerError)
 			return
 		}
+		// Server-side search: ?search= or ?q= filters by name, id, platform substring
+		searchRaw := r.URL.Query().Get("search")
+		if searchRaw == "" {
+			searchRaw = r.URL.Query().Get("q")
+		}
+		if searchRaw != "" {
+			low := strings.ToLower(searchRaw)
+			var filtered []api.DeviceResponse
+			for _, d := range devices {
+				if strings.Contains(strings.ToLower(d.Name), low) || strings.Contains(strings.ToLower(d.ID.String()), low) || strings.Contains(strings.ToLower(d.OS), low) {
+					filtered = append(filtered, d)
+				}
+			}
+			devices = filtered
+		}
 		limit, offset := parsePagination(r, 100, 500)
 		total := len(devices)
 		paged := paginateSlice(devices, limit, offset)
