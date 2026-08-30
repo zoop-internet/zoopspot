@@ -167,9 +167,30 @@ func (s *DeviceService) Restore(ctx context.Context, id types.ID) error {
 }
 
 // Unregister removes a device and its identity from the control plane.
+// It also best-effort cleans orphaned shares, connections (reclaiming IPAM) and org memberships.
 func (s *DeviceService) Unregister(ctx context.Context, id types.ID) error {
 	if _, err := s.store.GetDevice(ctx, id); err != nil {
 		return err
+	}
+	// Clean shares where device is provider or recipient
+	if shares, err := s.store.ListShares(ctx, id); err == nil {
+		for _, sh := range shares {
+			_ = s.store.DeleteSharingRelationship(ctx, sh.ID)
+		}
+	}
+	// Clean connections and reclaim IPs
+	if conns, err := s.store.ListConnections(ctx, id); err == nil {
+		for _, c := range conns {
+			_ = s.store.ReleaseConnectionIPs(ctx, c.ProviderIP, c.RecipientIP)
+		}
+	}
+	// Clean org memberships
+	if members, err := s.store.ListOrgMembersAll(ctx); err == nil {
+		for _, m := range members {
+			if m.DeviceID == id {
+				_ = s.store.DeleteOrgMember(ctx, m.OrganizationID, m.ID)
+			}
+		}
 	}
 	if err := s.store.DeleteIdentity(ctx, id); err != nil {
 		return err

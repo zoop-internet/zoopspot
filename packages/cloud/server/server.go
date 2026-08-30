@@ -29,6 +29,38 @@ func isValidationError(msg string) bool {
 	return strings.Contains(m, "must be") || strings.Contains(m, "invalid") || strings.Contains(m, "cannot be empty") || strings.Contains(m, "already taken")
 }
 
+func parsePagination(r *http.Request, defLimit, maxLimit int) (limit, offset int) {
+	limit = defLimit
+	offset = 0
+	if q := r.URL.Query().Get("limit"); q != "" {
+		fmt.Sscanf(q, "%d", &limit)
+		if limit < 1 {
+			limit = 1
+		}
+		if limit > maxLimit {
+			limit = maxLimit
+		}
+	}
+	if q := r.URL.Query().Get("offset"); q != "" {
+		fmt.Sscanf(q, "%d", &offset)
+		if offset < 0 {
+			offset = 0
+		}
+	}
+	return
+}
+
+func paginateSlice[T any](items []T, limit, offset int) []T {
+	if offset >= len(items) {
+		return []T{}
+	}
+	end := offset + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[offset:end]
+}
+
 type Server struct {
 	cfg           config.Config
 	logger        *slog.Logger
@@ -435,8 +467,10 @@ func (s *Server) handleListShares() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "failed to list shares", http.StatusInternalServerError)
 			return
 		}
-
-		api.WriteJSON(w, http.StatusOK, resp)
+		limit, offset := parsePagination(r, 100, 500)
+		paged := paginateSlice(resp, limit, offset)
+		w.Header().Set("X-Total-Count", fmt.Sprintf("%d", len(resp)))
+		api.WriteJSON(w, http.StatusOK, paged)
 	}
 }
 
@@ -590,7 +624,10 @@ func (s *Server) handleListConnections() http.HandlerFunc {
 			return
 		}
 
-		api.WriteJSON(w, http.StatusOK, resp)
+		limit, offset := parsePagination(r, 100, 500)
+		paged := paginateSlice(resp, limit, offset)
+		w.Header().Set("X-Total-Count", fmt.Sprintf("%d", len(resp)))
+		api.WriteJSON(w, http.StatusOK, paged)
 	}
 }
 
@@ -803,36 +840,11 @@ func (s *Server) handleListDevices() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "failed to list devices", http.StatusInternalServerError)
 			return
 		}
-		// Pagination: ?limit= & ?offset= (defaults 100, cap 500) — prevents unbounded fleet enumeration
-		limit := 100
-		offset := 0
-		if q := r.URL.Query().Get("limit"); q != "" {
-			if v, err := fmt.Sscanf(q, "%d", &limit); err == nil && v == 1 {
-				if limit < 1 {
-					limit = 1
-				}
-				if limit > 500 {
-					limit = 500
-				}
-			}
-		}
-		if q := r.URL.Query().Get("offset"); q != "" {
-			fmt.Sscanf(q, "%d", &offset)
-			if offset < 0 {
-				offset = 0
-			}
-		}
-		if offset < len(devices) {
-			end := offset + limit
-			if end > len(devices) {
-				end = len(devices)
-			}
-			devices = devices[offset:end]
-		} else if offset >= len(devices) {
-			devices = []api.DeviceResponse{}
-		}
-		w.Header().Set("X-Total-Count", fmt.Sprintf("%d", len(devices)))
-		api.WriteJSON(w, http.StatusOK, devices)
+		limit, offset := parsePagination(r, 100, 500)
+		total := len(devices)
+		paged := paginateSlice(devices, limit, offset)
+		w.Header().Set("X-Total-Count", fmt.Sprintf("%d", total))
+		api.WriteJSON(w, http.StatusOK, paged)
 	}
 }
 
@@ -1748,8 +1760,10 @@ func (s *Server) Start(ctx context.Context) error {
 	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
 	handler := api.MetricsMiddleware(
 		api.SecurityHeadersMiddleware(
-			api.RateLimitMiddleware(rateLimiter)(
-				api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+			api.IdempotencyMiddleware(
+				api.RateLimitMiddleware(rateLimiter)(
+					api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+				),
 			),
 		),
 	)

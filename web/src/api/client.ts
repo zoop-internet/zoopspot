@@ -185,9 +185,10 @@ export async function createOrganization(name: string, slug?: string): Promise<A
   const path = '/v1/organizations';
   const body = JSON.stringify({ name, slug });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiOrg>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }
@@ -412,9 +413,10 @@ export async function createShare(authDeviceId: string, recipientId: string): Pr
   const path = '/v1/shares';
   const body = JSON.stringify({ provider_id: authDeviceId, recipient_id: recipientId });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiShare>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }
@@ -439,9 +441,10 @@ export async function createConnection(providerId: string, recipientId: string):
   const path = '/v1/connections';
   const body = JSON.stringify({ provider_id: providerId, recipient_id: recipientId });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiConnection>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }
