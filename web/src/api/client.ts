@@ -237,6 +237,12 @@ export async function listOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
   return apiFetch<ApiOrgMember[]>(path, { headers: authHeaders });
 }
 
+export async function removeOrgMember(orgId: string, memberId: string): Promise<void> {
+  const path = `/v1/organizations/${orgId}/members/${memberId}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  await apiFetch<void>(path, { method: 'DELETE', headers: authHeaders });
+}
+
 // ─── Admin operations (operator console) ─────────────────────
 
 export async function adminListOrganizations(): Promise<ApiOrg[]> {
@@ -419,6 +425,12 @@ export async function getShare(shareId: string): Promise<ApiShare> {
   return apiFetch<ApiShare>(path, {
     headers: authHeaders,
   });
+}
+
+export async function deleteShare(shareId: string): Promise<void> {
+  const path = `/v1/shares/${shareId}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  await apiFetch<void>(path, { method: 'DELETE', headers: authHeaders });
 }
 
 // ─── Connection operations ────────────────────────────────────

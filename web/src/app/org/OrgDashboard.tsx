@@ -255,7 +255,7 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const {
     organizations, currentOrg, orgMembers, selectOrg,
-    allDevices, refreshOrganizations, refreshOrgMembers,
+    allDevices, refreshOrganizations, refreshOrgMembers, doRemoveOrgMember,
   } = useApp();
 
   const [tab, setTab] = useState<OrgTab>('overview');
@@ -265,6 +265,8 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [deviceFilter, setDeviceFilter] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [busyMember, setBusyMember] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   useEffect(() => {
     const h = () => setShowCreateOrg(true);
@@ -489,11 +491,14 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                             <th>Zoop ID / Username</th>
                             <th>Role</th>
                             <th>Status</th>
+                            <th style={{ textAlign:'right' }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredMembers.map(m => {
                             const handle = (m as any).username ? `@${(m as any).username}` : (m as any).zoop_id || m.email || '—';
+                            const isBusy = busyMember === m.id.toString();
+                            const confirming = confirmRemove === m.id.toString();
                             return (
                             <tr key={m.id.toString()}>
                               <td><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span></td>
@@ -509,6 +514,16 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                                 <span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
                                   {m.status}
                                 </span>
+                              </td>
+                              <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
+                                {confirming ? (
+                                  <>
+                                    <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyMember(m.id.toString()); try{ await doRemoveOrgMember(m.id.toString()); addToast('Member removed','info'); setConfirmRemove(null);} catch(e){ addToast(e instanceof Error?e.message:'Remove failed','error');} finally{ setBusyMember(null);} }} aria-label="Confirm remove member">{isBusy ? <span className="spinner" style={{width:11,height:11}}/> : 'Confirm'}</button>
+                                    <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRemove(null)}>Cancel</button>
+                                  </>
+                                ) : (
+                                  <button className="btn btn-ghost btn-xs" style={{ color:'var(--red)' }} disabled={isBusy} onClick={()=>setConfirmRemove(m.id.toString())} aria-label={`Remove ${m.name}`}>Remove</button>
+                                )}
                               </td>
                             </tr>
                             );

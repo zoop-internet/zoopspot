@@ -39,11 +39,13 @@ type Store interface {
 	GetOrgMembers(ctx context.Context, orgID types.ID) ([]*types.OrgMember, error)
 	ListOrgMembersAll(ctx context.Context) ([]*types.OrgMember, error)
 	ListOrgsByDevice(ctx context.Context, deviceID types.ID) ([]*types.Organization, error)
+	DeleteOrgMember(ctx context.Context, orgID, memberID types.ID) error
 
 	SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error
 	GetSharingRelationship(ctx context.Context, id types.ID) (*types.SharingRelationship, error)
 	GetSharingRelationshipByEndpoints(ctx context.Context, providerID, recipientID types.ID) (*types.SharingRelationship, error)
 	ListShares(ctx context.Context, endpointID types.ID) ([]*types.SharingRelationship, error)
+	DeleteSharingRelationship(ctx context.Context, id types.ID) error
 
 	SaveConnection(ctx context.Context, conn *types.Connection) error
 	GetConnection(ctx context.Context, id types.ID) (*types.Connection, error)
@@ -56,6 +58,9 @@ type Store interface {
 	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
 	AllocateConnectionIPs(ctx context.Context) (providerIP, recipientIP string, err error)
 
+	// ReleaseConnectionIPs returns a previously allocated pair to the free pool.
+	ReleaseConnectionIPs(ctx context.Context, providerIP, recipientIP string) error
+
 	// IPAMUsage returns the number of allocated /30 pairs and the pool capacity.
 	IPAMUsage(ctx context.Context) (allocated, capacity uint32, err error)
 }
@@ -66,20 +71,24 @@ type Store interface {
 type ipamAllocator struct {
 	mu      sync.Mutex
 	counter uint32
+	free    []uint32
 }
 
 func (a *ipamAllocator) allocate() (string, string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	n := a.counter
-
-	// 100.64.0.0/10 spans 100.64.0.0 – 100.127.255.255 (4,194,304 host IPs = 1,048,576 /30 subnets).
-	// We consume 4 IPs per connection (.1 provider, .2 recipient, .0 net, .3 bcast).
-	const maxPairs = ipamMaxPairs
-
-	if n >= maxPairs {
-		return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
+	var n uint32
+	if len(a.free) > 0 {
+		n = a.free[len(a.free)-1]
+		a.free = a.free[:len(a.free)-1]
+	} else {
+		n = a.counter
+		const maxPairs = ipamMaxPairs
+		if n >= maxPairs {
+			return "", "", fmt.Errorf("IPAM pool exhausted (allocated %d connections)", n)
+		}
+		a.counter++
 	}
 
 	second := 64 + (n / (64 * 256))
@@ -89,8 +98,32 @@ func (a *ipamAllocator) allocate() (string, string, error) {
 	providerIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+1)
 	recipientIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+2)
 
-	a.counter++
 	return providerIP, recipientIP, nil
+}
+
+func (a *ipamAllocator) release(providerIP string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	var second, third, fourth int
+	if _, err := fmt.Sscanf(providerIP, "100.%d.%d.%d", &second, &third, &fourth); err != nil {
+		return fmt.Errorf("invalid provider IP %q", providerIP)
+	}
+	if second < 64 || second > 127 || third < 0 || third > 255 || fourth < 1 || fourth > 254 {
+		return fmt.Errorf("IP %q outside CGNAT pool", providerIP)
+	}
+	fourthBase := fourth - 1
+	if fourthBase%4 != 0 {
+		return fmt.Errorf("IP %q not aligned to /30", providerIP)
+	}
+	n := uint32((second-64)*64*256 + third*64 + fourthBase/4)
+	// avoid double-free
+	for _, v := range a.free {
+		if v == n {
+			return nil
+		}
+	}
+	a.free = append(a.free, n)
+	return nil
 }
 
 // InMemoryStore is a thread-safe, ephemeral implementation of Store.
@@ -125,12 +158,17 @@ func (s *InMemoryStore) AllocateConnectionIPs(_ context.Context) (string, string
 	return s.ipam.allocate()
 }
 
+func (s *InMemoryStore) ReleaseConnectionIPs(_ context.Context, providerIP, _ string) error {
+	return s.ipam.release(providerIP)
+}
+
 const ipamMaxPairs = 64 * 256 * 64 // 1,048,576 /30 pairs across 100.64.0.0/10
 
 func (s *InMemoryStore) IPAMUsage(_ context.Context) (allocated, capacity uint32, err error) {
 	s.ipam.mu.Lock()
 	defer s.ipam.mu.Unlock()
-	return s.ipam.counter, ipamMaxPairs, nil
+	allocated = s.ipam.counter - uint32(len(s.ipam.free))
+	return allocated, ipamMaxPairs, nil
 }
 
 func (s *InMemoryStore) SaveDevice(ctx context.Context, device *types.Device) error {
@@ -460,4 +498,27 @@ func (s *InMemoryStore) ListOrgMembersAll(ctx context.Context) ([]*types.OrgMemb
 		all = []*types.OrgMember{}
 	}
 	return all, nil
+}
+
+func (s *InMemoryStore) DeleteSharingRelationship(ctx context.Context, id types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.shares[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.shares, id)
+	return nil
+}
+
+func (s *InMemoryStore) DeleteOrgMember(ctx context.Context, orgID, memberID types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	members := s.orgMembers[orgID]
+	for i, m := range members {
+		if m.ID == memberID {
+			s.orgMembers[orgID] = append(members[:i], members[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNotFound
 }

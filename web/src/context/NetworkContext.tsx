@@ -2,9 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
-  createShare, createConnection, updateConnectionState, listConnections, listShares,
+  createShare, createConnection, updateConnectionState, listConnections, listShares, deleteShare,
   unregisterDevice,
-  createOrganization, listOrganizations, addOrgMember, listOrgMembers,
+  createOrganization, listOrganizations, addOrgMember, listOrgMembers, removeOrgMember,
   subscribeToEvents,
 } from '../api/client';
 import {
@@ -70,6 +70,7 @@ export interface AppState {
   sharesLoading: boolean;
   refreshShares: () => void;
   doCreateShare: (recipientId: string) => Promise<void>;
+  doDeleteShare: (shareId: string) => Promise<void>;
 
   // Connections
   connections: ApiConnection[];
@@ -89,6 +90,7 @@ export interface AppState {
   doCreateOrg: (name: string, slug?: string) => Promise<ApiOrg>;
   selectOrg: (org: ApiOrg) => void;
   doAddOrgMember: (name: string, handle: string, role: string) => Promise<void>;
+  doRemoveOrgMember: (memberId: string) => Promise<void>;
   refreshOrgMembers: (orgId?: string) => void;
 
   // Local daemon mode
@@ -374,6 +376,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShares(prev => [share, ...prev]);
   }, [deviceId]);
 
+  const doDeleteShare = useCallback(async (shareId: string) => {
+    await deleteShare(shareId);
+    setShares(prev => prev.filter(s => s.id.toString() !== shareId));
+  }, []);
+
   const refreshConnections = useCallback(() => {
     if (!deviceId) return;
     setConnectionsLoading(true);
@@ -407,7 +414,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         cleanup = await subscribeToEvents(
           ev => {
-            if (ev.type === 'share_created') refreshShares();
+            if (ev.type === 'share_created' || ev.type === 'share_revoked') refreshShares();
             if (ev.type === 'connection_requested' || ev.type === 'connection_updated') {
               refreshConnections();
             }
@@ -504,6 +511,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrgMembers(prev => [...prev, member]);
   }, [currentOrg]);
 
+  const doRemoveOrgMember = useCallback(async (memberId: string) => {
+    if (!currentOrg) throw new Error('No active organization');
+    await removeOrgMember(currentOrg.id.toString(), memberId);
+    setOrgMembers(prev => prev.filter(m => m.id.toString() !== memberId));
+  }, [currentOrg]);
+
   return (
     <AppContext.Provider value={{
       user,
@@ -515,11 +528,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deviceId, deviceName, deviceInfo, isRegistering, registerError,
       register, unregister,
       allDevices, devicesLoading, refreshAllDevices,
-      shares, sharesLoading, refreshShares, doCreateShare,
+      shares, sharesLoading, refreshShares, doCreateShare, doDeleteShare,
       connections, connectionsLoading, connectionsError, refreshConnections,
       doConnect, doDisconnect, doAcceptConnection,
       organizations, currentOrg, orgMembers, orgsLoading,
-      refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,
+      refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, doRemoveOrgMember, refreshOrgMembers,
       localMode, daemonChecking, daemonStatus, daemonPeers, daemonTelemetry, refreshDaemon,
     }}>
       {children}

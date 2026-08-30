@@ -180,10 +180,12 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/organizations/{id}", authMw(http.HandlerFunc(s.handleGetOrganization())))
 	s.mux.Handle("POST /v1/organizations/{id}/members", authMw(http.HandlerFunc(s.handleAddOrgMember())))
 	s.mux.Handle("GET /v1/organizations/{id}/members", authMw(http.HandlerFunc(s.handleListOrgMembers())))
+	s.mux.Handle("DELETE /v1/organizations/{id}/members/{memberId}", authMw(http.HandlerFunc(s.handleRemoveOrgMember())))
 
 	s.mux.Handle("POST /v1/shares", authMw(http.HandlerFunc(s.handleCreateShare())))
 	s.mux.Handle("GET /v1/shares", authMw(http.HandlerFunc(s.handleListShares())))
 	s.mux.Handle("GET /v1/shares/{id}", authMw(http.HandlerFunc(s.handleGetShare())))
+	s.mux.Handle("DELETE /v1/shares/{id}", authMw(http.HandlerFunc(s.handleDeleteShare())))
 
 	s.mux.Handle("POST /v1/connections", authMw(http.HandlerFunc(s.handleCreateConnection())))
 	s.mux.Handle("GET /v1/connections", authMw(http.HandlerFunc(s.handleListConnections())))
@@ -438,6 +440,70 @@ func (s *Server) handleListShares() http.HandlerFunc {
 	}
 }
 
+func (s *Server) handleDeleteShare() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
+		if !ok {
+			api.WriteError(w, "unauthenticated", "caller identity missing", http.StatusUnauthorized)
+			return
+		}
+		idStr := r.PathValue("id")
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid share id format", http.StatusBadRequest)
+			return
+		}
+		if err := s.shares.DeleteShare(r.Context(), types.ID(parsedUUID), callerID); err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "share not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrForbidden {
+				api.WriteError(w, "forbidden", "not authorized to revoke this share", http.StatusForbidden)
+				return
+			}
+			s.logger.Error("failed to delete share", "error", err)
+			api.WriteError(w, "internal_error", "failed to revoke share", http.StatusInternalServerError)
+			return
+		}
+		s.audit.Log(r.Context(), callerID, "share.revoke", "share:"+parsedUUID.String(), "")
+		s.events.PublishBroadcast(services.ServerEvent{Type: "share_revoked", Entity: "share", ID: parsedUUID.String()})
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (s *Server) handleRemoveOrgMember() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID := api.IdentityFromContext(r.Context())
+		orgIDStr := r.PathValue("id")
+		memberIDStr := r.PathValue("memberId")
+		orgID, err := uuid.Parse(orgIDStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid organization id", http.StatusBadRequest)
+			return
+		}
+		memberID, err := uuid.Parse(memberIDStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid member id", http.StatusBadRequest)
+			return
+		}
+		if err := s.organizations.RemoveMember(r.Context(), callerID, types.ID(orgID), types.ID(memberID)); err != nil {
+			if err == store.ErrNotFound {
+				api.WriteError(w, "not_found", "member not found", http.StatusNotFound)
+				return
+			}
+			if err == services.ErrForbidden {
+				api.WriteError(w, "forbidden", err.Error(), http.StatusForbidden)
+				return
+			}
+			api.WriteError(w, "invalid_request", err.Error(), http.StatusBadRequest)
+			return
+		}
+		s.audit.Log(r.Context(), callerID, "org.member_remove", "org:"+orgIDStr, "member:"+memberIDStr)
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func (s *Server) handleCreateConnection() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		callerID, ok := r.Context().Value(api.CallerIdentityKey).(types.ID)
@@ -456,6 +522,10 @@ func (s *Server) handleCreateConnection() http.HandlerFunc {
 		if err != nil {
 			if err == services.ErrUnauthorized {
 				api.WriteError(w, "authorization_denied", err.Error(), http.StatusForbidden)
+				return
+			}
+			if err == services.ErrConflict {
+				api.WriteError(w, "conflict", err.Error(), http.StatusConflict)
 				return
 			}
 			s.logger.Error("failed to create connection", "error", err)

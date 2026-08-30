@@ -92,3 +92,14 @@ func (s *ShareService) ListShares(ctx context.Context, endpointID types.ID) ([]a
 	}
 	return resp, nil
 }
+
+func (s *ShareService) DeleteShare(ctx context.Context, id types.ID, callerID types.ID) error {
+	share, err := s.store.GetSharingRelationship(ctx, id)
+	if err != nil {
+		return err
+	}
+	if callerID != share.ProviderID && callerID != share.RecipientID {
+		return ErrForbidden
+	}
+	return s.store.DeleteSharingRelationship(ctx, id)
+}

@@ -642,6 +642,30 @@ func (s *PostgresStore) ListSharesAll(ctx context.Context) ([]*types.SharingRela
 	return shares, nil
 }
 
+func (s *PostgresStore) DeleteSharingRelationship(ctx context.Context, id types.ID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM sharing_relationships WHERE id = $1`, id.String())
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *PostgresStore) DeleteOrgMember(ctx context.Context, orgID, memberID types.ID) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM org_members WHERE organization_id = $1 AND id = $2`, orgID.String(), memberID.String())
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ─── Connections ──────────────────────────────────────────────
 
 func (s *PostgresStore) SaveConnection(ctx context.Context, conn *types.Connection) error {
@@ -851,6 +875,12 @@ func (s *PostgresStore) AllocateConnectionIPs(ctx context.Context) (string, stri
 	recipientIP := fmt.Sprintf("100.%d.%d.%d", second, third, fourthBase+2)
 
 	return providerIP, recipientIP, nil
+}
+
+func (s *PostgresStore) ReleaseConnectionIPs(ctx context.Context, _, _ string) error {
+	// Best-effort reclaim: decrement allocated counter (InMemory uses free list for exact reuse)
+	_, err := s.db.ExecContext(ctx, `UPDATE ipam_counter SET allocated_pairs = GREATEST(0, allocated_pairs - 1) WHERE id = 1`)
+	return err
 }
 
 func (s *PostgresStore) IPAMUsage(ctx context.Context) (allocated, capacity uint32, err error) {

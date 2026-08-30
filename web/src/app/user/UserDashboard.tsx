@@ -714,10 +714,12 @@ const ConnectionsTab: React.FC<{
 
 /* ─── Sharing tab ─────────────────────────────────────────────── */
 const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
-  const { deviceId, shares, allDevices, doCreateShare } = useApp();
+  const { deviceId, shares, allDevices, doCreateShare, doDeleteShare } = useApp();
   const [recipientId, setRecipientId] = useState('');
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [busyShare, setBusyShare] = useState<string | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
   const candidates = allDevices.filter(d => d.id.toString() !== deviceId);
 
@@ -788,11 +790,13 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
           <div className="inline-empty">No sharing relationships yet. Authorize a recipient above.</div>
         ) : (
           <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient</caption>
-            <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient · Revoke to stop access</caption>
+            <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th><th scope="col" style={{ textAlign:'right' }}>Action</th></tr></thead>
             <tbody>
               {shares.map(s => {
                 const isProvider = s.provider_id.toString() === deviceId;
+                const isBusy = busyShare === s.id.toString();
+                const confirming = confirmRevoke === s.id.toString();
                 return (
                   <tr key={s.id.toString()}>
                     <td>{isProvider ? <span className="badge badge-info">Provider</span> : <span className="badge badge-neutral">Recipient</span>}</td>
@@ -803,6 +807,16 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
                       {s.is_active
                         ? <span className="badge badge-success">Active</span>
                         : <span className="badge badge-neutral">Inactive</span>}
+                    </td>
+                    <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
+                      {confirming ? (
+                        <>
+                          <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyShare(s.id.toString()); try{ await doDeleteShare(s.id.toString()); onToast('Share revoked','info'); setConfirmRevoke(null);} catch(e){ onToast(e instanceof Error?e.message:'Revoke failed','error');} finally{ setBusyShare(null);} }} aria-label="Confirm revoke share">{isBusy ? <span className="spinner" style={{width:11,height:11}}/> : 'Confirm'}</button>
+                          <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRevoke(null)}>Cancel</button>
+                        </>
+                      ) : (
+                        <button className="btn btn-ghost btn-xs" style={{ color:'var(--red)' }} disabled={isBusy} onClick={()=>setConfirmRevoke(s.id.toString())} aria-label="Revoke share"><Ico d={I.wifiOff} size={11}/> Revoke</button>
+                      )}
                     </td>
                   </tr>
                 );
