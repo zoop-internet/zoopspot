@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -19,6 +21,9 @@ func NewShareService(s store.Store) *ShareService {
 }
 
 func (s *ShareService) CreateShare(ctx context.Context, req api.CreateShareRequest) (*api.ShareResponse, error) {
+	if req.ProviderID == req.RecipientID {
+		return nil, fmt.Errorf("provider and recipient must be different devices")
+	}
 	// Verify Provider exists
 	if _, err := s.store.GetIdentity(ctx, req.ProviderID); err != nil {
 		return nil, err
@@ -29,11 +34,17 @@ func (s *ShareService) CreateShare(ctx context.Context, req api.CreateShareReque
 		return nil, err
 	}
 
+	// Prevent duplicate active share
+	if existing, err := s.store.GetSharingRelationshipByEndpoints(ctx, req.ProviderID, req.RecipientID); err == nil && existing != nil && existing.IsActive {
+		return nil, fmt.Errorf("sharing relationship already exists")
+	}
+
 	share := &types.SharingRelationship{
 		ID:          types.NewID(),
 		ProviderID:  req.ProviderID,
 		RecipientID: req.RecipientID,
 		IsActive:    true,
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	if err := s.store.SaveSharingRelationship(ctx, share); err != nil {
@@ -80,4 +91,15 @@ func (s *ShareService) ListShares(ctx context.Context, endpointID types.ID) ([]a
 		})
 	}
 	return resp, nil
+}
+
+func (s *ShareService) DeleteShare(ctx context.Context, id types.ID, callerID types.ID) error {
+	share, err := s.store.GetSharingRelationship(ctx, id)
+	if err != nil {
+		return err
+	}
+	if callerID != share.ProviderID && callerID != share.RecipientID {
+		return ErrForbidden
+	}
+	return s.store.DeleteSharingRelationship(ctx, id)
 }

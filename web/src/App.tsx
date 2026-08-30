@@ -27,22 +27,44 @@ const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/admin': { title: 'Platform Admin — Overview & Operations | Zoop', desc: 'Operator console for Zoop cloud — health, relays, IPAM & audit.' },
 };
 
+function normalizePath(raw: string): string {
+  const withoutHash = raw.split('#')[0] ?? raw;
+  const withoutQuery = withoutHash.split('?')[0] ?? withoutHash;
+  let p = withoutQuery.trim().toLowerCase() || '/';
+  if (!p.startsWith('/')) p = '/' + p;
+  // strip trailing slash except root, collapse doubles
+  p = p.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+  return p;
+}
+
+const VALID_ROUTES = new Set([
+  '/', '/how-it-works', '/architecture', '/products', '/downloads', '/security', '/pricing', '/docs',
+  '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
+  '/app', '/user', '/org', '/admin',
+]);
+
 const App: React.FC = () => {
-  const [currentUrl, setCurrentUrl] = useState<string>(() => window.location.pathname + window.location.search);
+  const [currentUrl, setCurrentUrl] = useState<string>(() => window.location.pathname + window.location.search + window.location.hash);
 
   useEffect(() => {
-    const handlePopState = () => {
-      setCurrentUrl(window.location.pathname + window.location.search);
+    const handleNav = () => {
+      setCurrentUrl(window.location.pathname + window.location.search + window.location.hash);
       window.scrollTo(0, 0);
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleNav);
+    window.addEventListener('hashchange', handleNav);
+    return () => {
+      window.removeEventListener('popstate', handleNav);
+      window.removeEventListener('hashchange', handleNav);
+    };
   }, []);
 
   const navigateTo = (path: string) => {
-    if (window.location.pathname + window.location.search !== path) {
-      window.history.pushState({}, '', path);
-      setCurrentUrl(path);
+    const target = path || '/';
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (current !== target) {
+      window.history.pushState({}, '', target);
+      setCurrentUrl(target);
       window.scrollTo(0, 0);
     }
   };
@@ -55,22 +77,28 @@ const App: React.FC = () => {
     else navigateTo('/');
   };
 
-  const [pathname, search] = currentUrl.split('?');
-  const normalized = (pathname || '/').toLowerCase();
-  const searchParams = new URLSearchParams(search || '');
+  // Robust split: keep full query string handling via URL
+  const urlForParse = new URL(currentUrl, window.location.origin);
+  const pathname = urlForParse.pathname;
+  const normalized = normalizePath(pathname);
+  const searchParams = urlForParse.searchParams;
+  const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs');
+  const pathnameForLanding = isValidRoute ? pathname : '/';
 
-  // Per-route title/description sync for SEO (covers S4-05)
+  // Per-route title/description sync for SEO (covers S4-05) — uses normalized route
   useEffect(() => {
-    const key = normalized === '/auth' || normalized.startsWith('/auth') ? '/auth' : normalized;
+    const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
+      : (['/app','/user'].includes(normalized) ? '/app' : normalized);
     const meta = ROUTE_META[key] || ROUTE_META['/'];
-    document.title = meta.title;
+    document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
+    if (!isValidRoute) console.warn('[zoop] unknown route:', normalized, '→ falling back to landing');
     const descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (descTag) descTag.content = meta.desc;
+    if (descTag) descTag.content = isValidRoute ? meta.desc : 'Page not found — return to Zoop Internet homepage.';
     const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement | null;
-    if (ogTitle) ogTitle.content = meta.title;
+    if (ogTitle) ogTitle.content = document.title;
     const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
-    if (ogDesc) ogDesc.content = meta.desc;
-  }, [normalized]);
+    if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
+  }, [normalized, isValidRoute]);
 
   const isAuth =
     normalized === '/auth' ||
@@ -96,27 +124,42 @@ const App: React.FC = () => {
   const redirectUrl = searchParams.get('redirect_url') || '/app';
   const hideDev = typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string,string> }).env?.VITE_HIDE_DEV_ADMIN === 'true';
 
-  const Fallback: React.FC = () => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite" aria-busy="true">
-      <div className="spinner" style={{ width: 28, height: 28 }} aria-hidden />
-      <span style={{ color: '#8b9bb0', fontSize: 13 }}>Loading Zoop…</span>
+const Fallback: React.FC = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite" aria-busy="true">
+    <div className="spinner" style={{ width: 28, height: 28 }} aria-hidden />
+    <span style={{ color: '#8b9bb0', fontSize: 13 }}>Loading Zoop…</span>
+  </div>
+);
+
+const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({ path, onNavigate }) => (
+  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', background: '#020617', color: '#f1f5f9', textAlign: 'center' }}>
+    <div style={{ fontSize: '4rem', fontWeight: 800, letterSpacing: '-0.04em', color: '#38bdf8' }}>404</div>
+    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 8 }}>Page not found</h1>
+    <p style={{ color: '#94a3b8', marginTop: 8, maxWidth: 480, lineHeight: 1.6 }}>No route matches <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono, monospace)', fontSize:'0.8125rem' }}>{path}</code>. Check the URL or return home.</p>
+    <div style={{ display:'flex', gap:12, marginTop:20 }}>
+      <button className="lp-btn-primary" onClick={() => onNavigate('/')} style={{ padding:'10px 18px', borderRadius: 10, background: '#38bdf8', color:'#020617', border:0, fontWeight:700, cursor:'pointer' }}>Go to homepage</button>
+      <button className="lp-btn-secondary" onClick={() => window.history.back()} style={{ padding:'10px 18px', borderRadius:10, background:'rgba(255,255,255,0.06)', color:'#f1f5f9', border:'1px solid rgba(255,255,255,0.08)', fontWeight:600, cursor:'pointer' }}>Go back</button>
     </div>
-  );
+    <div style={{ marginTop:24, fontSize:'0.75rem', color:'#64748b' }}><a href="/docs" onClick={e=>{e.preventDefault(); onNavigate('/docs');}} style={{ color:'#38bdf8' }}>Docs</a> · <a href="/downloads" onClick={e=>{e.preventDefault(); onNavigate('/downloads');}} style={{ color:'#38bdf8' }}>Downloads</a> · <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8' }}>GitHub</a></div>
+  </div>
+);
 
   return (
     <AppProvider>
       <ErrorBoundary>
         <Suspense fallback={<Fallback />}>
-          {isAuth ? (
+          {!isValidRoute ? (
+            <NotFound path={pathname} onNavigate={navigateTo} />
+          ) : isAuth ? (
             <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
           ) : isApp ? (
-            <UserDashboard mode="user" onSwitch={handleSwitchMode} />
+            <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} /></ErrorBoundary>
           ) : isOrg ? (
-            <OrgDashboard mode="org" onSwitch={handleSwitchMode} />
+            <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} /></ErrorBoundary>
           ) : isAdmin ? (
-            <AdminConsole mode="admin" onSwitch={handleSwitchMode} />
+            <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} /></ErrorBoundary>
           ) : (
-            <LandingPage currentPath={pathname} onNavigate={navigateTo} onLaunchConsole={handleSwitchMode} />
+            <LandingPage currentPath={pathnameForLanding} onNavigate={navigateTo} onLaunchConsole={handleSwitchMode} />
           )}
         </Suspense>
       </ErrorBoundary>

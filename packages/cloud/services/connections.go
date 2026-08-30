@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -14,6 +15,7 @@ import (
 var (
 	ErrUnauthorized    = errors.New("authorization denied")
 	ErrInvalidState    = errors.New("invalid connection state transition")
+	ErrConflict        = errors.New("conflict: duplicate connection")
 )
 
 // validTransitions defines the allowed state machine transitions for a Connection.
@@ -69,12 +71,22 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		return nil, err
 	}
 
+	// Prevent duplicate active connection (REQUESTED/AUTHORIZED/CONNECTING/CONNECTED) for same pair.
+	if existing, err := s.store.ListConnections(ctx, req.RecipientID); err == nil {
+		for _, c := range existing {
+			if c.ProviderID == req.ProviderID && c.RecipientID == req.RecipientID && c.State != types.ConnectionStateDisconnected {
+				return nil, ErrConflict
+			}
+		}
+	}
+
 	// Allocate unique IPs from the CGNAT pool instead of using hardcoded addresses.
 	providerIP, recipientIP, err := s.store.AllocateConnectionIPs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	now := time.Now().UTC()
 	conn := &types.Connection{
 		ID:          types.NewID(),
 		ProviderID:  req.ProviderID,
@@ -82,6 +94,8 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		State:       types.ConnectionStateRequested,
 		ProviderIP:  providerIP,
 		RecipientIP: recipientIP,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.store.SaveConnection(ctx, conn); err != nil {
@@ -181,8 +195,13 @@ func (s *ConnectionService) UpdateConnectionState(ctx context.Context, id types.
 	}
 
 	conn.State = newState
+	conn.UpdatedAt = time.Now().UTC()
 	if err := s.store.SaveConnection(ctx, conn); err != nil {
 		return err
+	}
+	// Reclaim IPAM pool when connection is torn down.
+	if newState == types.ConnectionStateDisconnected {
+		_ = s.store.ReleaseConnectionIPs(ctx, conn.ProviderIP, conn.RecipientIP)
 	}
 
 	// Notify the peer endpoint so it can tear down or update its tunnel.

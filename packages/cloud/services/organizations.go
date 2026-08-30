@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/zoop-internet/zoop/packages/cloud/api"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -40,12 +41,14 @@ func (s *OrganizationService) CreateOrg(ctx context.Context, callerID types.ID, 
 		return nil, fmt.Errorf("invalid slug: must be 1-63 chars of lowercase letters, digits and hyphens")
 	}
 
+	now := time.Now().UTC()
 	org := &types.Organization{
 		ID:          types.NewID(),
 		Name:        req.Name,
 		OwnerDevice: callerID,
 		Slug:        slug,
 		Status:      "active",
+		CreatedAt:   now,
 	}
 
 	// Reject duplicate slugs regardless of storage backend.
@@ -74,6 +77,7 @@ func (s *OrganizationService) CreateOrg(ctx context.Context, callerID types.ID, 
 		Email:          "owner@zoop.local",
 		Role:           "owner",
 		Status:         "active",
+		CreatedAt:      now,
 	}
 	if err := s.store.SaveOrgMember(ctx, owner); err != nil {
 		return nil, err
@@ -160,6 +164,7 @@ func (s *OrganizationService) AddMember(ctx context.Context, callerID types.ID, 
 		Email:          req.Email,
 		Role:           role,
 		Status:         "active",
+		CreatedAt:      time.Now().UTC(),
 	}
 
 	if err := s.store.SaveOrgMember(ctx, member); err != nil {
@@ -223,6 +228,48 @@ func (s *OrganizationService) isMember(ctx context.Context, orgID, callerID type
 		}
 	}
 	return false
+}
+
+func (s *OrganizationService) RemoveMember(ctx context.Context, callerID, orgID, memberID types.ID) error {
+	if _, err := s.store.GetOrganization(ctx, orgID); err != nil {
+		return err
+	}
+	members, err := s.store.GetOrgMembers(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	// caller must be owner/admin or removing self
+	if !hasRole(members, callerID, "owner", "admin") && !isSelfMember(members, callerID, memberID) {
+		return ErrForbidden
+	}
+	// prevent removing last owner
+	if isLastOwner(members, memberID) {
+		return fmt.Errorf("cannot remove last owner")
+	}
+	return s.store.DeleteOrgMember(ctx, orgID, memberID)
+}
+
+func isSelfMember(members []*types.OrgMember, callerID, memberID types.ID) bool {
+	for _, m := range members {
+		if m.ID == memberID && m.DeviceID == callerID {
+			return true
+		}
+	}
+	return false
+}
+
+func isLastOwner(members []*types.OrgMember, memberID types.ID) bool {
+	ownerCount := 0
+	targetIsOwner := false
+	for _, m := range members {
+		if m.Role == "owner" {
+			ownerCount++
+			if m.ID == memberID {
+				targetIsOwner = true
+			}
+		}
+	}
+	return targetIsOwner && ownerCount == 1
 }
 
 func hasRole(members []*types.OrgMember, deviceID types.ID, roles ...string) bool {

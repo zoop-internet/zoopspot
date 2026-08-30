@@ -538,8 +538,13 @@
   box-shadow: 0 0 0 3px rgba(56,189,248,0.18);
   background: #0c1219;
 }
+.pin-box.filled { background: #0c1219; }
+.pin-box.active { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.18); }
+.pin-box.error { border-color: rgba(248,113,113,0.6) !important; background: rgba(248,113,113,0.06) !important; }
 .pin-complete .pin-box { border-color: rgba(52,211,153,0.45); }
 .pin-error .pin-box { border-color: rgba(248,113,113,0.6); background: rgba(248,113,113,0.06); }
+div.pin-box { display: flex; align-items: center; justify-content: center; cursor: text; user-select: none; }
+.pin-hidden-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .pin-label-row {
   display: flex;
   align-items: center;

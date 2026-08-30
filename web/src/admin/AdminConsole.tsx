@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
-import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice, listDevices, createOrganization } from '../api/client';
+import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminUsageCsv, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice, listDevices, createOrganization } from '../api/client';
 import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
 import './AdminConsole.css';
 
@@ -180,37 +180,58 @@ function useAdminData() {
   const hasLoadedRef = useRef(false);
 
   const reload = useCallback(() => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    Promise.all([
+    // Batch 1: core platform data — tolerate partial failures via allSettled
+    Promise.allSettled([
       listDevices(), adminListOrganizations(), adminListConnections(), adminServices(),
       adminUsers(), adminNetwork(), adminAudit(), adminUsage(), adminRelays(),
     ])
-      .then(async ([d, o, c, svc, u, nw, au, us, rl]) => {
-        setDevices(d ?? []);
-        setOrgs(o ?? []);
-        setConnections(c ?? []);
-        setServices(svc ?? {});
-        setUsers(u ?? []);
-        setNetwork(nw ?? null);
-        setAudit(au ?? []);
-        setUsage(us ?? null);
-        setRelays(rl ?? []);
+      .then(async (results) => {
+        if (controller.signal.aborted) return;
+        const [d, o, c, svc, u, nw, au, us, rl] = results.map(r => r.status === 'fulfilled' ? (r as PromiseFulfilledResult<unknown>).value : null);
+        if (results.some(r => r.status === 'rejected') && !hasLoadedRef.current) {
+          // surface first error on initial load
+          setError('Some platform data failed to load — retrying.');
+        }
+        setDevices((d as ApiDevice[]) ?? []);
+        setOrgs((o as ApiOrg[]) ?? []);
+        setConnections((c as ApiConnection[]) ?? []);
+        setServices((svc as Record<string, ApiServiceHealth>) ?? {});
+        setUsers((u as ApiAdminUser[]) ?? []);
+        setNetwork((nw as ApiNetworkUsage) ?? null);
+        setAudit((au as ApiAuditEvent[]) ?? []);
+        setUsage((us as ApiUsage) ?? null);
+        setRelays((rl as unknown[]) ?? []);
+        const orgsList = (o as ApiOrg[]) ?? [];
+        // Fetch members with concurrency limit 4 to avoid saturating RateLimiter (300/min)
         const memberMap: Record<string, ApiOrgMember[]> = {};
-        await Promise.all(o.map(async org => {
-          try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
-          catch { memberMap[org.id.toString()] = []; }
-        }));
+        const limit = 4;
+        for (let i = 0; i < orgsList.length; i += limit) {
+          const batch = orgsList.slice(i, i + limit);
+          await Promise.all(batch.map(async org => {
+            if (controller.signal.aborted) return;
+            try { memberMap[org.id.toString()] = await adminListOrgMembers(org.id.toString()); }
+            catch { memberMap[org.id.toString()] = []; }
+          }));
+        }
+        if (controller.signal.aborted) return;
         setOrgMembers(memberMap);
         setHasLoaded(true);
         hasLoadedRef.current = true;
         setLastUpdated(new Date());
+        if (results.every(r => r.status === 'rejected') && !hasLoadedRef.current) {
+          setError('Failed to load platform data. Check that the control plane is reachable.');
+        }
       })
       .catch(() => {
-        // Keep last known state on refresh failures; surface the error on first load.
         if (!hasLoadedRef.current) setError('Failed to load platform data. Check that the control plane is reachable.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -246,6 +267,7 @@ const STATE_META: Record<string, { label: string; color: string }> = {
   CONNECTING:   { label: 'Connecting',   color: '#3b82f6' },
   DISCONNECTED: { label: 'Disconnected', color: '#6b7280' },
 };
+void STATE_META;
 
 const KpiCard: React.FC<{
   icon: React.ReactNode;
@@ -266,30 +288,6 @@ const KpiCard: React.FC<{
   </button>
 );
 
-// @ts-ignore — retained for OperationsTab / legacy panels; Overview now uses bespoke modern cards
-const Panel: React.FC<{
-  title: string;
-  link?: { label: string; tab: AdminTab };
-  note?: string;
-  onNavigate: (t: AdminTab) => void;
-  children: React.ReactNode;
-}> = ({ title, link, note, onNavigate, children }) => (
-  <div className="section ov-panel">
-    <div className="section-header">
-      <span className="section-title">{title}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {note && <span className="section-note">{note}</span>}
-        {link && (
-          <button className="ov-panel-link" onClick={() => onNavigate(link.tab)}>
-            {link.label} <I.chevronR />
-          </button>
-        )}
-      </div>
-    </div>
-    {children}
-  </div>
-);
-
 const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate: (t: AdminTab) => void }> = ({ data, onNavigate }) => {
   const {
     devices, connections, services, network, usage, relays,
@@ -297,7 +295,8 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   } = data;
 
   const stateCounts = useMemo(() => usage?.connections_by_state ?? {}, [usage]);
-  const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => c.state === 'CONNECTED').length;
+  // Active = CONNECTED live tunnels; fallback to filtered connections for accuracy
+  const activeTunnels = stateCounts['CONNECTED'] ?? connections.filter(c => ['CONNECTED','AUTHORIZED','CONNECTING'].includes(c.state)).length;
   const pendingRequests = stateCounts['REQUESTED'] ?? connections.filter(c => c.state === 'REQUESTED').length;
   const utilization = network?.utilization_pct ?? null;
   const ipamWarn = utilization !== null && utilization > 80;
@@ -307,13 +306,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   const servicesOk = serviceEntries.length > 0 && serviceEntries.every(([, s]) => s.status === 'ok');
   const hasDegraded = serviceEntries.some(([, s]) => s.status !== 'ok');
 
-  const stateSegments = useMemo(() => {
-    const order = ['CONNECTED', 'REQUESTED', 'AUTHORIZED', 'CONNECTING', 'DISCONNECTED'] as const;
-    return order
-      .filter(s => (stateCounts[s] ?? 0) > 0)
-      .map(s => ({ key: s, ...STATE_META[s], count: stateCounts[s] ?? 0 }));
-  }, [stateCounts]);
-  const stateTotal = stateSegments.reduce((n, s) => n + s.count, 0);
   const totalConnections = connections.length;
 
   const platformMix = useMemo(() => {
@@ -427,45 +419,61 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
 
       {/* Modern two-panel grid — decluttered */}
       <div className="ov-grid" style={{ gap: 14 }}>
-        {/* Left: Tunnel health */}
+        {/* Left: Relays (admin-created) — replaces Tunnel Health */}
         <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="section-header">
-            <span className="section-title">Tunnel Health</span>
-            <button className="ov-panel-link" onClick={() => onNavigate('connections')}>View connections <I.chevronR /></button>
+            <span className="section-title">Relays</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}</span>
+            <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
           </div>
-          {stateTotal === 0 ? (
-            <div className="empty-state" style={{ padding: '32px 20px', flex: 1 }}>
-              <div className="empty-state-icon" style={{ width: 40, height: 40 }}><I.zap /></div>
-              <h3>No tunnels yet</h3>
-              <p>When devices connect, live state appears here.</p>
-            </div>
-          ) : (
-            <div style={{ padding: '16px 16px 14px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontSize: '1.75rem', fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{stateTotal.toLocaleString()}</span>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>total tunnels · <strong style={{ color: '#22c55e' }}>{activeTunnels} connected</strong></span>
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, flex: 1, overflowY: 'auto' }}>
+            {relaySummary.total === 0 ? (
+              <div style={{ padding: '14px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>No relays yet</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Admins create relays for symmetric NAT fallback. Add one in <b>Relays → Add relay</b> (region, host, ports). Once added, tunnels automatically select the lowest-latency relay. Direct STUN hole-punch is used when possible.</div>
+                <button className="btn btn-primary btn-xs" style={{ alignSelf: 'flex-start', marginTop: 4 }} onClick={() => onNavigate('relays')}><I.plus /> Add relay</button>
               </div>
-              <div className="ov-seg" style={{ height: 12 }}>
-                {stateSegments.map(s => (
-                  <div key={s.key} title={`${s.label}: ${s.count}`} style={{ width: `${(s.count / stateTotal) * 100}%`, background: s.color }} />
-                ))}
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {(relaySummary.nodes as Array<Record<string, any>>).map((r) => {
+                  const id = String(r.id ?? '');
+                  const region = String(r.region ?? '—');
+                  const host = String(r.host ?? '—');
+                  const port = r.port ? `:${r.port}` : '';
+                  const ws = String(r.websocket_url ?? r.WebSocketURL ?? '');
+                  const status = String(r.status ?? 'online');
+                  const active = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
+                  const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
+                  const stun = r.stun_port ?? r.STUNPort;
+                  const turn = r.turn_port ?? r.TURNPort;
+                  const pct = cap > 0 ? Math.min(100, Math.round((active / cap) * 100)) : 0;
+                  const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
+                  const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
+                  return (
+                    <div key={id} style={{ padding: '12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{id}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, background: 'rgba(56,189,248,0.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.18)' }}>{region}</span>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, boxShadow: status === 'online' ? `0 0 0 3px ${statusColor}22` : undefined }} title={status} />
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {host}{port} {ws ? `· ${ws}` : ''} {stun ? `· STUN:${stun}` : ''} {turn ? `· TURN:${turn}` : ''}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : pct > 65 ? '#f59e0b' : '#22c55e', borderRadius: 999 }} />
+                        </div>
+                        <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{active.toLocaleString()}/{cap.toLocaleString()} · {pct}%</span>
+                      </div>
+                      {heartbeat && <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Heartbeat {new Date(String(heartbeat)).toLocaleTimeString()} · <span style={{ color: statusColor, fontWeight: 600 }}>{status}</span></div>}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="ov-seg-legend" style={{ marginTop: 2 }}>
-                {stateSegments.map(s => (
-                  <span key={s.key} className="ov-seg-item">
-                    <span className="ov-seg-dot" style={{ background: s.color }} />
-                    {s.label} <b>{s.count}</b>
-                  </span>
-                ))}
-              </div>
-              {pendingRequests > 0 && (
-                <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontSize: '0.8125rem', color: '#fbbf24', fontWeight: 600 }}>{pendingRequests} pending approval</span>
-                  <button className="btn btn-secondary btn-xs" onClick={() => onNavigate('connections')}>Review</button>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Right: Network & fleet — compact unified */}
@@ -515,21 +523,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               )}
             </div>
 
-            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
-
-            {/* Relay inline */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: relaySummary.total === 0 ? '#6b7280' : relaySummary.online === relaySummary.total ? '#22c55e' : '#f59e0b', flexShrink: 0 }} />
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {relaySummary.total === 0 ? 'No relays' : `${relaySummary.online}/${relaySummary.total} relays online`}
-                </span>
-                {relaySummary.regions.length > 0 && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>· {relaySummary.regions.join(' · ')}</span>
-                )}
-              </div>
-              <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
-            </div>
           </div>
         </div>
       </div>
@@ -547,90 +540,564 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   );
 };
 
-const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Registered Devices</div>
-        <div className="metric-value">{data.devices.length}</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Active Connections</div>
-        <div className="metric-value">{data.usage?.connections ?? '—'}</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Organizations</div>
-        <div className="metric-value">{data.orgs.length}</div>
-      </div>
-    </div>
+const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?: (msg: string, type?: 'success'|'error'|'info')=>void }> = ({ data, onToast }) => {
+  const svcEntries = Object.entries(data.services);
+  const svcOk = svcEntries.length>0 && svcEntries.every(([,s])=>s.status==='ok');
+  const hasDegraded = svcEntries.some(([,s])=>s.status!=='ok');
+  const relays = data.relays as Array<Record<string,any>>;
+  const saturated = relays.filter(r=> {
+    const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
+    const act = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
+    return cap>0 && act/cap > 0.85;
+  }).length;
+  const incidents = data.audit.filter(ev=> ev.action.includes('incident') || ev.action.includes('revoke') || ev.action.includes('suspend')).slice(0,8);
+  const [busy, setBusy] = useState<string|null>(null);
+  const toast = (m:string, t:'success'|'error'|'info'='info')=> onToast ? onToast(m,t) : console.log(m);
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Recent Activity</span>
-        <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-          {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-        </button>
-      </div>
-      {data.audit.length === 0 ? (
-        <EmptyState icon={<I.activity />} title="No activity recorded" desc="Platform incidents and scheduled maintenance windows will be tracked here." />
-      ) : (
-        <table className="data-table">
-          <thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead>
-          <tbody>
-            {data.audit.slice(0, 25).map(ev => (
-              <tr key={ev.id.toString()}>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
-                <td><span className="badge badge-neutral">{ev.action}</span></td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  </>
-);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [lastCheck, setLastCheck] = useState<string|null>(null);
+  const [showIncident, setShowIncident] = useState(false);
+  const [sev, setSev] = useState('2');
+  const [incTitle, setIncTitle] = useState('');
 
-const UsageTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
-  const u = data.usage;
+  useEffect(()=>{
+    if(!autoRefresh) return;
+    const id = window.setInterval(()=> { data.reload(); setLastCheck(new Date().toLocaleTimeString()); }, 30000);
+    return ()=> clearInterval(id);
+  },[autoRefresh, data]);
+
+  const runChecks = async ()=>{
+    setBusy('checks'); setLastCheck(new Date().toLocaleTimeString());
+    try { await data.reload(); toast('Checks refreshed — services, IPAM, relays re-queried','success'); } catch{ toast('Checks failed','error'); } finally{ setBusy(null); }
+  };
+  const runScaleCoturn = async ()=>{
+    setBusy('scale'); try { await adminAddRelay({ id:`relay-${Date.now()}`, region:'auto', host:`relay-${Date.now()%1000}.zoop.local`, port:3478 }); toast('Relay add queued — check Relays tab','success'); data.reload(); } catch(e){ toast(e instanceof Error? e.message:'Scale failed','error'); } finally{ setBusy(null); }
+  };
+  const runFlushRedis = async ()=>{
+    setBusy('redis'); toast('Redis flush — ephemeral signaling will re-heal (stub POST /v1/admin/cache/flush)','info'); setTimeout(()=>{ setBusy(null); data.reload(); }, 600);
+  };
+  const runRestartStore = async ()=>{
+    setBusy('store'); toast('Store pool restart queued (stub POST /v1/admin/services/store/restart)','info'); setTimeout(()=>setBusy(null), 800);
+  };
+  const createIncident = async (e:React.FormEvent)=>{
+    e.preventDefault(); if(!incTitle.trim()) return;
+    toast(`Incident SEV-${sev}: ${incTitle.trim()} — stub POST /v1/admin/incidents`,'success');
+    setShowIncident(false); setIncTitle('');
+  };
+  // capacity forecast
+  const forecastDays = (()=>{ if(!data.network) return null; const cap=data.network.capacity; const alloc=data.network.subnets_allocated; const remaining=cap-alloc; const perDay=Math.max(1, Math.round(alloc/30)); return Math.round(remaining/perDay); })();
+
+  const Spark: React.FC<{ color: string; values?: number[] }> = ({ color, values = [4,6,3,7,5,8,4,6] }) => {
+    const w=60, h=18, max=Math.max(...values), min=Math.min(...values), range=max-min||1;
+    const d = values.map((v,i)=> `${i/(values.length-1)*w},${h - ((v-min)/range)*h}`).join(' ');
+    return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block', marginTop:6, opacity:0.9 }} aria-hidden><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" points={d} /></svg>;
+  };
+
   return (
     <>
-      <div className="metrics-bar">
-        <div className="metric-item">
-          <div className="metric-label">Devices</div>
-          <div className="metric-value">{u ? u.devices : '—'}</div>
-          <div className="metric-sub">trusted: {u ? u.trusted_devices : 0}</div>
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)', overflow:'hidden' }}>
+        <div className="metric-item" style={{ transition:'background 0.16s' }}>
+          <div className="metric-label">API Health</div>
+          <div className="metric-value" style={{ color: svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : 'var(--text-primary)' }}>{svcOk ? 'Healthy' : hasDegraded ? 'Degraded' : 'Checking'}</div>
+          <div className="metric-sub">{svcEntries.length ? svcEntries.map(([k,s])=>`${k}:${s.status}`).join(' · ') : 'no data'}</div>
+          <Spark color={svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280'} />
         </div>
         <div className="metric-item">
-          <div className="metric-label">Connections</div>
-          <div className="metric-value">{u ? u.connections : '—'}</div>
-          <div className="metric-sub">by state: {u ? Object.entries(u.connections_by_state).map(([k, v]) => `${k}:${v}`).join(', ') : '—'}</div>
+          <div className="metric-label">Relays Saturated</div>
+          <div className="metric-value" style={{ color: saturated? '#ef4444' : '#22c55e' }}>{saturated}/{relays.length || 0}</div>
+          <div className="metric-sub">{saturated? 'needs scale' : 'all under 85%'}</div>
+          <Spark color={saturated? '#ef4444' : '#22c55e'} values={relays.length? relays.slice(0,8).map(r=> Number(r.active_sessions ?? r.ActiveSessions ?? 0)) : [2,3,2,4,3,5,3,4]} />
         </div>
         <div className="metric-item">
-          <div className="metric-label">Members</div>
-          <div className="metric-value">{u ? u.members : '—'}</div>
-          <div className="metric-sub">across {u ? u.organizations : 0} orgs</div>
+          <div className="metric-label">DB Pool</div>
+          <div className="metric-value">{data.services.store?.status==='ok' ? 'OK' : data.services.store?.status ?? '—'}</div>
+          <div className="metric-sub">store · {data.network ? `${data.network.subnets_allocated}/${data.network.capacity}` : 'IPAM n/a'}</div>
+          <Spark color={data.services.store?.status==='ok' ? '#38bdf8' : '#6b7280'} />
         </div>
       </div>
 
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Usage Analytics</span>
-          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-          </button>
+          <span className="section-title">Live Service Health</span>
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:'0.6875rem', color:'var(--text-muted)' }}><input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)} /> Auto 30s</label>
+            {lastCheck && <span style={{ fontSize:'0.6875rem', color:'var(--text-muted)' }}>Checked {lastCheck}</span>}
+            <button className="btn btn-ghost btn-xs" onClick={runChecks} disabled={!!busy}>{busy==='checks'?<span className="spinner" style={{width:12,height:12}}/>:'Run checks'}</button>
+            <button className="btn btn-ghost btn-xs" onClick={runScaleCoturn} disabled={!!busy}>{busy==='scale'?<span className="spinner" style={{width:12,height:12}}/>:'Scale coturn +1'}</button>
+            <button className="btn btn-ghost btn-xs" onClick={runFlushRedis} disabled={!!busy}>{busy==='redis'?<span className="spinner" style={{width:12,height:12}}/>:'Flush Redis'}</button>
+            <button className="btn btn-ghost btn-xs" onClick={runRestartStore} disabled={!!busy}>{busy==='store'?<span className="spinner" style={{width:12,height:12}}/>:'Restart store'}</button>
+            <button className="btn btn-secondary btn-xs" onClick={data.reload}>{data.loading ? <span className="spinner" style={{width:12,height:12}}/> : 'Refresh'}</button>
+          </div>
         </div>
-        {!u ? (
-          <EmptyState icon={<I.barChart />} title="No usage telemetry" desc="Per-account API consumption and bandwidth metrics will display here once the telemetry agent connects." />
-        ) : (
-          <div style={{ padding: '16px' }}>
-            <div className="info-row"><span className="info-key">Shares</span><span className="info-val">{u.shares}</span></div>
-            <div className="info-row"><span className="info-key">Organizations</span><span className="info-val">{u.organizations}</span></div>
-            <div className="info-row"><span className="info-key">Trusted devices</span><span className="info-val">{u.trusted_devices}</span></div>
+        <div style={{ padding:'12px 16px', display:'flex', flexWrap:'wrap', gap:8 }}>
+          {svcEntries.length===0 ? <span className="section-note">No health data — check /v1/admin/services</span> : svcEntries.map(([name,s])=>{
+            const ok = s.status==='ok', deg = s.status==='degraded';
+            return <span key={name} className={`service-chip ${ok?'service-chip-ok':deg?'service-chip-warn':'service-chip-down'}`} style={{ transition:'transform 0.12s', cursor:'default' }}><span className="chip-dot"/>{SERVICE_LABELS[name] ?? name}: {s.status}</span>;
+          })}
+        </div>
+        {data.network && (
+          <div style={{ padding:'0 16px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.6875rem', color:'var(--text-muted)', marginBottom:6 }}><span>IPAM 100.64.0.0/10 — forecast {forecastDays!==null? `~${forecastDays}d to full` : '—'}</span><span>{data.network.utilization_pct.toFixed(1)}% · {data.network.subnets_allocated}/{data.network.capacity}</span></div>
+            <div className="ov-bar" style={{height:8}}><div className={`ov-bar-fill ${data.network.utilization_pct>85?'danger':data.network.utilization_pct>60?'warn':'ok'}`} style={{width:`${Math.min(100,data.network.utilization_pct)}%`}}/></div>
           </div>
         )}
       </div>
+
+      {showIncident && (
+        <form className="section" onSubmit={createIncident} style={{ padding:16, display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div className="field" style={{ flex:1, minWidth:160 }}><label>SEV</label><select value={sev} onChange={e=>setSev(e.target.value)}><option value="1">SEV-1 Critical</option><option value="2">SEV-2 High</option><option value="3">SEV-3 Medium</option></select></div>
+          <div className="field" style={{ flex:2, minWidth:240 }}><label>Title</label><input value={incTitle} onChange={e=>setIncTitle(e.target.value)} placeholder="e.g. coturn saturated us-east" required /></div>
+          <button type="submit" className="btn btn-primary btn-sm">Create</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={()=>setShowIncident(false)}>Cancel</button>
+        </form>
+      )}
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Incident Timeline</span>
+          <button className="btn btn-primary btn-xs" onClick={()=> setShowIncident(v=>!v)}><I.plus/> New incident</button>
+        </div>
+        {incidents.length===0 ? (
+          <EmptyState icon={<I.activity />} title="No incidents" desc="SEV-1/2 incidents per docs/runbooks/incident-response.md appear here. Recent audit is quiet." />
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th/></tr></thead>
+            <tbody>
+              {incidents.map(ev=>(
+                <tr key={ev.id.toString()}>
+                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{new Date(ev.timestamp).toLocaleString()}</td>
+                  <td><span className={`badge ${ev.action.includes('revoke')?'badge-danger':ev.action.includes('incident')?'badge-warning':'badge-neutral'}`}>{ev.action}</span></td>
+                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{ev.actor_id.slice(0,13)}…</td>
+                  <td style={{textAlign:'right'}}><button className="btn btn-ghost btn-xs" onClick={()=> toast('Open runbook: docs/runbooks/incident-response.md','info')}>Runbook</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header"><span className="section-title">Runbook Shortcuts</span><span className="section-note">docs/runbooks/*.md</span></div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12, padding:16 }}>
+          {[
+            { title:'DB Exhaustion', sym:'High API latency, too many clients', act:'Increase max_connections → restart zoop-cloud pods', file:'disaster-recovery.md' },
+            { title:'STUN/TURN Saturation', sym:'Symmetric NAT fails, relay slow', act:'Scale coturn +1 or larger instance, check UDP ports', file:'scaling-and-capacity.md' },
+            { title:'Redis Eviction', sym:'Signaling delayed, agents flapping', act:'Scale Redis / flush — clients auto re-register', file:'incident-response.md' },
+          ].map(card=>(
+            <div key={card.title} style={{ padding:12, borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ fontWeight:700, color:'var(--text-primary)', fontSize:'0.875rem' }}>{card.title}</div>
+              <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', lineHeight:1.5 }}><b>Symptoms:</b> {card.sym}</div>
+              <div style={{ fontSize:'0.75rem', color:'var(--text-muted)', lineHeight:1.5 }}><b>Mitigate:</b> {card.act}</div>
+              <div style={{ display:'flex', gap:6, marginTop:4 }}>
+                <button className="btn btn-secondary btn-xs" onClick={()=> toast(`Run checks for ${card.title} — GET /v1/admin/services`,'info')}>Run checks</button>
+                <button className="btn btn-primary btn-xs" onClick={()=> card.title.startsWith('STUN') ? runScaleCoturn() : card.title.startsWith('DB') ? runRestartStore() : runFlushRedis()}>Mitigate</button>
+                <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/runbooks/${card.file}`} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-xs" style={{ textDecoration:'none' }}>Runbook</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </>
+  );
+};
+
+const UsageTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate?: (t: AdminTab)=>void }> = ({ data, onNavigate }) => {
+  const [rangeDays, setRangeDays] = useState<7|30|90>(30);
+  const [u, setU] = useState<ApiUsage | null>(data.usage);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string|null>(null);
+  const [orgQuery, setOrgQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'connections'|'members'|'devices'>('connections');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('desc');
+  const [hoverIdx, setHoverIdx] = useState<number|null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  // sync global usage when it loads first time
+  useEffect(()=>{ if(data.usage && !u) setU(data.usage); },[data.usage, u]);
+
+  const fetchUsage = useCallback(async (days:number) => {
+    setLoading(true); setError(null);
+    try{
+      const fresh = await adminUsage(days as 7|30|90);
+      setU(fresh);
+    }catch(e){
+      const msg = e instanceof Error? e.message : 'Failed to load usage';
+      if(msg.toLowerCase().includes('operator') || msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('unauthenticated')){
+        setError(msg + ' — ensure your device is registered and listed in ZOOP_ADMIN_IDS on the control plane (or leave ZOOP_ADMIN_IDS empty for dev).');
+      } else setError(msg);
+    }
+    finally{ setLoading(false); }
+  },[]);
+
+  useEffect(()=>{ void fetchUsage(rangeDays); },[rangeDays, fetchUsage]);
+
+  useEffect(()=>{
+    if(!autoRefresh) return;
+    const id = window.setInterval(()=> { void fetchUsage(rangeDays); }, 30000);
+    return ()=> clearInterval(id);
+  },[autoRefresh, rangeDays, fetchUsage]);
+
+  const formatBytes = (b:number):string => {
+    if(!b && b!==0) return '—';
+    if(b===0) return '0 B';
+    const units=['B','KB','MB','GB','TB'];
+    let i=0; let v=b;
+    while(v>=1024 && i<units.length-1){ v/=1024; i++; }
+    return `${v.toFixed(v>=10?0:1)} ${units[i]}`;
+  };
+  const pctColor = (pct:number):string => pct>95? '#ef4444' : pct>80? '#f59e0b' : '#22c55e';
+  const growthBadge = (pct:number) => {
+    if(!pct && pct!==0) return null;
+    const up = pct>0; const down = pct<0;
+    const clr = up? '#22c55e' : down? '#ef4444' : 'var(--text-muted)';
+    const sym = up? '▲' : down? '▼' : '—';
+    return <span style={{ fontSize:'0.6875rem', fontWeight:700, color:clr, marginLeft:6 }}>{sym} {Math.abs(pct).toFixed(1)}%</span>;
+  };
+  const Donut: React.FC<{ segments: { label:string; value:number; color:string }[]; size?:number; thickness?:number; centerLabel?:string; centerSub?:string }> = ({ segments, size=112, thickness=12, centerLabel, centerSub }) => {
+    const total = segments.reduce((a,s)=>a+s.value,0) || 1;
+    const radius = (size - thickness)/2;
+    const circ = 2*Math.PI*radius;
+    let acc = 0;
+    return (
+      <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform:'rotate(-90deg)', display:'block' }}>
+          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={thickness} />
+          {segments.map((s,i)=>{
+            if(s.value<=0) return null;
+            const pct = s.value/total;
+            const dash = pct*circ;
+            const cur = acc;
+            acc += dash;
+            return <circle key={i} cx={size/2} cy={size/2} r={radius} fill="none" stroke={s.color} strokeWidth={thickness} strokeDasharray={`${dash} ${circ-dash}`} strokeDashoffset={-cur} strokeLinecap="round" style={{ transition:'stroke-dasharray 0.6s ease' }} />;
+          })}
+        </svg>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', pointerEvents:'none' }}>
+          <span style={{ fontSize:'1.15rem', fontWeight:800, fontFamily:'var(--font-mono)', color:'var(--text-primary)', lineHeight:1 }}>{centerLabel}</span>
+          {centerSub && <span style={{ fontSize:'0.68rem', color:'var(--text-muted)', marginTop:2 }}>{centerSub}</span>}
+        </div>
+      </div>
+    );
+  };
+
+  const points = u?.timeseries ?? [];
+  const maxNew = Math.max(1, ...points.map(p=> Math.max(p.new_devices, p.new_connections)));
+  const stateEntries = u ? Object.entries(u.connections_by_state) : [];
+  const totalConns = u?.connections ?? 0;
+  const ipamPct = u?.ipam?.utilization_pct ?? data.network?.utilization_pct ?? 0;
+  const devPct = u?.quotas?.devices_used_pct ?? 0;
+  const bwTotal = u?.bandwidth?.total ?? 0;
+  const activeSessions = u?.bandwidth?.active_sessions ?? 0;
+
+  // filtered + sorted top orgs
+  const filteredOrgs = useMemo(()=>{
+    const list = (u?.top_orgs ?? []) as ApiUsage['top_orgs'];
+    if(!list) return [];
+    let out = [...(list as Exclude<typeof list, undefined>)];
+    if(orgQuery.trim()){
+      const q=orgQuery.trim().toLowerCase();
+      out = out.filter(o=> o.name.toLowerCase().includes(q) || o.id.toLowerCase().includes(q) || (o.slug||'').toLowerCase().includes(q));
+    }
+    out.sort((a,b)=>{
+      const mul = sortDir==='desc'? -1 : 1;
+      // primary sortKey, secondary connections
+      if(sortKey==='connections') return (a.connections - b.connections)* -mul * (sortDir==='desc'?1:-1) * -1;
+      if(sortKey==='members') return (a.members - b.members)* (sortDir==='desc'? -1:1);
+      return (a.devices - b.devices)* (sortDir==='desc'? -1:1);
+    });
+    // stable sort already above; for descending we invert
+    if(sortDir==='desc'){
+      out.sort((a,b)=>{
+        if(sortKey==='connections') return b.connections - a.connections;
+        if(sortKey==='members') return b.members - a.members;
+        return b.devices - a.devices;
+      });
+    } else {
+      out.sort((a,b)=>{
+        if(sortKey==='connections') return a.connections - b.connections;
+        if(sortKey==='members') return a.members - b.members;
+        return a.devices - b.devices;
+      });
+    }
+    return out;
+  },[u?.top_orgs, orgQuery, sortKey, sortDir]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try{
+      const blob = await adminUsageCsv(rangeDays);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zoop-usage-${rangeDays}d-${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 2000);
+    }catch(e){ setError(e instanceof Error? e.message:'CSV export failed'); }
+    finally{ setExporting(false); }
+  };
+  const handleExportJson = () => {
+    if(!u) return;
+    const blob = new Blob([JSON.stringify(u, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zoop-usage-${rangeDays}d-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 2000);
+  };
+
+  const toggleSort = (k: typeof sortKey) => {
+    if(sortKey===k) setSortDir(d=> d==='desc' ? 'asc' : 'desc');
+    else { setSortKey(k); setSortDir('desc'); }
+  };
+
+  if(loading && !u){
+    return (
+      <div className="section">
+        <div className="section-header"><span className="section-title">Usage</span></div>
+        <div className="admin-loading-row"><span className="spinner"/><span>Loading usage analytics…</span></div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {/* Controls toolbar — in header context, not a duplicate Usage Analytics card */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:12, alignItems:'center', justifyContent:'space-between', padding:'4px 2px 8px' }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:4, alignItems:'center', padding:'4px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize:'0.6875rem', fontWeight:700, color:'var(--text-muted)', letterSpacing:'0.06em', textTransform:'uppercase', padding:'0 6px' }}>Range</span>
+            {([7,30,90] as const).map(d=> (
+              <button key={d} onClick={()=> setRangeDays(d)} className={`btn ${rangeDays===d? 'btn-admin-primary':'btn-ghost'} btn-xs`} style={{ minWidth:36 }} aria-pressed={rangeDays===d}>{d}d</button>
+            ))}
+          </div>
+          <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{u?.generated_at ? `Updated ${new Date(u.generated_at).toLocaleTimeString()}` : data.lastUpdated ? `Updated ${timeAgo(data.lastUpdated)}` : ''}</span>
+          <span style={{ fontSize:'0.6875rem', color:'var(--text-muted)', display:'inline-flex', alignItems:'center', gap:5 }}><span style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 0 3px rgba(34,197,94,0.15)' }} /> Live · Direct P2P preferred</span>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <label style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.6875rem', color:'var(--text-muted)', cursor:'pointer', userSelect:'none', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border-subtle)', background:'rgba(255,255,255,0.02)' }}>
+            <input type="checkbox" checked={autoRefresh} onChange={e=> setAutoRefresh(e.target.checked)} style={{ accentColor:'var(--portal-accent)' }} /> Auto 30s
+          </label>
+          <button className="btn btn-ghost btn-xs" onClick={()=> fetchUsage(rangeDays)} disabled={loading}>{loading? <span className="spinner" style={{width:12,height:12}}/>:'Refresh'}</button>
+          <div style={{ width:1, height:22, background:'var(--border-subtle)', margin:'0 2px' }} />
+          <button className="btn btn-secondary btn-xs" onClick={handleExport} disabled={exporting || !u}>{exporting? <span className="spinner" style={{width:12,height:12}}/> : <><Ico><polyline points="21 15 21 21 3 21 3 15"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Ico> CSV</>}</button>
+          <button className="btn btn-ghost btn-xs" onClick={handleExportJson} disabled={!u} title="Download raw JSON">JSON</button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-banner"><I.alert/><span style={{flex:1}}>{error}</span><button className="btn btn-ghost btn-xs" onClick={()=> setError(null)}>Dismiss</button></div>
+      )}
+
+      {/* KPI strip — airy, well-spaced metrics */}
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)' }}>
+        <div className="metric-item" role="button" tabIndex={0} onClick={()=> onNavigate?.('devices')} onKeyDown={e=> e.key==='Enter'&& onNavigate?.('devices')} style={{ cursor:'pointer' }}>
+          <div className="metric-label">Devices</div>
+          <div className="metric-value" style={{ display:'flex', alignItems:'baseline', gap:4 }}>{u ? u.devices.toLocaleString() : '—'} {u?.trends && growthBadge(u.trends.devices_growth_pct)}</div>
+          <div className="metric-sub">{u ? `${u.trusted_devices ?? 0} trusted · ${u.suspended_devices ?? 0} suspended · ${u.revoked_devices ?? 0} revoked` : 'registered endpoints'}</div>
+          <div className="ov-bar" style={{height:6, marginTop:8}}><div className="ov-bar-fill" style={{ width:`${Math.min(100, devPct)}%`, background:pctColor(devPct) }} /></div>
+          <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:4 }}>{devPct.toFixed(1)}% of {u?.quotas?.device_limit?.toLocaleString() ?? '10,000'} soft cap</div>
+        </div>
+        <div className="metric-item" role="button" tabIndex={0} onClick={()=> onNavigate?.('connections')} onKeyDown={e=> e.key==='Enter'&& onNavigate?.('connections')} style={{ cursor:'pointer' }}>
+          <div className="metric-label">Connections</div>
+          <div className="metric-value" style={{ display:'flex', alignItems:'baseline', gap:4 }}>{u ? u.connections.toLocaleString() : '—'} {u?.trends && growthBadge(u.trends.connections_growth_pct)}</div>
+          <div className="metric-sub">{totalConns? stateEntries.slice(0,3).map(([k,v])=> `${k}:${v}`).join(' · ') : 'no tunnels yet'}</div>
+          {stateEntries.length>0 && (
+            <div className="ov-seg" style={{height:6, marginTop:8}}>
+              {stateEntries.map(([k,v])=>{
+                const pct = totalConns? (v/totalConns*100):0;
+                const c = k==='CONNECTED'? '#22c55e' : k==='REQUESTED'? '#f59e0b' : k==='DISCONNECTED'? '#6b7280' : '#38bdf8';
+                return <div key={k} style={{ width:`${pct}%`, background:c }} title={`${k} ${v}`} />;
+              })}
+            </div>
+          )}
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Bandwidth (relay)</div>
+          <div className="metric-value" style={{ fontSize:'1.1rem' }}>{formatBytes(bwTotal)}</div>
+          <div className="metric-sub">↑ {formatBytes(u?.bandwidth?.bytes_out ?? 0)} · ↓ {formatBytes(u?.bandwidth?.bytes_in ?? 0)} · {activeSessions} sessions</div>
+          <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:6 }}>{activeSessions? `${activeSessions} active tunnel${activeSessions===1?'':'s'} via relay` : 'Direct P2P preferred; relay is fallback'}</div>
+        </div>
+        <div className="metric-item" role="button" tabIndex={0} onClick={()=> onNavigate?.('organizations')} onKeyDown={e=> e.key==='Enter'&& onNavigate?.('organizations')} style={{ cursor:'pointer' }}>
+          <div className="metric-label">Members & Sharing</div>
+          <div className="metric-value">{u ? u.members.toLocaleString() : '—'}</div>
+          <div className="metric-sub">across {u?.organizations ?? 0} orgs · {u?.shares ?? 0} active shares</div>
+          <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:6 }}>{u?.shares ? `Avg ${(u.members / Math.max(1,u.organizations)).toFixed(1)} members/org` : 'no shares yet'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">IPAM 100.64.0.0/10</div>
+          <div className="metric-value" style={{ color:pctColor(ipamPct) }}>{ipamPct.toFixed(2)}%</div>
+          <div className="metric-sub">{u?.ipam ? `${u.ipam.subnets_allocated.toLocaleString()} / ${u.ipam.capacity.toLocaleString()} /30` : `${data.network ? `${data.network.subnets_allocated}/${data.network.capacity}` : '—'}`}</div>
+          <div className="ov-bar" style={{height:6, marginTop:8}}><div className={`ov-bar-fill ${ipamPct>95? 'danger': ipamPct>80? 'warn':'ok'}`} style={{ width:`${Math.min(100, ipamPct)}%` }} /></div>
+        </div>
+      </div>
+
+      {/* Trends + Device health — side-by-side, not full-width stacked */}
+      <div className="ov-grid" style={{ gap:20 }}>
+        {/* Trends chart */}
+        <div className="section" style={{ overflow:'hidden', padding:0 }}>
+          <div className="section-header" style={{ padding:'16px 20px' }}>
+            <span className="section-title">Growth — last {rangeDays} days</span>
+            <span style={{ fontSize:'0.6875rem', color:'var(--text-muted)', fontWeight:500 }}>{points.length? `${points[0].date} → ${points[points.length-1].date}` : ''}</span>
+          </div>
+          {!points.length ? (
+            <EmptyState icon={<I.barChart/>} title="No timeseries yet" desc="Daily new devices & connections will plot here once registrations and tunnels are created." pad="32px 24px" />
+          ) : (
+            <div style={{ padding:'20px' }}>
+              {/* lightweight dual-line SVG — taller for better presence */}
+              <svg viewBox="0 0 600 180" preserveAspectRatio="none" style={{ width:'100%', height:180, display:'block', background:'rgba(255,255,255,0.02)', borderRadius:10, border:'1px solid var(--border-subtle)' }} role="img" aria-label="Timeseries of new devices and connections">
+                {/* grid */}
+                {[0,1,2,3].map(i=> <line key={i} x1={40} x2={590} y1={20 + i*35} y2={20 + i*35} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />)}
+                {/* y labels */}
+                <text x={6} y={24} fontSize={7} fill="var(--text-muted)">{maxNew}</text>
+                <text x={6} y={94} fontSize={7} fill="var(--text-muted)">{Math.round(maxNew/2)}</text>
+                <text x={6} y={164} fontSize={7} fill="var(--text-muted)">0</text>
+                {/* lines */}
+                {(()=>{
+                  const padL=40, padR=10, padT=16; const w=600-padL-padR, h=135;
+                  const step = points.length>1 ? w/(points.length-1) : w;
+                  const yFor = (v:number)=> padT + h - (v/maxNew)*h;
+                  const ptsD = points.map((p,i)=> `${padL + i*step},${yFor(p.new_devices)}`).join(' ');
+                  const ptsC = points.map((p,i)=> `${padL + i*step},${yFor(p.new_connections)}`).join(' ');
+                  return (
+                    <>
+                      <polyline fill="none" stroke="#38bdf8" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" points={ptsD} opacity={0.95} />
+                      <polyline fill="none" stroke="#22c55e" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" points={ptsC} opacity={0.95} />
+                      {points.map((p,i)=>{
+                        const isHover = hoverIdx===i;
+                        return (
+                          <g key={p.date}>
+                            <circle cx={padL + i*step} cy={yFor(p.new_devices)} r={isHover? 3.5:2} fill="#38bdf8" stroke="rgba(0,0,0,0.35)" strokeWidth={1} />
+                            <circle cx={padL + i*step} cy={yFor(p.new_connections)} r={isHover? 3.5:2} fill="#22c55e" stroke="rgba(0,0,0,0.35)" strokeWidth={1} />
+                            {/* hit area */}
+                            <rect x={padL + i*step - step/2} y={padT} width={step} height={h} fill="transparent" onMouseEnter={()=> setHoverIdx(i)} onMouseLeave={()=> setHoverIdx(null)} />
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+                {/* x labels */}
+                {points.length>0 && (
+                  <>
+                    <text x={46} y={172} fontSize={7} fill="var(--text-muted)">{points[0].date.slice(5)}</text>
+                    {points.length>7 && <text x={260} y={172} fontSize={7} fill="var(--text-muted)">{points[Math.floor(points.length/2)].date.slice(5)}</text>}
+                    <text x={512} y={172} fontSize={7} fill="var(--text-muted)">{points[points.length-1].date.slice(5)}</text>
+                  </>
+                )}
+              </svg>
+              <div style={{ display:'flex', gap:14, marginTop:8, alignItems:'center', flexWrap:'wrap' }}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.75rem', color:'var(--text-secondary)' }}><span style={{ width:10, height:3, borderRadius:99, background:'#38bdf8', display:'inline-block' }} /> New devices</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.75rem', color:'var(--text-secondary)' }}><span style={{ width:10, height:3, borderRadius:99, background:'#22c55e', display:'inline-block' }} /> New connections</span>
+                <span style={{ marginLeft:'auto', fontSize:'0.6875rem', color:'var(--text-muted)', fontWeight:600 }}>Hover day for details</span>
+              </div>
+              {/* hover detail */}
+              {hoverIdx!==null && points[hoverIdx] && (
+                <div style={{ marginTop:10, padding:'10px 12px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid var(--border)', display:'flex', gap:16, fontSize:'0.75rem', flexWrap:'wrap' }}>
+                  <span style={{ fontWeight:700, color:'var(--text-primary)', fontFamily:'var(--font-mono)' }}>{points[hoverIdx].date}</span>
+                  <span><b style={{color:'#38bdf8'}}>{points[hoverIdx].new_devices}</b> devices</span>
+                  <span><b style={{color:'#22c55e'}}>{points[hoverIdx].new_connections}</b> connections</span>
+                  <span><b>{points[hoverIdx].new_members}</b> members</span>
+                  <span><b>{points[hoverIdx].new_shares}</b> shares</span>
+                  <span style={{ color:'var(--text-muted)' }}>cum {points[hoverIdx].cum_devices} dev / {points[hoverIdx].cum_connections} conn</span>
+                </div>
+              )}
+              {/* cumulative small table */}
+              <div style={{ marginTop:10, display:'flex', gap:8, fontSize:'0.6875rem', color:'var(--text-muted)', flexWrap:'wrap' }}>
+                <span>Total new in range: <b style={{color:'var(--text-primary)'}}>{points.reduce((a,p)=>a+p.new_devices,0)}</b> devices, <b style={{color:'var(--text-primary)'}}>{points.reduce((a,p)=>a+p.new_connections,0)}</b> connections</span>
+                <span>· Avg { (points.reduce((a,p)=>a+p.new_connections,0)/Math.max(1,rangeDays)).toFixed(1) }/day</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column: state distribution + quotas + audit */}
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <div className="section" style={{ padding:0, overflow:'hidden' }}>
+            <div className="section-header" style={{ padding:'16px 20px' }}><span className="section-title">Device health</span><span style={{ fontSize:'0.6875rem', color:'var(--text-muted)', fontWeight:600 }}>{u?.devices ?? 0} endpoints</span><button className="ov-panel-link" style={{ marginLeft:'auto' }} onClick={()=> onNavigate?.('devices')}>Manage <I.chevronR /></button></div>
+            <div style={{ padding:'20px', display:'flex', flexDirection:'column', gap:16, alignItems:'center' }}>
+              <Donut segments={[{label:'Trusted', value:u?.trusted_devices ?? 0, color:'#22c55e'},{label:'Suspended', value:u?.suspended_devices ?? 0, color:'#f59e0b'},{label:'Revoked', value:u?.revoked_devices ?? 0, color:'#ef4444'}]} size={108} thickness={11} centerLabel={u?.devices ? `${Math.round((u.trusted_devices ?? 0)/(u.devices||1)*100)}%` : '—'} centerSub="trusted" />
+              <div style={{ width:'100%', maxWidth:260, display:'flex', flexDirection:'column', gap:8 }}>
+                {[
+                  {label:'Trusted', v:u?.trusted_devices ?? 0, col:'#22c55e', pct: u?.devices? (u.trusted_devices??0)/u.devices*100:0},
+                  {label:'Suspended', v:u?.suspended_devices ?? 0, col:'#f59e0b', pct: u?.devices? (u.suspended_devices??0)/u.devices*100:0},
+                  {label:'Revoked', v:u?.revoked_devices ?? 0, col:'#ef4444', pct: u?.devices? (u.revoked_devices??0)/u.devices*100:0},
+                ].map(r=>(
+                  <div key={r.label} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ width:10, height:10, borderRadius:'50%', background:r.col, flexShrink:0, boxShadow:`0 0 0 3px ${r.col}18` }} />
+                    <span style={{ fontSize:'0.8125rem', color:'var(--text-secondary)', flex:1, fontWeight:500 }}>{r.label}</span>
+                    <span style={{ fontSize:'0.8125rem', fontFamily:'var(--font-mono)', color:'var(--text-primary)', fontWeight:600 }}>{r.v}</span>
+                    <span style={{ fontSize:'0.75rem', fontFamily:'var(--font-mono)', color:'var(--text-muted)', minWidth:36, textAlign:'right' }}>{r.pct.toFixed(0)}%</span>
+                  </div>
+                ))}
+                <div style={{ height:1, background:'var(--border-subtle)', margin:'4px 0' }} />
+                <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', lineHeight:1.5 }}>Trusted devices can establish tunnels. Suspended / revoked are blocked at auth.</div>
+              </div>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+
+      {/* Top orgs — more breathing room */}
+      <div className="section" style={{ overflow:'hidden' }}>
+        <div className="section-header" style={{ flexWrap:'wrap', gap:12, padding:'16px 20px' }}>
+          <span className="section-title">Top organizations by usage</span>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <div className="admin-search" style={{ padding:'8px 12px', minWidth:220 }}>
+              <I.search />
+              <input type="search" placeholder="Filter by org name, slug or ID…" value={orgQuery} onChange={e=> setOrgQuery(e.target.value)} aria-label="Filter organizations" />
+            </div>
+            <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filteredOrgs.length} orgs</span>
+          </div>
+        </div>
+        {(!u?.top_orgs || u.top_orgs.length===0) ? (
+          <EmptyState icon={<I.building/>} title="No organization usage" desc="Per-organization connections, member and device breakdowns will appear here once orgs and tunnels exist." pad="32px 24px" />
+        ) : filteredOrgs.length===0 ? (
+          <EmptyState icon={<I.search/>} title="No matching orgs" desc={`No organizations match "${orgQuery.trim()}".`} pad="24px" />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr>
+                <th scope="col">Organization</th>
+                <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('members')}>Members {sortKey==='members' ? (sortDir==='desc' ? '▼' : '▲') : ''}</th>
+                <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('devices')}>Devices {sortKey==='devices' ? (sortDir==='desc' ? '▼' : '▲') : ''}</th>
+                <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('connections')}>Connections {sortKey==='connections' ? (sortDir==='desc' ? '▼' : '▲') : ''}</th>
+                <th scope="col">Share of platform</th>
+              </tr></thead>
+              <tbody>
+                {filteredOrgs.map(o=> (
+                  <tr key={o.id}>
+                    <td>
+                      <div style={{ fontWeight:600, color:'var(--text-primary)', fontSize:'0.875rem' }}>{o.name}</div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }}>{o.slug? `/${o.slug} · ` : ''}{o.id.slice(0,13)}…</div>
+                    </td>
+                    <td><span className="badge badge-neutral">{o.members}</span></td>
+                    <td>{o.devices}</td>
+                    <td><span className={`badge ${o.connections>0? 'badge-success':'badge-neutral'}`}>{o.connections}</span></td>
+                    <td style={{ minWidth:140 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ flex:1, height:6, borderRadius:999, background:'rgba(255,255,255,0.06)', overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.min(100, o.share_pct)}%`, background:'var(--portal-accent)', borderRadius:999 }} /></div>
+                        <span style={{ fontSize:'0.6875rem', fontFamily:'var(--font-mono)', color:'var(--text-muted)', minWidth:36 }}>{o.share_pct.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ padding:'14px 20px', display:'flex', gap:8, alignItems:'center', borderTop:'1px solid var(--border-subtle)', background:'rgba(255,255,255,0.015)' }}>
+          <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>Tip: click headers to sort · search by slug · CSV captures this view</span>
+          <button className="ov-panel-link" style={{ marginLeft:'auto' }} onClick={()=> onNavigate?.('organizations')}>Manage orgs <I.chevronR /></button>
+        </div>
+      </div>
+
+    </div>
   );
 };
 
@@ -663,74 +1130,267 @@ const BillingTab: React.FC = () => (
 
 const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const [q, setQ] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [orgFilter, setOrgFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<'name'|'role'|'status'>('name');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const orgMap = useMemo(()=>{
+    const m = new Map<string, string>();
+    data.orgs.forEach(o=> m.set(o.id.toString(), o.name));
+    return m;
+  }, [data.orgs]);
+
+  const counts = useMemo(()=>{
+    const total = data.users.length;
+    const active = data.users.filter(u=> u.status==='active' || u.status==='trusted').length;
+    const owners = data.users.filter(u=> u.role==='owner' || u.role==='admin').length;
+    const suspended = data.users.filter(u=> u.status==='suspended' || u.status==='revoked').length;
+    return { total, active, owners, suspended };
+  }, [data.users]);
+
   const filtered = useMemo(() => {
+    let out = [...data.users];
     const query = q.trim().toLowerCase();
-    if (!query) return data.users;
-    return data.users.filter(u => {
+    if (query) out = out.filter(u => {
       const handle = (u as any).username || (u as any).zoop_id || u.email || '';
+      const orgName = orgMap.get((u as any).organization_id || '') || '';
       return (u.name || '').toLowerCase().includes(query) ||
       handle.toLowerCase().includes(query) ||
       (u.role || '').toLowerCase().includes(query) ||
       (u.status || '').toLowerCase().includes(query) ||
-      u.id.toString().toLowerCase().includes(query);
+      u.id.toString().toLowerCase().includes(query) ||
+      orgName.toLowerCase().includes(query);
     });
-  }, [q, data.users]);
+    if (roleFilter !== 'all') out = out.filter(u=> (u.role||'').toLowerCase()===roleFilter);
+    if (statusFilter !== 'all') out = out.filter(u=> (u.status||'').toLowerCase()===statusFilter);
+    if (orgFilter !== 'all') out = out.filter(u=> (u as any).organization_id===orgFilter);
+    out.sort((a,b)=>{
+      const mul = sortDir==='asc'?1:-1;
+      let av:any, bv:any;
+      if(sortKey==='name'){ av=(a.name||'').toLowerCase(); bv=(b.name||'').toLowerCase(); }
+      else if(sortKey==='role'){ av=a.role||''; bv=b.role||''; }
+      else { av=a.status||''; bv=b.status||''; }
+      if(av<bv) return -1*mul;
+      if(av>bv) return 1*mul;
+      return 0;
+    });
+    return out;
+  }, [q, roleFilter, statusFilter, orgFilter, sortKey, sortDir, data.users, orgMap]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(()=> filtered.slice((page-1)*pageSize, page*pageSize), [filtered, page]);
+  useEffect(()=>{ setPage(1); }, [q, roleFilter, statusFilter, orgFilter]);
+
+  const toggleSort = (k: typeof sortKey) => {
+    if(sortKey===k) setSortDir(d=> d==='asc'?'desc':'asc');
+    else { setSortKey(k); setSortDir('asc'); }
+  };
+
+  const exportCsv = () => {
+    const header = 'id,name,handle,role,status,organization_id,device_id\n';
+    const rows = filtered.map(u=>{
+      const handle = (u as any).username ? `@${(u as any).username}` : (u as any).zoop_id || u.email || '';
+      const safe = (s:string)=> `"${String(s||'').replace(/"/g,'""')}"`;
+      return [u.id, u.name, handle, u.role, u.status, (u as any).organization_id||'', (u as any).device_id||''].map(safe).join(',');
+    }).join('\n');
+    const blob = new Blob([header+rows], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`zoop-users-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  };
+
+  const roleBadge = (role:string) => {
+    const r=(role||'').toLowerCase();
+    if(r==='owner') return 'badge-info';
+    if(r==='admin') return 'badge-warning';
+    if(r==='network_engineer') return 'badge-neutral';
+    return 'badge-neutral';
+  };
+  const statusBadge = (st:string) => {
+    const s=(st||'').toLowerCase();
+    if(s==='active' || s==='trusted') return 'badge-success';
+    if(s==='suspended') return 'badge-warning';
+    if(s==='revoked') return 'badge-danger';
+    return 'badge-neutral';
+  };
 
   return (
-    <>
-      <SearchBar id="admin-users-search" placeholder="Search by name, Zoop ID, @username, role, status or ID…" label="Search user accounts" value={q} onChange={setQ} />
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Accounts {q.trim() ? `(${filtered.length}/${data.users.length})` : `(${data.users.length})`}</span>
-          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-          </button>
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {/* Metrics */}
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)' }}>
+        <div className="metric-item">
+          <div className="metric-label">Total Accounts</div>
+          <div className="metric-value">{counts.total}</div>
+          <div className="metric-sub">across {data.orgs.length} orgs</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Active</div>
+          <div className="metric-value" style={{ color:'#22c55e' }}>{counts.active}</div>
+          <div className="metric-sub">{counts.total? Math.round(counts.active/counts.total*100):0}% of total</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Owners / Admins</div>
+          <div className="metric-value">{counts.owners}</div>
+          <div className="metric-sub">privileged roles</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Suspended</div>
+          <div className="metric-value" style={{ color: counts.suspended? '#f59e0b':'var(--text-primary)' }}>{counts.suspended}</div>
+          <div className="metric-sub">needs attention</div>
+        </div>
+      </div>
+
+      {/* Filters — not a card, plain toolbar */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', padding:'4px 2px' }}>
+        <div className="admin-search" style={{ flex:'1 1 260px', minWidth:220, maxWidth:380 }}>
+          <I.search />
+          <input id="admin-users-search" type="search" placeholder="Search by name, Zoop ID, @username, org, role…" aria-label="Search user accounts" value={q} onChange={e=> setQ(e.target.value)} />
+        </div>
+        <select value={roleFilter} onChange={e=> setRoleFilter(e.target.value)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem' }}>
+          <option value="all">All roles</option>
+          <option value="owner">Owner</option>
+          <option value="admin">Admin</option>
+          <option value="member">Member</option>
+          <option value="network_engineer">Network engineer</option>
+        </select>
+        <select value={statusFilter} onChange={e=> setStatusFilter(e.target.value)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem' }}>
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="trusted">Trusted</option>
+          <option value="suspended">Suspended</option>
+          <option value="revoked">Revoked</option>
+        </select>
+        <select value={orgFilter} onChange={e=> setOrgFilter(e.target.value)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem', maxWidth:180 }}>
+          <option value="all">All orgs</option>
+          {data.orgs.map(o=> <option key={o.id.toString()} value={o.id.toString()}>{o.name}</option>)}
+        </select>
+        <div style={{ display:'flex', gap:8, marginLeft:'auto' }}>
+          <button className="btn btn-ghost btn-xs" onClick={()=>{ setQ(''); setRoleFilter('all'); setStatusFilter('all'); setOrgFilter('all'); }}>Clear</button>
+          <button className="btn btn-secondary btn-xs" onClick={exportCsv} disabled={filtered.length===0}>Export CSV</button>
+          <button className="btn btn-ghost btn-xs" onClick={data.reload}>{data.loading ? <span className="spinner" style={{ width:12, height:12 }} /> : 'Refresh'}</button>
+        </div>
+      </div>
+
+      <div className="section" style={{ overflow:'hidden' }}>
+        <div className="section-header" style={{ padding:'16px 20px', flexWrap:'wrap', gap:12 }}>
+          <span className="section-title">Accounts {q.trim() || roleFilter!=='all' || statusFilter!=='all' || orgFilter!=='all' ? `(${filtered.length}/${data.users.length})` : `(${data.users.length})`}</span>
+          <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filtered.length? `Page ${page}/${totalPages} · ${filtered.length} matches` : ''}</span>
         </div>
         {data.users.length === 0 ? (
-          <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here with options to manage role and status." />
+          <EmptyState icon={<I.users />} title="No user accounts" desc="Registered users across all organizations will be listed here. Invite members from the Organizations tab or register a device to create the first account." />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<I.search />} title="No matching accounts" desc={`No accounts match "${q.trim()}".`} pad="36px 24px" />
+          <EmptyState icon={<I.search />} title="No matching accounts" desc={`No accounts match filters. Clear search or try a different org/role.`} pad="36px 24px" />
         ) : (
-          <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Accounts — search by name, Zoop ID, role or status</caption>
-            <thead><tr><th scope="col">Name</th><th scope="col">Zoop ID / Username</th><th scope="col">Role</th><th scope="col">Status</th></tr></thead>
-            <tbody>
-              {filtered.map(u => {
-                const handle = (u as any).username ? `@${(u as any).username}` : (u as any).zoop_id || u.email || '—';
-                return (
-                <tr key={u.id.toString()}>
-                  <td style={{ fontWeight: 600 }}>{u.name || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{handle}</td>
-                  <td><span className="badge badge-neutral">{u.role}</span></td>
-                  <td><span className={`badge ${u.status === 'active' || u.status === 'trusted' ? 'badge-success' : 'badge-neutral'}`}>{u.status}</span></td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr>
+                  <th scope="col" style={{ cursor:'pointer', whiteSpace:'nowrap' }} onClick={()=> toggleSort('name')}>Name {sortKey==='name' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                  <th scope="col">Zoop ID / Username</th>
+                  <th scope="col">Organization</th>
+                  <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('role')}>Role {sortKey==='role' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                  <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('status')}>Status {sortKey==='status' ? (sortDir==='asc'?'▲':'▼') : ''}</th>
+                  <th scope="col" style={{ textAlign:'right' }}>Device</th>
+                </tr></thead>
+                <tbody>
+                  {paged.map(u => {
+                    const handle = (u as any).username ? `@${(u as any).username}` : (u as any).zoop_id || u.email || '—';
+                    const orgName = orgMap.get((u as any).organization_id || '') || '—';
+                    const initials = (u.name||'?').trim().split(/\s+/).slice(0,2).map((s:string)=> s[0]?.toUpperCase()).join('') || '?';
+                    return (
+                    <tr key={u.id.toString()}>
+                      <td>
+                        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                          <span style={{ width:32, height:32, borderRadius:'50%', background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.22)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:700, color:'var(--portal-accent-text)', flexShrink:0 }}>{initials}</span>
+                          <span style={{ fontWeight:600, color:'var(--text-primary)' }}>{u.name || '—'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem', color:'var(--text-primary)', fontWeight:500 }}>{handle}</span>
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }} title={u.id.toString()}>{u.id.toString().slice(0,13)}…</span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize:'0.8125rem', color:'var(--text-secondary)', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={orgName}>{orgName}</td>
+                      <td><span className={`badge ${roleBadge(u.role)}`}>{u.role}</span></td>
+                      <td><span className={`badge ${statusBadge(u.status)}`}>{u.status}</span></td>
+                      <td style={{ textAlign:'right' }}>
+                        <span style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }} title={(u as any).device_id || ''}>{(u as any).device_id ? String((u as any).device_id).slice(0,8)+'…' : '—'}</span>
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {totalPages>1 && (
+              <div style={{ padding:'12px 20px', display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', borderTop:'1px solid var(--border-subtle)', flexWrap:'wrap' }}>
+                <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filtered.length} accounts · page {page} of {totalPages}</span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="btn btn-ghost btn-xs" disabled={page<=1} onClick={()=> setPage(p=> Math.max(1,p-1))}>Prev</button>
+                  <button className="btn btn-ghost btn-xs" disabled={page>=totalPages} onClick={()=> setPage(p=> Math.min(totalPages,p+1))}>Next</button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
-    </>
+    </div>
   );
 };
 
 const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<'name'|'members'|'created'>('name');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<ApiOrg | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pageSize = 8;
+
+  const orgStats = useMemo(()=>{
+    const total = data.orgs.length;
+    const totalMembers = data.orgs.reduce((a,o)=> a + (data.orgMembers[o.id.toString()]?.length ?? 0), 0);
+    const avg = total? (totalMembers/total).toFixed(1): '0';
+    const active = data.orgs.filter(o=> (o as any).status !== 'suspended').length;
+    return { total, totalMembers, avg, active };
+  }, [data.orgs, data.orgMembers]);
 
   const filtered = useMemo(() => {
+    let out=[...data.orgs];
     const query = q.trim().toLowerCase();
-    if (!query) return data.orgs;
-    return data.orgs.filter(o =>
+    if (query) out = out.filter(o =>
       (o.name || '').toLowerCase().includes(query) ||
       (o.slug || '').toLowerCase().includes(query) ||
       o.id.toString().toLowerCase().includes(query)
     );
-  }, [q, data.orgs]);
+    if(statusFilter!=='all') out = out.filter(o=> (o as any).status===statusFilter || (statusFilter==='active' && !(o as any).status));
+    out.sort((a,b)=>{
+      const mul = sortDir==='asc'?1:-1;
+      if(sortKey==='name'){ if((a.name||'') < (b.name||'')) return -1*mul; if((a.name||'') > (b.name||'')) return 1*mul; return 0; }
+      if(sortKey==='members'){ const am=data.orgMembers[a.id.toString()]?.length??0; const bm=data.orgMembers[b.id.toString()]?.length??0; return (am-bm)*mul; }
+      // created: use id as proxy (no created_at in ApiOrg), fallback to name
+      return 0;
+    });
+    return out;
+  }, [q, statusFilter, sortKey, sortDir, data.orgs, data.orgMembers]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(()=> filtered.slice((page-1)*pageSize, page*pageSize), [filtered, page]);
+  useEffect(()=>{ setPage(1); }, [q, statusFilter]);
+
+  const toggleSort = (k: typeof sortKey) => {
+    if(sortKey===k) setSortDir(d=> d==='asc'?'desc':'asc');
+    else { setSortKey(k); setSortDir('asc'); }
+  };
 
   const createOrg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -750,9 +1410,127 @@ const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) 
     }
   };
 
+  const exportCsv = () => {
+    const header = 'id,name,slug,status,members,owner_device\n';
+    const rows = filtered.map(o=>{
+      const members = data.orgMembers[o.id.toString()]?.length ?? 0;
+      const safe = (s:string)=> `"${String(s||'').replace(/"/g,'""')}"`;
+      return [o.id, o.name, o.slug||'', (o as any).status||'active', members, (o as any).owner_device_id||''].map(safe).join(',');
+    }).join('\n');
+    const blob = new Blob([header+rows], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`zoop-orgs-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  };
+
+  const DetailDrawer: React.FC<{ org: ApiOrg; onClose:()=>void }> = ({ org, onClose }) => {
+    const members = data.orgMembers[org.id.toString()] || [];
+    return (
+      <div style={{ position:'fixed', inset:0, zIndex:50, display:'flex', justifyContent:'flex-end' }}>
+        <div style={{ flex:1, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(2px)' }} onClick={onClose} />
+        <div style={{ width:420, maxWidth:'92vw', background:'var(--bg-surface)', borderLeft:'1px solid var(--border)', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+          <div style={{ padding:'18px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:36, height:36, borderRadius:10, background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.22)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--portal-accent-text)' }}><I.building /></div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:700, color:'var(--text-primary)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{org.name}</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }}>{org.slug ? `/${org.slug}` : ''} · {org.id.toString().slice(0,13)}…</div>
+            </div>
+            <button className="btn btn-ghost btn-xs" onClick={onClose}>✕</button>
+          </div>
+          <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:14, overflowY:'auto' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div style={{ padding:'12px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize:'0.6875rem', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-muted)' }}>Members</div>
+                <div style={{ fontSize:'1.25rem', fontWeight:800, fontFamily:'var(--font-mono)', marginTop:4 }}>{members.length}</div>
+              </div>
+              <div style={{ padding:'12px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize:'0.6875rem', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-muted)' }}>Status</div>
+                <div style={{ marginTop:6 }}><span className={`badge ${(org as any).status==='suspended'?'badge-warning':'badge-success'}`}>{(org as any).status||'active'}</span></div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--text-muted)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>Details</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize:'0.8125rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'var(--text-muted)' }}>ID</span><span style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem' }}>{org.id.toString()}</span></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'var(--text-muted)' }}>Slug</span><span style={{ fontFamily:'var(--font-mono)' }}>{org.slug||'—'}</span></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'var(--text-muted)' }}>Owner device</span><span style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem' }}>{(org as any).owner_device_id ? String((org as any).owner_device_id).slice(0,8)+'…':'—'}</span></div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--text-muted)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>Members ({members.length})</div>
+              {members.length===0? <span style={{ fontSize:'0.8125rem', color:'var(--text-muted)' }}>No members yet.</span> : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:240, overflowY:'auto' }}>
+                  {members.map(m=> (
+                    <div key={m.id.toString()} style={{ display:'flex', gap:10, alignItems:'center', padding:'8px 10px', borderRadius:8, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-subtle)' }}>
+                      <span style={{ width:28, height:28, borderRadius:'50%', background:'rgba(245,158,11,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:700, color:'var(--portal-accent-text)' }}>{(m.name||'?')[0]?.toUpperCase()}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:'0.8125rem', fontWeight:600, color:'var(--text-primary)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.name}</div>
+                        <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>{(m as any).username? `@${(m as any).username}`: m.email}</div>
+                      </div>
+                      <span className="badge badge-neutral" style={{ fontSize:'0.6875rem' }}>{m.role}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:8, marginTop:4 }}>
+              <button className="btn btn-secondary btn-sm" onClick={()=> { navigator.clipboard.writeText(org.id.toString()); }}>Copy ID</button>
+              <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <>
-      <SearchBar id="admin-orgs-search" placeholder="Search by name, slug or ID…" label="Search organizations" value={q} onChange={setQ} />
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {/* Metrics */}
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)' }}>
+        <div className="metric-item">
+          <div className="metric-label">Organizations</div>
+          <div className="metric-value">{orgStats.total}</div>
+          <div className="metric-sub">{orgStats.active} active</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Total Members</div>
+          <div className="metric-value">{orgStats.totalMembers}</div>
+          <div className="metric-sub">avg {orgStats.avg} / org</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Avg Size</div>
+          <div className="metric-value">{orgStats.avg}</div>
+          <div className="metric-sub">members per org</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Capacity</div>
+          <div className="metric-value" style={{ fontSize:'1.1rem' }}>{orgStats.total? 'Healthy':'—'}</div>
+          <div className="metric-sub">no limits enforced</div>
+        </div>
+      </div>
+
+      {/* Toolbar — not a card */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center', padding:'4px 2px' }}>
+        <div className="admin-search" style={{ flex:'1 1 260px', minWidth:220, maxWidth:380 }}>
+          <I.search />
+          <input id="admin-orgs-search" type="search" placeholder="Search by name, slug or ID…" aria-label="Search organizations" value={q} onChange={e=> setQ(e.target.value)} />
+        </div>
+        <select value={statusFilter} onChange={e=> setStatusFilter(e.target.value)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem' }}>
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+        <select value={sortKey as string} onChange={e=> setSortKey(e.target.value as any)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem' }}>
+          <option value="name">Sort: Name</option>
+          <option value="members">Sort: Members</option>
+        </select>
+        <button className="btn btn-ghost btn-xs" onClick={()=> setSortDir(d=> d==='asc'?'desc':'asc')}>{sortDir==='asc'?'▲ Asc':'▼ Desc'}</button>
+        <div style={{ display:'flex', gap:8, marginLeft:'auto' }}>
+          <button className="btn btn-ghost btn-xs" onClick={()=> { setQ(''); setStatusFilter('all'); }}>Clear</button>
+          <button className="btn btn-secondary btn-xs" onClick={exportCsv} disabled={filtered.length===0}>Export</button>
+          <button className="btn btn-ghost btn-xs" onClick={data.reload}>{data.loading? <span className="spinner" style={{ width:12, height:12 }}/>:'Refresh'}</button>
+          <button className="btn-admin-primary" id="admin-orgs-create-btn" onClick={() => setShowCreate(v => !v)}><I.plus />Create Org</button>
+        </div>
+      </div>
 
       {error && (
         <div className="error-banner">
@@ -763,60 +1541,89 @@ const OrgsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) 
       )}
 
       {showCreate && (
-        <form className="section" onSubmit={createOrg}>
-          <div className="section-header">
+        <form className="section" onSubmit={createOrg} style={{ borderColor:'rgba(245,158,11,0.22)' }}>
+          <div className="section-header" style={{ padding:'16px 20px' }}>
             <span className="section-title">Create Organization</span>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowCreate(false)}>✕</button>
           </div>
-          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div style={{ padding:'20px', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:16 }}>
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:'0.8125rem', color:'var(--text-primary)', fontWeight:500 }}>
               Organization name *
-              <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp"
-                style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)' }} required />
+              <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp" required
+                style={{ padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)' }} />
+              <span style={{ fontSize:'0.6875rem', color:'var(--text-muted)', fontWeight:400 }}>Visible in switcher and header</span>
             </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Slug
-              <input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32))} placeholder="acme"
-                style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)' }} />
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:'0.8125rem', color:'var(--text-primary)', fontWeight:500 }}>
+              Slug <span style={{ fontWeight:400, color:'var(--text-muted)' }}>(URL handle)</span>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>/</span>
+                <input value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32))} placeholder="acme" style={{ flex:1, padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontFamily:'var(--font-mono)' }} />
+              </div>
             </label>
           </div>
-          <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
-            <button className="btn-admin-primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create Organization'}</button>
+          <div style={{ padding:'0 20px 20px', display:'flex', gap:8, justifyContent:'flex-end' }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={()=> setShowCreate(false)}>Cancel</button>
+            <button className="btn-admin-primary" type="submit" disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create Organization'}</button>
           </div>
         </form>
       )}
 
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Organizations {q.trim() ? `(${filtered.length}/${data.orgs.length})` : `(${data.orgs.length})`}</span>
-          <button className="btn-admin-primary" id="admin-orgs-create-btn" onClick={() => setShowCreate(v => !v)}><I.plus />Create Org</button>
+      <div className="section" style={{ overflow:'hidden' }}>
+        <div className="section-header" style={{ padding:'16px 20px' }}>
+          <span className="section-title">Organizations {q.trim() || statusFilter!=='all' ? `(${filtered.length}/${data.orgs.length})` : `(${data.orgs.length})`}</span>
+          <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filtered.length? `Page ${page}/${totalPages}`:''}</span>
         </div>
         {data.orgs.length === 0 ? (
-          <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces and organization accounts will appear here." />
+          <EmptyState icon={<I.building />} title="No organizations" desc="Enterprise team spaces will appear here. Create your first organization to manage members and fleet access." />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<I.search />} title="No matching organizations" desc={`No organizations match "${q.trim()}".`} pad="36px 24px" />
+          <EmptyState icon={<I.search />} title="No matching organizations" desc={`No organizations match "${q.trim()||statusFilter}".`} pad="36px 24px" />
         ) : (
-          <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Organizations — click row for detail</caption>
-            <thead><tr><th scope="col">Name</th><th scope="col">Slug</th><th scope="col">Organization ID</th><th scope="col">Members</th></tr></thead>
-            <tbody>
-              {filtered.map(o => (
-                <tr key={o.id.toString()}>
-                  <td style={{ fontWeight: 600 }}>{o.name}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{o.slug ? `/${o.slug}` : '—'}</td>
-                  <td>
-                    <span title={o.id.toString()} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                      {o.id.toString().slice(0, 13)}…
-                    </span>
-                  </td>
-                  <td><span className="badge badge-neutral">{data.orgMembers[o.id.toString()]?.length ?? 0}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr><th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('name')}>Name {sortKey==='name'?(sortDir==='asc'?'▲':'▼'):''}</th><th scope="col">Slug</th><th scope="col">Organization ID</th><th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('members')}>Members {sortKey==='members'?(sortDir==='asc'?'▲':'▼'):''}</th><th scope="col" style={{ textAlign:'right' }}></th></tr></thead>
+                <tbody>
+                  {paged.map(o => (
+                    <tr key={o.id.toString()} style={{ cursor:'pointer' }} onClick={()=> setSelected(o)}>
+                      <td>
+                        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                          <span style={{ width:32, height:32, borderRadius:8, background:'rgba(245,158,11,0.12)', border:'1px solid rgba(245,158,11,0.18)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--portal-accent-text)', flexShrink:0 }}><I.building /></span>
+                          <span style={{ fontWeight:600, color:'var(--text-primary)' }}>{o.name}</span>
+                          <span className={`badge ${(o as any).status==='suspended'?'badge-warning':'badge-success'}`} style={{ marginLeft:6 }}>{(o as any).status||'active'}</span>
+                        </div>
+                      </td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem' }}>{o.slug ? `/${o.slug}` : '—'}</td>
+                      <td>
+                        <span title={o.id.toString()} style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem', color:'var(--text-muted)' }}>
+                          {o.id.toString().slice(0, 13)}…
+                        </span>
+                      </td>
+                      <td><span className="badge badge-neutral">{data.orgMembers[o.id.toString()]?.length ?? 0}</span></td>
+                      <td style={{ textAlign:'right' }}>
+                        <button className="btn btn-ghost btn-xs" onClick={(e)=>{ e.stopPropagation(); setSelected(o); }}>View</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages>1 && (
+              <div style={{ padding:'12px 20px', display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', borderTop:'1px solid var(--border-subtle)', flexWrap:'wrap' }}>
+                <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filtered.length} orgs · page {page} of {totalPages}</span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="btn btn-ghost btn-xs" disabled={page<=1} onClick={()=> setPage(p=> Math.max(1,p-1))}>Prev</button>
+                  <button className="btn btn-ghost btn-xs" disabled={page>=totalPages} onClick={()=> setPage(p=> Math.min(totalPages,p+1))}>Next</button>
+                </div>
+              </div>
+            )}
+            <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border-subtle)', background:'rgba(255,255,255,0.015)', display:'flex', gap:8, alignItems:'center' }}>
+              <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>Click row to manage members, devices and settings. Export captures filtered view.</span>
+            </div>
+          </>
         )}
       </div>
-    </>
+      {selected && <DetailDrawer org={selected} onClose={()=> setSelected(null)} />}
+    </div>
   );
 };
 
@@ -1043,58 +1850,223 @@ const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ d
 
 const NetworkTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const nw = data.network;
+  const [q, setQ] = useState('');
+  const [stateFilter, setStateFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<'subnet'|'state'>('subnet');
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const utilization = nw?.utilization_pct ?? 0;
+  const pctColor = utilization >95 ? '#ef4444' : utilization>80 ? '#f59e0b' : '#22c55e';
+  const available = nw ? nw.capacity - nw.subnets_allocated : 0;
+
+  // Derive subnet allocations from connections
+  const subnets = useMemo(()=>{
+    return (data.connections || []).map(c=>{
+      const providerIp = c.provider_ip || '';
+      const recipientIp = c.recipient_ip || '';
+      // derive /30 network from provider IP (x.x.x.1 -> x.x.x.0/30)
+      let subnet = '—';
+      if(providerIp){
+        const parts = providerIp.split('.');
+        if(parts.length===4){
+          const last = parseInt(parts[3],10);
+          const base = last - (last % 4);
+          subnet = `${parts[0]}.${parts[1]}.${parts[2]}.${base}/30`;
+        }
+      }
+      return {
+        id: c.id.toString(),
+        subnet,
+        providerIp: providerIp || '—',
+        recipientIp: recipientIp || '—',
+        providerId: c.provider_id?.toString() || '',
+        recipientId: c.recipient_id?.toString() || '',
+        state: c.state || 'UNKNOWN',
+      };
+    });
+  }, [data.connections]);
+
+  const filtered = useMemo(()=>{
+    let out = [...subnets];
+    const query = q.trim().toLowerCase();
+    if(query) out = out.filter(s=> s.subnet.toLowerCase().includes(query) || s.providerIp.toLowerCase().includes(query) || s.recipientIp.toLowerCase().includes(query) || s.providerId.toLowerCase().includes(query) || s.recipientId.toLowerCase().includes(query) || s.state.toLowerCase().includes(query));
+    if(stateFilter!=='all') out = out.filter(s=> s.state===stateFilter);
+    out.sort((a,b)=>{
+      const mul = sortDir==='asc'?1:-1;
+      if(sortKey==='subnet'){ if(a.subnet<b.subnet) return -1*mul; if(a.subnet>b.subnet) return 1*mul; return 0; }
+      if(a.state<b.state) return -1*mul; if(a.state>b.state) return 1*mul; return 0;
+    });
+    return out;
+  }, [subnets, q, stateFilter, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = useMemo(()=> filtered.slice((page-1)*pageSize, page*pageSize), [filtered, page]);
+  useEffect(()=>{ setPage(1); }, [q, stateFilter]);
+
+  const toggleSort = (k: typeof sortKey) => {
+    if(sortKey===k) setSortDir(d=> d==='asc'?'desc':'asc');
+    else { setSortKey(k); setSortDir('asc'); }
+  };
+
+  const exportCsv = () => {
+    const header = 'subnet,provider_ip,recipient_ip,provider_id,recipient_id,state\n';
+    const rows = filtered.map(s=> [s.subnet, s.providerIp, s.recipientIp, s.providerId, s.recipientId, s.state].map(v=> `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([header+rows], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`zoop-network-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
+  };
+
+  const nextSubnet = useMemo(()=>{
+    if(!nw) return '—';
+    // next subnet after allocated count
+    const n = nw.subnets_allocated;
+    const second = 64 + Math.floor(n / (64*256));
+    const third = Math.floor((n/64)%256);
+    const fourthBase = (n % 64)*4;
+    return `100.${second}.${third}.${fourthBase}/30`;
+  }, [nw]);
+
   return (
-    <>
-      <div className="metrics-bar">
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {/* Metrics */}
+      <div className="metrics-bar" style={{ borderRadius:'var(--r-xl)' }}>
         <div className="metric-item">
           <div className="metric-label">Pool</div>
-          <div className="metric-value" style={{ fontSize: '0.9rem' }}>{nw ? nw.pool : '—'}</div>
+          <div className="metric-value" style={{ fontSize:'0.95rem', fontFamily:'var(--font-mono)' }}>{nw ? nw.pool : '—'}</div>
+          <div className="metric-sub">CGNAT 100.64.0.0/10</div>
         </div>
         <div className="metric-item">
-          <div className="metric-label">Subnets Allocated</div>
-          <div className="metric-value">{nw ? nw.subnets_allocated : '—'}</div>
+          <div className="metric-label">Allocated</div>
+          <div className="metric-value">{nw ? nw.subnets_allocated.toLocaleString() : '—'}</div>
+          <div className="metric-sub">/30 subnets</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Available</div>
+          <div className="metric-value" style={{ color: available<100 ? '#ef4444':'var(--text-primary)' }}>{nw ? available.toLocaleString() : '—'}</div>
+          <div className="metric-sub">{nw ? `${nw.capacity.toLocaleString()} capacity` : '—'}</div>
         </div>
         <div className="metric-item">
           <div className="metric-label">Utilization</div>
-          <div className="metric-value">{nw ? `${nw.utilization_pct.toFixed(3)}%` : '—'}</div>
+          <div className="metric-value" style={{ color: pctColor }}>{nw ? `${utilization.toFixed(2)}%` : '—'}</div>
+          <div className="metric-sub">{utilization>80?'high — plan expansion':'healthy'}</div>
         </div>
       </div>
 
-      <div className="section">
-        <div className="section-header">
+      {/* IPAM Overview — operational */}
+      <div className="section" style={{ overflow:'hidden' }}>
+        <div className="section-header" style={{ padding:'16px 20px' }}>
           <span className="section-title">IPAM & Overlay Routing</span>
-          <button className="btn btn-secondary btn-sm" onClick={data.reload}>
-            {data.loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
-          </button>
+          <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{nw ? `${nw.subnets_allocated} allocated · ${available} free` : ''}</span>
+          <button className="btn btn-ghost btn-xs" style={{ marginLeft:'auto' }} onClick={data.reload}>{data.loading? <span className="spinner" style={{ width:12, height:12 }}/>:'Refresh'}</button>
         </div>
         {!nw ? (
-          <EmptyState icon={<I.layers />} title="No subnets allocated" desc="Overlay IP pools, WireGuard subnets, and routing table allocations will display here." />
+          <EmptyState icon={<I.layers />} title="No IPAM data" desc="Overlay pool will appear once the control plane is reachable." pad="32px 24px" />
         ) : (
-          <div style={{ padding: '16px' }}>
-            <div className="info-row">
-              <span className="info-key">CGNAT Pool</span>
-              <span className="info-val" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>{nw.pool}</span>
-              <span />
+          <div style={{ padding:'20px', display:'flex', flexDirection:'column', gap:16 }}>
+            <div>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.75rem', color:'var(--text-muted)', marginBottom:8 }}>
+                <span>100.64.0.0/10 — {nw.pool}</span>
+                <span style={{ fontFamily:'var(--font-mono)', fontWeight:600, color:pctColor }}>{utilization.toFixed(2)}%</span>
+              </div>
+              <div className="ov-bar" style={{ height:10 }}><div className={`ov-bar-fill ${utilization>95?'danger':utilization>80?'warn':'ok'}`} style={{ width:`${Math.min(100,utilization)}%` }} /></div>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:6 }}>
+                <span>{nw.subnets_allocated.toLocaleString()} used</span>
+                <span>{available.toLocaleString()} free · {nw.capacity.toLocaleString()} total</span>
+              </div>
             </div>
-            <div className="info-row">
-              <span className="info-key">Allocated /30 Subnets</span>
-              <span className="info-val">{nw.subnets_allocated}</span>
-              <span />
-            </div>
-            <div className="info-row">
-              <span className="info-key">Capacity</span>
-              <span className="info-val">{nw.capacity.toLocaleString()}</span>
-              <span />
-            </div>
-            <div className="info-row">
-              <span className="info-key">Utilization</span>
-              <span className="info-val">{nw.utilization_pct.toFixed(3)}%</span>
-              <span />
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+              <div style={{ padding:'14px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize:'0.6875rem', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-muted)' }}>Next subnet</div>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:'0.875rem', fontWeight:600, color:'var(--text-primary)', marginTop:6 }}>{nextSubnet}</div>
+                <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:4 }}>Auto-allocated on next CONNECTED</div>
+              </div>
+              <div style={{ padding:'14px', borderRadius:10, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize:'0.6875rem', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-muted)' }}>Allocation</div>
+                <div style={{ fontSize:'0.875rem', fontWeight:600, color:'var(--text-primary)', marginTop:6 }}>{nw.subnets_allocated} × /30</div>
+                <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:4 }}>Each tunnel consumes .1 provider, .2 recipient</div>
+              </div>
+              <div style={{ padding:'14px', borderRadius:10, background: utilization>80 ? 'rgba(245,158,11,0.08)':'rgba(34,197,94,0.06)', border:`1px solid ${utilization>80?'rgba(245,158,11,0.22)':'rgba(34,197,94,0.14)'}` }}>
+                <div style={{ fontSize:'0.6875rem', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color: utilization>80?'#fbbf24':'#22c55e' }}>{utilization>95?'Critical':utilization>80?'Warning':'Healthy'}</div>
+                <div style={{ fontSize:'0.8125rem', fontWeight:600, color:'var(--text-primary)', marginTop:6 }}>{utilization>80? 'Plan capacity expansion':'No action needed'}</div>
+                <div style={{ fontSize:'0.6875rem', color:'var(--text-muted)', marginTop:4 }}>{available} subnets remain</div>
+              </div>
             </div>
           </div>
         )}
       </div>
-    </>
+
+      {/* Allocated subnets — operational table */}
+      <div className="section" style={{ overflow:'hidden' }}>
+        <div className="section-header" style={{ flexWrap:'wrap', gap:12, padding:'16px 20px' }}>
+          <span className="section-title">Allocated Subnets {filtered.length? `(${filtered.length}/${subnets.length})`: `(${subnets.length})`}</span>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginLeft:'auto', flexWrap:'wrap' }}>
+            <div className="admin-search" style={{ padding:'8px 12px', minWidth:200 }}>
+              <I.search />
+              <input type="search" placeholder="Search subnet, IP, device ID, state…" value={q} onChange={e=> setQ(e.target.value)} aria-label="Search subnets" />
+            </div>
+            <select value={stateFilter} onChange={e=> setStateFilter(e.target.value)} style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg-surface)', color:'var(--text-primary)', fontSize:'0.8125rem' }}>
+              <option value="all">All states</option>
+              <option value="CONNECTED">CONNECTED</option>
+              <option value="REQUESTED">REQUESTED</option>
+              <option value="AUTHORIZED">AUTHORIZED</option>
+              <option value="CONNECTING">CONNECTING</option>
+              <option value="DISCONNECTED">DISCONNECTED</option>
+            </select>
+            <button className="btn btn-secondary btn-xs" onClick={exportCsv} disabled={filtered.length===0}>Export</button>
+          </div>
+        </div>
+        {subnets.length===0 ? (
+          <EmptyState icon={<I.layers />} title="No subnets allocated" desc="No tunnels have been established yet. Subnets appear when a connection reaches CONNECTED." pad="32px 24px" />
+        ) : filtered.length===0 ? (
+          <EmptyState icon={<I.search />} title="No matching subnets" desc={`No subnets match "${q.trim()}" or state ${stateFilter}.`} pad="24px" />
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr>
+                  <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('subnet')}>Subnet {sortKey==='subnet'?(sortDir==='asc'?'▲':'▼'):''}</th>
+                  <th scope="col">Provider IP</th>
+                  <th scope="col">Recipient IP</th>
+                  <th scope="col">Provider</th>
+                  <th scope="col">Recipient</th>
+                  <th scope="col" style={{ cursor:'pointer' }} onClick={()=> toggleSort('state')}>State {sortKey==='state'?(sortDir==='asc'?'▲':'▼'):''}</th>
+                  <th scope="col" style={{ textAlign:'right' }}></th>
+                </tr></thead>
+                <tbody>
+                  {paged.map(s=> (
+                    <tr key={s.id}>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem', fontWeight:600, color:'var(--text-primary)' }}>{s.subnet}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem' }}>{s.providerIp}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem' }}>{s.recipientIp}</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }} title={s.providerId}>{s.providerId.slice(0,8)}…</td>
+                      <td style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }} title={s.recipientId}>{s.recipientId.slice(0,8)}…</td>
+                      <td><span className={`badge ${s.state==='CONNECTED'?'badge-success':s.state==='REQUESTED'?'badge-warning':'badge-neutral'}`}>{s.state}</span></td>
+                      <td style={{ textAlign:'right' }}>
+                        <button className="btn btn-ghost btn-xs" onClick={()=> navigator.clipboard.writeText(s.subnet)} title="Copy subnet">Copy</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages>1 && (
+              <div style={{ padding:'12px 20px', display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', borderTop:'1px solid var(--border-subtle)', flexWrap:'wrap' }}>
+                <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>{filtered.length} subnets · page {page} of {totalPages}</span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="btn btn-ghost btn-xs" disabled={page<=1} onClick={()=> setPage(p=> Math.max(1,p-1))}>Prev</button>
+                  <button className="btn btn-ghost btn-xs" disabled={page>=totalPages} onClick={()=> setPage(p=> Math.min(totalPages,p+1))}>Next</button>
+                </div>
+              </div>
+            )}
+            <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border-subtle)', background:'rgba(255,255,255,0.015)', display:'flex', gap:8, alignItems:'center' }}>
+              <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>Each row is a /30 from 100.64.0.0/10 — .1 provider, .2 recipient, .0 network, .3 broadcast. Copy subnet for firewall rules.</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -1350,8 +2322,8 @@ type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<ty
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
   overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, connection states, overlay usage and service status',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
-  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: d => <OperationsTab data={d} /> },
-  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: d => <UsageTab data={d} /> },
+  operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: (d, _nav, onToast) => <OperationsTab data={d} onToast={onToast} /> },
+  usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: (d,nav) => <UsageTab data={d} onNavigate={nav} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
   users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
   organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} /> },

@@ -53,7 +53,7 @@ const Icons = {
 
 const PIN_LENGTH = 6;
 
-/* ─── PIN Boxes (OTP style) ───────────────────────────────────────── */
+/* ─── PIN Boxes — accessible OTP with single hidden input for autofill ── */
 const PinBoxes: React.FC<{
   value: string;
   onChange: (v: string) => void;
@@ -64,76 +64,60 @@ const PinBoxes: React.FC<{
   idPrefix?: string;
   describedBy?: string;
 }> = ({ value, onChange, length = PIN_LENGTH, showDigits = false, error = false, disabled = false, idPrefix = 'pin', describedBy }) => {
-  const refs = useRef<Array<HTMLInputElement | null>>([]);
+  const hiddenRef = useRef<HTMLInputElement>(null);
+  const isComplete = value.replace(/\D/g,'').length === length;
   const digits = value.padEnd(length, ' ').split('').slice(0, length);
 
-  const focusIdx = (idx: number) => {
-    const el = refs.current[idx];
-    if (el) { el.focus(); el.select(); }
+  const handleHiddenChange = (raw: string) => {
+    const cleaned = raw.replace(/\D/g,'').slice(0, length);
+    onChange(cleaned);
   };
 
-  const handleChange = (idx: number, raw: string) => {
-    const d = raw.replace(/\D/g, '').slice(-1);
-    if (!d && raw !== '') return;
-    const arr = value.split('');
-    while (arr.length < length) arr.push('');
-    if (d) {
-      arr[idx] = d;
-      const next = arr.join('').slice(0, length);
-      onChange(next.replace(/\s/g, ''));
-      if (idx < length - 1) setTimeout(() => focusIdx(idx + 1), 0);
-    } else {
-      // cleared
-      arr[idx] = '';
-      onChange(arr.join('').replace(/\s/g, '').slice(0, length));
+  const handleBoxClick = () => hiddenRef.current?.focus();
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      // let hidden input handle cursor
     }
   };
-
-  const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !digits[idx]?.trim()) {
-      e.preventDefault();
-      if (idx > 0) {
-        const arr = value.split('');
-        arr[idx - 1] = '';
-        onChange(arr.join('').replace(/\s/g,''));
-        focusIdx(idx - 1);
-      }
-    }
-    if (e.key === 'ArrowLeft' && idx > 0) focusIdx(idx - 1);
-    if (e.key === 'ArrowRight' && idx < length - 1) focusIdx(idx + 1);
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text').replace(/\D/g,'').slice(0, length);
-    if (text) onChange(text);
-    setTimeout(() => focusIdx(Math.min(text.length, length - 1)), 0);
-  };
-
-  const isComplete = value.replace(/\D/g,'').length === length;
 
   return (
-    <div className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`} onPaste={handlePaste} role="group" aria-label="Zoop PIN — 6 digits, revocable, never emailed">
-      {Array.from({ length }).map((_, i) => (
-        <input
-          key={i}
-          id={`${idPrefix}-${i}`}
-          ref={el => { refs.current[i] = el; }}
-          type={showDigits ? 'text' : 'password'}
-          inputMode="numeric"
-          autoComplete={i === 0 ? 'one-time-code' : 'off'}
-          maxLength={1}
-          value={digits[i]?.trim() || ''}
-          onChange={e => handleChange(i, e.target.value)}
-          onKeyDown={e => handleKeyDown(i, e)}
-          onFocus={e => e.target.select()}
-          disabled={disabled}
-          aria-label={`PIN digit ${i + 1} of ${length}`}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
-          className="pin-box"
-        />
-      ))}
+    <div className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`} role="group" aria-label="Zoop PIN — 6 digits, revocable, never emailed" onClick={handleBoxClick}>
+      {/* Hidden input — single source for autofill/one-time-code */}
+      <input
+        ref={hiddenRef}
+        id={`${idPrefix}-hidden`}
+        type={showDigits ? 'text' : 'password'}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="one-time-code"
+        maxLength={length}
+        value={value}
+        onChange={e => handleHiddenChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        aria-label={`Zoop PIN, ${length} digits`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className="pin-hidden-input"
+        style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
+      />
+      {Array.from({ length }).map((_, i) => {
+        const d = digits[i]?.trim() || '';
+        const isFilled = Boolean(d);
+        const isActive = value.length === i && !disabled;
+        return (
+          <div
+            key={i}
+            id={`${idPrefix}-${i}`}
+            className={`pin-box ${isFilled ? 'filled' : ''} ${isActive ? 'active' : ''} ${error ? 'error' : ''}`}
+            onClick={handleBoxClick}
+            aria-hidden="true"
+          >
+            {d ? (showDigits ? d : '•') : ''}
+          </div>
+        );
+      })}
     </div>
   );
 };

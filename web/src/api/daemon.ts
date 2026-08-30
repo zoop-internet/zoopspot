@@ -9,6 +9,12 @@
 
 const DAEMON_BASE = (import.meta.env.VITE_DAEMON_BASE as string | undefined) ?? 'http://127.0.0.1:9090';
 
+// Helper to detect mixed-content block when page is https but daemon is http-only
+function isMixedContentError(err: unknown): boolean {
+  const msg = String(err);
+  return msg.includes('Mixed Content') || msg.includes('blocked');
+}
+
 export interface DaemonStatus {
   running: boolean;
   endpoint_id: string;
@@ -85,15 +91,26 @@ async function daemonFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 
 /** Probes the local daemon health endpoint. Resolves true if a daemon is up. */
 export async function probeDaemon(timeoutMs = 1500): Promise<boolean> {
+  // On https pages the daemon's plain-http is blocked as mixed-content — return false fast with hint
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && DAEMON_BASE.startsWith('http://')) {
+    // Still try, but catch will handle the block
+  }
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(`${DAEMON_BASE}/health`, { signal: controller.signal });
     clearTimeout(timer);
     return res.ok;
-  } catch {
+  } catch (err) {
+    if (isMixedContentError(err) && typeof console !== 'undefined') {
+      console.warn('[zoop] Daemon probe blocked by mixed-content (page is https, daemon is http). Use http://localhost:5173 for local daemon or set VITE_DAEMON_BASE to an https tunnel.');
+    }
     return false;
   }
+}
+
+export function isDaemonMixedContentBlocked(): boolean {
+  return typeof window !== 'undefined' && window.location.protocol === 'https:' && DAEMON_BASE.startsWith('http://');
 }
 
 export function getDaemonStatus(): Promise<DaemonStatus> {

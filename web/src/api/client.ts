@@ -7,9 +7,11 @@
  * Signs authenticated requests using WebCrypto Ed25519 keys.
  */
 
-import { buildSignedAuthHeaders } from './identity';
+import { buildSignedAuthHeaders, NotAuthenticatedError } from './identity';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
+
+export { NotAuthenticatedError };
 
 // ─── Types matching the Go API ────────────────────────────────
 export interface ApiDevice {
@@ -114,8 +116,25 @@ export async function registerDevice(req: RegisterDeviceRequest): Promise<ApiDev
   });
 }
 
-export async function listDevices(): Promise<ApiDevice[]> {
-  return apiFetch<ApiDevice[]>('/v1/devices');
+export async function listDevices(search?: string, limit: number = 100, offset: number = 0): Promise<ApiDevice[]> {
+  try {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (limit !== 100) params.set('limit', String(limit));
+    if (offset) params.set('offset', String(offset));
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    // sign base path without query (middleware signs path only)
+    const basePath = '/v1/devices';
+    const fullPath = `${basePath}${qs}`;
+    const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+    return await apiFetch<ApiDevice[]>(fullPath, { headers: authHeaders });
+  } catch (err) {
+    if (err instanceof NotAuthenticatedError) {
+      // No identity yet — return empty until device is registered
+      return [];
+    }
+    throw err;
+  }
 }
 
 export async function getDevice(deviceId: string): Promise<ApiDevice> {
@@ -173,9 +192,10 @@ export async function createOrganization(name: string, slug?: string): Promise<A
   const path = '/v1/organizations';
   const body = JSON.stringify({ name, slug });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiOrg>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }
@@ -223,6 +243,12 @@ export async function listOrgMembers(orgId: string): Promise<ApiOrgMember[]> {
   const path = `/v1/organizations/${orgId}/members`;
   const authHeaders = await buildSignedAuthHeaders('GET', path);
   return apiFetch<ApiOrgMember[]>(path, { headers: authHeaders });
+}
+
+export async function removeOrgMember(orgId: string, memberId: string): Promise<void> {
+  const path = `/v1/organizations/${orgId}/members/${memberId}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  await apiFetch<void>(path, { method: 'DELETE', headers: authHeaders });
 }
 
 // ─── Admin operations (operator console) ─────────────────────
@@ -288,11 +314,22 @@ export interface ApiAuditEvent {
 export interface ApiUsage {
   devices: number;
   trusted_devices: number;
+  suspended_devices?: number;
+  revoked_devices?: number;
   organizations: number;
   members: number;
   shares: number;
   connections: number;
   connections_by_state: Record<string, number>;
+  bandwidth?: { bytes_in: number; bytes_out: number; total: number; active_sessions: number };
+  ipam?: { pool: string; subnets_allocated: number; capacity: number; utilization_pct: number };
+  timeseries?: Array<{ date: string; new_devices: number; new_connections: number; new_members: number; new_shares: number; cum_devices: number; cum_connections: number }>;
+  range_days?: number;
+  trends?: { devices_growth_pct: number; connections_growth_pct: number };
+  top_orgs?: Array<{ id: string; name: string; slug?: string; members: number; devices: number; connections: number; share_pct: number }>;
+  audit_summary?: { last_7_days: number; by_action: Record<string, number> };
+  quotas?: { device_limit: number; devices_used_pct: number; ipam_warning: number; ipam_critical: number; ipam_pct: number; bandwidth_cap_per_session: number };
+  generated_at?: string;
 }
 
 export async function adminUsers(): Promise<ApiAdminUser[]> {
@@ -313,10 +350,20 @@ export async function adminAudit(): Promise<ApiAuditEvent[]> {
   return apiFetch<ApiAuditEvent[]>(path, { headers: authHeaders });
 }
 
-export async function adminUsage(): Promise<ApiUsage> {
-  const path = '/v1/admin/usage';
-  const authHeaders = await buildSignedAuthHeaders('GET', path);
+export async function adminUsage(rangeDays: number = 30): Promise<ApiUsage> {
+  const basePath = '/v1/admin/usage';
+  const path = rangeDays ? `${basePath}?range=${rangeDays}` : basePath;
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
   return apiFetch<ApiUsage>(path, { headers: authHeaders });
+}
+
+export async function adminUsageCsv(rangeDays: number = 30): Promise<Blob> {
+  const basePath = '/v1/admin/usage';
+  const path = `${basePath}?range=${rangeDays}&format=csv`;
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders as Record<string, string> });
+  if (!res.ok) throw new Error(`CSV export failed (${res.status})`);
+  return await res.blob();
 }
 
 export async function adminRelays(): Promise<unknown[]> {
@@ -373,9 +420,10 @@ export async function createShare(authDeviceId: string, recipientId: string): Pr
   const path = '/v1/shares';
   const body = JSON.stringify({ provider_id: authDeviceId, recipient_id: recipientId });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiShare>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }
@@ -388,15 +436,22 @@ export async function getShare(shareId: string): Promise<ApiShare> {
   });
 }
 
+export async function deleteShare(shareId: string): Promise<void> {
+  const path = `/v1/shares/${shareId}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  await apiFetch<void>(path, { method: 'DELETE', headers: authHeaders });
+}
+
 // ─── Connection operations ────────────────────────────────────
 
 export async function createConnection(providerId: string, recipientId: string): Promise<ApiConnection> {
   const path = '/v1/connections';
   const body = JSON.stringify({ provider_id: providerId, recipient_id: recipientId });
   const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   return apiFetch<ApiConnection>(path, {
     method: 'POST',
-    headers: authHeaders,
+    headers: { ...authHeaders, 'Idempotency-Key': idempotencyKey },
     body,
   });
 }

@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -157,10 +158,14 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				return
 			}
 
-			// 2. Verify Device is not Revoked
+			// 2. Verify Device is not Revoked or Suspended
 			if device, err := s.GetDevice(r.Context(), endpointID); err == nil {
 				if device.State == types.DeviceStateRevoked {
 					WriteError(w, "forbidden", "device identity has been revoked", http.StatusForbidden)
+					return
+				}
+				if device.State == types.DeviceStateSuspended {
+					WriteError(w, "forbidden", "device identity is suspended", http.StatusForbidden)
 					return
 				}
 			}
@@ -230,18 +235,29 @@ func IdentityFromContext(ctx context.Context) types.ID {
 
 // AdminMiddleware wraps AuthMiddleware and additionally requires the caller to be
 // in the configured admin allow-list. If no allow-list is configured, all
-// authenticated callers are treated as admins (dev-time convenience).
+// authenticated callers are treated as admins ONLY in non-production (dev convenience).
+// In production (ZOOP_ENV=production or GO_ENV=production) an empty allow-list denies all.
 func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) func(http.Handler) http.Handler {
 	adminSet := make(map[string]bool, len(adminIDs))
 	for _, id := range adminIDs {
 		adminSet[id] = true
 	}
 	allowAll := len(adminIDs) == 0
+	isProd := os.Getenv("ZOOP_ENV") == "production" || os.Getenv("GO_ENV") == "production" || os.Getenv("ENV") == "production"
 
 	return func(next http.Handler) http.Handler {
 		return auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			callerID := IdentityFromContext(r.Context())
-			if !allowAll && !adminSet[callerID.String()] {
+			if allowAll {
+				if isProd {
+					WriteError(w, "forbidden", "operator privileges required — ZOOP_ADMIN_IDS not configured", http.StatusForbidden)
+					return
+				}
+				// dev: allow all authenticated callers as admin
+				next.ServeHTTP(w, r)
+				return
+			}
+			if !adminSet[callerID.String()] {
 				WriteError(w, "forbidden", "operator privileges required", http.StatusForbidden)
 				return
 			}

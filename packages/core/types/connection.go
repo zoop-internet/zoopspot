@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 // ConnectionState represents the state of a connection.
 type ConnectionState string
 
@@ -19,12 +21,15 @@ type Connection struct {
 	State       ConnectionState `json:"state"`
 	ProviderIP  string          `json:"provider_ip"`
 	RecipientIP string          `json:"recipient_ip"`
+	CreatedAt   time.Time       `json:"created_at,omitempty"`
+	UpdatedAt   time.Time       `json:"updated_at,omitempty"`
 }
 
 // SharingRelationship represents the Control Plane relationship between a Provider and Recipient.
 type SharingRelationship struct {
-	ID          ID   `json:"id"`
-	ProviderID  ID   `json:"provider_id"`
-	RecipientID ID   `json:"recipient_id"`
-	IsActive    bool `json:"is_active"`
+	ID          ID        `json:"id"`
+	ProviderID  ID        `json:"provider_id"`
+	RecipientID ID        `json:"recipient_id"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 }

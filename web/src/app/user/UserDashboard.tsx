@@ -3,6 +3,7 @@ import type { PortalMode } from '../../types';
 import { useApp } from '../../context/NetworkContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 import { MobileBottomNav } from '../../components/MobileBottomNav';
+import { isDaemonMixedContentBlocked } from '../../api/daemon';
 
 /* ─── Icon helpers ───────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) =>
@@ -60,8 +61,6 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
 };
 
 /* ─── Daemon status card ──────────────────────────────────────── */
-
-/* ─── Daemon status card ──────────────────────────────────────── */
 const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
   const { localMode, daemonChecking, daemonStatus, daemonTelemetry, daemonPeers, refreshDaemon } = useApp();
 
@@ -87,14 +86,22 @@ const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'e
   }
 
   if (!localMode || !daemonStatus) {
+    const blocked = isDaemonMixedContentBlocked();
     return (
       <div className="section">
         <div className="section-header">
           <span className="section-title">Local daemon (zoopd)</span>
           <span className="badge badge-neutral">Not detected</span>
         </div>
-        <div className="inline-empty">
-          Install and start <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>zoopd</code> to manage WireGuard tunnels from this device.
+        <div className="inline-empty" style={{ flexDirection: 'column', gap: 6 }}>
+          <div>
+            Install and start <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>zoopd</code> to manage WireGuard tunnels from this device.
+          </div>
+          {blocked && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--amber)', maxWidth: 520, lineHeight: 1.5 }}>
+              Page is on <b>https</b> — browsers block plain <code>http://127.0.0.1:9090</code> as mixed-content. Open via <code>http://localhost:5173</code> for local daemon or set <code>VITE_DAEMON_BASE</code> to an https tunnel.
+            </div>
+          )}
         </div>
       </div>
     );
@@ -341,7 +348,13 @@ const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type
             </button>
           </div>
         </div>
-        {allDevices.length === 0 ? (
+        {devicesLoading && allDevices.length === 0 ? (
+          <div style={{ padding: '16px' }}>
+            <div className="skeleton skeleton-line" style={{ height: 14, width: '40%', marginBottom: 12 }} />
+            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
+            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
+          </div>
+        ) : allDevices.length === 0 ? (
           <div className="empty-state" style={{ padding: '40px 24px' }}>
             <div className="empty-icon"><Ico d={I.monitor} size={22} /></div>
             <h3>No devices registered</h3>
@@ -701,10 +714,12 @@ const ConnectionsTab: React.FC<{
 
 /* ─── Sharing tab ─────────────────────────────────────────────── */
 const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
-  const { deviceId, shares, allDevices, doCreateShare } = useApp();
+  const { deviceId, shares, allDevices, doCreateShare, doDeleteShare } = useApp();
   const [recipientId, setRecipientId] = useState('');
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [busyShare, setBusyShare] = useState<string | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
   const candidates = allDevices.filter(d => d.id.toString() !== deviceId);
 
@@ -775,11 +790,13 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
           <div className="inline-empty">No sharing relationships yet. Authorize a recipient above.</div>
         ) : (
           <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient</caption>
-            <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th></tr></thead>
+            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient · Revoke to stop access</caption>
+            <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th><th scope="col" style={{ textAlign:'right' }}>Action</th></tr></thead>
             <tbody>
               {shares.map(s => {
                 const isProvider = s.provider_id.toString() === deviceId;
+                const isBusy = busyShare === s.id.toString();
+                const confirming = confirmRevoke === s.id.toString();
                 return (
                   <tr key={s.id.toString()}>
                     <td>{isProvider ? <span className="badge badge-info">Provider</span> : <span className="badge badge-neutral">Recipient</span>}</td>
@@ -790,6 +807,16 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
                       {s.is_active
                         ? <span className="badge badge-success">Active</span>
                         : <span className="badge badge-neutral">Inactive</span>}
+                    </td>
+                    <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
+                      {confirming ? (
+                        <>
+                          <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyShare(s.id.toString()); try{ await doDeleteShare(s.id.toString()); onToast('Share revoked','info'); setConfirmRevoke(null);} catch(e){ onToast(e instanceof Error?e.message:'Revoke failed','error');} finally{ setBusyShare(null);} }} aria-label="Confirm revoke share">{isBusy ? <span className="spinner" style={{width:11,height:11}}/> : 'Confirm'}</button>
+                          <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRevoke(null)}>Cancel</button>
+                        </>
+                      ) : (
+                        <button className="btn btn-ghost btn-xs" style={{ color:'var(--red)' }} disabled={isBusy} onClick={()=>setConfirmRevoke(s.id.toString())} aria-label="Revoke share"><Ico d={I.wifiOff} size={11}/> Revoke</button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -936,12 +963,22 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
     settings: null,
   };
 
+  const toastTimers = React.useRef<Map<string, number>>(new Map());
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    const timer = window.setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+      toastTimers.current.delete(id);
+    }, 4000);
+    toastTimers.current.set(id, timer);
   };
-  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+  const removeToast = (id: string) => {
+    const timer = toastTimers.current.get(id);
+    if (timer) { clearTimeout(timer); toastTimers.current.delete(id); }
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+  React.useEffect(() => () => { toastTimers.current.forEach(t => clearTimeout(t)); }, []);
 
   const TAB_TITLES: Record<UserTab, string> = {
     overview:    'Overview',

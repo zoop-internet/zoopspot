@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type DeviceState string
 
 const (
@@ -17,6 +19,8 @@ type Device struct {
 	OS          string      `json:"os"`
 	Description string      `json:"description"`
 	State       DeviceState `json:"state"`
+	CreatedAt   time.Time   `json:"created_at,omitempty"`
+	UpdatedAt   time.Time   `json:"updated_at,omitempty"`
 }
 
 // Endpoint represents a device participating in Zoop networking.

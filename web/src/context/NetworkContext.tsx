@@ -2,9 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
-  createShare, createConnection, updateConnectionState, listConnections, listShares,
+  createShare, createConnection, updateConnectionState, listConnections, listShares, deleteShare,
   unregisterDevice,
-  createOrganization, listOrganizations, addOrgMember, listOrgMembers,
+  createOrganization, listOrganizations, addOrgMember, listOrgMembers, removeOrgMember,
   subscribeToEvents,
 } from '../api/client';
 import {
@@ -21,10 +21,17 @@ import type { DaemonStatus, DaemonPeer, DaemonTelemetryEntry, DaemonStreamSnapsh
 import type { UserProfile } from '../types';
 
 // Helpers per docs/identity.md — Zoop ID is permanent, username is mutable handle, PIN is 6 digits
+// Uses crypto.getRandomValues for unbiased entropy; ID is provisional until server confirms (no reserve endpoint yet).
 function generateZoopId(): string {
   const alphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const buf = new Uint32Array(6);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(buf);
+  } else {
+    for (let i = 0; i < 6; i++) buf[i] = Math.floor(Math.random() * 0xffffffff);
+  }
   let suffix = '';
-  for (let i = 0; i < 6; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 6; i++) suffix += alphabet[buf[i] % alphabet.length];
   return `ZP-${suffix}`;
 }
 function normalizeUsername(raw: string): string {
@@ -63,6 +70,7 @@ export interface AppState {
   sharesLoading: boolean;
   refreshShares: () => void;
   doCreateShare: (recipientId: string) => Promise<void>;
+  doDeleteShare: (shareId: string) => Promise<void>;
 
   // Connections
   connections: ApiConnection[];
@@ -82,6 +90,7 @@ export interface AppState {
   doCreateOrg: (name: string, slug?: string) => Promise<ApiOrg>;
   selectOrg: (org: ApiOrg) => void;
   doAddOrgMember: (name: string, handle: string, role: string) => Promise<void>;
+  doRemoveOrgMember: (memberId: string) => Promise<void>;
   refreshOrgMembers: (orgId?: string) => void;
 
   // Local daemon mode
@@ -169,12 +178,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return cleanup;
   }, [localMode]);
 
-  // Load device info when we have a deviceId
+  // Load device info when we have a deviceId — only clear on 404/not found, not on auth/network errors
   useEffect(() => {
     if (!deviceId) { setDeviceInfo(null); return; }
     getDevice(deviceId)
       .then(d => setDeviceInfo(d))
-      .catch(() => {
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : '';
+        const isNotFound = msg.toLowerCase().includes('not found') || msg.includes('404');
+        if (!isNotFound) {
+          setDeviceInfo(null);
+          return;
+        }
         // Stored identity no longer exists server-side (e.g. cloud reset).
         // Clear it so auto-register can create a fresh identity.
         setDeviceInfo(null);
@@ -361,6 +376,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShares(prev => [share, ...prev]);
   }, [deviceId]);
 
+  const doDeleteShare = useCallback(async (shareId: string) => {
+    await deleteShare(shareId);
+    setShares(prev => prev.filter(s => s.id.toString() !== shareId));
+  }, []);
+
   const refreshConnections = useCallback(() => {
     if (!deviceId) return;
     setConnectionsLoading(true);
@@ -394,7 +414,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         cleanup = await subscribeToEvents(
           ev => {
-            if (ev.type === 'share_created') refreshShares();
+            if (ev.type === 'share_created' || ev.type === 'share_revoked') refreshShares();
             if (ev.type === 'connection_requested' || ev.type === 'connection_updated') {
               refreshConnections();
             }
@@ -491,6 +511,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOrgMembers(prev => [...prev, member]);
   }, [currentOrg]);
 
+  const doRemoveOrgMember = useCallback(async (memberId: string) => {
+    if (!currentOrg) throw new Error('No active organization');
+    await removeOrgMember(currentOrg.id.toString(), memberId);
+    setOrgMembers(prev => prev.filter(m => m.id.toString() !== memberId));
+  }, [currentOrg]);
+
   return (
     <AppContext.Provider value={{
       user,
@@ -502,11 +528,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deviceId, deviceName, deviceInfo, isRegistering, registerError,
       register, unregister,
       allDevices, devicesLoading, refreshAllDevices,
-      shares, sharesLoading, refreshShares, doCreateShare,
+      shares, sharesLoading, refreshShares, doCreateShare, doDeleteShare,
       connections, connectionsLoading, connectionsError, refreshConnections,
       doConnect, doDisconnect, doAcceptConnection,
       organizations, currentOrg, orgMembers, orgsLoading,
-      refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, refreshOrgMembers,
+      refreshOrganizations, doCreateOrg, selectOrg, doAddOrgMember, doRemoveOrgMember, refreshOrgMembers,
       localMode, daemonChecking, daemonStatus, daemonPeers, daemonTelemetry, refreshDaemon,
     }}>
       {children}

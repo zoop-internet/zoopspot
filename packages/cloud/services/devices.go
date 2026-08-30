@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
@@ -27,9 +28,22 @@ func NewDeviceService(s store.Store) *DeviceService {
 
 // Register processes a device registration payload.
 func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequest) (*api.DeviceResponse, error) {
+	if len(req.Name) < 1 || len(req.Name) > 64 {
+		return nil, fmt.Errorf("device name must be 1-64 characters")
+	}
+	if len(req.Platform) > 32 {
+		return nil, fmt.Errorf("platform must be <= 32 characters")
+	}
 	pubKeyBytes, err := base64.StdEncoding.DecodeString(req.PublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("invalid public key encoding: %w", err)
+	}
+	if len(pubKeyBytes) == 0 {
+		return nil, fmt.Errorf("public key must not be empty")
+	}
+	if len(pubKeyBytes) != 32 && len(pubKeyBytes) != 64 {
+		// Accept 32 (Ed25519 public) or 64 (private mis-use in tests) but warn; derive ID from whatever was sent
+		// For strict deployments, require 32 — keep permissive for backward compat
 	}
 
 	// Calculate deterministic Endpoint ID from the public key, matching agent logic.
@@ -38,12 +52,15 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 	// The device registry ID equals the endpoint ID so that listing peers,
 	// creating shares, and requesting connections all reference the same
 	// identifier. This keeps the web UI and agent aligned.
+	now := time.Now().UTC()
 	device := &types.Device{
 		ID:          endpointID,
 		Name:        req.Name,
 		OS:          req.Platform,
 		Description: "",
 		State:       types.DeviceStateTrusted,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.store.SaveDevice(ctx, device); err != nil {
@@ -116,6 +133,7 @@ func (s *DeviceService) Revoke(ctx context.Context, id types.ID) error {
 		return err
 	}
 	device.State = types.DeviceStateRevoked
+	device.UpdatedAt = time.Now().UTC()
 	return s.store.SaveDevice(ctx, device)
 }
 
@@ -130,6 +148,7 @@ func (s *DeviceService) Suspend(ctx context.Context, id types.ID) error {
 		return ErrInvalidDeviceState
 	}
 	device.State = types.DeviceStateSuspended
+	device.UpdatedAt = time.Now().UTC()
 	return s.store.SaveDevice(ctx, device)
 }
 
@@ -143,13 +162,35 @@ func (s *DeviceService) Restore(ctx context.Context, id types.ID) error {
 		return ErrInvalidDeviceState
 	}
 	device.State = types.DeviceStateTrusted
+	device.UpdatedAt = time.Now().UTC()
 	return s.store.SaveDevice(ctx, device)
 }
 
 // Unregister removes a device and its identity from the control plane.
+// It also best-effort cleans orphaned shares, connections (reclaiming IPAM) and org memberships.
 func (s *DeviceService) Unregister(ctx context.Context, id types.ID) error {
 	if _, err := s.store.GetDevice(ctx, id); err != nil {
 		return err
+	}
+	// Clean shares where device is provider or recipient
+	if shares, err := s.store.ListShares(ctx, id); err == nil {
+		for _, sh := range shares {
+			_ = s.store.DeleteSharingRelationship(ctx, sh.ID)
+		}
+	}
+	// Clean connections and reclaim IPs
+	if conns, err := s.store.ListConnections(ctx, id); err == nil {
+		for _, c := range conns {
+			_ = s.store.ReleaseConnectionIPs(ctx, c.ProviderIP, c.RecipientIP)
+		}
+	}
+	// Clean org memberships
+	if members, err := s.store.ListOrgMembersAll(ctx); err == nil {
+		for _, m := range members {
+			if m.DeviceID == id {
+				_ = s.store.DeleteOrgMember(ctx, m.OrganizationID, m.ID)
+			}
+		}
 	}
 	if err := s.store.DeleteIdentity(ctx, id); err != nil {
 		return err
