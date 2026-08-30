@@ -733,6 +733,35 @@ func (s *Server) handleListDevices() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "failed to list devices", http.StatusInternalServerError)
 			return
 		}
+		// Pagination: ?limit= & ?offset= (defaults 100, cap 500) — prevents unbounded fleet enumeration
+		limit := 100
+		offset := 0
+		if q := r.URL.Query().Get("limit"); q != "" {
+			if v, err := fmt.Sscanf(q, "%d", &limit); err == nil && v == 1 {
+				if limit < 1 {
+					limit = 1
+				}
+				if limit > 500 {
+					limit = 500
+				}
+			}
+		}
+		if q := r.URL.Query().Get("offset"); q != "" {
+			fmt.Sscanf(q, "%d", &offset)
+			if offset < 0 {
+				offset = 0
+			}
+		}
+		if offset < len(devices) {
+			end := offset + limit
+			if end > len(devices) {
+				end = len(devices)
+			}
+			devices = devices[offset:end]
+		} else if offset >= len(devices) {
+			devices = []api.DeviceResponse{}
+		}
+		w.Header().Set("X-Total-Count", fmt.Sprintf("%d", len(devices)))
 		api.WriteJSON(w, http.StatusOK, devices)
 	}
 }
