@@ -136,5 +136,19 @@ for (const id of DOCS_IDS) {
   writeFileSync(TEMPLATE, html, 'utf8');
   console.log(`Updated ${TEMPLATE} with prerender marker for /`);
 }
+// Generate sitemap.xml (22 routes + docs subpages)
+{
+  const allRoutes = [...Object.keys(ROUTES), ...DOCS_IDS.map(id=> `/docs/${id}`)];
+  const urls = allRoutes.map(r => `  <url><loc>https://zoop.network${r === '/' ? '/' : r}</loc><changefreq>${r==='/'?'daily': r.startsWith('/docs')?'weekly':'monthly'}</changefreq><priority>${r==='/'?'1.0': r==='/docs'?'0.9':'0.7'}</priority></url>`).join('\n');
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+  writeFileSync(join(DIST, 'sitemap.xml'), sitemap, 'utf8');
+  console.log(`Generated ${join(DIST, 'sitemap.xml')} (${allRoutes.length} urls)`);
+}
+// Generate robots.txt
+{
+  const robots = `User-agent: *\nAllow: /\nSitemap: https://zoop.network/sitemap.xml\n`;
+  writeFileSync(join(DIST, 'robots.txt'), robots, 'utf8');
+  console.log(`Generated ${join(DIST, 'robots.txt')}`);
+}
 console.log(`Done. ${count+1} routes.`);
 
