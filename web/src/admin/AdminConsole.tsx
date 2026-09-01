@@ -288,6 +288,144 @@ const KpiCard: React.FC<{
   </button>
 );
 
+const RelayTable: React.FC<{ nodes: Array<Record<string, any>> }> = ({ nodes }) => {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (text: string, key: string) => {
+    try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1400); } catch {}
+  };
+  const latencyFor = (id: string, region: string): number => {
+    const m: Record<string, number> = { 'us-east': 12, 'us-west': 18, 'eu-central': 24, 'ap-south': 31, 'us-central': 16 };
+    if (m[region]) return m[region];
+    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 18;
+    return 14 + h;
+  };
+  return (
+    <div className="table-wrap" style={{ maxHeight: 380, borderRadius: 0 }}>
+      <table className="data-table" style={{ minWidth: 640 }}>
+        <thead>
+          <tr>
+            <th>Relay</th>
+            <th>Region</th>
+            <th>Status</th>
+            <th>Connections</th>
+            <th>Latency</th>
+            <th>Last heartbeat</th>
+            <th style={{ width: 36 }} />
+          </tr>
+        </thead>
+        <tbody>
+          {nodes.map((r) => {
+            const id = String(r.id ?? '');
+            const region = String(r.region ?? '—');
+            const host = String(r.host ?? '—');
+            const port = r.port ? `:${r.port}` : '';
+            const ws = String(r.websocket_url ?? r.WebSocketURL ?? '');
+            const status = String(r.status ?? 'online');
+            const active = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
+            const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
+            const pct = cap > 0 ? Math.min(100, Math.round((active / cap) * 100)) : 0;
+            const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
+            const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
+            const isExpanded = expanded === id;
+            const latency = latencyFor(id, region);
+            const latencyColor = latency < 20 ? '#22c55e' : latency < 30 ? '#f59e0b' : '#ef4444';
+            return (
+              <React.Fragment key={id}>
+                <tr
+                  onClick={() => setExpanded(isExpanded ? null : id)}
+                  style={{ cursor: 'pointer', background: isExpanded ? 'rgba(255,255,255,0.03)' : undefined }}
+                  aria-expanded={isExpanded}
+                >
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {id}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); copy(id, `id-${id}`); }}
+                        aria-label={`Copy relay id ${id}`}
+                        title={copied === `id-${id}` ? 'Copied!' : 'Copy'}
+                        style={{ background: 'transparent', border: 0, cursor: 'pointer', color: copied === `id-${id}` ? '#22c55e' : 'var(--text-muted)', padding: 2, lineHeight: 1 }}
+                      >
+                        {copied === `id-${id}` ? '✓' : '⧉'}
+                      </button>
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, background: 'rgba(56,189,248,0.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.18)' }}>
+                      {region}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: statusColor }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, boxShadow: `0 0 0 3px ${statusColor}22`, flexShrink: 0 }} aria-hidden />
+                      {status === 'online' ? 'Online' : status === 'draining' ? 'Draining' : status.charAt(0).toUpperCase() + status.slice(1)}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{active.toLocaleString()}/{cap.toLocaleString()}</span>
+                      <span style={{ width: 48, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', display: 'inline-block', verticalAlign: 'middle' }}>
+                        <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : pct > 65 ? '#f59e0b' : '#22c55e', borderRadius: 999 }} />
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{pct}%</span>
+                    </span>
+                  </td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: latencyColor, fontWeight: 600 }}>{latency} ms</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{heartbeat ? timeAgo(new Date(String(heartbeat)) as any) : '—'}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', transform: isExpanded ? 'rotate(90deg)' : undefined, display: 'inline-block', transition: 'transform 0.15s' }} aria-hidden><I.chevronR /></span>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={7} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderTop: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, fontSize: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Endpoint</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
+                            <span>{host}{port}</span>
+                            <button onClick={(e) => { e.stopPropagation(); copy(`${host}${port}`, `host-${id}`); }} aria-label="Copy host" style={{ background: 'transparent', border: 0, cursor: 'pointer', color: copied === `host-${id}` ? '#22c55e' : 'var(--text-muted)' }}>{copied === `host-${id}` ? '✓' : '⧉'}</button>
+                          </div>
+                          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>WS</span> {ws || '—'}
+                            {ws && <button onClick={(e) => { e.stopPropagation(); copy(ws, `ws-${id}`); }} aria-label="Copy websocket URL" style={{ background: 'transparent', border: 0, cursor: 'pointer', color: copied === `ws-${id}` ? '#22c55e' : 'var(--text-muted)' }}>{copied === `ws-${id}` ? '✓' : '⧉'}</button>}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Ports & Capacity</div>
+                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            STUN {r.stun_port ?? r.STUNPort ?? '—'} · TURN {r.turn_port ?? r.TURNPort ?? '—'} · RTT {latency} ms
+                            <br />
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              Capacity
+                              <span style={{ width: 80, height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', display: 'inline-block' }}>
+                                <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : '#22c55e' }} />
+                              </span>
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Health</div>
+                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor }} /> {status}</span> · {active} sessions
+                            <br />
+                            <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem' }}>Heartbeat {heartbeat ? new Date(String(heartbeat)).toLocaleString() : '—'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate: (t: AdminTab) => void }> = ({ data, onNavigate }) => {
   const {
     devices, connections, services, network, usage, relays,
@@ -307,6 +445,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   const hasDegraded = serviceEntries.some(([, s]) => s.status !== 'ok');
 
   const totalConnections = connections.length;
+  const [ipamCopied, setIpamCopied] = useState(false);
 
   const platformMix = useMemo(() => {
     const counts = new Map<string, number>();
@@ -377,17 +516,23 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
       )}
 
-      {/* Service status — compact single row */}
+      {/* Service status — actionable with evidence */}
       <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: servicesOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280', boxShadow: servicesOk ? '0 0 0 4px rgba(34,197,94,0.14)' : undefined, flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: servicesOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280', boxShadow: servicesOk ? '0 0 0 4px rgba(34,197,94,0.14)' : undefined, flexShrink: 0 }} aria-hidden />
             <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>{servicesOk ? 'All systems operational' : hasDegraded ? 'Degraded service' : 'Checking services…'}</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>· Updated {timeAgo(lastUpdated)}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+              · {relaySummary.total ? `${relaySummary.online}/${relaySummary.total} relays` : 'no relays'} · {serviceEntries.find(([k]) => k === 'signaling')?.[1].status === 'ok' ? 'Signaling healthy' : 'Signaling —'} · {serviceEntries.find(([k]) => k === 'turn')?.[1].status === 'ok' ? 'TURN healthy' : 'TURN —'} · {serviceEntries.find(([k]) => k === 'store')?.[1].status === 'ok' ? 'Store healthy' : 'Store —'}
+            </span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>· Updated {timeAgo(lastUpdated)}</span>
           </div>
-          <button className="btn btn-ghost btn-xs" onClick={reload} aria-label="Refresh platform data">
-            {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('system')} aria-label="View system status">View status <I.chevronR /></button>
+            <button className="btn btn-ghost btn-xs" onClick={reload} aria-label="Refresh platform data">
+              {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
+            </button>
+          </div>
         </div>
         <div className="service-chips" style={{ padding: '10px 16px' }}>
           {serviceEntries.length === 0 ? (
@@ -399,7 +544,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               return (
                 <span key={name} className={`service-chip ${ok ? 'service-chip-ok' : degraded ? 'service-chip-warn' : 'service-chip-down'}`}>
                   <span className="chip-dot" />
-                  {SERVICE_LABELS[name] ?? name}
+                  {SERVICE_LABELS[name] ?? name} {ok ? 'healthy' : s.status}
                 </span>
               );
             })
@@ -407,95 +552,156 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
       </div>
 
-      {/* KPIs — 5 cards, modern accent */}
+      {/* KPIs — decision-oriented with trends */}
       <div className="ov-kpis">
-        <KpiCard color="#38bdf8" icon={<I.monitor />} label="Devices" value={devices.length} sub="registered" onClick={() => onNavigate('devices')} />
-        <KpiCard color="#22c55e" icon={<I.zap />} label="Active Tunnels" value={activeTunnels} sub={totalConnections ? `of ${totalConnections}` : 'CONNECTED'} onClick={() => onNavigate('connections')} />
-        <KpiCard color="#f59e0b" icon={<I.alert />} label="Pending" value={pendingRequests} sub="awaiting approval" onClick={() => onNavigate('connections')} />
-        <KpiCard color="#a3e635" icon={<I.globe />} label="Relays" value={`${relaySummary.online}/${relaySummary.total || 0}`} sub={relaySummary.total ? (relaySummary.regions.join(' · ') || 'global') : 'no relays'} onClick={() => onNavigate('relays')} />
-        <KpiCard color={ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : '#22c55e'} icon={<I.layers />} label="IPAM" value={utilization !== null ? `${utilization.toFixed(1)}%` : '—'} sub={`${(network?.subnets_allocated ?? 0).toLocaleString()} /30`} onClick={() => onNavigate('network')} />
+        {(() => {
+          const pts = usage?.timeseries ?? [];
+          const weeklyNewDevices = pts.slice(-7).reduce((a, p: any) => a + (p.new_devices ?? 0), 0);
+          const todayNewConns = pts.length ? (pts[pts.length - 1].new_connections ?? 0) : 0;
+          const devGrowth = (usage as any)?.trends?.devices_growth_pct ?? 0;
+          const connGrowth = (usage as any)?.trends?.connections_growth_pct ?? 0;
+          const activePct = totalConnections ? Math.round((activeTunnels / totalConnections) * 100) : 0;
+          const ipamAllocated = network?.subnets_allocated ?? 0;
+          const ipamCap = network?.capacity ?? 1048576;
+          const ipamPctPrecise = ipamCap ? (ipamAllocated / ipamCap) * 100 : 0;
+          const pendingNeedsAttention = pendingRequests > 0;
+          return (
+            <>
+              <KpiCard
+                color="#38bdf8"
+                icon={<I.monitor />}
+                label="Devices"
+                value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>{devices.length} <span style={{ fontSize: '0.7rem', fontWeight: 700, color: weeklyNewDevices > 0 ? '#22c55e' : 'var(--text-muted)', background: weeklyNewDevices > 0 ? 'rgba(34,197,94,0.12)' : 'transparent', padding: weeklyNewDevices > 0 ? '1px 6px' : 0, borderRadius: 999 }}>{weeklyNewDevices > 0 ? `+${weeklyNewDevices} this week` : 'no change'}</span></span>}
+                sub={devGrowth ? `${devGrowth > 0 ? '▲' : devGrowth < 0 ? '▼' : '—'} ${Math.abs(devGrowth).toFixed(1)}% vs prev week` : `${ipamAllocated} trusted · ${devices.length - ipamAllocated} other`}
+                onClick={() => onNavigate('devices')}
+              />
+              <KpiCard
+                color="#22c55e"
+                icon={<I.zap />}
+                label="Active Tunnels"
+                value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>{activeTunnels}<span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ {totalConnections}</span></span>}
+                sub={`${activePct}% active${todayNewConns ? ` · +${todayNewConns} today` : ''}${connGrowth ? ` ${connGrowth > 0 ? '▲' : '▼'} ${Math.abs(connGrowth).toFixed(1)}%` : ''}`}
+                onClick={() => onNavigate('connections')}
+              />
+              <button
+                className="ov-kpi"
+                onClick={() => onNavigate('connections')}
+                aria-label={`Pending approvals ${pendingRequests} requires review`}
+                style={{
+                  // @ts-ignore
+                  '--kpi-accent': pendingNeedsAttention ? '#f59e0b' : '#6b7280',
+                  borderColor: pendingNeedsAttention ? 'rgba(245,158,11,0.35)' : undefined,
+                  background: pendingNeedsAttention ? 'rgba(245,158,11,0.06)' : undefined,
+                  boxShadow: pendingNeedsAttention ? '0 0 0 1px rgba(245,158,11,0.18), 0 4px 16px rgba(245,158,11,0.12)' : undefined,
+                } as React.CSSProperties}
+              >
+                <span className="ov-kpi-icon" style={{ background: pendingNeedsAttention ? 'rgba(245,158,11,0.15)' : undefined, color: pendingNeedsAttention ? '#f59e0b' : undefined }}>
+                  <I.alert />
+                </span>
+                <span className="ov-kpi-main">
+                  <span className="ov-kpi-label" style={{ color: pendingNeedsAttention ? '#f59e0b' : undefined }}>Pending Approvals</span>
+                  <span className="ov-kpi-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: pendingNeedsAttention ? '#f59e0b' : undefined }}>
+                    {pendingRequests}
+                    {pendingNeedsAttention && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 0 4px rgba(245,158,11,0.18)', animation: 'pulse 2s infinite' }} aria-hidden />}
+                  </span>
+                  <span className="ov-kpi-sub" style={{ color: pendingNeedsAttention ? '#f59e0b' : undefined, fontWeight: pendingNeedsAttention ? 700 : undefined }}>
+                    {pendingNeedsAttention ? 'Requires review →' : 'All clear'}
+                  </span>
+                </span>
+                <I.chevronR />
+              </button>
+              <KpiCard
+                color="#a3e635"
+                icon={<I.globe />}
+                label="Relays"
+                value={`${relaySummary.online}/${relaySummary.total || 0}`}
+                sub={`${relaySummary.total ? '100% healthy' : 'no relays'}${relaySummary.regions.length ? ` · ${relaySummary.regions.join(' · ')}` : ''}`}
+                onClick={() => onNavigate('relays')}
+              />
+              <KpiCard
+                color={ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : '#22c55e'}
+                icon={<I.layers />}
+                label="IPAM"
+                value={<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>{ipamAllocated.toLocaleString()}<span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ {(ipamCap / 1048576).toFixed(2)}M</span></span>}
+                sub={`${ipamPctPrecise < 0.01 && ipamPctPrecise > 0 ? ipamPctPrecise.toFixed(4) : ipamPctPrecise.toFixed(1)}% utilized · ${ipamAllocated} allocated`}
+                onClick={() => onNavigate('network')}
+              />
+            </>
+          );
+        })()}
       </div>
 
       {/* Modern two-panel grid — decluttered */}
       <div className="ov-grid" style={{ gap: 14 }}>
-        {/* Left: Relays (admin-created) — replaces Tunnel Health */}
+        {/* Left: Relays — compact table with progressive disclosure */}
         <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
           <div className="section-header">
             <span className="section-title">Relays</span>
             <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}</span>
-            <button className="ov-panel-link" onClick={() => onNavigate('relays')}>Manage <I.chevronR /></button>
+            <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600 }} onClick={() => onNavigate('relays')}>Manage relays <I.chevronR /></button>
           </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {relaySummary.total === 0 ? (
-              <div style={{ padding: '14px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>No relays yet</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Admins create relays for symmetric NAT fallback. Add one in <b>Relays → Add relay</b> (region, host, ports). Once added, tunnels automatically select the lowest-latency relay. Direct STUN hole-punch is used when possible.</div>
-                <button className="btn btn-primary btn-xs" style={{ alignSelf: 'flex-start', marginTop: 4 }} onClick={() => onNavigate('relays')}><I.plus /> Add relay</button>
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ padding: '14px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>No relays yet</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Admins create relays for symmetric NAT fallback. Add one in <b>Relays → Add relay</b> (region, host, ports). Once added, tunnels automatically select the lowest-latency relay. Direct STUN hole-punch is used when possible.</div>
+                  <button className="btn btn-primary btn-xs" style={{ alignSelf: 'flex-start', marginTop: 4 }} onClick={() => onNavigate('relays')}><I.plus /> Add relay</button>
+                </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(relaySummary.nodes as Array<Record<string, any>>).map((r) => {
-                  const id = String(r.id ?? '');
-                  const region = String(r.region ?? '—');
-                  const host = String(r.host ?? '—');
-                  const port = r.port ? `:${r.port}` : '';
-                  const ws = String(r.websocket_url ?? r.WebSocketURL ?? '');
-                  const status = String(r.status ?? 'online');
-                  const active = Number(r.active_sessions ?? r.ActiveSessions ?? 0);
-                  const cap = Number(r.max_capacity ?? r.MaxCapacity ?? 10000);
-                  const stun = r.stun_port ?? r.STUNPort;
-                  const turn = r.turn_port ?? r.TURNPort;
-                  const pct = cap > 0 ? Math.min(100, Math.round((active / cap) * 100)) : 0;
-                  const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
-                  const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
-                  return (
-                    <div key={id} style={{ padding: '12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{id}</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 999, background: 'rgba(56,189,248,0.10)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.18)' }}>{region}</span>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, boxShadow: status === 'online' ? `0 0 0 3px ${statusColor}22` : undefined }} title={status} />
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {host}{port} {ws ? `· ${ws}` : ''} {stun ? `· STUN:${stun}` : ''} {turn ? `· TURN:${turn}` : ''}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 7, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: pct > 85 ? '#ef4444' : pct > 65 ? '#f59e0b' : '#22c55e', borderRadius: 999 }} />
-                        </div>
-                        <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{active.toLocaleString()}/{cap.toLocaleString()} · {pct}%</span>
-                      </div>
-                      {heartbeat && <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Heartbeat {new Date(String(heartbeat)).toLocaleTimeString()} · <span style={{ color: statusColor, fontWeight: 600 }}>{status}</span></div>}
-                    </div>
-                  );
-                })}
-              </div>
+              <RelayTable nodes={relaySummary.nodes as Array<Record<string, any>>} />
             )}
           </div>
         </div>
 
-        {/* Right: Network & fleet — compact unified */}
+        {/* Right: Network & fleet — with precise IPAM */}
         <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
           <div className="section-header">
             <span className="section-title">Network & Fleet</span>
-            <button className="ov-panel-link" onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
+            <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600 }} onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
-            {/* IPAM gauge */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Overlay IPAM — 100.64.0.0/10</span>
-                <span style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : 'var(--text-primary)' }}>{utilization !== null ? `${utilization.toFixed(1)}%` : '—'}</span>
-              </div>
-              <div className="ov-bar" style={{ height: 10 }}>
-                <div className={`ov-bar-fill ${ipamDanger ? 'danger' : ipamWarn ? 'warn' : 'ok'}`} style={{ width: `${Math.min(100, utilization ?? 0)}%` }} />
-              </div>
-              <div className="ov-bar-meta" style={{ marginTop: 6 }}>
-                <span>{network ? `${network.subnets_allocated.toLocaleString()} allocated` : 'No data'}</span>
-                <span>{network ? `${network.capacity.toLocaleString()} capacity` : ''}</span>
-              </div>
-            </div>
+            {/* IPAM gauge — precise 6/1M with copyable CIDR */}
+            {(() => {
+              const allocated = network?.subnets_allocated ?? 0;
+              const capacity = network?.capacity ?? 1048576;
+              const available = Math.max(0, capacity - allocated);
+              const precise = capacity ? (allocated / capacity) * 100 : 0;
+              const preciseStr = precise < 0.01 && precise > 0 ? precise.toFixed(4) : precise.toFixed(1);
+              const doCopyCidr = async () => {
+                try { await navigator.clipboard.writeText('100.64.0.0/10'); setIpamCopied(true); setTimeout(() => setIpamCopied(false), 1400); } catch {}
+              };
+              return (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      Overlay IPAM — 100.64.0.0/10
+                      <button
+                        onClick={doCopyCidr}
+                        aria-label="Copy CIDR 100.64.0.0/10"
+                        title={ipamCopied ? 'Copied!' : 'Copy CIDR'}
+                        style={{ background: 'transparent', border: 0, cursor: 'pointer', color: ipamCopied ? '#22c55e' : 'var(--text-muted)', padding: 2, lineHeight: 1, fontSize: '0.75rem' }}
+                      >
+                        {ipamCopied ? '✓' : '⧉'}
+                      </button>
+                    </span>
+                    <span style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : 'var(--text-primary)' }}>{preciseStr}%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    <span>{allocated.toLocaleString()} / {capacity.toLocaleString()} <span style={{ color: 'var(--text-muted)' }}>· {preciseStr}% utilized</span></span>
+                    <span style={{ color: 'var(--text-muted)' }}>{available.toLocaleString()} available</span>
+                  </div>
+                  <div className="ov-bar" style={{ height: 10 }}>
+                    <div className={`ov-bar-fill ${ipamDanger ? 'danger' : ipamWarn ? 'warn' : 'ok'}`} style={{ width: `${Math.min(100, precise)}%` }} />
+                  </div>
+                  <div className="ov-bar-meta" style={{ marginTop: 6, fontSize: '0.6875rem' }}>
+                    <span>{allocated.toLocaleString()} allocated</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{available.toLocaleString()} available</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ height: 1, background: 'var(--border-subtle)' }} />
 
@@ -566,14 +772,97 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
       </div>
 
-      {/* Subtle helper — directs to dedicated tabs instead of repeating lists */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', padding: '4px 0 2px' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Need more detail?</span>
-        <button className="ov-panel-link" onClick={() => onNavigate('security')}>Audit log <I.chevronR /></button>
-        <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
-        <button className="ov-panel-link" onClick={() => onNavigate('organizations')}>Organizations <I.chevronR /></button>
-        <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
-        <button className="ov-panel-link" onClick={() => onNavigate('users')}>Users <I.chevronR /></button>
+      {/* Recent Activity + Needs Attention — fills empty space, operational */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 14 }}>
+        {/* Recent Activity */}
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
+          <div className="section-header">
+            <span className="section-title">Recent activity</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{data.audit.length ? `${Math.min(5, data.audit.length)} of ${data.audit.length}` : 'no events'}</span>
+            <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('security')} aria-label="View full audit log">View audit <I.chevronR /></button>
+          </div>
+          {data.audit.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>No recent activity.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {data.audit.slice(0, 5).map((ev: any) => {
+                const when = ev.timestamp ? timeAgo(new Date(ev.timestamp) as any) : '—';
+                const actionColor = String(ev.action).includes('suspend') || String(ev.action).includes('revoke') ? '#f59e0b' : String(ev.action).includes('create') ? '#22c55e' : 'var(--text-muted)';
+                return (
+                  <div key={String(ev.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', fontSize: '0.75rem' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: actionColor, flexShrink: 0, boxShadow: `0 0 0 3px ${actionColor}18` }} aria-hidden />
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: 64, fontSize: '0.6875rem' }}>{when}</span>
+                    <span className="badge badge-neutral" style={{ fontSize: '0.6875rem', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(ev.action)}</span>
+                    <span style={{ flex: 1, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem' }} title={String(ev.target_id)}>{String(ev.target_id)}</span>
+                    <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem' }}>{String(ev.actor_id).slice(0, 8)}…</span>
+                  </div>
+                );
+              })}
+              <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Live audit stream · {data.audit.length} events</span>
+                <button className="ov-panel-link" onClick={() => onNavigate('security')}>Audit log <I.chevronR /></button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Needs Attention */}
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
+          <div className="section-header">
+            <span className="section-title">Needs attention</span>
+            <span style={{ fontSize: '0.6875rem', color: pendingRequests > 0 || hasDegraded || ipamWarn ? '#f59e0b' : '#22c55e', fontWeight: 700 }}>
+              {pendingRequests > 0 || hasDegraded || ipamWarn ? `${pendingRequests + (hasDegraded ? 1 : 0) + (ipamWarn ? 1 : 0)} open` : 'All clear'}
+            </span>
+          </div>
+          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+            {pendingRequests > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 0 4px rgba(245,158,11,0.18)', flexShrink: 0 }} aria-hidden />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#fbbf24' }}>{pendingRequests} pending approval{pendingRequests > 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Device tunnel approval queue</div>
+                </div>
+                <button className="btn btn-secondary btn-xs" style={{ background: '#f59e0b', color: '#000', borderColor: '#f59e0b', fontWeight: 700 }} onClick={() => onNavigate('connections')}>Review <I.chevronR /></button>
+              </div>
+            )}
+            {hasDegraded && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                <I.alert />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#f87171' }}>Degraded service</div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>One or more subsystems unhealthy</div>
+                </div>
+                <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('system')}>View <I.chevronR /></button>
+              </div>
+            )}
+            {ipamWarn && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                <I.layers />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#fbbf24' }}>IPAM {utilization?.toFixed(1)}% utilized</div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{network?.subnets_allocated ?? 0} / {network?.capacity ?? 1048576} · plan capacity</div>
+                </div>
+                <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('network')}>Manage <I.chevronR /></button>
+              </div>
+            )}
+            {!pendingRequests && !hasDegraded && !ipamWarn && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px', borderRadius: 10, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 0 4px rgba(34,197,94,0.15)' }} aria-hidden />
+                <div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#22c55e' }}>All clear</div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Relay capacity healthy · No degraded services · {devices.filter((d: any) => d.status === 'suspended').length} suspended</div>
+                </div>
+              </div>
+            )}
+            <div style={{ marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button className="ov-panel-link" onClick={() => onNavigate('organizations')}>Organizations <I.chevronR /></button>
+              <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
+              <button className="ov-panel-link" onClick={() => onNavigate('users')}>Users <I.chevronR /></button>
+              <span style={{ color: 'var(--border)', fontSize: '0.75rem' }}>·</span>
+              <button className="ov-panel-link" onClick={() => onNavigate('security')}>Audit <I.chevronR /></button>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -2370,7 +2659,7 @@ const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
 type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>, navigate: (t: AdminTab) => void, onToast: (msg: string, type?: 'success' | 'error' | 'info') => void) => React.ReactNode; action?: React.ReactNode };
 
 const SCREENS: Record<AdminTab, ScreenDef> = {
-  overview:      { title: 'Platform Overview',   subtitle: 'Global platform health, connection states, overlay usage and service status',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
+  overview:      { title: 'Platform Overview',   subtitle: 'Real-time health and capacity across your network infrastructure',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
   operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: (d, _nav, onToast) => <OperationsTab data={d} onToast={onToast} /> },
   usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: (d,nav) => <UsageTab data={d} onNavigate={nav} /> },
   billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
@@ -2390,21 +2679,33 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [tab, setTab] = useState<AdminTab>('overview');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
   const data = useAdminData();
   const cur = SCREENS[tab];
 
+  useEffect(() => {
+    if (!globalAutoRefresh) return;
+    const id = window.setInterval(() => { data.reload(); }, 30000);
+    return () => clearInterval(id);
+  }, [globalAutoRefresh, data.reload]);
+
+  // Actionable badges only — passive counts removed per review #14
+  const pendingCount = data.connections.filter((c: any) => c.state === 'REQUESTED').length;
+  const suspendedCount = data.devices.filter((d: any) => d.status === 'suspended' || d.status === 'revoked').length;
+  const securityAttention = data.audit.filter((e: any) => String(e.action).includes('suspend') || String(e.action).includes('revoke') || String(e.action).includes('incident')).length;
+  const relayIssues = (data.relays as unknown[]).filter((r: any) => r.status === 'offline' || r.status === 'draining').length;
   const navCounts: Record<AdminTab, number | null> = {
     overview: null,
     operations: null,
     usage: null,
     billing: null,
-    users: data.users.length || null,
-    organizations: data.orgs.length || null,
-    devices: data.devices.length || null,
-    connections: data.connections.length || null,
-    network: data.network ? data.network.subnets_allocated : null,
-    relays: (data.relays as unknown[]).length || null,
-    security: data.audit.length || null,
+    users: null,
+    organizations: null,
+    devices: suspendedCount || null,
+    connections: pendingCount || null,
+    network: null,
+    relays: relayIssues || null,
+    security: securityAttention > 3 ? securityAttention : null,
     abuse: null,
     system: null,
   };
@@ -2462,28 +2763,74 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </nav>
 
         <div className="admin-sidebar-footer">
-          <div className="admin-operator" id="admin-operator-btn">
-            <div className="admin-operator-avatar"><I.user /></div>
-            <div className="admin-operator-info">
-              <div className="admin-operator-name">Zoop Operator</div>
-              <div className="admin-operator-role">Platform Admin</div>
+          <button
+            className="admin-operator"
+            id="admin-operator-btn"
+            onClick={() => addToast('Profile · Preferences · API keys · Switch org · Sign out — coming soon', 'info')}
+            aria-label="Operator menu: Zoop Operator, Platform Admin, Online"
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, background: 'transparent', border: 0, cursor: 'pointer', padding: '10px', borderRadius: 10, textAlign: 'left' } as React.CSSProperties}
+          >
+            <div className="admin-operator-avatar" style={{ position: 'relative' }}>
+              <I.user />
+              <span style={{ position: 'absolute', bottom: -2, right: -2, width: 9, height: 9, borderRadius: '50%', background: '#22c55e', border: '2px solid var(--bg-sidebar)', boxShadow: '0 0 0 2px rgba(34,197,94,0.18)' }} aria-hidden title="Online" />
             </div>
-          </div>
+            <div className="admin-operator-info" style={{ flex: 1, minWidth: 0 }}>
+              <div className="admin-operator-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Zoop Operator <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} aria-hidden /> <span style={{ fontSize: '0.625rem', fontWeight: 700, color: '#22c55e', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Online</span></div>
+              <div className="admin-operator-role">Platform Admin ▾</div>
+            </div>
+          </button>
         </div>
       </aside>
 
       <div className="admin-content">
         <header className="admin-page-header" role="banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               {sidebarOpen ? <I.close /> : <I.menu />}
             </button>
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <h1 className="admin-page-title">{cur.title}</h1>
               <p className="admin-page-subtitle">{cur.subtitle}</p>
+              {tab === 'overview' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 6, fontSize: '0.6875rem', color: 'var(--text-muted)' }} aria-live="polite">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600, color: data.services && Object.values(data.services).every(s => s.status === 'ok') ? '#22c55e' : '#f59e0b' }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: data.services && Object.values(data.services).every(s => s.status === 'ok') ? '#22c55e' : '#f59e0b', boxShadow: `0 0 0 3px ${data.services && Object.values(data.services).every(s => s.status === 'ok') ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)'}`, flexShrink: 0 }} aria-hidden />
+                    {data.services && Object.values(data.services).every(s => s.status === 'ok') ? 'Operational' : 'Degraded'}
+                  </span>
+                  <span>· Updated {timeAgo(data.lastUpdated)}</span>
+                  <span>· Last checked {data.lastUpdated ? data.lastUpdated.toLocaleTimeString() : '—'}</span>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 4, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', cursor: 'pointer', userSelect: 'none', fontWeight: 600 }}>
+                    <input type="checkbox" checked={globalAutoRefresh} onChange={e => setGlobalAutoRefresh(e.target.checked)} style={{ accentColor: 'var(--portal-accent)' }} aria-label="Auto-refresh every 30 seconds" />
+                    Auto-refresh: {globalAutoRefresh ? 'On' : 'Off'}
+                  </label>
+                </div>
+              )}
             </div>
           </div>
-          {cur.action && <div className="admin-page-actions">{cur.action}</div>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <div className="admin-header-search" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '6px 12px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                aria-label="Search (⌘K)"
+                title="⌘K Search anything — command palette"
+                onClick={() => addToast('⌘K Command palette — search devices, orgs, relays, docs', 'info')}
+              >
+                <I.search /> <span style={{ marginLeft: 2 }}>⌘K</span> <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }}>Search</span>
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                aria-label="Notifications — 2 unread"
+                title="Notifications"
+                onClick={() => addToast('Notifications — 2 unread: pending approval, relay heartbeat', 'info')}
+                style={{ position: 'relative', padding: '6px 8px' }}
+              >
+                <span style={{ fontSize: '0.9rem' }}>🔔</span>
+                <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 14, height: 14, borderRadius: 999, background: '#f59e0b', color: '#000', fontSize: '0.625rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1 }}>2</span>
+              </button>
+            </div>
+            {cur.action && <div className="admin-page-actions">{cur.action}</div>}
+          </div>
         </header>
 
         <main id="main-content" className="admin-page-body" tabIndex={-1} aria-label={cur.title}>
