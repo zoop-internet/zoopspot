@@ -1553,7 +1553,7 @@ func (s *Server) handleAdminUsage() http.HandlerFunc {
 // handleAdminRelays lists the relay registry nodes.
 func (s *Server) handleAdminRelays() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		nodes := s.relayRegistry.GetNodes(false)
+		nodes := s.relayRegistry.GetNodes(true)
 		api.WriteJSON(w, http.StatusOK, nodes)
 	}
 }
@@ -1775,14 +1775,37 @@ func (s *Server) CheckHealth() map[string]api.SubsystemStatus {
 	return subsystems
 }
 
+func stripAPIPrefixMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			r2 := r.Clone(r.Context())
+			r2URL := *r.URL
+			r2URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
+			if r2URL.Path == "" {
+				r2URL.Path = "/"
+			}
+			r2.URL = &r2URL
+			next.ServeHTTP(w, r2)
+			return
+		}
+		if r.URL.Path == "/api" || r.URL.Path == "/api/" {
+			http.Redirect(w, r, "/", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Start runs the HTTP server and blocks until the context is canceled.
 func (s *Server) Start(ctx context.Context) error {
 	rateLimiter := api.NewRateLimiter(300, 100) // 300 req/min, 100 burst
-	handler := api.MetricsMiddleware(
-		api.SecurityHeadersMiddleware(
-			api.IdempotencyMiddleware(
-				api.RateLimitMiddleware(rateLimiter)(
-					api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+	handler := stripAPIPrefixMiddleware(
+		api.MetricsMiddleware(
+			api.SecurityHeadersMiddleware(
+				api.IdempotencyMiddleware(
+					api.RateLimitMiddleware(rateLimiter)(
+						api.CORSMiddleware(s.cfg.AllowedOrigins)(s.mux),
+					),
 				),
 			),
 		),

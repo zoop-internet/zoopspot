@@ -510,6 +510,9 @@ html, body, #root {
 .page-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 24px 28px 40px;
   display: flex;
   flex-direction: column;
@@ -618,6 +621,10 @@ html, body, #root {
   border-radius: var(--r-xl);
   overflow: hidden;
 }
+/* FIX: sections containing tables must allow scroll — override inline overflow:hidden */
+.section:has(.table-wrap) { overflow: visible !important; }
+.section:has(.table-wrap) .section-header { border-radius: var(--r-xl) var(--r-xl) 0 0; }
+.section[style*="overflow"] { overflow: visible !important; }
 
 .section-header {
   display: flex;
@@ -740,9 +747,43 @@ html, body, #root {
   font-weight: 600;
 }
 
-/* Responsive table scroll */
-.table-wrap { overflow-x: auto; }
-.table-wrap .data-table { min-width: 520px; }
+/* Responsive table scroll — FIX: visible scrollbars, touch momentum, never clip overlapping columns */
+.table-wrap {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.14) transparent;
+  max-width: 100%;
+  display: block;
+  max-height: 68vh;
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+}
+.table-wrap::-webkit-scrollbar { height: 8px; width: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+.table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+.table-wrap .data-table { min-width: 900px; width: max-content; }
+.data-table th, .data-table td { white-space: nowrap; }
+/* Long IDs should not be truncated — let table scroll instead */
+.data-table td[style*="font-family: var(--font-mono)"] { max-width: none; }
+.data-table td:last-child { white-space: nowrap; }
+/* Fallback: any table directly inside section without wrapper becomes scrollable */
+.section > .data-table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+
+/* Presentations / grids that may overflow — allow horizontal scroll instead of overlapping */
+.metrics-bar, .ov-grid, .ov-kpis, .ov-panel {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.10) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.metrics-bar::-webkit-scrollbar, .ov-grid::-webkit-scrollbar { height: 6px; }
+.metrics-bar::-webkit-scrollbar-thumb, .ov-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 3px; }
+.ov-grid .ov-panel, .metrics-bar .metric-item { min-width: 0; }
+/* Ensure any inline grid inside section can scroll horizontally if needed */
+.section > div[style*="gridTemplateColumns"] { max-width: 100%; overflow-x: auto; }
 
 /* ─── Info rows ───────────────────────────────────────────────── */
 .info-row {
@@ -1220,6 +1261,9 @@ html, body, #root {
 .admin-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 24px 28px 40px;
   display: flex;
   flex-direction: column;
@@ -1249,6 +1293,9 @@ html, body, #root {
 .admin-page-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 24px 28px 40px;
   display: flex;
   flex-direction: column;

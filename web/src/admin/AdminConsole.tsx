@@ -317,7 +317,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
     const total = devices.length || 1;
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
       .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }));
   }, [devices]);
 
@@ -420,7 +419,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
       {/* Modern two-panel grid — decluttered */}
       <div className="ov-grid" style={{ gap: 14 }}>
         {/* Left: Relays (admin-created) — replaces Tunnel Health */}
-        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
           <div className="section-header">
             <span className="section-title">Relays</span>
             <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}</span>
@@ -477,7 +476,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
         </div>
 
         {/* Right: Network & fleet — compact unified */}
-        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
           <div className="section-header">
             <span className="section-title">Network & Fleet</span>
             <button className="ov-panel-link" onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
@@ -500,26 +499,66 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
 
             <div style={{ height: 1, background: 'var(--border-subtle)' }} />
 
-            {/* Fleet mix — compact */}
+            {/* Fleet mix — circle with percentages */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Fleet by platform</span>
                 <button className="ov-panel-link" style={{ padding: '2px 4px' }} onClick={() => onNavigate('devices')}>{devices.length} devices <I.chevronR /></button>
               </div>
               {platformMix.length === 0 ? (
                 <span className="section-note">No device data.</span>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {platformMix.map(({ name, pct }) => (
-                    <div key={name} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 44px', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                      <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--portal-accent)', borderRadius: 999 }} />
+                (() => {
+                  const PLATFORM_COLORS: Record<string, string> = {
+                    linux: '#22c55e',
+                    darwin: '#38bdf8',
+                    windows: '#8b5cf6',
+                    ios: '#f59e0b',
+                    android: '#ef4444',
+                    openwrt: '#06b6d4',
+                    unknown: '#6b7280',
+                  };
+                  const size = 120;
+                  const thickness = 14;
+                  const radius = (size - thickness) / 2;
+                  const circ = 2 * Math.PI * radius;
+                  const total = devices.length || 1;
+                  let acc = 0;
+                  const segments = platformMix.map(p => ({
+                    ...p,
+                    color: PLATFORM_COLORS[p.name] ?? PLATFORM_COLORS.unknown,
+                  }));
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+                        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+                          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={thickness} />
+                          {segments.map((s) => {
+                            const pct = s.count / total;
+                            const dash = pct * circ;
+                            const cur = acc;
+                            acc += dash;
+                            return <circle key={s.name} cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={s.color} strokeWidth={thickness} strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={-cur} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.6s ease' }} />;
+                          })}
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', pointerEvents: 'none' }}>
+                          <span style={{ fontSize: '1.35rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', lineHeight: 1 }}>{devices.length}</span>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.05em', textTransform: 'uppercase' }}>devices</span>
+                        </div>
                       </div>
-                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textAlign: 'right' }}>{pct}%</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 140 }}>
+                        {segments.map((s) => (
+                          <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0, boxShadow: `0 0 0 3px ${s.color}18` }} />
+                            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', flex: 1, fontWeight: 500, textTransform: 'capitalize' }}>{s.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: 28, textAlign: 'right' }}>{s.count}</span>
+                            <span style={{ fontSize: '0.8125rem', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })()
               )}
             </div>
 
@@ -659,19 +698,21 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
         {incidents.length===0 ? (
           <EmptyState icon={<I.activity />} title="No incidents" desc="SEV-1/2 incidents per docs/runbooks/incident-response.md appear here. Recent audit is quiet." />
         ) : (
-          <table className="data-table">
-            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th/></tr></thead>
-            <tbody>
-              {incidents.map(ev=>(
-                <tr key={ev.id.toString()}>
-                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{new Date(ev.timestamp).toLocaleString()}</td>
-                  <td><span className={`badge ${ev.action.includes('revoke')?'badge-danger':ev.action.includes('incident')?'badge-warning':'badge-neutral'}`}>{ev.action}</span></td>
-                  <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{ev.actor_id.slice(0,13)}…</td>
-                  <td style={{textAlign:'right'}}><button className="btn btn-ghost btn-xs" onClick={()=> toast('Open runbook: docs/runbooks/incident-response.md','info')}>Runbook</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th/></tr></thead>
+              <tbody>
+                {incidents.map(ev=>(
+                  <tr key={ev.id.toString()}>
+                    <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{new Date(ev.timestamp).toLocaleString()}</td>
+                    <td><span className={`badge ${ev.action.includes('revoke')?'badge-danger':ev.action.includes('incident')?'badge-warning':'badge-neutral'}`}>{ev.action}</span></td>
+                    <td style={{fontFamily:'var(--font-mono)', fontSize:'0.72rem'}}>{ev.actor_id.slice(0,13)}…</td>
+                    <td style={{textAlign:'right'}}><button className="btn btn-ghost btn-xs" onClick={()=> toast('Open runbook: docs/runbooks/incident-response.md','info')}>Runbook</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -1314,7 +1355,7 @@ const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data })
                           <span style={{ fontFamily:'var(--font-mono)', fontSize:'0.6875rem', color:'var(--text-muted)' }} title={u.id.toString()}>{u.id.toString().slice(0,13)}…</span>
                         </div>
                       </td>
-                      <td style={{ fontSize:'0.8125rem', color:'var(--text-secondary)', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={orgName}>{orgName}</td>
+                      <td style={{ fontSize:'0.8125rem', color:'var(--text-secondary)', maxWidth:260, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={orgName}>{orgName}</td>
                       <td><span className={`badge ${roleBadge(u.role)}`}>{u.role}</span></td>
                       <td><span className={`badge ${statusBadge(u.status)}`}>{u.status}</span></td>
                       <td style={{ textAlign:'right' }}>
@@ -1772,25 +1813,27 @@ const DevicesTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast: (ms
         ) : filtered.length === 0 ? (
           <EmptyState icon={<I.search />} title="No matching devices" desc={`No endpoints match "${q.trim()}". Try a different name, OS, ID or status.`} pad="36px 24px" />
         ) : (
-          <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Endpoints — {filtered.length} of {data.devices.length} · Revoke suspends immediately</caption>
-            <thead><tr><th scope="col">Name</th><th scope="col">Device ID</th><th scope="col">OS</th><th scope="col">Status</th><th scope="col" style={{ textAlign: 'right' }}>Actions</th></tr></thead>
-            <tbody>
-              {filtered.map(d => (
-                <tr key={d.id.toString()}>
-                  <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
-                  <td>
-                    <span title={d.id.toString()} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                      {d.id.toString().slice(0, 13)}…
-                    </span>
-                  </td>
-                  <td>{d.os || '—'}</td>
-                  <td><span className={`badge ${DEV_STATUS_BADGE[d.status] ?? 'badge-neutral'}`}>{devStatusLabel(d.status)}</span></td>
-                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{renderAction(d)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Endpoints — {filtered.length} of {data.devices.length} · Revoke suspends immediately</caption>
+              <thead><tr><th scope="col">Name</th><th scope="col">Device ID</th><th scope="col">OS</th><th scope="col">Status</th><th scope="col" style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+              <tbody>
+                {filtered.map(d => (
+                  <tr key={d.id.toString()}>
+                    <td style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</td>
+                    <td>
+                      <span title={d.id.toString()} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                        {d.id.toString().slice(0, 13)}…
+                      </span>
+                    </td>
+                    <td>{d.os || '—'}</td>
+                    <td><span className={`badge ${DEV_STATUS_BADGE[d.status] ?? 'badge-neutral'}`}>{devStatusLabel(d.status)}</span></td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{renderAction(d)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
@@ -1827,21 +1870,23 @@ const ConnectionsTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ d
         {data.connections.length === 0 ? (
           <EmptyState icon={<I.zap />} title="No connections" desc="WireGuard sessions between Providers and Recipients will appear here." />
         ) : (
-          <table className="data-table">
-            <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Tunnels — provider → recipient, WireGuard state</caption>
-            <thead><tr><th scope="col">Provider</th><th scope="col">Recipient</th><th scope="col">State</th><th scope="col">Provider IP</th><th scope="col">Recipient IP</th></tr></thead>
-            <tbody>
-              {data.connections.map(c => (
-                <tr key={c.id.toString()}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_id?.toString().slice(0, 13)}…</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_id?.toString().slice(0, 13)}…</td>
-                  <td><span className={`badge ${c.state === 'CONNECTED' ? 'badge-success' : c.state === 'REQUESTED' ? 'badge-warning' : 'badge-neutral'}`}>{c.state}</span></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_ip || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_ip || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Tunnels — provider → recipient, WireGuard state</caption>
+              <thead><tr><th scope="col">Provider</th><th scope="col">Recipient</th><th scope="col">State</th><th scope="col">Provider IP</th><th scope="col">Recipient IP</th></tr></thead>
+              <tbody>
+                {data.connections.map(c => (
+                  <tr key={c.id.toString()}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_id?.toString().slice(0, 13)}…</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_id?.toString().slice(0, 13)}…</td>
+                    <td><span className={`badge ${c.state === 'CONNECTED' ? 'badge-success' : c.state === 'REQUESTED' ? 'badge-warning' : 'badge-neutral'}`}>{c.state}</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.provider_ip || '—'}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{c.recipient_ip || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
@@ -2168,26 +2213,28 @@ const RelaysTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast: (msg
         {relays.length === 0 ? (
           <EmptyState icon={<I.globe />} title="No relay nodes configured" desc="Fallback relay nodes (TURN/STUN relays) for nat-traversal fallback are listed here." />
         ) : (
-          <table className="data-table">
-            <thead><tr><th>ID</th><th>Region</th><th>Host</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {relays.map((rl, i) => (
-                <tr key={rl.id ?? `relay-${i}`}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.id || '—'}</td>
-                  <td>{rl.region || '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.host || '—'}</td>
-                  <td><span className={`badge ${rl.status === 'offline' || rl.status === 'draining' ? 'badge-neutral' : 'badge-success'}`}>{rl.status || 'online'}</span></td>
-                  <td>
-                    <button className="btn btn-danger btn-sm"
-                      onClick={() => rl.id && removeRelay(rl.id)}
-                      disabled={removing === rl.id}>
-                      {removing === rl.id ? 'Removing…' : 'Remove'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>ID</th><th>Region</th><th>Host</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {relays.map((rl, i) => (
+                  <tr key={rl.id ?? `relay-${i}`}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.id || '—'}</td>
+                    <td>{rl.region || '—'}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{rl.host || '—'}</td>
+                    <td><span className={`badge ${rl.status === 'offline' || rl.status === 'draining' ? 'badge-neutral' : 'badge-success'}`}>{rl.status || 'online'}</span></td>
+                    <td>
+                      <button className="btn btn-danger btn-sm"
+                        onClick={() => rl.id && removeRelay(rl.id)}
+                        disabled={removing === rl.id}>
+                        {removing === rl.id ? 'Removing…' : 'Remove'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
@@ -2222,19 +2269,21 @@ const SecurityTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data
         {events.length === 0 ? (
           <EmptyState icon={<I.shield />} title="No security events" desc="Authentication anomalies, revocation logs, and authorization failures will appear here." />
         ) : (
-          <table className="data-table">
-            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
-            <tbody>
-              {events.slice(0, 50).map(ev => (
-                <tr key={ev.id.toString()}>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
-                  <td><span className="badge badge-neutral">{ev.action}</span></td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.target_id}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
+              <tbody>
+                {events.slice(0, 50).map(ev => (
+                  <tr key={ev.id.toString()}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{new Date(ev.timestamp).toLocaleString()}</td>
+                    <td><span className="badge badge-neutral">{ev.action}</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.target_id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
