@@ -747,16 +747,17 @@ html, body, #root {
   font-weight: 600;
 }
 
-/* Responsive table scroll — FIX: visible scrollbars, touch momentum, never clip overlapping columns */
+/* Responsive table scroll — single page scroll, tables expand, no nested vertical clipping */
 .table-wrap {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.14) transparent;
   max-width: 100%;
   display: block;
-  max-height: 68vh;
+  max-height: none;
   border-radius: 0 0 var(--r-xl) var(--r-xl);
 }
 .table-wrap::-webkit-scrollbar { height: 8px; width: 8px; }
@@ -771,10 +772,11 @@ html, body, #root {
 /* Fallback: any table directly inside section without wrapper becomes scrollable */
 .section > .data-table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 
-/* Presentations / grids that may overflow — allow horizontal scroll instead of overlapping */
+/* Presentations / grids that may overflow — allow horizontal scroll, never clip expanded rows */
 .metrics-bar, .ov-grid, .ov-kpis, .ov-panel {
   max-width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.10) transparent;
   -webkit-overflow-scrolling: touch;
