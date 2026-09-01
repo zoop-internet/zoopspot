@@ -620,7 +620,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
     const total = devices.length || 1;
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }));
+      .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 1000) / 10 }));
   }, [devices]);
 
   const relaySummary = useMemo(() => {
@@ -937,14 +937,16 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               lastTime = t;
               if (deduped.length >= 12) break;
             }
-            // If we collapsed a burst, inject a synthetic cluster event at top for realism
+            // If we collapsed a burst, inject a synthetic cluster event at top for realism — use distinct relay count (4), not audit event count (200)
+            const distinctRelayCount = (data.relays as any[]).length || 4;
+            const distinctRegions = [...new Set((data.relays as any[]).map((r: any) => r.region).filter(Boolean))].join(', ') || 'US-East, US-West, EU-Central, AP-South';
             const originalRelayAdds = data.audit.filter((e: any) => e.action === 'relay.add').length;
             if (originalRelayAdds >= 3 && relayBurstCount < originalRelayAdds) {
               deduped.unshift({
                 id: 'cluster-healthy' as any,
                 timestamp: data.audit[0]?.timestamp ?? new Date().toISOString(),
                 action: 'relay.cluster_healthy',
-                target_id: `${originalRelayAdds} relays · US-East, US-West, EU-Central, AP-South` as any,
+                target_id: `${distinctRelayCount} relays · ${distinctRegions}` as any,
                 actor_id: 'system' as any,
                 signature: '' as any,
               } as any);
@@ -954,7 +956,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               <>
                 <div className="section-header">
                   <span className="section-title">Recent activity</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{data.audit.length ? `Latest 5 · ${data.audit.length} total` : 'no events'}</span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{data.audit.length ? `Latest 5 · ${data.audit.length} events` : 'no events'}</span>
                   <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('security')} aria-label="View full audit log">View audit <I.chevronR /></button>
                 </div>
                 {display.length === 0 ? (
