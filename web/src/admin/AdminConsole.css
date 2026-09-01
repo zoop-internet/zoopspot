@@ -339,6 +339,9 @@
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
 }
 
 .ov-kpi {
@@ -394,6 +397,9 @@
   grid-template-columns: 1.35fr 1fr;
   gap: 16px;
   align-items: start;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
 }
 @media (max-width: 1100px) {
   .ov-grid { grid-template-columns: 1fr; }

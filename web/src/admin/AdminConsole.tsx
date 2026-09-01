@@ -123,6 +123,171 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onDismiss: (id: string) => voi
   );
 };
 
+/* ─── Cloudflare-style Command Palette — search all platform ─────────── */
+const CommandPalette: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  data: ReturnType<typeof useAdminData>;
+  onNavigate: (t: AdminTab) => void;
+}> = ({ open, onClose, data, onNavigate }) => {
+  const [q, setQ] = useState('');
+  const [selected, setSelected] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 30); setQ(''); setSelected(0); } }, [open]);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if (open) onClose(); else { const ev = new CustomEvent('open-command-palette'); window.dispatchEvent(ev); } }
+      if (e.key === 'Escape' && open) onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+  useEffect(() => {
+    const h = () => { if (!open) { const cb = (window as any).__openPalette; if (cb) cb(); } };
+    window.addEventListener('open-command-palette' as any, h as any);
+    return () => window.removeEventListener('open-command-palette' as any, h as any);
+  }, [open]);
+
+  const allEntries = useMemo(() => {
+    const out: Array<{ id: string; label: string; sub: string; icon: React.ReactNode; tab: AdminTab; kind: string }> = [];
+    data.devices.forEach(d => out.push({ id: `dev-${d.id}`, label: d.name || 'Unnamed Device', sub: `${d.id.toString().slice(0, 8)} · ${d.os || d.platform || 'unknown'} · ${d.status}`, icon: <I.monitor />, tab: 'devices' as AdminTab, kind: 'Device' }));
+    data.orgs.forEach(o => out.push({ id: `org-${o.id}`, label: o.name, sub: `${o.slug || ''} · ${o.id.toString().slice(0, 8)}`, icon: <I.building />, tab: 'organizations' as AdminTab, kind: 'Organization' }));
+    data.users.forEach((u: any) => out.push({ id: `user-${u.id}`, label: u.name || u.email || 'User', sub: `${u.role} · ${u.status} · ${u.email || u.username || ''}`, icon: <I.users />, tab: 'users' as AdminTab, kind: 'User' }));
+    (data.relays as any[]).forEach((r: any) => out.push({ id: `relay-${r.id}`, label: r.id || r.host, sub: `${r.region || ''} · ${r.host || ''} · ${r.status || 'online'}`, icon: <I.globe />, tab: 'relays' as AdminTab, kind: 'Relay' }));
+    data.connections.forEach(c => out.push({ id: `conn-${c.id}`, label: `Tunnel ${String(c.id).slice(0, 8)}`, sub: `${c.state} · ${c.provider_id.toString().slice(0, 6)} → ${c.recipient_id.toString().slice(0, 6)}`, icon: <I.link />, tab: 'connections' as AdminTab, kind: 'Tunnel' }));
+    data.audit.slice(0, 20).forEach((a: any) => out.push({ id: `audit-${a.id}`, label: String(a.action).replace('.', ' '), sub: `${String(a.target_id).slice(0, 24)} · ${new Date(a.timestamp).toLocaleDateString()}`, icon: <I.activity />, tab: 'security' as AdminTab, kind: 'Audit' }));
+    out.push({ id: 'nav-overview', label: 'Go to Overview', sub: 'Platform health & KPIs', icon: <I.grid />, tab: 'overview' as AdminTab, kind: 'Navigate' });
+    out.push({ id: 'nav-operations', label: 'Go to Operations', sub: 'Incidents & health', icon: <I.activity />, tab: 'operations' as AdminTab, kind: 'Navigate' });
+    out.push({ id: 'nav-usage', label: 'Go to Usage', sub: 'Analytics & bandwidth', icon: <I.barChart />, tab: 'usage' as AdminTab, kind: 'Navigate' });
+    out.push({ id: 'nav-network', label: 'Go to Network / IPAM', sub: '100.64.0.0/10', icon: <I.layers />, tab: 'network' as AdminTab, kind: 'Navigate' });
+    return out;
+  }, [data]);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return allEntries.slice(0, 8);
+    return allEntries.filter(e => e.label.toLowerCase().includes(query) || e.sub.toLowerCase().includes(query) || e.kind.toLowerCase().includes(query)).slice(0, 12);
+  }, [q, allEntries]);
+
+  useEffect(() => setSelected(0), [q]);
+
+  if (!open) return null;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,12,0.62)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 9998, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', paddingLeft: 16, paddingRight: 16 }}
+      aria-modal="true"
+      role="dialog"
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 640, background: 'rgba(22,27,37,0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '72vh' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <I.search />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(s => Math.min(s + 1, filtered.length - 1)); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(s => Math.max(s - 1, 0)); }
+              if (e.key === 'Enter') { const it = filtered[selected]; if (it) { onNavigate(it.tab); onClose(); } }
+            }}
+            placeholder="Search devices, users, organizations, relays, tunnels, IPs, audit…"
+            aria-label="Search all platform"
+            style={{ flex: 1, background: 'transparent', border: 0, outline: 'none', color: 'var(--text-primary)', fontSize: '0.9375rem', fontFamily: 'var(--font-sans)' }}
+          />
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '4px 7px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'var(--font-mono)' }}>ESC</span>
+        </div>
+        <div style={{ overflowY: 'auto', flex: 1, padding: '8px', background: 'transparent' }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>No results for “{q}” — try device name, relay region, or tunnel ID</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {filtered.map((it, idx) => (
+                <button
+                  key={it.id}
+                  onClick={() => { onNavigate(it.tab); onClose(); }}
+                  onMouseEnter={() => setSelected(idx)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 10,
+                    background: idx === selected ? 'rgba(245,158,11,0.10)' : 'transparent',
+                    border: `1px solid ${idx === selected ? 'rgba(245,158,11,0.18)' : 'transparent'}`,
+                    cursor: 'pointer', color: 'var(--text-primary)'
+                  }}
+                >
+                  <span style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: idx === selected ? 'rgba(245,158,11,0.14)' : 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: idx === selected ? '#fbbf24' : 'var(--text-muted)', flexShrink: 0 }}>{it.icon}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
+                    <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.sub}</span>
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.08)' }}>{it.kind}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 12, alignItems: 'center', fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.10)' }}>↑↓</span> Navigate</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.10)' }}>↵</span> Select</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.10)' }}>ESC</span> Close</span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>{filtered.length} results · All platform</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Notifications Dropdown — Cloudflare-style ──────────────────── */
+const NotificationsDropdown: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  data: ReturnType<typeof useAdminData>;
+  onNavigate: (t: AdminTab) => void;
+}> = ({ open, onClose, data, onNavigate }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    if (open) document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open, onClose]);
+  if (!open) return null;
+  const pending = data.connections.filter((c: any) => c.state === 'REQUESTED').length;
+  const suspended = data.devices.filter((d: any) => d.status === 'suspended').length;
+  const hasDegraded = Object.values(data.services).some((s: any) => s.status !== 'ok');
+  const items: Array<{ icon: React.ReactNode; title: string; desc: string; time: string; color: string; tab: AdminTab }> = [];
+  if (pending) items.push({ icon: <I.alert />, title: `${pending} pending approval${pending > 1 ? 's' : ''}`, desc: 'Device tunnel approval queue', time: 'now', color: '#f59e0b', tab: 'connections' });
+  if (suspended) items.push({ icon: <I.shield />, title: `${suspended} device${suspended > 1 ? 's' : ''} suspended`, desc: 'Review in Devices', time: '31s ago', color: '#f59e0b', tab: 'devices' });
+  if (hasDegraded) items.push({ icon: <I.alert />, title: 'Service degraded', desc: 'Check System health', time: 'now', color: '#ef4444', tab: 'system' });
+  items.push({ icon: <I.globe />, title: 'Relay cluster healthy', desc: '4/4 online · Heartbeat ok', time: '6s ago', color: '#22c55e', tab: 'relays' });
+  items.push({ icon: <I.activity />, title: 'Audit updated', desc: `${data.audit.length} events · Live stream`, time: 'now', color: '#38bdf8', tab: 'security' });
+  return (
+    <div ref={ref} style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 360, background: 'rgba(22,27,37,0.98)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, boxShadow: '0 16px 40px rgba(0,0,0,0.5)', overflow: 'hidden', zIndex: 50 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>Notifications</span>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(245,158,11,0.12)', padding: '2px 7px', borderRadius: 999, border: '1px solid rgba(245,158,11,0.18)' }}>{items.length} new</span>
+      </div>
+      <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+        {items.map((it, i) => (
+          <button key={i} onClick={() => { onNavigate(it.tab); onClose(); }} style={{ display: 'flex', gap: 12, width: '100%', textAlign: 'left', padding: '12px 16px', background: 'transparent', border: 0, borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }}>
+            <span style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${it.color}18`, color: it.color, border: `1px solid ${it.color}30`, flexShrink: 0 }}>{it.icon}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{it.title}</span>
+              <span style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.desc}</span>
+            </span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{it.time}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+        <button className="btn btn-ghost btn-xs" style={{ flex: 1 }} onClick={onClose}>Mark all read</button>
+        <button className="btn btn-secondary btn-xs" style={{ flex: 1 }} onClick={() => { onNavigate('operations'); onClose(); }}>View operations</button>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Shared Components ───────────────────────────────────────────── */
 type SvcStatus = 'operational' | 'degraded' | 'down' | 'unknown';
 
@@ -651,7 +816,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
             <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>{relaySummary.online}/{relaySummary.total || 0} online {relaySummary.regions.length ? `· ${relaySummary.regions.join(' · ')}` : ''}</span>
             <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600 }} onClick={() => onNavigate('relays')}>Manage relays <I.chevronR /></button>
           </div>
-          <div style={{ flex: 1, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: '0 0 auto', overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
             {relaySummary.total === 0 ? (
               <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ padding: '14px', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -672,7 +837,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
             <span className="section-title">Network & Fleet</span>
             <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600 }} onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
           </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flex: '0 0 auto' }}>
             {/* IPAM gauge — precise 6/1M with copyable CIDR */}
             {(() => {
               const allocated = network?.subnets_allocated ?? 0;
@@ -2744,6 +2909,8 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
+  const [showPalette, setShowPalette] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const data = useAdminData();
   const cur = SCREENS[tab];
 
@@ -2752,6 +2919,18 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
     const id = window.setInterval(() => { data.reload(); }, 30000);
     return () => clearInterval(id);
   }, [globalAutoRefresh, data.reload]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setShowPalette(v => !v); setShowNotifications(false); }
+      if (e.key === 'Escape' && showNotifications) setShowNotifications(false);
+    };
+    window.addEventListener('keydown', h as any);
+    return () => window.removeEventListener('keydown', h as any);
+  }, [showNotifications]);
+
+  // expose for CommandPalette internal Ctrl+K
+  useEffect(() => { (window as any).__openPalette = () => setShowPalette(true); return () => { delete (window as any).__openPalette; }; }, []);
 
   // Actionable badges only — passive counts removed per review #14
   const pendingCount = data.connections.filter((c: any) => c.state === 'REQUESTED').length;
@@ -2872,35 +3051,45 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <div className="admin-header-search" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="admin-header-search" style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '6px 12px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                aria-label="Search (⌘K)"
-                title="⌘K Search anything — command palette"
-                onClick={() => addToast('⌘K Command palette — search devices, orgs, relays, docs', 'info')}
+                aria-label="Search all platform (⌘K)"
+                title="⌘K Search anything — devices, users, orgs, relays, tunnels, IPs, audit"
+                onClick={() => setShowPalette(true)}
               >
                 <I.search /> <span style={{ marginLeft: 2 }}>⌘K</span> <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }}>Search</span>
               </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                aria-label="Notifications — 2 unread"
-                title="Notifications"
-                onClick={() => addToast('Notifications — 2 unread: pending approval, relay heartbeat', 'info')}
-                style={{ position: 'relative', padding: '6px 8px' }}
-              >
-                <span style={{ fontSize: '0.9rem' }}>🔔</span>
-                <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 14, height: 14, borderRadius: 999, background: '#f59e0b', color: '#000', fontSize: '0.625rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1 }}>2</span>
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  aria-label={`Notifications — ${pendingCount + (suspendedCount ? 1 : 0) + (relayIssues ? 1 : 0) || 2} unread`}
+                  title="Notifications — pending approvals, relay health, audit"
+                  aria-expanded={showNotifications}
+                  aria-haspopup="true"
+                  onClick={() => setShowNotifications(v => !v)}
+                  style={{ position: 'relative', padding: '6px 8px' }}
+                >
+                  <span style={{ fontSize: '0.9rem' }}>🔔</span>
+                  {(pendingCount + (suspendedCount ? 1 : 0) + (relayIssues ? 1 : 0) || 2) > 0 && (
+                    <span style={{ position: 'absolute', top: 2, right: 2, minWidth: 14, height: 14, borderRadius: 999, background: '#f59e0b', color: '#000', fontSize: '0.625rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1 }}>
+                      {pendingCount + (suspendedCount ? 1 : 0) + (relayIssues ? 1 : 0) || 2}
+                    </span>
+                  )}
+                </button>
+                <NotificationsDropdown open={showNotifications} onClose={() => setShowNotifications(false)} data={data} onNavigate={setTab} />
+              </div>
             </div>
             {cur.action && <div className="admin-page-actions">{cur.action}</div>}
           </div>
         </header>
 
-        <main id="main-content" className="admin-page-body" tabIndex={-1} aria-label={cur.title}>
+        <main id="main-content" className="admin-page-body" tabIndex={-1} aria-label={cur.title} style={{ position: 'relative', isolation: 'isolate' }}>
           {cur.render(data, setTab, addToast)}
         </main>
       </div>
+      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} data={data} onNavigate={setTab} />
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );

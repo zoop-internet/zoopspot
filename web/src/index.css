@@ -772,11 +772,15 @@ html, body, #root {
 /* Fallback: any table directly inside section without wrapper becomes scrollable */
 .section > .data-table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 
-/* Presentations / grids that may overflow — allow horizontal scroll, never clip expanded rows */
-.metrics-bar, .ov-grid, .ov-kpis, .ov-panel {
+/* Presentations / grids — never clip KPI/relay/fleet cards; page scroll handles overflow */
+.ov-kpis, .ov-grid, .ov-panel {
+  max-width: 100%;
+  overflow: visible;
+}
+.metrics-bar {
   max-width: 100%;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.10) transparent;
   -webkit-overflow-scrolling: touch;
