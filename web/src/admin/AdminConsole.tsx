@@ -610,7 +610,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
   const hasDegraded = serviceEntries.some(([, s]) => s.status !== 'ok');
 
   const totalConnections = connections.length;
-  const [ipamCopied, setIpamCopied] = useState(false);
 
   const platformMix = useMemo(() => {
     const counts = new Map<string, number>();
@@ -831,62 +830,16 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
           </div>
         </div>
 
-        {/* Right: Network & fleet — with precise IPAM */}
+        {/* Right: Fleet by platform — simplified per request */}
         <div className="section ov-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
           <div className="section-header">
-            <span className="section-title">Network & Fleet</span>
-            <button className="btn btn-secondary btn-sm" style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: 600 }} onClick={() => onNavigate('network')}>Manage IPAM <I.chevronR /></button>
+            <span className="section-title">Fleet by platform</span>
+            <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('devices')}>{devices.length} devices <I.chevronR /></button>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 16, flex: '0 0 auto' }}>
-            {/* IPAM gauge — precise 6/1M with copyable CIDR */}
-            {(() => {
-              const allocated = network?.subnets_allocated ?? 0;
-              const capacity = network?.capacity ?? 1048576;
-              const available = Math.max(0, capacity - allocated);
-              const precise = capacity ? (allocated / capacity) * 100 : 0;
-              const preciseStr = precise < 0.01 && precise > 0 ? precise.toFixed(4) : precise.toFixed(1);
-              const doCopyCidr = async () => {
-                try { await navigator.clipboard.writeText('100.64.0.0/10'); setIpamCopied(true); setTimeout(() => setIpamCopied(false), 1400); } catch {}
-              };
-              return (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
-                    <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      Overlay IPAM — 100.64.0.0/10
-                      <button
-                        onClick={doCopyCidr}
-                        aria-label="Copy CIDR 100.64.0.0/10"
-                        title={ipamCopied ? 'Copied!' : 'Copy CIDR'}
-                        style={{ background: 'transparent', border: 0, cursor: 'pointer', color: ipamCopied ? '#22c55e' : 'var(--text-muted)', padding: 2, lineHeight: 1, fontSize: '0.75rem' }}
-                      >
-                        {ipamCopied ? '✓' : '⧉'}
-                      </button>
-                    </span>
-                    <span style={{ fontSize: '1.125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: ipamDanger ? '#ef4444' : ipamWarn ? '#f59e0b' : 'var(--text-primary)' }}>{preciseStr}%</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    <span>{allocated.toLocaleString()} / {capacity.toLocaleString()} <span style={{ color: 'var(--text-muted)' }}>· {preciseStr}% utilized</span></span>
-                    <span style={{ color: 'var(--text-muted)' }}>{available.toLocaleString()} available</span>
-                  </div>
-                  <div className="ov-bar" style={{ height: 10 }}>
-                    <div className={`ov-bar-fill ${ipamDanger ? 'danger' : ipamWarn ? 'warn' : 'ok'}`} style={{ width: `${Math.min(100, precise)}%` }} />
-                  </div>
-                  <div className="ov-bar-meta" style={{ marginTop: 6, fontSize: '0.6875rem' }}>
-                    <span>{allocated.toLocaleString()} allocated</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>{available.toLocaleString()} available</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
 
             {/* Fleet mix — circle with percentages */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Fleet by platform</span>
-                <button className="ov-panel-link" style={{ padding: '2px 4px' }} onClick={() => onNavigate('devices')}>{devices.length} devices <I.chevronR /></button>
-              </div>
               {platformMix.length === 0 ? (
                 <span className="section-note">No device data.</span>
               ) : (
