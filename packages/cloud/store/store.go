@@ -30,6 +30,8 @@ type Store interface {
 
 	SaveUser(ctx context.Context, account *types.Account) error
 	GetUser(ctx context.Context, id types.ID) (*types.Account, error)
+	GetUserByZoopID(ctx context.Context, zoopID string) (*types.Account, error)
+	GetUserByUsername(ctx context.Context, username string) (*types.Account, error)
 
 	SaveOrganization(ctx context.Context, org *types.Organization) error
 	GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error)
@@ -137,6 +139,8 @@ type InMemoryStore struct {
 	shares          map[types.ID]*types.SharingRelationship
 	connections     map[types.ID]*types.Connection
 	identitiesByKey map[string]types.ID
+	usersByZoopID   map[string]types.ID
+	usersByUsername map[string]types.ID
 	ipam            *ipamAllocator
 }
 
@@ -150,6 +154,8 @@ func NewInMemoryStore() *InMemoryStore {
 		shares:          make(map[types.ID]*types.SharingRelationship),
 		connections:     make(map[types.ID]*types.Connection),
 		identitiesByKey: make(map[string]types.ID),
+		usersByZoopID:   make(map[string]types.ID),
+		usersByUsername: make(map[string]types.ID),
 		ipam:            &ipamAllocator{},
 	}
 }
@@ -258,7 +264,16 @@ func (s *InMemoryStore) DeleteIdentity(ctx context.Context, endpointID types.ID)
 func (s *InMemoryStore) SaveUser(ctx context.Context, account *types.Account) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if account.CreatedAt.IsZero() {
+		account.CreatedAt = time.Now().UTC()
+	}
 	s.users[account.ID] = account
+	if account.ZoopID != "" {
+		s.usersByZoopID[account.ZoopID] = account.ID
+	}
+	if account.Username != "" {
+		s.usersByUsername[account.Username] = account.ID
+	}
 	return nil
 }
 
@@ -270,6 +285,26 @@ func (s *InMemoryStore) GetUser(ctx context.Context, id types.ID) (*types.Accoun
 		return nil, ErrNotFound
 	}
 	return u, nil
+}
+
+func (s *InMemoryStore) GetUserByZoopID(ctx context.Context, zoopID string) (*types.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	id, ok := s.usersByZoopID[zoopID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return s.users[id], nil
+}
+
+func (s *InMemoryStore) GetUserByUsername(ctx context.Context, username string) (*types.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	id, ok := s.usersByUsername[username]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return s.users[id], nil
 }
 
 func (s *InMemoryStore) SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error {

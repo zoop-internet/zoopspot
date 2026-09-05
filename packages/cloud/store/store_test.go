@@ -224,3 +224,54 @@ func TestInMemoryStore_IPAMAllocation(t *testing.T) {
 	}
 }
 
+func TestInMemoryStore_UserIdentity(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	account := &types.Account{
+		ID:       types.NewID(),
+		ZoopID:   "ZP-7K4M9X",
+		Username: "alex",
+		Name:     "Alex Morgan",
+	}
+
+	if err := s.SaveUser(ctx, account); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Lookup by ID
+	byID, err := s.GetUser(ctx, account.ID)
+	if err != nil {
+		t.Fatalf("failed lookup by ID: %v", err)
+	}
+	if byID.ZoopID != "ZP-7K4M9X" || byID.Username != "alex" {
+		t.Errorf("expected ZoopID ZP-7K4M9X and username alex, got %s and %s", byID.ZoopID, byID.Username)
+	}
+
+	// Lookup by ZoopID
+	byZoopID, err := s.GetUserByZoopID(ctx, "ZP-7K4M9X")
+	if err != nil {
+		t.Fatalf("failed lookup by ZoopID: %v", err)
+	}
+	if byZoopID.ID != account.ID {
+		t.Errorf("expected ID match")
+	}
+
+	// Lookup by Username
+	byUsername, err := s.GetUserByUsername(ctx, "alex")
+	if err != nil {
+		t.Fatalf("failed lookup by username: %v", err)
+	}
+	if byUsername.ID != account.ID {
+		t.Errorf("expected ID match")
+	}
+
+	// Not found lookups
+	if _, err := s.GetUserByZoopID(ctx, "ZP-NONEXIST"); err != ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+	if _, err := s.GetUserByUsername(ctx, "nonexist"); err != ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+

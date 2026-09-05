@@ -31,8 +31,11 @@ func (id *ID) UnmarshalJSON(b []byte) error {
 
 // Account represents the identity and ownership context of a Zoop participant.
 type Account struct {
-	ID   ID     `json:"id"`
-	Name string `json:"name"`
+	ID        ID        `json:"id"`
+	ZoopID    string    `json:"zoop_id,omitempty"`
+	Username  string    `json:"username,omitempty"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
 }
 
 // Organization represents a group that manages participants, devices, networks, or policies.

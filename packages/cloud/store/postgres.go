@@ -233,21 +233,68 @@ func (s *PostgresStore) DeleteIdentity(ctx context.Context, endpointID types.ID)
 
 func (s *PostgresStore) SaveUser(ctx context.Context, account *types.Account) error {
 	query := `
-		INSERT INTO users (id, name)
-		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+		INSERT INTO users (id, name, zoop_id, username)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''))
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			zoop_id = COALESCE(EXCLUDED.zoop_id, users.zoop_id),
+			username = COALESCE(EXCLUDED.username, users.username);
 	`
-	_, err := s.db.ExecContext(ctx, query, account.ID.String(), account.Name)
+	_, err := s.db.ExecContext(ctx, query, account.ID.String(), account.Name, account.ZoopID, account.Username)
 	return err
 }
 
 func (s *PostgresStore) GetUser(ctx context.Context, id types.ID) (*types.Account, error) {
-	query := `SELECT id, name FROM users WHERE id = $1`
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var u types.Account
 	var idStr string
-	err := row.Scan(&idStr, &u.Name)
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	parsedID, err := types.ParseID(idStr)
+	if err != nil {
+		return nil, err
+	}
+	u.ID = parsedID
+	return &u, nil
+}
+
+func (s *PostgresStore) GetUserByZoopID(ctx context.Context, zoopID string) (*types.Account, error) {
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE zoop_id = $1`
+	row := s.db.QueryRowContext(ctx, query, zoopID)
+
+	var u types.Account
+	var idStr string
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	parsedID, err := types.ParseID(idStr)
+	if err != nil {
+		return nil, err
+	}
+	u.ID = parsedID
+	return &u, nil
+}
+
+func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) (*types.Account, error) {
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE username = $1`
+	row := s.db.QueryRowContext(ctx, query, username)
+
+	var u types.Account
+	var idStr string
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
