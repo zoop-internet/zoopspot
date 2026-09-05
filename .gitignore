@@ -36,3 +36,7 @@ mobile/ios/DerivedData/
 *.local
 test-data/
 test_tuns.sh
+tools/dev-fixtures/
+web/public/*.json
+web/public/*.html
+!web/public/index.html
