@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../context/NetworkContext';
+import { useApp } from '../context/AppContext';
 import './AuthPage.css';
 
 /* ─── Icons ────────────────────────────────────────────────────────── */

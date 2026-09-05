@@ -2873,15 +2873,15 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
     if (!globalAutoRefresh) return;
     const id = window.setInterval(() => { data.reload(); }, 30000);
     return () => clearInterval(id);
-  }, [globalAutoRefresh, data.reload]);
+  }, [globalAutoRefresh, data]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setShowPalette(v => !v); setShowNotifications(false); }
       if (e.key === 'Escape' && showNotifications) setShowNotifications(false);
     };
-    window.addEventListener('keydown', h as any);
-    return () => window.removeEventListener('keydown', h as any);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
   }, [showNotifications]);
 
   // expose for CommandPalette internal Ctrl+K

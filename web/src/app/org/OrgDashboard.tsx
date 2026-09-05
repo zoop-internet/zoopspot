@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { PortalMode } from '../../types';
-import { useApp } from '../../context/NetworkContext';
+import { useApp } from '../../context/AppContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 import { MobileBottomNav } from '../../components/MobileBottomNav';
 

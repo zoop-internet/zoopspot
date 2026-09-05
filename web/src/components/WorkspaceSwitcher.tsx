@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useApp } from '../context/NetworkContext';
+import { useApp } from '../context/AppContext';
 import type { PortalMode } from '../types';
 
 interface Props {

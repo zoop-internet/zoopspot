@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AppContext } from './AppContext';
 import type { ApiDevice, ApiShare, ApiConnection, ApiOrg, ApiOrgMember } from '../api/client';
 import {
   registerDevice, getDevice, listDevices, getPendingConnections,
@@ -37,72 +38,6 @@ function generateZoopId(): string {
 function normalizeUsername(raw: string): string {
   return raw.trim().replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 32) || 'zoopuser';
 }
-function formatUsername(raw: string): string {
-  const n = normalizeUsername(raw);
-  return n;
-}
-
-export interface AppState {
-  // Auth / user profile — per docs/identity.md: Zoop ID + @username + 6-digit PIN, no email required
-  user: UserProfile | null;
-  isAuthenticated: boolean;
-  login: (identifier: string, pin?: string, remember?: boolean) => Promise<void>;
-  signup: (username: string, pin: string, displayName?: string, deviceName?: string, isProvider?: boolean) => Promise<void>;
-  loginWithKey: (keyData: string, name?: string) => Promise<void>;
-  logout: () => Promise<void>;
-
-  // Device identity
-  deviceId: string | null;
-  deviceName: string | null;
-  deviceInfo: ApiDevice | null;
-  isRegistering: boolean;
-  registerError: string | null;
-  register: (name: string, platform: string, isProvider: boolean) => Promise<void>;
-  unregister: () => Promise<void>;
-
-  // Device Fleet
-  allDevices: ApiDevice[];
-  devicesLoading: boolean;
-  refreshAllDevices: () => void;
-
-  // Shares
-  shares: ApiShare[];
-  sharesLoading: boolean;
-  refreshShares: () => void;
-  doCreateShare: (recipientId: string) => Promise<void>;
-  doDeleteShare: (shareId: string) => Promise<void>;
-
-  // Connections
-  connections: ApiConnection[];
-  connectionsLoading: boolean;
-  connectionsError: boolean;
-  refreshConnections: () => void;
-  doConnect: (providerId: string, shareId?: string) => Promise<ApiConnection | null>;
-  doDisconnect: (connId: string) => Promise<void>;
-  doAcceptConnection: (connId: string) => Promise<void>;
-
-  // Organizations
-  organizations: ApiOrg[];
-  currentOrg: ApiOrg | null;
-  orgMembers: ApiOrgMember[];
-  orgsLoading: boolean;
-  refreshOrganizations: () => void;
-  doCreateOrg: (name: string, slug?: string) => Promise<ApiOrg>;
-  selectOrg: (org: ApiOrg) => void;
-  doAddOrgMember: (name: string, handle: string, role: string) => Promise<void>;
-  doRemoveOrgMember: (memberId: string) => Promise<void>;
-  refreshOrgMembers: (orgId?: string) => void;
-
-  // Local daemon mode
-  localMode: boolean;
-  daemonChecking: boolean;
-  daemonStatus: DaemonStatus | null;
-  daemonPeers: DaemonPeer[];
-  daemonTelemetry: DaemonTelemetryEntry[];
-  refreshDaemon: () => void;
-}
-
-const AppContext = createContext<AppState | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => getSavedUserProfile());
@@ -245,7 +180,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isZoopId = /^ZP-[A-Z0-9]{4,}$/i.test(raw);
       // Support legacy email login by extracting username part
       const handleRaw = raw.includes('@') && raw.includes('.') ? raw.split('@')[0] : raw;
-      const username = formatUsername(handleRaw);
+      const username = normalizeUsername(handleRaw);
       const zoopId = isZoopId ? raw.toUpperCase() : (getSavedUserProfile()?.zoopId || generateZoopId());
       const displayName = username.charAt(0).toUpperCase() + username.slice(1);
       if (_pin && !/^\d{6}$/.test(_pin)) throw new Error('Zoop PIN must be exactly 6 digits');
@@ -280,7 +215,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRegisterError(null);
     try {
       if (!/^\d{6}$/.test(pin)) throw new Error('Zoop PIN must be exactly 6 digits');
-      const cleanUsername = formatUsername(username);
+      const cleanUsername = normalizeUsername(username);
       if (cleanUsername.length < 2) throw new Error('Username must be at least 2 characters');
       const zoopId = generateZoopId();
       const cleanName = displayName?.trim() || cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1);
@@ -540,8 +475,4 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 };
 
-export const useApp = () => {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
-};
+export default AppProvider;

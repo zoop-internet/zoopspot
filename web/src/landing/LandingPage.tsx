@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PortalMode } from '../types';
-import { useApp } from '../context/NetworkContext';
+import { useApp } from '../context/AppContext';
 import './LandingPage.css';
 
 /* ─── SVG Icon Helper ─────────────────────────────────────────────────── */
