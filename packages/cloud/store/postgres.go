@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+	"net/url"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -15,6 +16,25 @@ import (
 //go:embed migrations/001_initial_schema.sql
 var initialSchemaSQL string
 
+//go:embed migrations/002_user_identity.sql
+var userIdentitySQL string
+
+// CleanPostgresURL sanitizes PostgreSQL connection strings for lib/pq compatibility.
+// Drivers like lib/pq do not support parameters like channel_binding, which modern
+// cloud providers (e.g. Neon) append by default.
+func CleanPostgresURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	if q.Has("channel_binding") {
+		q.Del("channel_binding")
+		u.RawQuery = q.Encode()
+	}
+	return u.String()
+}
+
 // PostgresStore implements Store against a PostgreSQL database.
 type PostgresStore struct {
 	db *sql.DB
@@ -23,7 +43,8 @@ type PostgresStore struct {
 // NewPostgresStore connects to PostgreSQL, sets connection pool parameters,
 // and applies pending schema migrations.
 func NewPostgresStore(databaseURL string) (*PostgresStore, error) {
-	db, err := sql.Open("postgres", databaseURL)
+	cleanedURL := CleanPostgresURL(databaseURL)
+	db, err := sql.Open("postgres", cleanedURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
@@ -47,10 +68,15 @@ func NewPostgresStore(databaseURL string) (*PostgresStore, error) {
 	return store, nil
 }
 
-// Migrate applies the embedded initial schema migration.
+// Migrate applies the embedded schema migrations in order.
 func (s *PostgresStore) Migrate(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, initialSchemaSQL)
-	return err
+	if _, err := s.db.ExecContext(ctx, initialSchemaSQL); err != nil {
+		return fmt.Errorf("migration 001_initial_schema: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, userIdentitySQL); err != nil {
+		return fmt.Errorf("migration 002_user_identity: %w", err)
+	}
+	return nil
 }
 
 // Close closes the underlying database connection pool.

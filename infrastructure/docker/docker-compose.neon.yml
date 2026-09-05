@@ -1,0 +1,67 @@
+version: '3.8'
+
+# Docker Compose for Zoop with External Postgres (e.g., Neon.tech) + Local Redis + Coturn
+# Usage:
+#   1. Copy .env.production.example to .env and set ZOOP_DATABASE_URL to your Neon connection string.
+#   2. Run: docker compose -f infrastructure/docker/docker-compose.neon.yml up -d
+
+services:
+  # Lightweight Redis on the VM (ephemeral session cache, pub/sub signaling)
+  zoop-redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - zoop_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zoop_backend
+
+  # Coturn NAT Traversal (STUN on UDP:3478/19302, TURN on UDP/TCP:3478)
+  zoop-coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: always
+    network_mode: "host"
+    environment:
+      - TURN_PORT=3478
+      - TURN_PORT_TLS=5349
+      - TURN_SECRET=${ZOOP_TURN_SECRET:-zoop_turn_prod_secret}
+      - TURN_REALM=${ZOOP_TURN_REALM:-zoop.network}
+    command: >
+      -n --log-file=stdout --min-port=49152 --max-port=65535
+      --use-auth-secret --static-auth-secret=${ZOOP_TURN_SECRET:-zoop_turn_prod_secret} --realm=${ZOOP_TURN_REALM:-zoop.network}
+      --stale-nonce
+
+  # Zoop Cloud Control Plane & DERP Relay
+  zoop-cloud:
+    image: zoop/zoop-cloud:latest
+    restart: always
+    depends_on:
+      zoop-redis:
+        condition: service_healthy
+    environment:
+      - ZOOP_LOG_LEVEL=${ZOOP_LOG_LEVEL:-INFO}
+      - ZOOP_STORE_TYPE=postgres
+      # Neon PostgreSQL connection string (configured via .env or shell export)
+      - ZOOP_DATABASE_URL=${ZOOP_DATABASE_URL}
+      - ZOOP_REDIS_URL=redis://zoop-redis:6379
+      - ZOOP_CONTROL_PLANE_URL=${ZOOP_CONTROL_PLANE_URL:-http://localhost:8080}
+      - ZOOP_TURN_SECRET=${ZOOP_TURN_SECRET:-zoop_turn_prod_secret}
+      - ZOOP_TURN_REALM=${ZOOP_TURN_REALM:-zoop.network}
+      - ZOOP_ALLOWED_ORIGINS=${ZOOP_ALLOWED_ORIGINS:-*}
+      - ZOOP_ADMIN_IDS=${ZOOP_ADMIN_IDS:-}
+    ports:
+      - "8080:8080"
+    networks:
+      - zoop_backend
+
+volumes:
+  zoop_redisdata:
+
+networks:
+  zoop_backend:
+    driver: bridge

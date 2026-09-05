@@ -56,6 +56,8 @@ func LoadConfig() Config {
 	}
 	if dbURL := os.Getenv("ZOOP_DATABASE_URL"); dbURL != "" {
 		cfg.DatabaseURL = dbURL
+	} else if dbURL := os.Getenv("ZOOP_POSTGRES_URL"); dbURL != "" {
+		cfg.DatabaseURL = dbURL
 	} else if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
 		cfg.DatabaseURL = dbURL
 	}

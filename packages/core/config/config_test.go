@@ -57,6 +57,14 @@ func TestLoadConfig(t *testing.T) {
 	if cfg.TURNRealm != "turn.custom.org" {
 		t.Errorf("Expected overridden TURNRealm to be turn.custom.org, got %s", cfg.TURNRealm)
 	}
+
+	// Test DatabaseURL fallback with ZOOP_POSTGRES_URL
+	os.Clearenv()
+	os.Setenv("ZOOP_POSTGRES_URL", "postgres://user:pass@ep-host.neon.tech/db")
+	cfg = LoadConfig()
+	if cfg.DatabaseURL != "postgres://user:pass@ep-host.neon.tech/db" {
+		t.Errorf("Expected DatabaseURL from ZOOP_POSTGRES_URL, got %s", cfg.DatabaseURL)
+	}
 }
 
 func TestParseCommaSeparated(t *testing.T) {
