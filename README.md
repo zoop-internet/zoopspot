@@ -213,6 +213,7 @@ zoop/
 │   └── router/               # NAT MASQUERADE and LAN routing policies
 │
 ├── cloud/                    # Zoop Cloud entrypoint
+├── mobile/                   # Flutter mobile app & UI specification (README.md)
 ├── router/                   # Router daemon entrypoint
 ├── web/                      # React + TypeScript management web app
 ├── tests/                    # End-to-end integration and simulation tests
