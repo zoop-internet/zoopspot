@@ -20,6 +20,7 @@ import (
 	"github.com/zoop-internet/zoop/packages/agent/health"
 	"github.com/zoop-internet/zoop/packages/agent/identity"
 	"github.com/zoop-internet/zoop/packages/agent/state"
+	"github.com/zoop-internet/zoop/packages/agent/telemetry"
 	"github.com/zoop-internet/zoop/packages/agent/tunnel"
 	"github.com/zoop-internet/zoop/packages/core/config"
 	"github.com/zoop-internet/zoop/packages/core/types"
@@ -318,50 +319,87 @@ func handleIPC(
 			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("failed to get peers: %v", err)}
 			break
 		}
-		
+
+		snaps := telemetry.GetTracker().GetSnapshots()
+		snapByPeer := make(map[string]telemetry.PeerTelemetrySnapshot, len(snaps))
+		for _, s := range snaps {
+			snapByPeer[s.PeerID] = s
+		}
+
 		// Parse into a friendly format
 		var peers []map[string]interface{}
 		for _, dev := range devices {
 			if dev.ID.String() == apiClient.Identity.EndpointID.String() {
 				continue // skip self
 			}
+			isOnline := dev.Status == "online" || dev.Status == "active" || dev.Status == "trusted"
+			latency := 0.0
+			directAvailable := false
+			connected := false
+			var rxBytes, txBytes uint64
+
+			if s, ok := snapByPeer[dev.ID.String()]; ok {
+				connected = s.State == "connected"
+				latency = s.HandshakeRTTMs
+				directAvailable = s.PathType == "direct_host" || s.PathType == "direct_srflx"
+				rxBytes = s.RxBytes
+				txBytes = s.TxBytes
+			}
+
 			peers = append(peers, map[string]interface{}{
 				"id":               dev.ID.String(),
 				"name":             dev.Name,
 				"platform":         dev.OS,
-				"virtual_ip":       "", 
-				"is_provider":      true, // Just hardcode true for testing
-				"online":           dev.Status == "online",
-				"latency_ms":       12.5,
-				"direct_available": true,
+				"status":           dev.Status,
+				"virtual_ip":       "",
+				"is_provider":      true,
+				"online":           isOnline,
+				"connected":        connected,
+				"latency_ms":       latency,
+				"direct_available": directAvailable,
+				"rx_bytes":         rxBytes,
+				"tx_bytes":         txBytes,
 			})
 		}
 		resp = DaemonResponse{Success: true, Message: "peers retrieved", Data: peers}
 
 	case "get_telemetry":
-		// Parse tunnel IPC to get real byte counts
-		var rx, tx uint64
-		if devMgr != nil {
-			if uapi, err := devMgr.GetListenPort(); err == nil {
-				// We need a way to get actual stats from WireGuard device. 
-				// Since we don't have a direct method, we will mock the stats to at least show zero or basic data,
-				// or we could parse wgctrl/device uapi if exposed. We'll use static base for now.
-				_ = uapi
+		snaps := telemetry.GetTracker().GetSnapshots()
+		var totalRx, totalTx uint64
+		var avgLatency float64
+		var avgLoss float64
+		pathType := "direct"
+		connectedPeers := 0
+
+		for _, s := range snaps {
+			totalRx += s.RxBytes
+			totalTx += s.TxBytes
+			if s.State == "connected" {
+				avgLatency += s.HandshakeRTTMs
+				avgLoss += s.PacketLossPercent
+				connectedPeers++
+				if s.PathType != "" {
+					pathType = s.PathType
+				}
 			}
 		}
-		
+		if connectedPeers > 1 {
+			avgLatency = avgLatency / float64(connectedPeers)
+			avgLoss = avgLoss / float64(connectedPeers)
+		}
+
 		resp = DaemonResponse{
 			Success: true,
 			Message: "telemetry retrieved",
 			Data: map[string]interface{}{
 				"download_rate_kbps": 0.0,
 				"upload_rate_kbps":   0.0,
-				"total_rx_bytes":     rx,
-				"total_tx_bytes":     tx,
-				"latency_ms":         0.0,
-				"packet_loss_pct":    0.0,
-				"path_type":          "direct",
-				"nat_type":           "unknown",
+				"total_rx_bytes":     totalRx,
+				"total_tx_bytes":     totalTx,
+				"latency_ms":         avgLatency,
+				"packet_loss_pct":    avgLoss,
+				"path_type":          pathType,
+				"active_peers":       connectedPeers,
 			},
 		}
 
