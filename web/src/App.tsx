@@ -122,7 +122,10 @@ const App: React.FC = () => {
       : 'signin';
 
   const redirectUrl = searchParams.get('redirect_url') || '/app';
-  const hideDev = typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string,string> }).env?.VITE_HIDE_DEV_ADMIN === 'true';
+  const showDevAdmin = typeof import.meta !== 'undefined' && (
+    (import.meta as unknown as { env?: Record<string, unknown> }).env?.DEV === true ||
+    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SHOW_DEV_ADMIN === 'true'
+  );
 
 const Fallback: React.FC = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite" aria-busy="true">
@@ -163,11 +166,11 @@ const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({
           )}
         </Suspense>
       </ErrorBoundary>
-      {!isAdmin && !hideDev && (
+      {!isAdmin && showDevAdmin && (
         <button
           onClick={() => navigateTo('/admin')}
           aria-label="Dev — open Platform Admin (only in development)"
-          title="Dev → Admin Console (/admin) — hidden in production with VITE_HIDE_DEV_ADMIN=true"
+          title="Dev → Admin Console (/admin) — enabled in development or with VITE_SHOW_DEV_ADMIN=true"
           style={{
             position: 'fixed',
             bottom: 18,

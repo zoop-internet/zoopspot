@@ -270,3 +270,54 @@ func TestSecurity_RateLimiter(t *testing.T) {
 		t.Fatalf("expected 429 Too Many Requests, got %d", w.Result().StatusCode)
 	}
 }
+
+func TestSecurity_MissingNonceOnMutatingRejected(t *testing.T) {
+	_, endpointID, priv, mw := setupTestAuth(t)
+
+	ts := time.Now().UTC().Format(time.RFC3339)
+	// Mutating POST request without nonce
+	payload := BuildCanonicalPayload("POST", "/v1/devices/test", ts, "", "")
+	sig := ed25519.Sign(priv, payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/devices/test", nil)
+	req.Header.Set("X-Zoop-Identity", endpointID.String())
+	req.Header.Set("X-Zoop-Timestamp", ts)
+	// Omitting X-Zoop-Nonce
+	req.Header.Set("X-Zoop-Signature", base64.StdEncoding.EncodeToString(sig))
+
+	w := httptest.NewRecorder()
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for mutating request without nonce, got %d", w.Result().StatusCode)
+	}
+}
+
+func TestSecurity_LegacyV1RejectedOnMutating(t *testing.T) {
+	_, endpointID, priv, mw := setupTestAuth(t)
+
+	ts := time.Now().UTC().Format(time.RFC3339)
+	nonce := uuid.New().String()
+	// Signed with legacy v1 format
+	v1Payload := []byte("zoop-auth|" + ts)
+	sig := ed25519.Sign(priv, v1Payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/devices/test", nil)
+	req.Header.Set("X-Zoop-Identity", endpointID.String())
+	req.Header.Set("X-Zoop-Timestamp", ts)
+	req.Header.Set("X-Zoop-Nonce", nonce)
+	req.Header.Set("X-Zoop-Signature", base64.StdEncoding.EncodeToString(sig))
+
+	w := httptest.NewRecorder()
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for mutating request using v1 signature, got %d", w.Result().StatusCode)
+	}
+}

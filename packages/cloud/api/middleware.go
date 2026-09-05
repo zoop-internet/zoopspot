@@ -181,7 +181,12 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				return
 			}
 
-			// 4. Nonce Replay Check (if nonce header is present)
+			// 4. Nonce Replay Check (mandatory on mutating requests)
+			isMutating := r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete || r.Method == http.MethodPatch
+			if isMutating && nonce == "" {
+				WriteError(w, "unauthenticated", "missing X-Zoop-Nonce header for mutating request", http.StatusUnauthorized)
+				return
+			}
 			if nonce != "" {
 				nonceKey := fmt.Sprintf("%s:%s", endpointID.String(), nonce)
 				if !globalNonceCache.CheckAndSet(nonceKey, 5*time.Minute) {
@@ -202,12 +207,15 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				bodyHash = hex.EncodeToString(hash[:])
 			}
 
-			// 6. Verify signature (v2 canonical or v1 legacy fallback)
+			// 6. Verify signature (v2 canonical required for mutating, v1 legacy fallback only for safe reads)
 			v2Payload := BuildCanonicalPayload(r.Method, r.URL.Path, timestampStr, nonce, bodyHash)
-			v1Payload := []byte("zoop-auth|" + timestampStr)
-
 			validV2 := ed25519.Verify(identity.PublicKey, v2Payload, sigBytes)
-			validV1 := ed25519.Verify(identity.PublicKey, v1Payload, sigBytes)
+
+			validV1 := false
+			if !isMutating {
+				v1Payload := []byte("zoop-auth|" + timestampStr)
+				validV1 = ed25519.Verify(identity.PublicKey, v1Payload, sigBytes)
+			}
 
 			if !validV2 && !validV1 {
 				WriteError(w, "unauthenticated", "signature verification failed", http.StatusUnauthorized)
