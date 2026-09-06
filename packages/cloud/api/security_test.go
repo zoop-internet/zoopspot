@@ -198,6 +198,31 @@ func TestSecurity_CORS_DisallowedOrigin(t *testing.T) {
 	}
 }
 
+func TestSecurity_CORS_WildcardOrigin(t *testing.T) {
+	mw := CORSMiddleware([]string{"https://*.pages.dev", "https://zoop.network"})
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// Allowed preview deployment
+	req1 := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	req1.Header.Set("Origin", "https://branch-abc.zoop-frontend.pages.dev")
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, req1)
+	if w1.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for wildcard origin, got %d", w1.Result().StatusCode)
+	}
+
+	// Disallowed domain
+	req2 := httptest.NewRequest(http.MethodGet, "/v1/test", nil)
+	req2.Header.Set("Origin", "https://notpages.dev")
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, req2)
+	if w2.Result().StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for disallowed domain, got %d", w2.Result().StatusCode)
+	}
+}
+
 func TestSecurity_CORS_NoOriginAllowed(t *testing.T) {
 	// With no origins configured, same-origin requests (no Origin header) pass.
 	mw := CORSMiddleware(nil)

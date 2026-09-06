@@ -122,10 +122,6 @@ const App: React.FC = () => {
       : 'signin';
 
   const redirectUrl = searchParams.get('redirect_url') || '/app';
-  const showDevAdmin = typeof import.meta !== 'undefined' && (
-    (import.meta as unknown as { env?: Record<string, unknown> }).env?.DEV === true ||
-    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_SHOW_DEV_ADMIN === 'true'
-  );
 
 const Fallback: React.FC = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite" aria-busy="true">
@@ -166,37 +162,6 @@ const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({
           )}
         </Suspense>
       </ErrorBoundary>
-      {!isAdmin && showDevAdmin && (
-        <button
-          onClick={() => navigateTo('/admin')}
-          aria-label="Dev — open Platform Admin (only in development)"
-          title="Dev → Admin Console (/admin) — enabled in development or with VITE_SHOW_DEV_ADMIN=true"
-          style={{
-            position: 'fixed',
-            bottom: 18,
-            left: 18,
-            zIndex: 9999,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 14px',
-            borderRadius: 999,
-            background: 'rgba(12,14,20,0.9)',
-            border: '1px solid rgba(8,242,255,0.35)',
-            color: '#38bdf8',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(8,242,255,0.12)',
-            cursor: 'pointer',
-          }}
-        >
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} aria-hidden />
-          DEV → Admin
-        </button>
-      )}
     </AppProvider>
   );
 };

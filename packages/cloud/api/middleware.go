@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -293,19 +294,43 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 // CORSMiddleware sets permissive CORS headers for a configured set of allowed
 // origins (from ZOOP_ALLOWED_ORIGINS). If no origins are configured, requests
 // with no Origin header (same-origin / CLI) pass through untouched, and any
-// cross-origin request is rejected.
+// cross-origin request is rejected. Supports wildcard patterns like https://*.pages.dev
 func CORSMiddleware(allowed []string) func(http.Handler) http.Handler {
 	allowedSet := make(map[string]bool, len(allowed))
+	var wildcards []string
 	for _, o := range allowed {
-		allowedSet[o] = true
+		if strings.Contains(o, "*") {
+			wildcards = append(wildcards, o)
+		} else {
+			allowedSet[o] = true
+		}
 	}
 	allowAll := len(allowed) == 0
+
+	isOriginAllowed := func(origin string) bool {
+		if allowAll || allowedSet[origin] {
+			return true
+		}
+		for _, pattern := range wildcards {
+			if pattern == "*" {
+				return true
+			}
+			prefix, suffix, found := strings.Cut(pattern, "*")
+			if found && strings.HasPrefix(origin, prefix) && strings.HasSuffix(origin, suffix) && len(origin) >= len(prefix)+len(suffix) {
+				middle := origin[len(prefix) : len(origin)-len(suffix)]
+				if !strings.Contains(middle, "/") {
+					return true
+				}
+			}
+		}
+		return false
+	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			if origin != "" {
-				if !allowAll && !allowedSet[origin] {
+				if !isOriginAllowed(origin) {
 					WriteError(w, "forbidden", "origin not allowed", http.StatusForbidden)
 					return
 				}
