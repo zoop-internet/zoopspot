@@ -76,6 +76,17 @@ Zoop strictly decouples the **Control Plane** from the **Data Plane**:
 
 ---
 
+## Live Deployment & Infrastructure
+
+- **Web App (Frontend)**: [`https://zoop-9jc.pages.dev`](https://zoop-9jc.pages.dev) (Cloudflare Pages edge CDN)
+- **Control Plane API (Backend)**: [`https://3.70.135.200.sslip.io`](https://3.70.135.200.sslip.io) (Hosted on AWS `eu-central-1` EC2 with automated Caddy TLS)
+- **Database**: Serverless PostgreSQL via Neon (`eu-central-1`)
+- **Portability**: Cloud-agnostic architecture easily portable to GCP, Hetzner, DigitalOcean, or bare metal.
+
+See [**DEPLOYMENT.md**](DEPLOYMENT.md) for full architectural specs, systemd service configs, and deployment playbooks.
+
+---
+
 ## Quick Start
 
 ### 1. Prerequisites

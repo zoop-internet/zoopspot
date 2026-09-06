@@ -21,6 +21,7 @@ coverage.txt
 .DS_Store
 
 # Web & Mobile builds
+.wrangler/
 web/node_modules/
 web/build/
 web/dist/
