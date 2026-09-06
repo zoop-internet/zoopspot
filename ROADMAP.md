@@ -1,430 +1,156 @@
-# Zoop Implementation Roadmap
+# ZOOP: The Real MVP Roadmap
 
-This document outlines the 25 concrete milestones and implementation tasks required to build the Zoop system.
+This roadmap defines the precise, step-by-step execution plan to take ZOOP from a proven backend architecture to a **shippable, consumer-ready Minimum Viable Product (MVP)**. 
 
-Each milestone has clear exit criteria ("**Done when**") and sub-tasks that can be tracked as work progresses.
-
----
-
-## 1. Repository Foundation
-
-- [x] Create Git repository
-- [x] Create directory structure
-- [x] Initialize Go modules
-- [x] Set up `.gitignore`
-- [x] Set up GitHub Actions CI
-- [x] Add formatting/linting
-- [x] Add basic test framework
-- [x] Add development configuration
-- [x] Add contribution/development conventions
-- [x] Verify clean build and test
-
-**Done when:** The repository is clean, builds, tests, and CI passes. (COMPLETED)
+The core networking (Data Plane, Control Plane, Cloud Infrastructure) is **done**. The focus is now entirely on **Distribution, Mobile UI, Native App Integration, and Public Launch**.
 
 ---
 
-## 2. Go Core
+## Phase 1: Production Polish & Legal (Store Prerequisites)
+*Before submitting any VPN or networking app to the Apple App Store or Google Play Store, specific infrastructure and legal prerequisites must be met.*
 
-- [x] Create core Go packages
-- [x] Define common types
-- [x] Define Device
-- [x] Define Provider
-- [x] Define Recipient
-- [x] Define Identity
-- [x] Define Connection
-- [x] Define Connection State
-- [x] Define network interfaces/abstractions
-- [x] Define configuration structures
-- [x] Define common errors
-- [x] Add unit tests
-
-**Done when:** The core provides stable primitives for the rest of Zoop. (COMPLETED)
+- [ ] **1.1 Custom Domain Integration**
+  - [ ] Purchase/configure `zoop.network` (or chosen domain).
+  - [ ] Map Cloudflare Pages web app to `app.zoop.network`.
+  - [ ] Map AWS EC2 API to `api.zoop.network` and update Caddy TLS certificates.
+  - [ ] Update frontend environment variable (`VITE_API_BASE`) to use the new API domain.
+- [ ] **1.2 Legal & Compliance (Mandatory for App Stores)**
+  - [ ] Draft a clear **Privacy Policy** (explicitly stating ZOOP does not log payload traffic, as required by Apple/Google VPN guidelines).
+  - [ ] Draft **Terms of Service** / EULA.
+  - [ ] Host legal documents on the Cloudflare Pages web app (e.g., `zoop.network/privacy`).
+  - [ ] Set up a support email (e.g., `support@zoop.network`) for the app store listings.
 
 ---
 
-## 3. Zoop Agent
+## Phase 2: Desktop Client MVP (Quick Wins)
+*The Go daemon (`zoopd`) and CLI (`zoop`) work beautifully. We need to package them so normal users can install them without running a terminal compiler.*
 
-- [x] Create Agent executable
-- [x] Agent configuration
-- [x] Agent startup/shutdown
-- [x] Agent lifecycle
-- [x] Device identity creation
-- [x] Secure local identity storage
-- [x] Agent state
-- [x] Agent status
-- [x] Logging
-- [x] Error handling
-- [x] Health checks
-- [x] Agent tests
-
-**Done when:** An endpoint can run a Zoop Agent and maintain its own identity/state. (COMPLETED)
-
----
-
-## 4. Control Plane
-
-- [x] Create Go Cloud service
-- [x] Create API
-- [x] Create user model
-- [x] Create device model
-- [x] Device registration
-- [x] Device authentication
-- [x] Device lookup
-- [x] Device discovery
-- [x] Basic signaling
-- [x] Store public keys
-- [x] Store connection metadata
-- [x] Basic authorization
-- [x] Control Plane tests
-
-**Done when:** Zoop Cloud can manage and coordinate registered devices. (COMPLETED)
+- [ ] **2.1 Linux Distribution**
+  - [ ] Create a `.deb` package (Debian/Ubuntu) bundling the `zoop` and `zoopd` binaries.
+  - [ ] Include the systemd service file in the `.deb` post-install script.
+  - [ ] Create a `.rpm` package (Fedora/RHEL).
+- [ ] **2.2 macOS Distribution**
+  - [ ] Package the binaries into a macOS `.pkg` installer.
+  - [ ] Include the `launchd` plist for background daemon execution.
+  - [ ] Sign and notarize the `.pkg` using an Apple Developer ID (prevents Gatekeeper blocking).
+- [ ] **2.3 Windows Distribution**
+  - [ ] Compile the `zoopd` Windows Service wrapper.
+  - [ ] Create an NSIS or WiX `.msi` installer.
+  - [ ] Include Wintun driver installation in the Windows setup process.
+  - [ ] Digitally sign the `.exe` and `.msi` with an EV Code Signing Certificate.
+- [ ] **2.4 CI/CD Automation**
+  - [ ] Configure GitHub Actions to automatically build and attach these installers to GitHub Releases on git tags.
 
 ---
 
-## 5. Agent ↔ Control Plane
+## Phase 3: Mobile App Foundation (Flutter)
+*Building the cross-platform mobile UI using Flutter, ensuring a premium, non-traditional "dark mode" network aesthetic.*
 
-- [x] Agent connects to Cloud
-- [x] Agent authenticates
-- [x] Device registration
-- [x] Device synchronization
-- [x] Device discovery
-- [x] Peer lookup
-- [x] Peer authorization
-- [x] Exchange connection information
-- [x] Signaling
-- [x] Connection state synchronization
-- [x] Handle Cloud disconnects
-
-**Done when:** Two real Agents can discover and authorize each other through Zoop Cloud. (COMPLETED)
-
----
-
-## 6. Secure Tunnel
-
-- [x] Integrate WireGuard
-- [x] Generate/manage tunnel keys
-- [x] Create tunnel configuration
-- [x] Create tunnel interface
-- [x] Configure peers
-- [x] Establish Provider ↔ Recipient tunnel
-- [x] Bring tunnel up/down
-- [x] Detect tunnel state
-- [x] Remove tunnel
-- [x] Tunnel tests
-
-**Done when:** Two endpoints can establish an authenticated encrypted tunnel. (COMPLETED)
+- [ ] **3.1 Project Initialization**
+  - [ ] Initialize the Flutter project (`zoop_mobile`).
+  - [ ] Configure App Icons, Splash Screens, and package names (`network.zoop.app`).
+- [ ] **3.2 Design System Implementation**
+  - [ ] Implement the dark-mode color palette (deep surfaces, cyan/green accents).
+  - [ ] Set up global typography and theme data.
+  - [ ] Build reusable UI components: Node/Orbital connection animations, custom buttons, biometric lock screens.
+- [ ] **3.3 State Management & Architecture**
+  - [ ] Set up Riverpod or Bloc for predictable state management.
+  - [ ] Implement GoRouter for deep-linking and screen navigation.
+- [ ] **3.4 Local Secure Storage**
+  - [ ] Integrate `flutter_secure_storage` (Keychain on iOS, Keystore on Android).
+  - [ ] Write the local repository to securely store the user's Ed25519 identity keypair.
 
 ---
 
-## 7. Real Packet Forwarding
+## Phase 4: Mobile Onboarding & Identity (Flutter UI)
+*The user's first experience when opening the ZOOP app.*
 
-*This is the first major **real Data Plane** milestone.*
-
-- [x] Connect tunnel interface to networking
-- [x] Receive packets
-- [x] Forward packets
-- [x] Route packets
-- [x] Return packets
-- [x] Configure forwarding
-- [x] Handle packet addresses
-- [x] Test TCP
-- [x] Test UDP
-- [x] Test bidirectional traffic
-- [x] Verify packet integrity
-
-**Done when:** Actual packets travel through Zoop between two endpoints. (COMPLETED)
+- [ ] **4.1 Welcome Screens**
+  - [ ] Build a 3-page swipeable introduction explaining ZOOP (Decentralized, Peer-to-Peer, Secure).
+- [ ] **4.2 Identity Generation**
+  - [ ] UI: "Generate My Zoop Identity" button with a cryptographic loading animation.
+  - [ ] Logic: Generate the Ed25519 keypair securely on the device.
+  - [ ] Logic: Call the `zoop-cloud` API to register the device.
+- [ ] **4.3 Security & Recovery**
+  - [ ] UI: Display the backup phrase or QR code for identity recovery.
+  - [ ] Logic: Require OS biometric authentication (FaceID / Fingerprint) to view the recovery key.
 
 ---
 
-## 8. Real Internet Traffic
+## Phase 5: Native VPN Networking Bridge (The Hardest Mobile Part)
+*Connecting the beautiful Flutter UI to the raw Go networking engine via native OS VPN APIs.*
 
-*Now prove the system can actually do what we want.*
-
-- [x] Configure Provider Internet interface
-- [x] Configure Recipient routes
-- [x] Enable forwarding
-- [x] Configure NAT
-- [x] Configure DNS
-- [x] Route Recipient traffic
-- [x] Return Internet traffic
-- [x] Test HTTP
-- [x] Test HTTPS
-- [x] Test DNS
-- [x] Test UDP applications
-- [x] Test multiple connections
-
-```text
-PHONE
-  │
-  │ Zoop
-  ▼
-PROVIDER
-  │
-  ▼
-INTERNET
-```
-
-**Done when:** A real phone can browse the Internet through the Provider. (COMPLETED)
+- [ ] **5.1 Android Native Wiring (`ZoopVpnService.kt`)**
+  - [ ] Establish Flutter `MethodChannel` to communicate with the Android background service.
+  - [ ] Implement the `VpnService.prepare()` permission dialog (Prompts user: "ZOOP wants to set up a VPN connection...").
+  - [ ] Wire Go library callbacks (State, Ping, Bandwidth) into Android `EventChannel` streams to push to Flutter.
+- [ ] **5.2 iOS Native Wiring (`ZoopPacketTunnelProvider.swift`)**
+  - [ ] Establish Flutter `MethodChannel` to communicate with the iOS NetworkExtension.
+  - [ ] Handle the iOS VPN Profile installation prompt (`NETunnelProviderManager.loadAllFromPreferences`).
+  - [ ] Pass Go library state metrics across the iOS XPC boundary into Flutter streams.
+- [ ] **5.3 Cross-Platform Control Logic**
+  - [ ] Implement start/stop tunnel commands from Flutter to the native bridges.
+  - [ ] Implement graceful disconnects when the app is swiped away (or maintain foreground service).
 
 ---
 
-## 9. Direct Connectivity
+## Phase 6: Mobile Core UI - Connecting (Recipient Mode)
+*The screens where users actually connect to the mesh network.*
 
-*Now make the connection truly **device-to-device**.*
-
-- [x] Discover local addresses
-- [x] Discover public addresses
-- [x] Exchange endpoint information
-- [x] Test direct UDP connectivity
-- [x] Establish direct path
-- [x] Verify direct path
-- [x] Detect path type
-- [x] Prefer direct connection
-- [x] Monitor direct connection
-
-**Done when:** Endpoints can establish a direct connection without sending traffic through Zoop Cloud. (COMPLETED)
+- [ ] **6.1 The Dashboard**
+  - [ ] Build the Home Screen showing the device's current IP and connection status (Disconnected / Direct / Relay).
+  - [ ] Fetch and display a list of available authorized Providers.
+- [ ] **6.2 The Connection Experience**
+  - [ ] Tap a Provider -> Trigger Orbital connecting animation.
+  - [ ] Handle STUN/TURN negotiation state UI (e.g., "Punching NAT...", "Establishing Direct Tunnel...").
+- [ ] **6.3 Live Telemetry**
+  - [ ] Build a real-time graph showing upstream/downstream bandwidth.
+  - [ ] Display connection health metrics: RTT (Ping), Protocol (WireGuard), Route (Direct vs Relay).
 
 ---
 
-## 10. NAT Traversal
+## Phase 7: Mobile Core UI - Sharing (Provider Mode)
+*Allowing a mobile device to act as a secure gateway for others.*
 
-- [x] Identify NAT conditions
-- [x] Endpoint discovery
-- [x] STUN integration/implementation where appropriate
-- [x] UDP hole punching
-- [x] NAT mapping discovery
-- [x] NAT-to-NAT connection
-- [x] Different NAT scenarios
-- [x] Restricted networks
-- [x] Connection verification
-- [x] NAT failure handling
-
-**Done when:** Zoop can establish direct connectivity across common real-world NAT configurations. (COMPLETED)
-
----
-
-## 11. Relay Fallback
-
-- [x] Create relay service
-- [x] Relay authentication
-- [x] Relay connection
-- [x] Forward encrypted packets
-- [x] Detect direct-path failure
-- [x] Switch to relay
-- [x] Monitor relay
-- [x] Attempt direct recovery
-- [x] Switch relay → direct
-- [x] Relay failure handling
-
-**Done when:** Traffic reliably falls back to relay when direct connectivity fails, and upgrades when direct connectivity becomes available. (COMPLETED)
-
-```text
-Direct available
-      ↓
-   DIRECT
-
-Direct unavailable
-      ↓
-    RELAY
-
-Direct becomes available
-      ↓
-   DIRECT
-```
-
-**Done when:** Fallback to relay and automatic promotion to direct connection works seamlessly.
+- [ ] **7.1 Provider Toggle**
+  - [ ] UI: A prominent toggle to "Share My Connection".
+  - [ ] Logic: Signal the `zoop-cloud` that this device is now accepting inbound requests.
+- [ ] **7.2 Connected Peers Management**
+  - [ ] UI: Display a list of currently connected Recipient devices.
+  - [ ] Display individual bandwidth consumption per peer.
+  - [ ] UI/Logic: "Kick" or "Block" button to instantly terminate a peer's WireGuard session.
+- [ ] **7.3 Connection Approvals**
+  - [ ] Listen for inbound connection requests via WebSocket signaling.
+  - [ ] Display a local push notification: "Device X wants to connect".
 
 ---
 
-## 12. Connection Recovery
+## Phase 8: Quality Assurance & Pre-Launch Hardening
+*Testing the mobile apps against real-world chaos before the public sees them.*
 
-- [x] Detect connection failure
-- [x] Reconnect
-- [x] Network-change detection
-- [x] Wi-Fi → Cellular
-- [x] Cellular → Wi-Fi
-- [x] IP address changes
-- [x] NAT mapping changes
-- [x] Tunnel restart
-- [x] Provider restart
-- [x] Recipient restart
-- [x] Control Plane interruption
-- [x] Relay recovery
-- [x] State synchronization
-
-**Done when:** Normal network failures don't permanently break a Zoop connection. (COMPLETED)
+- [ ] **8.1 Network Roaming Tests**
+  - [ ] Connect app, walk out of Wi-Fi range into 4G LTE. Verify the tunnel reconnects without dropping active TCP sessions.
+- [ ] **8.2 Battery & Memory Profiling**
+  - [ ] Leave the app connected overnight. Measure Android Doze mode impact.
+  - [ ] Ensure iOS doesn't terminate the NetworkExtension due to memory limits (50MB cap on iOS).
+- [ ] **8.3 Internal Beta Distribution**
+  - [ ] Submit iOS build to Apple TestFlight (Internal testing).
+  - [ ] Submit Android build to Google Play Console (Internal testing track).
+  - [ ] Distribute to core team for daily driver usage.
 
 ---
 
-## 13. Security Hardening
+## Phase 9: Public Launch & Store Approvals
+*The final bureaucratic and marketing steps to get into the hands of global users.*
 
-- [x] Harden device identity
-- [x] Secure key storage
-- [x] Authentication hardening
-- [x] Authorization enforcement
-- [x] Device revocation
-- [x] Key rotation
-- [x] Session security
-- [x] API security
-- [x] Secure configuration
-- [x] Secret management
-- [x] Unauthorized-device testing
-- [x] Threat-model testing
-- [x] Dependency security scanning
-
-**Done when:** The security model is enforced rather than merely documented. (COMPLETED)
-
----
-
-## 14. Desktop / Server Agent Hardening
-
-- [x] Linux daemonization
-- [x] macOS Agent
-- [x] Windows Agent
-- [x] Cross-platform local APIs
-- [x] CLI polish
-- [x] System service integration
-
-**Done when:** The Go agent runs robustly as a background service on standard desktop/server OSs. (COMPLETED)
-
----
-
-## 15. Router Integration
-
-- [x] Router Agent
-- [x] OpenWrt package compilation
-- [x] UCI configuration integration
-- [x] Multi-device LAN gateway routing
-- [x] Provider mode
-- [x] Router diagnostics
-
-**Done when:** A Zoop Router can provide connectivity to devices behind it via embedded Linux systems. (COMPLETED)
-
----
-
-## 16. Management Web Application
-
-- [x] React + TypeScript setup
-- [x] Web Architecture & Domain Separation (`docs/web.md`)
-- [x] Device management UI (`app.zoop.network`)
-- [x] Provider management UI (`app.zoop.network`)
-- [x] Recipient management UI (`app.zoop.network`)
-- [x] Sharing management UI (`app.zoop.network`)
-- [x] Connection status UI (`app.zoop.network`)
-- [x] Organization management UI (`app.zoop.network/org`)
-- [x] Zoop Admin Console & Relays UI (`admin.zoop.network`)
-- [x] Authentication UI Integration
-- [x] Live WebSocket signal sync
-
-**Done when:** Users can manage Zoop relationships, devices, and providers via a web dashboard before mobile clients are built. (COMPLETED)
-
----
-
-## 17. Mobile Core Integration (Native Bindings)
-
-- [x] Export Go core to C-shared library (`libzoop.so` / `libzoop.h`)
-- [x] Generate gomobile bindings (`packages/platform/mobile`)
-- [x] Android AAR packaging (`mobile/android`)
-- [x] iOS XCFramework packaging (`mobile/ios`)
-- [x] Expose connection state to native bridging (`StateCallback`)
-- [x] Verify bindings in mobile integration tests
-
-**Done when:** The core Go agent can be invoked and controlled from native Java/Kotlin and Swift environments. (COMPLETED)
-
----
-
-## 18. Persistent Database & State Layer (PostgreSQL + Redis)
-
-- [x] PostgreSQL store implementation for Control Plane `Store` interface (`packages/cloud/store/postgres.go`)
-- [x] Relational schema migrations (`packages/cloud/store/migrations/001_initial_schema.sql`)
-- [x] Indexed UUID lookups and cryptographic public key indices
-- [x] Redis integration for ephemeral signaling sessions, presence, and pub/sub (`packages/cloud/store/redis.go`)
-- [x] Persistent IPAM subnet pool allocator
-- [x] Database integration tests and schema validation
-
-**Done when:** All Control Plane data survives server restarts and scales horizontally across stateless API replicas. (COMPLETED)
-
----
-
-## 19. Cryptographic Security, Auth & Abuse Prevention
-
-- [x] Strict Ed25519 request signature verification on all protected endpoints (`packages/cloud/api/middleware.go`)
-- [x] Cryptographic nonce & timestamp replay attack mitigation (`NonceCache` with 5-minute sliding window)
-- [x] Real-time device revocation and instant token / WebSocket session eviction
-- [x] API rate limiting & DDoS mitigation middleware (`packages/cloud/api/ratelimit.go`)
-- [x] Cryptographically signed audit logging for all organizational changes (`packages/cloud/services/audit.go`)
-- [x] Security vulnerability and unit test suite (`packages/cloud/api/security_test.go`)
-
-**Done when:** Control Plane endpoints cannot be spoofed, replayed, or abused, and revoked devices are instantly severed. (COMPLETED)
-
----
-
-## 20. Distributed Multi-Node Relay & STUN/TURN Infrastructure
-
-- [x] Multi-region relay cluster coordination in Control Plane
-- [x] Dynamic relay selection based on geo-location and RTT latency probes
-- [x] STUN/TURN server allocation for restrictive symmetric NAT traversal
-- [x] Relay bandwidth metering and session isolation
-- [x] Relay failover stress testing under network partition
-
-**Done when:** Peers on restrictive symmetric NATs can relay through the lowest-latency geo-distributed relay nodes. (COMPLETED)
-
----
-
-## 21. Observability, Telemetry & Diagnostics
-
-- [x] Prometheus metrics exporter (`/metrics`) for Control Plane and Agent
-- [x] Structured distributed tracing across signaling and data plane
-- [x] Deep connection state machine telemetry (P2P vs Relay, handshake RTT, packet loss, bandwidth)
-- [x] CLI and API diagnostic health probes (`zoop doctor` / `/v1/health`)
-- [x] Real-time alerting for signaling disconnects and relay saturation
-
-**Done when:** We can inspect, trace, and diagnose any connection failure, latency spike, or route degradation in real time. (COMPLETED)
-
----
-
-## 22. Multi-Node Real-Network Simulation & E2E Validation
-
-- [x] Docker Compose multi-subnet testbed simulating WAN, CGNAT, Symmetric NAT, and Port-Restricted Cones
-- [x] Automated network degradation simulation (packet loss, jitter, bandwidth throttling)
-- [x] Seamless Wi-Fi ↔ Cellular roaming validation under heavy traffic
-- [x] Long-running tunnel endurance and memory leak validation
-- [x] Router LAN policy routing validation with real forwarding traffic
-
-**Done when:** Zoop is proven rock-solid across hostile, degraded, and complex real-world network topologies. (COMPLETED)
-
----
-
-## 23. Android Native Client Implementation
-
-- [x] Headless Android Native Module & VpnService architecture for cross-platform UI integration
-- [x] Foreground Service lifecycle with persistent status notification
-- [x] Android Doze & aggressive battery optimization handling via Go mobile lifecycle
-- [x] Automatic network roaming listener (Wi-Fi <-> 5G) via ConnectivityManager NetworkCallback
-- [x] VPN consent and runtime permission handling
-
-**Done when:** Android devices can act as Zoop endpoints using headless VpnService & Go mobile runtime. (COMPLETED)
-
----
-
-## 24. iOS Native Client Implementation
-
-- [x] Headless iOS Native Bridge & NETunnelProviderManager architecture for cross-platform UI integration
-- [x] Apple NetworkExtension (`NEPacketTunnelProvider`) integration
-- [x] iOS background execution limits and `NWPathMonitor` network roaming transitions
-- [x] Secure Enclave / Keychain integration (`KeychainHelper.swift`) for cryptographic keys
-- [x] System VPN profile configuration and permissions
-
-**Done when:** iOS devices can act as Zoop endpoints using headless NetworkExtension & Go mobile runtime. (COMPLETED)
-
----
-
-## 25. Production Infrastructure & Global Validation
-
-- [x] Production deployment automation (Cloud-Agnostic Kubernetes Helm & Docker Compose)
-- [x] High-availability PostgreSQL and Redis clustering templates
-- [x] Configured TLS certificate provisioning via standard Kubernetes Ingress
-- [x] Scalable STUN/TURN `coturn` deployment configuration
-- [x] Production operational runbooks and disaster recovery testing
-
-**Done when:** The complete Zoop ecosystem is deployed, secure, observable, and running reliably for global production traffic. The implemented system satisfies the Zoop architecture and the original idea has been demonstrated with real devices and real network traffic. (COMPLETED)
+- [ ] **9.1 App Store Metadata**
+  - [ ] Design and generate high-resolution screenshots for 6.5" and 5.5" iOS displays, and Android equivalents.
+  - [ ] Write App Store descriptions highlighting privacy, direct connections, and mesh routing.
+- [ ] **9.2 Compliance Questionnaires**
+  - [ ] Complete Google Play's "Data Safety" form (CRITICAL: Declare no payload data collection).
+  - [ ] Complete Apple's Privacy Label questionnaire.
+  - [ ] Provide Apple Review team with a demo account/video of the connection process if requested.
+- [ ] **9.3 The Launch**
+  - [ ] Pass Apple App Store Review.
+  - [ ] Pass Google Play Store Review.
+  - [ ] Flip the switch: Public release. 🚀
