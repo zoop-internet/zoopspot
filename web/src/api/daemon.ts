@@ -7,7 +7,21 @@
  * so the UI can fall back to remote (cloud-only) mode.
  */
 
-const DAEMON_BASE = (import.meta.env.VITE_DAEMON_BASE as string | undefined) ?? 'http://127.0.0.1:9090';
+function getInitialDaemonBase(): string {
+  if (import.meta.env.VITE_DAEMON_BASE) {
+    return import.meta.env.VITE_DAEMON_BASE as string;
+  }
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    return 'https://127.0.0.1:9443';
+  }
+  return 'http://127.0.0.1:9090';
+}
+
+let activeDaemonBase = getInitialDaemonBase();
+
+export function getDaemonBase(): string {
+  return activeDaemonBase;
+}
 
 // Helper to detect mixed-content block when page is https but daemon is http-only
 function isMixedContentError(err: unknown): boolean {
@@ -76,7 +90,7 @@ export interface DaemonStreamSnapshot {
 }
 
 async function daemonFetch<T>(path: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(`${DAEMON_BASE}${path}`, {
+  const res = await fetch(`${activeDaemonBase}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...opts?.headers },
   });
@@ -89,28 +103,40 @@ async function daemonFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-/** Probes the local daemon health endpoint. Resolves true if a daemon is up. */
+/** Probes the local daemon health endpoint with auto-fallback between HTTPS and HTTP localhost. */
 export async function probeDaemon(timeoutMs = 1500): Promise<boolean> {
-  // On https pages the daemon's plain-http is blocked as mixed-content — return false fast with hint
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && DAEMON_BASE.startsWith('http://')) {
-    // Still try, but catch will handle the block
+  const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+  const candidates: string[] = [];
+  if (import.meta.env.VITE_DAEMON_BASE) {
+    candidates.push(import.meta.env.VITE_DAEMON_BASE as string);
+  } else if (isHttpsPage) {
+    candidates.push('https://127.0.0.1:9443', 'https://localhost:9443', 'http://127.0.0.1:9090');
+  } else {
+    candidates.push('http://127.0.0.1:9090', 'http://localhost:9090', 'https://127.0.0.1:9443');
   }
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${DAEMON_BASE}/health`, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
-  } catch (err) {
-    if (isMixedContentError(err) && typeof console !== 'undefined') {
-      console.warn('[zoop] Daemon probe blocked by mixed-content (page is https, daemon is http). Use http://localhost:5173 for local daemon or set VITE_DAEMON_BASE to an https tunnel.');
+
+  for (const base of candidates) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(`${base}/health`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) {
+        activeDaemonBase = base;
+        return true;
+      }
+    } catch (err) {
+      if (isMixedContentError(err) && typeof console !== 'undefined') {
+        console.warn(`[zoop] Daemon endpoint ${base} blocked by browser mixed-content.`);
+      }
     }
-    return false;
   }
+  return false;
 }
 
 export function isDaemonMixedContentBlocked(): boolean {
-  return typeof window !== 'undefined' && window.location.protocol === 'https:' && DAEMON_BASE.startsWith('http://');
+  return typeof window !== 'undefined' && window.location.protocol === 'https:' && activeDaemonBase.startsWith('http://');
 }
 
 export function getDaemonStatus(): Promise<DaemonStatus> {
@@ -158,7 +184,7 @@ export function subscribeToDaemonStream(
   const controller = new AbortController();
   void (async () => {
     try {
-      const res = await fetch(`${DAEMON_BASE}/api/stream`, { signal: controller.signal });
+      const res = await fetch(`${activeDaemonBase}/api/stream`, { signal: controller.signal });
       if (!res.ok || !res.body) throw new Error(`daemon stream failed: ${res.status}`);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

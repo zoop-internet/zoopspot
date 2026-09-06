@@ -306,13 +306,13 @@ Direct becomes available
 
 - [x] React + TypeScript setup
 - [x] Web Architecture & Domain Separation (`docs/web.md`)
-- [x] Device management UI (`app.zoop.com`)
-- [x] Provider management UI (`app.zoop.com`)
-- [x] Recipient management UI (`app.zoop.com`)
-- [x] Sharing management UI (`app.zoop.com`)
-- [x] Connection status UI (`app.zoop.com`)
-- [x] Organization management UI (`app.zoop.com/org`)
-- [x] Zoop Admin Console & Relays UI (`admin.zoop.com`)
+- [x] Device management UI (`app.zoop.network`)
+- [x] Provider management UI (`app.zoop.network`)
+- [x] Recipient management UI (`app.zoop.network`)
+- [x] Sharing management UI (`app.zoop.network`)
+- [x] Connection status UI (`app.zoop.network`)
+- [x] Organization management UI (`app.zoop.network/org`)
+- [x] Zoop Admin Console & Relays UI (`admin.zoop.network`)
 - [x] Authentication UI Integration
 - [x] Live WebSocket signal sync
 

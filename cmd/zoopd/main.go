@@ -2,10 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -71,6 +79,7 @@ func main() {
 			fmt.Println("  -tun <name>               WireGuard interface name (default: zoop0)")
 			fmt.Println("  -config-dir <dir>         Configuration and key storage directory")
 			fmt.Println("  -api-port <port>          Metrics and health API listen port (default: 9090)")
+			fmt.Println("  -api-tls-port <port>      Local HTTPS API listen port (default: 9443, 0 to disable)")
 			fmt.Println("  -socket <path>            UNIX domain socket path (default: /var/run/zoopd.sock)")
 			fmt.Println("  -doctor                   Run comprehensive diagnostics probe and exit")
 			return
@@ -80,6 +89,7 @@ func main() {
 	tunFlag := flag.String("tun", "zoop0", "WireGuard interface name")
 	configDirFlag := flag.String("config-dir", "", "Override configuration directory")
 	apiPortFlag := flag.Int("api-port", 9090, "Local metrics/health HTTP API listen port")
+	apiTLSPortFlag := flag.Int("api-tls-port", 9443, "Local HTTPS API listen port (0 to disable)")
 	socketFlag := flag.String("socket", defaultSocketPath, "UNIX domain socket path")
 	doctorFlag := flag.Bool("doctor", false, "Run comprehensive diagnostics probe and exit")
 	mockTunFlag := flag.Bool("mock-tun", false, "Use an in-memory WireGuard device (no root required, for development/testing)")
@@ -210,7 +220,31 @@ func main() {
 
 		apiPort := *apiPortFlag
 		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", apiPort), Handler: mux}
-		logger.Info("local management API listening", "port", apiPort)
+		logger.Info("local management HTTP API listening", "port", apiPort)
+
+		// Start local HTTPS listener to allow HTTPS Web dashboards (https://app.zoop.network) to connect
+		if *apiTLSPortFlag > 0 {
+			cert, err := generateLocalhostCertificate()
+			if err != nil {
+				logger.Warn("failed to generate localhost TLS certificate", "error", err)
+			} else {
+				tlsPort := *apiTLSPortFlag
+				tlsSrv := &http.Server{
+					Addr:    fmt.Sprintf("127.0.0.1:%d", tlsPort),
+					Handler: mux,
+					TLSConfig: &tls.Config{
+						Certificates: []tls.Certificate{cert},
+					},
+				}
+				go func() {
+					logger.Info("local management HTTPS API listening", "port", tlsPort)
+					if err := tlsSrv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+						logger.Error("HTTPS local API failed", "error", err)
+					}
+				}()
+			}
+		}
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("metrics API failed", "error", err)
 		}
@@ -469,4 +503,40 @@ func runDoctor(tunName, controlPlaneURL, stunServer string) {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+func generateLocalhostCertificate() (tls.Certificate, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		Subject: pkix.Name{
+			Organization: []string{"Zoop Internet Local Daemon"},
+			CommonName:   "localhost",
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"localhost", "127.0.0.1"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	b, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
+
+	return tls.X509KeyPair(certPEM, keyPEM)
 }

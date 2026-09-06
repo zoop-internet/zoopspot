@@ -30,16 +30,16 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Test overrides
-	os.Setenv("ZOOP_CONTROL_PLANE_URL", "https://api.zoop.com")
+	os.Setenv("ZOOP_CONTROL_PLANE_URL", "https://api.zoop.network")
 	os.Setenv("ZOOP_AGENT_LISTEN_ADDR", "0.0.0.0:9090")
 	os.Setenv("ZOOP_SIGNALING_TIMEOUT", "30")
-	os.Setenv("ZOOP_ALLOWED_ORIGINS", "http://localhost:3000, https://app.zoop.com, https://dashboard.zoop.com")
+	os.Setenv("ZOOP_ALLOWED_ORIGINS", "http://localhost:3000, https://app.zoop.network, https://dashboard.zoop.network")
 	os.Setenv("ZOOP_TURN_SECRET", "custom-secret")
 	os.Setenv("ZOOP_TURN_REALM", "turn.custom.org")
 
 	cfg = LoadConfig()
-	if cfg.ControlPlaneURL != "https://api.zoop.com" {
-		t.Errorf("Expected overridden ControlPlaneURL to be https://api.zoop.com, got %s", cfg.ControlPlaneURL)
+	if cfg.ControlPlaneURL != "https://api.zoop.network" {
+		t.Errorf("Expected overridden ControlPlaneURL to be https://api.zoop.network, got %s", cfg.ControlPlaneURL)
 	}
 	if cfg.AgentListenAddr != "0.0.0.0:9090" {
 		t.Errorf("Expected overridden AgentListenAddr to be 0.0.0.0:9090, got %s", cfg.AgentListenAddr)
@@ -47,7 +47,7 @@ func TestLoadConfig(t *testing.T) {
 	if cfg.SignalingTimeout != 30*time.Second {
 		t.Errorf("Expected overridden SignalingTimeout to be 30s, got %v", cfg.SignalingTimeout)
 	}
-	expectedOrigins := []string{"http://localhost:3000", "https://app.zoop.com", "https://dashboard.zoop.com"}
+	expectedOrigins := []string{"http://localhost:3000", "https://app.zoop.network", "https://dashboard.zoop.network"}
 	if !reflect.DeepEqual(cfg.AllowedOrigins, expectedOrigins) {
 		t.Errorf("Expected AllowedOrigins to be %v, got %v", expectedOrigins, cfg.AllowedOrigins)
 	}

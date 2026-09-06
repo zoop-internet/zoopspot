@@ -9,7 +9,14 @@ import (
 	"os/exec"
 
 	"github.com/vishvananda/netlink"
+	"golang.zx2c4.com/wireguard/device"
+	"golang.zx2c4.com/wireguard/tun"
 )
+
+func platformCreateTUNFromFD(fd int, ifName string) (tun.Device, error) {
+	file := os.NewFile(uintptr(fd), ifName)
+	return tun.CreateTUNFromFile(file, device.DefaultMTU)
+}
 
 func platformAssignIP(ifName string, ipAddress string) error {
 	link, err := netlink.LinkByName(ifName)

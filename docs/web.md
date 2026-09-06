@@ -13,7 +13,7 @@ It does **not** carry normal Zoop Internet traffic.
           ┌─────────────────┼─────────────────┐
           │                 │                 │
        USERS          ORGANIZATIONS       ZOOP ADMIN
-   app.zoop.com       app.zoop.com      admin.zoop.com
+   app.zoop.network       app.zoop.network      admin.zoop.network
           │                 │                 │
       Personal          Organization       Zoop
       Zoop use          Management        Operations
@@ -30,12 +30,12 @@ Data Plane → carries Internet traffic
 Zoop uses two distinct Web applications.
 ```text
 Customer Application
-app.zoop.com
+app.zoop.network
         │
         ├── Individual Users
         └── Organizations
 Zoop Administration
-admin.zoop.com
+admin.zoop.network
         │
         └── Zoop Operators
 ```
@@ -92,7 +92,7 @@ A Zoop administrator is a separate platform role.
 # 5. Individual Users
 Individual users access Zoop through:
 ```text
-app.zoop.com
+app.zoop.network
 ```
 Their Web experience is focused on managing their personal Zoop identity, devices, connections, and sharing relationships.
 ## User capabilities
@@ -237,7 +237,7 @@ The Web application must never expose:
 # 14. Organizations
 Organizations access their management environment through:
 ```text
-app.zoop.com
+app.zoop.network
 ```
 Organizations provide multi-user and multi-device management.
 ```text
@@ -324,7 +324,7 @@ This allows an organization to understand how its Zoop connectivity is being use
 # 20. Zoop Administration
 Zoop operators access:
 ```text
-admin.zoop.com
+admin.zoop.network
 ```
 This is a separate internal application from the customer Web application.
 The Admin Console is used to **operate, secure, monitor, and support the Zoop platform**.
@@ -492,7 +492,7 @@ Critical configuration changes should require appropriate authorization and audi
 Customer and internal applications are separated.
 ```text
                 CUSTOMER SIDE
-               app.zoop.com
+               app.zoop.network
                     │
           ┌─────────┴─────────┐
           │                   │
@@ -502,7 +502,7 @@ Customer and internal applications are separated.
                     │
                 Zoop API
                 ZOOP SIDE
-              admin.zoop.com
+              admin.zoop.network
                     │
           ┌─────────┼─────────┐
           │         │         │
@@ -668,7 +668,7 @@ The Zoop Web architecture follows these principles:
       ┌───────┴────────┐                    ┌─────┴─────┐
       │                │                    │           │
  Customer Web      Admin Web             Direct      Relay
- app.zoop.com    admin.zoop.com          Tunnel       Path
+ app.zoop.network    admin.zoop.network          Tunnel       Path
       │                │                    │           │
       │                │                    └─────┬─────┘
       │                │                          │

@@ -76,8 +76,7 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 		logger = device.NewLogger(device.LogLevelSilent, "")
 	}
 
-	file := os.NewFile(uintptr(fd), ifName)
-	tunDev, err := tun.CreateTUNFromFile(file, device.DefaultMTU)
+	tunDev, err := platformCreateTUNFromFD(fd, ifName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TUN device from file descriptor: %w", err)
 	}
