@@ -181,7 +181,7 @@ const DOCS_SECTIONS: DocSection[] = [
   ]},
   { label: 'Help', items: [
     { id: 'troubleshooting', title: 'Troubleshooting', file: 'networking', desc: 'NAT, relay, roaming, doctor' },
-    { id: 'security-privacy', title: 'Security & Privacy', file: 'security', desc: 'Encryption, no logs, keys' },
+    { id: 'security-architecture', title: 'Security Architecture', file: 'security', desc: 'WireGuard®, Noise_IK, cryptography' },
     { id: 'faq', title: 'FAQ', file: 'api', desc: 'Common questions, quick answers' },
   ]},
 ];
@@ -485,24 +485,18 @@ Checks TUN, privs, cloud reachability, DNS, STUN/NAT. Run first.
 ## Still stuck
 Open issue with \`zoop doctor\` output: https://github.com/zoop-internet/zoop/issues
 `,
-  "security-privacy": `# Security & Privacy — what we promise
+  "security-architecture": `# Security & Cryptographic Architecture
 
-## Encryption
-- Data plane: **WireGuard** (Noise_IK, ChaCha20-Poly1305, Curve25519) — ephemeral keys, forward secrecy. Each tunnel fresh.
-- Control: **Ed25519** \`zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH\`, 5-min TTL, bounded nonce cache.
+## Cryptographic Protocols
+- **Data Plane:** WireGuard® Noise_IK pattern using ChaCha20-Poly1305 authenticated encryption, Curve25519 key exchanges, and BLAKE2s hashing with 1-second ephemeral rekeying.
+- **Control Plane:** Ed25519 digital signatures on canonical request strings: \`zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH\`, 5-minute bounded TTL, and server-side replay nonces.
 
-## Keys
-- \`0600\` storage, optional \`ZOOP_IDENTITY_PASSPHRASE\` (PBKDF2-AES-GCM).
+## Key Storage & Protection
+- Key files are stored with strict POSIX \`0600\` file permissions.
+- Support for \`ZOOP_IDENTITY_PASSPHRASE\` with PBKDF2-HMAC-SHA256 key derivation and AES-256-GCM envelope encryption.
 
-## Relays
-- Zero-decryption: \`ws://\` forwards \`[senderID][payload]\` only. Cannot read traffic.
-
-## Logging
-- **Never:** packet contents, browsing history.
-- **Only:** signaling metadata (IDs, timestamps), IPAM, audit (\`connection_id, provider, recipient, established_at\`).
-
-> Traffic is opaque to cloud and relays. Self-host to verify — MIT.
-
+## Zero-Knowledge Relays
+- Distributed WebSocket relay nodes stream opaque binary WireGuard frames using sender/recipient headers. Relays possess no decryption keys and cannot inspect payload bytes.
 `,
   faq: `# FAQ — quick answers
 
@@ -1419,6 +1413,227 @@ export const LandingPage: React.FC<{
           </main>
         )}
 
+        {/* ─── DEDICATED PRIVACY POLICY PAGE (APP STORE & GOOGLE PLAY COMPLIANT) ─ */}
+        {(activeRoute === '/privacy' || activeRoute === '/privacy-policy') && (
+          <main className="lp-page-wrapper">
+            <div className="lp-page-header">
+              <p className="lp-eyebrow">Zero-Knowledge Network</p>
+              <h1>Privacy Policy</h1>
+              <p>
+                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.online" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.online</a>
+              </p>
+            </div>
+
+            {/* Apple & Google Play Store Compliance Callout Banner */}
+            <div style={{ maxWidth: 860, margin: '0 auto 28px', background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(52,211,153,0.08))', border: '1px solid rgba(56,189,248,0.3)', borderRadius: 14, padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span style={{ color: '#38bdf8' }}><Ico d={Icons.shield} size={22} /></span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--ink)' }}>Core Privacy Commitment (Apple &amp; Google Play Store Disclosure)</strong>
+              </div>
+              <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--ink-secondary)', margin: '0 0 12px' }}>
+                Zoop Internet is engineered with a strict <strong>Zero-Knowledge, Zero-Inspection architecture</strong>. 
+                Unlike conventional commercial VPN providers that route all user traffic through centralized corporate datacenters:
+              </p>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.85rem', lineHeight: 1.6, color: 'var(--ink-secondary)' }}>
+                <li><strong>Zero Payload Logging:</strong> We do NOT monitor, inspect, store, or log your network traffic, browsing history, DNS queries, or destination IP addresses.</li>
+                <li><strong>Zero Data Monetization:</strong> We do NOT sell, rent, or share personal data with advertisers or third parties.</li>
+                <li><strong>End-to-End Cryptography:</strong> All peer connections use WireGuard® authenticated encryption (Noise_IK, ChaCha20-Poly1305, Curve25519). Relays only forward opaque encrypted binary frames without decryption keys.</li>
+              </ul>
+            </div>
+
+            {/* Structured Legal Document Content */}
+            <div className="docs-article" style={{ maxWidth: 860, margin: '0 auto', background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, padding: '36px 40px' }}>
+              <h2>1. Introduction &amp; Architecture Overview</h2>
+              <p>
+                Zoop Internet ("Zoop", "we", "us", or "our") provides an open-source, decentralized device-to-device mesh connectivity platform. 
+                Our software decouples the <strong>Control Plane</strong> (cryptographic identity verification, STUN signaling, IPAM) from the <strong>Data Plane</strong> (point-to-point encrypted tunnels).
+              </p>
+              <p>
+                When you connect to another device via Zoop, your traffic travels directly between those endpoints. In circumstances where symmetric NAT or firewall restrictions prevent direct UDP hole punching, packets transit encrypted WebSocket relays that forward opaque binary frames without the ability to decrypt or inspect the contents.
+              </p>
+
+              <h2>2. Information We Explicitly Do NOT Collect</h2>
+              <p>
+                In compliance with Apple App Store Guideline 5.4 and Google Play VPN Service requirements, Zoop explicitly affirms that we never collect, log, or retain:
+              </p>
+              <ul>
+                <li><strong>Traffic Payloads:</strong> Content of your HTTP/HTTPS requests, media streaming, files, or application traffic.</li>
+                <li><strong>Browsing Activity:</strong> URLs visited, search queries, or visited domains.</li>
+                <li><strong>DNS Queries:</strong> Real-time domain resolution lookups.</li>
+                <li><strong>Destination IP Addresses:</strong> External web services or servers accessed through a Provider peer.</li>
+                <li><strong>Device Advertising Identifiers:</strong> No IDFA, AAID, or tracking beacons exist in the software.</li>
+              </ul>
+
+              <h2>3. Information We Process (Data Minimization)</h2>
+              <p>
+                To provide coordination and mutual device authentication, Zoop processes only minimal technical data:
+              </p>
+              <ul>
+                <li><strong>Cryptographic Identities:</strong> Ed25519 public keys used to authenticate API requests, and Curve25519 public keys used for WireGuard peer handshakes. <em>Private keys never leave your local device.</em></li>
+                <li><strong>Pseudonymous Account Identifier:</strong> A formatted Zoop ID (e.g. <code>ZP-...</code>) derived deterministically from your public identity.</li>
+                <li><strong>Ephemeral Signaling Metadata:</strong> Reflexive IP addresses and port candidates discovered via STUN (e.g., <code>stun.l.google.com:19302</code>) to facilitate NAT traversal. This data exists solely in volatile memory during negotiation.</li>
+                <li><strong>Device Labels:</strong> User-provided device names (e.g., "Home PC", "Travel Laptop") to display in your personal device console.</li>
+              </ul>
+
+              <h2>4. Encrypted Relay Node Fallback</h2>
+              <p>
+                If direct peer-to-peer connection is prohibited by restrictive firewalls or Carrier-Grade NAT (CGNAT), traffic fails over to a relay node. Relays operate on an encrypted binary pass-through model (similar to WireGuard DERP). The relay operator has no knowledge of encryption keys and cannot inspect, modify, or log payload data.
+              </p>
+
+              <h2>5. Mobile Platform Disclosures (iOS &amp; Android)</h2>
+              <p>
+                <strong>iOS NetworkExtension:</strong> The Zoop iOS app uses Apple's <code>NEPacketTunnelProvider</code> to interface with the local user-space WireGuard networking core. Network permissions are used exclusively to create virtual tunnel routing.
+              </p>
+              <p>
+                <strong>Android VpnService:</strong> The Zoop Android app utilizes <code>VpnService</code> to construct a local TUN adapter. A persistent Android system notification is shown whenever a tunnel is active to maintain clear user awareness.
+              </p>
+
+              <h2>6. Data Retention &amp; User Deletion Rights (GDPR &amp; CCPA)</h2>
+              <p>
+                Signaling messages and STUN candidates are discarded immediately after connection negotiation. Account and device public keys are retained only while your account is active.
+              </p>
+              <p>
+                Under GDPR and CCPA, you have the right to inspect, export, or permanently erase your data. Deleting a device or account via the Web Console or CLI instantly deletes all associated public keys and IPAM allocations from our database.
+              </p>
+
+              <h2>7. Security Safeguards &amp; Open Source</h2>
+              <p>
+                Zoop Internet is fully open-source and MIT-licensed. All source code, cryptographic implementations, and infrastructure recipes are publicly auditable at <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">github.com/zoop-internet/zoop</a>.
+              </p>
+
+              <h2>8. Contact &amp; Inquiries</h2>
+              <p>
+                For privacy inquiries, audit requests, or data rights requests, contact our team:
+              </p>
+              <ul>
+                <li><strong>Email:</strong> <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a></li>
+                <li><strong>Security:</strong> <a href="mailto:security@zoopinternet.online">security@zoopinternet.online</a></li>
+                <li><strong>Official Web:</strong> <a href="https://zoopinternet.online" target="_blank" rel="noreferrer">https://zoopinternet.online</a></li>
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center', gap: 14 }}>
+              <button className="lp-btn-secondary" onClick={() => handleNav('/')}>
+                ← Back to Overview
+              </button>
+              <button className="lp-btn-secondary" onClick={() => handleNav('/terms')}>
+                View Terms of Service (EULA) →
+              </button>
+            </div>
+          </main>
+        )}
+
+        {/* ─── DEDICATED TERMS OF SERVICE & EULA PAGE ───────────────────── */}
+        {(activeRoute === '/terms' || activeRoute === '/terms-of-service' || activeRoute === '/eula') && (
+          <main className="lp-page-wrapper">
+            <div className="lp-page-header">
+              <p className="lp-eyebrow">Legal &amp; Licensing</p>
+              <h1>Terms of Service &amp; EULA</h1>
+              <p>
+                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.online" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.online</a>
+              </p>
+            </div>
+
+            {/* Architecture & Shared Responsibility Summary Banner */}
+            <div style={{ maxWidth: 860, margin: '0 auto 28px', background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span style={{ color: '#34d399' }}><Ico d={Icons.terminal} size={22} /></span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--ink)' }}>Peer-to-Peer Mesh &amp; Open-Source License Notice</strong>
+              </div>
+              <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--ink-secondary)', margin: 0 }}>
+                Zoop Internet combines an open-source software suite (MIT License) with cloud coordination services. 
+                By accessing our software or hosted services, you acknowledge the decentralized peer-to-peer nature of the platform and agree to these terms governing device authorization, acceptable network use, and provider liability.
+              </p>
+            </div>
+
+            {/* Structured Terms Content */}
+            <div className="docs-article" style={{ maxWidth: 860, margin: '0 auto', background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, padding: '36px 40px' }}>
+              <h2>1. Agreement to Terms</h2>
+              <p>
+                By downloading, installing, configuring, or using the Zoop Internet applications (desktop daemons, CLI, mobile apps on Android and iOS, or the Web Management Console), you agree to be bound by these Terms of Service and End User License Agreement ("Agreement") and our <a onClick={() => handleNav('/privacy')} style={{ color: '#38bdf8', cursor: 'pointer' }}>Privacy Policy</a>.
+              </p>
+
+              <h2>2. Decentralized Peer-to-Peer Architecture</h2>
+              <p>
+                Zoop is a direct device-to-device mesh connectivity system. The <strong>Control Plane</strong> coordinates device discovery and signaling. The <strong>Data Plane</strong> operates over end-to-end WireGuard® tunnels established directly between peer devices.
+              </p>
+              <p>
+                Zoop is <strong>not</strong> a traditional centralized VPN service; we do not route or proxy internet traffic through our own transit servers. When you connect through another device, that device acts as your exit gateway.
+              </p>
+
+              <h2>3. End User License Agreement (EULA)</h2>
+              <p>
+                <strong>Open Source Code:</strong> The underlying source code of Zoop is made available under the permissive <strong>MIT License</strong>. You are free to inspect, audit, modify, and self-host the software.
+              </p>
+              <p>
+                <strong>Application Distribution:</strong> Zoop grants you a personal, non-exclusive, revocable license to install and use official binary packages and mobile applications distributed through official app store channels or signed GitHub releases.
+              </p>
+
+              <h2>4. Cryptographic Key Custody &amp; Security</h2>
+              <p>
+                You are solely responsible for maintaining the confidentiality and physical security of your devices and cryptographic private keys (Ed25519 identity keys and WireGuard Curve25519 keys). 
+                Because private keys are generated and stored exclusively on your device, Zoop cannot recover lost identity keys or reset lost encryption phrases.
+              </p>
+
+              <h2>5. Provider vs. Recipient Responsibilities</h2>
+              <blockquote>
+                <strong>Important Egress Notice for Bandwidth Providers:</strong> When you share your connection, authorized peers will egress to the internet using your device's external public IP address. You retain complete control to approve, decline, or disconnect peers at any time. Do not authorize peers you do not know and trust.
+              </blockquote>
+              <p>
+                Zoop Internet disclaims all liability for internet activity, downloads, or communications initiated by authorized third-party peers through your Provider device.
+              </p>
+
+              <h2>6. Acceptable Use Policy (AUP)</h2>
+              <p>
+                You agree not to use Zoop Internet to:
+              </p>
+              <ul>
+                <li>Engage in or facilitate unlawful activities, including copyright infringement, distribution of malware, ransomware, or malicious bots.</li>
+                <li>Execute Denial of Service (DoS/DDoS) attacks, network port scanning, or unauthorized penetration testing against third-party systems.</li>
+                <li>Bypass network access controls or organizational security policies without explicit authorization from the network owner.</li>
+                <li>Harass, exploit, or cause harm to individuals or systems.</li>
+              </ul>
+              <p>
+                Violation of this Acceptable Use Policy will result in immediate revocation of your access to the hosted coordination plane.
+              </p>
+
+              <h2>7. ISP &amp; Carrier Terms Compliance</h2>
+              <p>
+                You are solely responsible for ensuring your use of Zoop complies with your Internet Service Provider (ISP) or mobile carrier's contract, data limits, and tethering policies. Zoop is not responsible for carrier overage fees, bandwidth throttling, or service termination resulting from your network usage.
+              </p>
+
+              <h2>8. Disclaimer of Warranties</h2>
+              <p>
+                THE SOFTWARE AND COORDINATION SERVICES ARE PROVIDED <strong>"AS IS"</strong> AND <strong>"AS AVAILABLE"</strong>, WITHOUT WARRANTIES OF ANY KIND. ZOOP INTERNET DOES NOT GUARANTEE THAT NAT TRAVERSAL OR HOLE PUNCHING WILL SUCCEED IN ALL NETWORK TOPOLOGIES, OR THAT SERVICE WILL BE ERROR-FREE OR UNINTERRUPTED.
+              </p>
+
+              <h2>9. Limitation of Liability</h2>
+              <p>
+                TO THE FULLEST EXTENT PERMISSIBLE BY APPLICABLE LAW, IN NO EVENT SHALL ZOOP INTERNET, ITS FOUNDERS, CONTRIBUTORS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THE SOFTWARE, DATA OVERAGES, OR ACTIONS OF AUTHORIZED PEERS.
+              </p>
+
+              <h2>10. Contact &amp; Legal Notices</h2>
+              <p>
+                For questions regarding these Terms or legal inquiries:
+              </p>
+              <ul>
+                <li><strong>Legal Notices:</strong> <a href="mailto:legal@zoopinternet.online">legal@zoopinternet.online</a></li>
+                <li><strong>General Support:</strong> <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a></li>
+                <li><strong>Website:</strong> <a href="https://zoopinternet.online" target="_blank" rel="noreferrer">https://zoopinternet.online</a></li>
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center', gap: 14 }}>
+              <button className="lp-btn-secondary" onClick={() => handleNav('/')}>
+                ← Back to Overview
+              </button>
+              <button className="lp-btn-secondary" onClick={() => handleNav('/privacy')}>
+                View Privacy Policy →
+              </button>
+            </div>
+          </main>
+        )}
+
         {/* ─── DEFAULT OVERVIEW / HOME PAGE ───────────────────────────── */}
         {activeRoute === '/' && (
           <>
@@ -1822,17 +2037,18 @@ export const LandingPage: React.FC<{
               <ul>
                 <li><a onClick={() => handleNav('/how-it-works')}>How It Works</a></li>
                 <li><a onClick={() => handleNav('/docs')}>Documentation</a></li>
-                <li><a onClick={() => handleNav('/security')}>Privacy &amp; Security</a></li>
-                <li><a onClick={() => handleNav('/products')}>Ecosystem Overview</a></li>
-                <li><a onClick={() => handleNav('/downloads')}>Supported Devices</a></li>
+                <li><a onClick={() => handleNav('/security')}>Security Architecture</a></li>
+                <li><a onClick={() => handleNav('/privacy')}>Privacy Policy</a></li>
+                <li><a onClick={() => handleNav('/terms')}>Terms of Service (EULA)</a></li>
               </ul>
             </div>
 
             <div className="lp-footer-col">
-              <h4>Community</h4>
+              <h4>Community &amp; Support</h4>
               <ul>
                 <li><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
                 <li><a onClick={() => handleNav('/docs')}>Documentation Hub</a></li>
+                <li><a href="mailto:support@zoopinternet.online">Support: support@zoopinternet.online</a></li>
                 <li><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
                 <li><a onClick={() => handleNav('/security')}>Security Policy</a></li>
               </ul>
@@ -1842,8 +2058,10 @@ export const LandingPage: React.FC<{
           <div className="lp-footer-bottom">
             <span>© {new Date().getFullYear()} Zoop Internet. Open source under MIT License.</span>
             <div className="lp-footer-links">
-              <a onClick={() => handleNav('/security')}>Privacy &amp; Security</a>
-              <a onClick={() => handleNav('/how-it-works')}>How It Works</a>
+              <a onClick={() => handleNav('/privacy')}>Privacy Policy</a>
+              <a onClick={() => handleNav('/terms')}>Terms of Service</a>
+              <a onClick={() => handleNav('/security')}>Security</a>
+              <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a>
               <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
             </div>
           </div>

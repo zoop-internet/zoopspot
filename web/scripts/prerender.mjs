@@ -11,60 +11,74 @@ import { join } from 'node:path';
 const DIST = 'dist';
 const TEMPLATE = join(DIST, 'index.html');
 
+const BASE_DOMAIN = 'https://zoopinternet.online';
+
 const ROUTES = {
   '/': {
     title: 'Zoop — Secure Direct Device-to-Device Sharing | Private Mesh',
     desc: 'Share your home or phone internet directly with trusted devices — no VPN bottlenecks. WireGuard-encrypted, NAT-traversal, open-source & free. Install Zoop in 30 seconds.',
-    canonical: 'https://zoop.network/',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/how-it-works': {
     title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks',
     desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.',
-    canonical: 'https://zoop.network/how-it-works',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/how-it-works`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/architecture': {
     title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks',
     desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.',
-    canonical: 'https://zoop.network/how-it-works',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/how-it-works`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/products': {
     title: 'Products — Zoop for Desktop, Mobile & Routers | One Ecosystem',
     desc: 'Zoop for Linux, macOS, Windows, Android, iOS & OpenWrt. One mesh across your computers, phones and home routers.',
-    canonical: 'https://zoop.network/products',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/products`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/downloads': {
     title: 'Download Zoop — Free for Linux, macOS, Windows, Mobile & Routers',
     desc: 'Download Zoop free: .deb, .pkg, .msi, APK, iOS beta & router .ipk. One-tap install, open-source MIT.',
-    canonical: 'https://zoop.network/downloads',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/downloads`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/security': {
     title: 'Security & Privacy — End-to-End Encrypted, Open Source, No Tracking',
     desc: 'Zoop is end-to-end encrypted (WireGuard), Ed25519 auth, zero tracking logs, open source & audited. Your traffic stays private.',
-    canonical: 'https://zoop.network/security',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/security`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/pricing': {
     title: 'Pricing — Free Personal, Teams Coming Soon | Zoop',
     desc: 'Free forever for personal (5 devices, unlimited tunnels). Organizations with fleet, audit and relay controls — join founding waitlist.',
-    canonical: 'https://zoop.network/pricing',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/pricing`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/docs': {
     title: 'Documentation — Quick Start, API, Architecture | Zoop',
     desc: 'Start in 30s, read architecture and API reference. Open-source MIT — GitHub docs, examples, and llms.txt for AI.',
-    canonical: 'https://zoop.network/docs',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/docs`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/auth': {
     title: 'Sign In — Zoop ID & PIN | Create Your Permanent Identity',
     desc: 'Sign in with your Zoop ID (ZP-...) and 6-digit PIN or create a new identity in 30 seconds. No email required.',
-    canonical: 'https://zoop.network/auth',
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}/auth`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
+  },
+  '/privacy': {
+    title: 'Privacy Policy — Zero Logging & Cryptographic Mesh | Zoop',
+    desc: 'Zoop Privacy Policy: Zero logging of payload traffic, browsing history, DNS or destination IPs. End-to-end WireGuard encrypted, open source.',
+    canonical: `${BASE_DOMAIN}/privacy`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
+  },
+  '/terms': {
+    title: 'Terms of Service & EULA — Peer-to-Peer Mesh | Zoop',
+    desc: 'Zoop Terms of Service and End User License Agreement: Peer-to-peer network usage, acceptable use policy, and licensing.',
+    canonical: `${BASE_DOMAIN}/terms`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
 };
 
@@ -86,7 +100,7 @@ function replaceMeta(html, route, meta) {
   // hreflang alternates — point to canonical
   out = out.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/, `$1${meta.canonical}$2`);
   // Inject route marker + BreadcrumbList for SEO (helps verify prerender + rich results)
-  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://zoop.network/"},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}</script>\n`;
+  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":`${BASE_DOMAIN}/`},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}</script>\n`;
   out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}</head>`);
   return out;
 }
@@ -111,14 +125,14 @@ for (const [route, meta] of Object.entries(ROUTES)) {
   console.log(`Prerendered ${route} -> ${file}`);
 }
 // Prerender docs subpages — user-focused curated (not internal architecture dump)
-const DOCS_IDS = ['quickstart','installation','configuration','web-console','connect-share','devices','mobile-router','identity','organizations','permissions','troubleshooting','security-privacy','faq'];
+const DOCS_IDS = ['quickstart','installation','configuration','web-console','connect-share','devices','mobile-router','identity','organizations','permissions','troubleshooting','security-architecture','faq'];
 for (const id of DOCS_IDS) {
   const route = `/docs/${id}`;
   const meta = {
     title: `${id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} — Docs | Zoop`,
     desc: `Zoop documentation — ${id.replace(/-/g,' ')}: open-source, WireGuard, STUN/TURN, self-hostable.`,
-    canonical: `https://zoop.network${route}`,
-    ogImage: 'https://zoop.network/og-image.png',
+    canonical: `${BASE_DOMAIN}${route}`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
   };
   // Use /docs base template but with subroute meta
   const baseMeta = ROUTES['/docs'];
@@ -136,17 +150,17 @@ for (const id of DOCS_IDS) {
   writeFileSync(TEMPLATE, html, 'utf8');
   console.log(`Updated ${TEMPLATE} with prerender marker for /`);
 }
-// Generate sitemap.xml (22 routes + docs subpages)
+// Generate sitemap.xml (routes + docs subpages)
 {
   const allRoutes = [...Object.keys(ROUTES), ...DOCS_IDS.map(id=> `/docs/${id}`)];
-  const urls = allRoutes.map(r => `  <url><loc>https://zoop.network${r === '/' ? '/' : r}</loc><changefreq>${r==='/'?'daily': r.startsWith('/docs')?'weekly':'monthly'}</changefreq><priority>${r==='/'?'1.0': r==='/docs'?'0.9':'0.7'}</priority></url>`).join('\n');
+  const urls = allRoutes.map(r => `  <url><loc>${BASE_DOMAIN}${r === '/' ? '/' : r}</loc><changefreq>${r==='/'?'daily': r.startsWith('/docs')?'weekly':'monthly'}</changefreq><priority>${r==='/'?'1.0': r==='/docs'?'0.9':'0.7'}</priority></url>`).join('\n');
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
   writeFileSync(join(DIST, 'sitemap.xml'), sitemap, 'utf8');
   console.log(`Generated ${join(DIST, 'sitemap.xml')} (${allRoutes.length} urls)`);
 }
 // Generate robots.txt
 {
-  const robots = `User-agent: *\nAllow: /\nSitemap: https://zoop.network/sitemap.xml\n`;
+  const robots = `User-agent: *\nAllow: /\nSitemap: ${BASE_DOMAIN}/sitemap.xml\n`;
   writeFileSync(join(DIST, 'robots.txt'), robots, 'utf8');
   console.log(`Generated ${join(DIST, 'robots.txt')}`);
 }

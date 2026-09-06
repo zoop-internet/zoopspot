@@ -25,6 +25,8 @@ const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/app': { title: 'Console — Personal Devices & Connections | Zoop', desc: 'Manage your Zoop devices, connections and sharing — private device mesh console.' },
   '/org': { title: 'Organization — Teams & Fleet Management | Zoop', desc: 'Manage organization members, fleet devices and access policies.' },
   '/admin': { title: 'Platform Admin — Overview & Operations | Zoop', desc: 'Operator console for Zoop cloud — health, relays, IPAM & audit.' },
+  '/privacy': { title: 'Privacy Policy — Zero Logging & Cryptographic Mesh | Zoop', desc: 'Zoop Privacy Policy: Zero logging of payload traffic, browsing history, DNS or destination IPs. End-to-end WireGuard encrypted, open source.' },
+  '/terms': { title: 'Terms of Service & EULA — Peer-to-Peer Mesh | Zoop', desc: 'Zoop Terms of Service and End User License Agreement: Peer-to-peer network usage, acceptable use policy, and licensing.' },
 };
 
 function normalizePath(raw: string): string {
@@ -39,6 +41,7 @@ function normalizePath(raw: string): string {
 
 const VALID_ROUTES = new Set([
   '/', '/how-it-works', '/architecture', '/products', '/downloads', '/security', '/pricing', '/docs',
+  '/privacy', '/privacy-policy', '/terms', '/terms-of-service', '/eula',
   '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
   '/app', '/user', '/org', '/admin',
 ]);
@@ -88,7 +91,7 @@ const App: React.FC = () => {
   // Per-route title/description sync for SEO (covers S4-05) — uses normalized route
   useEffect(() => {
     const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
-      : (['/app','/user'].includes(normalized) ? '/app' : normalized);
+      : (['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : normalized)));
     const meta = ROUTE_META[key] || ROUTE_META['/'];
     document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
     if (!isValidRoute) console.warn('[zoop] unknown route:', normalized, '→ falling back to landing');

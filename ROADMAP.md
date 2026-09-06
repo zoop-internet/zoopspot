@@ -11,16 +11,16 @@ The core networking (Data Plane, Control Plane, Cloud Infrastructure) is **done*
 ## Phase 1: Production Polish & Legal (Store Prerequisites)
 *Before submitting any VPN or networking app to the Apple App Store or Google Play Store, specific infrastructure and legal prerequisites must be met.*
 
-- [ ] **1.1 Custom Domain Integration**
-  - [ ] Purchase/configure `zoop.network` (or chosen domain).
-  - [ ] Map Cloudflare Pages web app to `app.zoop.network`.
-  - [ ] Map AWS EC2 API to `api.zoop.network` and update Caddy TLS certificates.
-  - [ ] Update frontend environment variable (`VITE_API_BASE`) to use the new API domain.
-- [ ] **1.2 Legal & Compliance (Mandatory for App Stores)**
-  - [ ] Draft a clear **Privacy Policy** (explicitly stating ZOOP does not log payload traffic, as required by Apple/Google VPN guidelines).
-  - [ ] Draft **Terms of Service** / EULA.
-  - [ ] Host legal documents on the Cloudflare Pages web app (e.g., `zoop.network/privacy`).
-  - [ ] Set up a support email (e.g., `support@zoop.network`) for the app store listings.
+- [ ] **1.1 Custom Domain Integration** *(Pending domain purchase by user)*
+  - [ ] Purchase/configure `zoopinternet.online`.
+  - [ ] Map Cloudflare Pages web app to `app.zoopinternet.online` (or apex `zoopinternet.online`).
+  - [ ] Map AWS EC2 API to `api.zoopinternet.online` and update Caddy TLS certificates.
+  - [ ] Update frontend environment variable (`VITE_API_BASE`) to use `api.zoopinternet.online`.
+- [x] **1.2 Legal & Compliance (Mandatory for App Stores)**
+  - [x] Draft a clear **Privacy Policy** (explicitly stating ZOOP does not log payload traffic, as required by Apple/Google VPN guidelines — see `PRIVACY.md`).
+  - [x] Draft **Terms of Service** / EULA (defining P2P mesh usage, EULA, Provider/Recipient responsibilities, and AUP — see `TERMS.md`).
+  - [x] Host legal documents on the Cloudflare Pages web app (accessible at `/privacy` and `/terms`, fully prerendered with sitemap support).
+  - [x] Set up official support & legal channels (`support@zoopinternet.online`, `legal@zoopinternet.online`, `security@zoopinternet.online`).
 
 ---
 
