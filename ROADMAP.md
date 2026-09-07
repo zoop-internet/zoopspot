@@ -27,19 +27,19 @@ The core networking (Data Plane, Control Plane, Cloud Infrastructure) is **done*
 ## Phase 2: Mobile App Foundation (Flutter)
 *Building the cross-platform mobile UI using Flutter, ensuring a premium, non-traditional "dark mode" network aesthetic.*
 
-- [ ] **2.1 Project Initialization**
-  - [ ] Initialize the Flutter project (`zoop_mobile`).
-  - [ ] Configure App Icons, Splash Screens, and package names (`network.zoop.app`).
-- [ ] **2.2 Design System Implementation**
-  - [ ] Implement the dark-mode color palette (deep surfaces, cyan/green accents).
-  - [ ] Set up global typography and theme data.
-  - [ ] Build reusable UI components: Node/Orbital connection animations, custom buttons, biometric lock screens.
-- [ ] **2.3 State Management & Architecture**
-  - [ ] Set up Riverpod or Bloc for predictable state management.
-  - [ ] Implement GoRouter for deep-linking and screen navigation.
-- [ ] **2.4 Local Secure Storage**
-  - [ ] Integrate `flutter_secure_storage` (Keychain on iOS, Keystore on Android).
-  - [ ] Write the local repository to securely store the user's Ed25519 identity keypair.
+- [x] **2.1 Project Initialization**
+  - [x] Initialize the Flutter project (`zoop_mobile`).
+  - [x] Configure App Icons, Splash Screens, and package names (`network.zoop.app`).
+- [x] **2.2 Design System Implementation**
+  - [x] Implement the dark-mode color palette (deep surfaces, cyan/green accents).
+  - [x] Set up global typography and theme data.
+  - [x] Build reusable UI components: Node/Orbital connection animations, custom buttons, biometric lock screens.
+- [x] **2.3 State Management & Architecture**
+  - [x] Set up Riverpod or Bloc for predictable state management.
+  - [x] Implement GoRouter for deep-linking and screen navigation.
+- [x] **2.4 Local Secure Storage**
+  - [x] Integrate `flutter_secure_storage` (Keychain on iOS, Keystore on Android).
+  - [x] Write the local repository to securely store the user's Ed25519 identity keypair.
 
 ---
 

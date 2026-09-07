@@ -1,4 +1,4 @@
-package com.zoop.vpn
+package network.zoop.app.vpn
 
 import android.content.Intent
 import android.net.VpnService
