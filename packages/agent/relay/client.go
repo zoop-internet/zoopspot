@@ -201,6 +201,42 @@ func (c *RelayClient) Send(destID types.ID, payload []byte) error {
 	return nil
 }
 
+// HealthCheck verifies relay connectivity by sending a WebSocket ping and waiting for a pong.
+func (c *RelayClient) HealthCheck(ctx context.Context) error {
+	c.mu.RLock()
+	conn := c.conn
+	c.mu.RUnlock()
+
+	if conn == nil {
+		return fmt.Errorf("relay client not connected")
+	}
+
+	pongCh := make(chan struct{}, 1)
+	conn.SetPongHandler(func(appData string) error {
+		select {
+		case pongCh <- struct{}{}:
+		default:
+		}
+		return nil
+	})
+
+	c.mu.Lock()
+	err := conn.WriteControl(websocket.PingMessage, []byte("zoop-ping"), time.Now().Add(2*time.Second))
+	c.mu.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to write ping frame: %w", err)
+	}
+
+	select {
+	case <-pongCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(2 * time.Second):
+		return fmt.Errorf("relay health check timed out")
+	}
+}
+
 // IsConnected returns true if the client is currently connected.
 func (c *RelayClient) IsConnected() bool {
 	c.mu.RLock()

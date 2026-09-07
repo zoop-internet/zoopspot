@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/connection_state.dart';
 import '../../../../core/models/peer_device.dart';
 import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../diagnostics/domain/diagnostic_models.dart';
+import '../../../diagnostics/application/diagnostics_notifier.dart';
 
-class ConnectionDetailsSheet extends StatelessWidget {
+class ConnectionDetailsSheet extends ConsumerWidget {
   final PeerDevice? peer;
   final ConnectionStatus status;
   final RoutingMode routingMode;
@@ -38,7 +41,7 @@ class ConnectionDetailsSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDirect = status == ConnectionStatus.connectedDirect;
 
     return Padding(
@@ -180,6 +183,37 @@ class ConnectionDetailsSheet extends StatelessWidget {
 
           const SizedBox(height: 24),
 
+          // Self-Healing Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: ZoopColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ZoopColors.surfaceBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.healing, size: 18, color: ZoopColors.accentAmber),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Self-Healing & DPD',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildSelfHealingContent(context, ref),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
@@ -224,6 +258,84 @@ class ConnectionDetailsSheet extends StatelessWidget {
                 color: valueColor ?? ZoopColors.textPrimary,
               ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildSelfHealingContent(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(selfHealingStatusProvider);
+
+    Color stateColor;
+    String stateText;
+    switch (status.peerState) {
+      case DPDState.alive:
+        stateColor = ZoopColors.accentGreen;
+        stateText = 'ALIVE';
+        break;
+      case DPDState.suspect:
+        stateColor = ZoopColors.accentAmber;
+        stateText = 'SUSPECT';
+        break;
+      case DPDState.dead:
+        stateColor = ZoopColors.accentRose;
+        stateText = 'DEAD';
+        break;
+    }
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Peer State', style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: stateColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: stateColor.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                stateText,
+                style: TextStyle(color: stateColor, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        const Divider(height: 20, color: ZoopColors.surfaceBorder),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Retry Count', style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13)),
+            Text('${status.retryCount}', style: TextStyle(color: ZoopColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        if (status.nextRetryIn != null) ...[
+          const Divider(height: 20, color: ZoopColors.surfaceBorder),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Next Retry In', style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13)),
+              Text('${status.nextRetryIn!.inSeconds}s', style: TextStyle(color: ZoopColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
+        if (status.lastFailoverEvent != null) ...[
+          const Divider(height: 20, color: ZoopColors.surfaceBorder),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Last Failover', style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13)),
+              Expanded(
+                child: Text(
+                  status.lastFailoverEvent!,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(color: ZoopColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

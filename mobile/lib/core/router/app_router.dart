@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/identity/presentation/screens/identity_screen.dart';
 import '../../features/onboarding/presentation/screens/welcome_screen.dart';
+import '../../features/diagnostics/presentation/screens/diagnostics_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -17,6 +18,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/dashboard',
       builder: (context, state) => const DashboardScreen(),
+    ),
+    GoRoute(
+      path: '/diagnostics',
+      builder: (context, state) => const DiagnosticsScreen(),
     ),
   ],
 );

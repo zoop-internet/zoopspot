@@ -97,6 +97,14 @@ func (m *DeviceManager) GetMuxBind() *muxbind.MuxBind {
 	return m.muxBind
 }
 
+// InterfaceName returns the assigned interface name.
+func (m *DeviceManager) InterfaceName() string {
+	if m == nil {
+		return ""
+	}
+	return m.ifName
+}
+
 // AssignIP assigns an IP address to the TUN interface using OS-specific methods.
 func (m *DeviceManager) AssignIP(ipAddress string) error {
 	if m.mockMode {

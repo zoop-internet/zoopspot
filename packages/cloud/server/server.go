@@ -84,6 +84,8 @@ type Server struct {
 	upgrader      websocket.Upgrader
 	pairingMu     sync.RWMutex
 	pairingTokens map[string]pairingEntry
+	diagnosticsMu     sync.RWMutex
+	diagnosticReports map[types.ID][]api.DiagnosticReportRequest
 }
 
 type pairingEntry struct {
@@ -183,6 +185,7 @@ func NewServer(
 			CheckOrigin:     checkOrigin(cfg.AllowedOrigins),
 		},
 		pairingTokens: make(map[string]pairingEntry),
+		diagnosticReports: make(map[types.ID][]api.DiagnosticReportRequest),
 	}
 	s.routes()
 	return s
@@ -246,6 +249,10 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /v1/pairing/token", authMw(http.HandlerFunc(s.handleCreatePairingToken())))
 	s.mux.Handle("POST /v1/pairing/claim", authMw(http.HandlerFunc(s.handleClaimPairingToken())))
 	s.mux.Handle("GET /v1/devices/{id}/fleet", authMw(http.HandlerFunc(s.handleGetDeviceFleet())))
+
+	// Diagnostics & Observability (Phase 9)
+	s.mux.Handle("POST /v1/diagnostics/report", authMw(http.HandlerFunc(s.handleSubmitDiagnosticReport())))
+	s.mux.Handle("GET /v1/diagnostics/report/{deviceId}", authMw(http.HandlerFunc(s.handleGetDiagnosticReports())))
 
 	// Admin endpoints (operator console)
 	adminMw := api.AdminMiddleware(authMw, s.cfg.AdminIDs)
@@ -2082,6 +2089,73 @@ func (s *Server) handleGetDeviceFleet() http.HandlerFunc {
 		}
 
 		api.WriteJSON(w, http.StatusOK, fleet)
+	}
+}
+
+func (s *Server) handleSubmitDiagnosticReport() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID := api.IdentityFromContext(r.Context())
+		if callerID == (types.ID{}) {
+			api.WriteError(w, "unauthenticated", "missing authentication identity", http.StatusUnauthorized)
+			return
+		}
+
+		var req api.DiagnosticReportRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid diagnostic report json", http.StatusBadRequest)
+			return
+		}
+
+		if req.Timestamp == "" {
+			req.Timestamp = time.Now().UTC().Format(time.RFC3339)
+		}
+
+		s.diagnosticsMu.Lock()
+		existing := s.diagnosticReports[callerID]
+		if len(existing) >= 10 {
+			existing = existing[1:] // bounded ring buffer
+		}
+		s.diagnosticReports[callerID] = append(existing, req)
+		s.diagnosticsMu.Unlock()
+
+		resp := api.DiagnosticReportResponse{
+			ReportID:  uuid.New().String(),
+			DeviceID:  callerID.String(),
+			Timestamp: req.Timestamp,
+			Status:    "recorded",
+		}
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleGetDiagnosticReports() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID := api.IdentityFromContext(r.Context())
+		if callerID == (types.ID{}) {
+			api.WriteError(w, "unauthenticated", "missing authentication identity", http.StatusUnauthorized)
+			return
+		}
+
+		deviceIDStr := r.PathValue("deviceId")
+		if deviceIDStr == "" {
+			api.WriteError(w, "invalid_request", "device id required", http.StatusBadRequest)
+			return
+		}
+
+		if deviceIDStr != callerID.String() {
+			api.WriteError(w, "forbidden", "cannot access diagnostics for another device", http.StatusForbidden)
+			return
+		}
+
+		s.diagnosticsMu.RLock()
+		reports := s.diagnosticReports[callerID]
+		s.diagnosticsMu.RUnlock()
+
+		if reports == nil {
+			reports = []api.DiagnosticReportRequest{}
+		}
+
+		api.WriteJSON(w, http.StatusOK, reports)
 	}
 }
 

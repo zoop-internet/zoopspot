@@ -724,3 +724,81 @@ func TestServer_DevicePairing(t *testing.T) {
 	}
 }
 
+func TestServer_DiagnosticReports(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Register device
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	reqA, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Diagnostic Phone", Platform: "android", PublicKey: base64.StdEncoding.EncodeToString(pub)})
+	recA := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recA, httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(reqA)))
+	var dev api.DeviceResponse
+	json.NewDecoder(recA.Body).Decode(&dev)
+
+	authReq := func(method, path string, body []byte) *http.Request {
+		r := httptest.NewRequest(method, path, bytes.NewReader(body))
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		p := api.BuildCanonicalPayload(method, path, ts, nonce, bodyHash(string(body)))
+		sig := ed25519.Sign(priv, p)
+		r.Header.Set("X-Zoop-Identity", dev.EndpointID.String())
+		r.Header.Set("X-Zoop-Signature", base64.StdEncoding.EncodeToString(sig))
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		if len(body) > 0 {
+			r.Header.Set("Content-Type", "application/json")
+		}
+		return r
+	}
+
+	// 1. Submit diagnostic report
+	diagReq, _ := json.Marshal(api.DiagnosticReportRequest{
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		AgentVersion: "1.0.0",
+		OS:           "android",
+		Healthy:      true,
+		NATType:      "full_cone",
+		PathMTU:      1420,
+	})
+	wSub := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wSub, authReq(http.MethodPost, "/v1/diagnostics/report", diagReq))
+	if wSub.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("submit diagnostic report: expected 201, got %d", wSub.Result().StatusCode)
+	}
+
+	var subResp api.DiagnosticReportResponse
+	if err := json.NewDecoder(wSub.Body).Decode(&subResp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if subResp.DeviceID != dev.EndpointID.String() {
+		t.Errorf("expected device ID %s, got %s", dev.EndpointID, subResp.DeviceID)
+	}
+
+	// 2. Fetch diagnostic reports
+	wGet := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wGet, authReq(http.MethodGet, "/v1/diagnostics/report/"+dev.EndpointID.String(), nil))
+	if wGet.Result().StatusCode != http.StatusOK {
+		t.Fatalf("get diagnostic reports: expected 200, got %d", wGet.Result().StatusCode)
+	}
+
+	var reports []api.DiagnosticReportRequest
+	if err := json.NewDecoder(wGet.Body).Decode(&reports); err != nil {
+		t.Fatalf("failed to decode reports: %v", err)
+	}
+	if len(reports) != 1 {
+		t.Fatalf("expected 1 report, got %d", len(reports))
+	}
+	if reports[0].NATType != "full_cone" || reports[0].PathMTU != 1420 {
+		t.Errorf("report data mismatch: %+v", reports[0])
+	}
+}
+
+

@@ -34,7 +34,10 @@ type ConnectionRecoveryManager struct {
 	listenPort   int
 	deviceMgr    *DeviceManager
 	relayURL     string
+	relayURLs    []string
+	relayIdx     int
 	monitor      *PathMonitor
+	dpd          *DeadPeerDetector
 	onStateChange RecoveryCallback
 	logger       *slog.Logger
 
@@ -46,7 +49,7 @@ type ConnectionRecoveryManager struct {
 	lastUpgradeTime time.Time
 }
 
-// NewConnectionRecoveryManager creates a recovery manager instance.
+// NewConnectionRecoveryManager creates a recovery manager instance with a single relay URL.
 func NewConnectionRecoveryManager(
 	mux *muxbind.MuxBind,
 	peerPubKey wgtypes.Key,
@@ -58,20 +61,71 @@ func NewConnectionRecoveryManager(
 	onStateChange RecoveryCallback,
 	logger *slog.Logger,
 ) *ConnectionRecoveryManager {
-	return &ConnectionRecoveryManager{
+	var relayURLs []string
+	if relayURL != "" {
+		relayURLs = []string{relayURL}
+	}
+	return NewMultiRelayRecoveryManager(mux, peerPubKey, initialCandidates, connID, listenPort, deviceMgr, relayURLs, onStateChange, logger)
+}
+
+// NewMultiRelayRecoveryManager creates a recovery manager with multiple fallback relay endpoints and autonomous DPD.
+func NewMultiRelayRecoveryManager(
+	mux *muxbind.MuxBind,
+	peerPubKey wgtypes.Key,
+	initialCandidates []types.EndpointCandidate,
+	connID string,
+	listenPort int,
+	deviceMgr *DeviceManager,
+	relayURLs []string,
+	onStateChange RecoveryCallback,
+	logger *slog.Logger,
+) *ConnectionRecoveryManager {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	primaryRelay := ""
+	if len(relayURLs) > 0 {
+		primaryRelay = relayURLs[0]
+	}
+
+	crm := &ConnectionRecoveryManager{
 		mux:             mux,
 		peerPubKey:      peerPubKey,
 		candidates:      initialCandidates,
 		connID:          connID,
 		listenPort:      listenPort,
 		deviceMgr:       deviceMgr,
-		relayURL:        relayURL,
+		relayURL:        primaryRelay,
+		relayURLs:       relayURLs,
+		relayIdx:        0,
 		monitor:         NewPathMonitor(deviceMgr, logger),
 		onStateChange:   onStateChange,
 		logger:          logger,
 		currentState:    StateDirect,
 		isDirect:        true,
 	}
+
+	crm.dpd = NewDeadPeerDetector(
+		DefaultDPDConfig(),
+		func() {
+			crm.mu.Lock()
+			st := crm.currentState
+			crm.mu.Unlock()
+			if st == StateDirect {
+				crm.logger.Warn("DPD reported peer dead, failing over to relay")
+				crm.transitionToRelay(context.Background())
+			}
+		},
+		func(retries int, nextBackoff time.Duration) {
+			crm.logger.Info("DPD suspecting peer unreachable", "retry", retries, "next_backoff", nextBackoff)
+		},
+		func() {
+			crm.logger.Info("DPD confirmed peer alive")
+		},
+		logger,
+	)
+
+	return crm
 }
 
 // UpdateCandidates updates the known candidate endpoints (e.g. after peer signals new IPs).
@@ -146,8 +200,6 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	stalledCount := 0
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -156,6 +208,7 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 			crm.mu.Lock()
 			candidates := append([]types.EndpointCandidate(nil), crm.candidates...)
 			state := crm.currentState
+			timeSinceUpgrade := time.Since(crm.lastUpgradeTime)
 			crm.mu.Unlock()
 
 			// Check WireGuard UAPI status
@@ -165,30 +218,9 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 				continue
 			}
 
-			// Evaluate handshake freshness with grace period after upgrade
-			handshakeStale := false
-			crm.mu.Lock()
-			timeSinceUpgrade := time.Since(crm.lastUpgradeTime)
-			crm.mu.Unlock()
-
-			if timeSinceUpgrade > 5*time.Second {
-				if pathState.LastHandshake.IsZero() || time.Since(pathState.LastHandshake) > 3*time.Second {
-					handshakeStale = true
-				}
-			}
-
 			if state == StateDirect {
-				if handshakeStale {
-					stalledCount++
-					if stalledCount >= 2 {
-						crm.logger.Warn("direct path stalled, triggering instant fallback to relay",
-							"stalled_sec", time.Since(pathState.LastHandshake).Seconds(),
-						)
-						crm.transitionToRelay(ctx)
-						stalledCount = 0
-					}
-				} else {
-					stalledCount = 0
+				if timeSinceUpgrade > 5*time.Second && crm.dpd != nil {
+					crm.dpd.RecordHandshake(pathState.LastHandshake)
 				}
 			} else if state == StateRelayed || state == StateDegraded {
 				// Probe for direct path recovery
@@ -208,6 +240,10 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 
 					if err := crm.deviceMgr.AddPeer(crm.peerPubKey, bestCand.IP, bestCand.Port, allowedIPs); err != nil {
 						crm.logger.Warn("add peer during recovery returned error (unprivileged env)", "error", err)
+					}
+
+					if crm.dpd != nil {
+						crm.dpd.Reset()
 					}
 
 					crm.mu.Lock()
@@ -230,14 +266,27 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 func (crm *ConnectionRecoveryManager) transitionToRelay(ctx context.Context) {
 	crm.mu.Lock()
 	crm.currentState = StateRelayed
-	crm.currentEndpoint = crm.relayURL
+	if len(crm.relayURLs) > 1 {
+		crm.relayIdx = (crm.relayIdx + 1) % len(crm.relayURLs)
+		crm.relayURL = crm.relayURLs[crm.relayIdx]
+	}
+	targetRelay := crm.relayURL
+	crm.currentEndpoint = targetRelay
 	crm.isDirect = false
 	cb := crm.onStateChange
 	crm.mu.Unlock()
 
-	crm.logger.Info("switched connection state to relay fallback", "relay_url", crm.relayURL)
+	crm.logger.Info("switched connection state to relay fallback", "relay_url", targetRelay)
 
 	if cb != nil {
-		cb(StateRelayed, crm.relayURL, false)
+		cb(StateRelayed, targetRelay, false)
 	}
+}
+
+// GetDPDStatus returns the underlying dead-peer detector liveliness status.
+func (crm *ConnectionRecoveryManager) GetDPDStatus() (DPDState, int, time.Duration) {
+	if crm.dpd != nil {
+		return crm.dpd.GetStatus()
+	}
+	return DPDStateAlive, 0, 0
 }

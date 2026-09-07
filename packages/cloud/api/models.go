@@ -150,3 +150,28 @@ type FleetDevice struct {
 	PairedAt string `json:"paired_at"`
 }
 
+// DiagnosticReportRequest represents the payload uploaded by clients reporting diagnostics.
+type DiagnosticReportRequest struct {
+	Timestamp       string           `json:"timestamp"`
+	BundleID        string           `json:"bundle_id,omitempty"`
+	AgentVersion    string           `json:"agent_version,omitempty"`
+	OS              string           `json:"os,omitempty"`
+	Arch            string           `json:"arch,omitempty"`
+	Healthy         bool             `json:"healthy"`
+	Checks          []map[string]any `json:"checks,omitempty"`
+	NATType         string           `json:"nat_type,omitempty"`
+	PathMTU         int              `json:"path_mtu,omitempty"`
+	DNSLeakDetected *bool            `json:"dns_leak_detected,omitempty"`
+	LatencyStats    map[string]any   `json:"latency_stats,omitempty"`
+	PeerTelemetry   []map[string]any `json:"peer_telemetry,omitempty"`
+}
+
+// DiagnosticReportResponse is returned after successfully storing a diagnostic report.
+type DiagnosticReportResponse struct {
+	ReportID  string `json:"report_id"`
+	DeviceID  string `json:"device_id"`
+	Timestamp string `json:"timestamp"`
+	Status    string `json:"status"`
+}
+
+

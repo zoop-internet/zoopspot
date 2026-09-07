@@ -300,6 +300,34 @@ class CloudApiClient {
     return [];
   }
 
+  Future<Map<String, dynamic>> submitDiagnosticReport(Map<String, dynamic> report) async {
+    final uri = Uri.parse('$baseUrl/v1/diagnostics/report');
+    final response = await _client.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(report),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      _throwError(response);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDiagnosticReports(String deviceId) async {
+    final uri = Uri.parse('$baseUrl/v1/diagnostics/report/$deviceId');
+    final response = await _client.get(uri);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final res = json.decode(response.body);
+      if (res is List) {
+        return res.map((item) => item as Map<String, dynamic>).toList();
+      }
+      return [];
+    } else {
+      _throwError(response);
+    }
+  }
+
   Never _throwError(http.Response response) {
     try {
       final body = json.decode(response.body) as Map<String, dynamic>;

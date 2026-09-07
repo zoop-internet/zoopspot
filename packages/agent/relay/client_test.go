@@ -66,4 +66,9 @@ func TestRelayClient_Integration(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatalf("timed out waiting for relayed message")
 	}
+
+	// Verify HealthCheck works
+	if err := pClient.HealthCheck(ctx); err != nil {
+		t.Errorf("expected successful health check, got: %v", err)
+	}
 }

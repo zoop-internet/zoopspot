@@ -48,15 +48,42 @@ func main() {
 		daemonAction = "pair_device"
 	case "telemetry":
 		daemonAction = "get_telemetry"
-	case "doctor":
+	case "diagnose", "doctor":
 		cfg := config.LoadConfig()
 		stMgr := state.NewManager()
 		stMgr.Set(state.StateRunning)
 		checker := health.NewChecker(stMgr, "zoop0", cfg.ControlPlaneURL, cfg.STUNServer)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
+
+		isJSON := false
+		isBundle := false
+		for _, arg := range os.Args[2:] {
+			if arg == "--json" {
+				isJSON = true
+			}
+			if arg == "--bundle" {
+				isBundle = true
+			}
+		}
+
+		if isBundle {
+			bundle, err := health.GenerateBundle(ctx, checker, nil)
+			if err != nil {
+				fmt.Printf("Error generating bundle: %v\n", err)
+				os.Exit(1)
+			}
+			jsonStr, _ := bundle.ToJSON()
+			fmt.Println(jsonStr)
+			return
+		}
+
 		report := checker.RunDiagnostics(ctx)
-		report.PrintReport()
+		if isJSON {
+			fmt.Println(report.FormatJSON())
+		} else {
+			report.PrintReport()
+		}
 		if !report.Healthy {
 			os.Exit(1)
 		}
@@ -130,7 +157,8 @@ func printUsage() {
 	fmt.Println("  disconnect         Disconnect current active tunnel")
 	fmt.Println("  telemetry          View network telemetry (latency, throughput)")
 	fmt.Println("  subscribe          Listen for real-time state updates from the daemon")
-	fmt.Println("  doctor             Run network and system diagnostics probe")
+	fmt.Println("  diagnose           Run network and system diagnostics probe (--json, --bundle)")
+	fmt.Println("  doctor             Alias for diagnose")
 	fmt.Println("  stop               Stop the running zoopd daemon")
 	fmt.Println("")
 	fmt.Println("For daemon management (install/start/stop service), use 'zoopd service <command>'.")

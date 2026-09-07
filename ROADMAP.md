@@ -192,17 +192,17 @@ ZOOP is an end-to-end ecosystem connecting **Android Mobile**, **Desktop Clients
 
 *Empower users and network operators with built-in testing tools and autonomous recovery.*
 
-- [ ] **9.1 In-App Diagnostic Tools**
-  - [ ] Path MTU discovery and packet fragmentation analysis.
-  - [ ] NAT type classification probe (Full Cone, Restricted Cone, Port Restricted, Symmetric).
-  - [ ] End-to-end latency and throughput benchmarking against test endpoints.
-  - [ ] Upstream DNS resolution and leak validation tests.
-- [ ] **9.2 Privacy-Preserving Troubleshooting Telemetry**
-  - [ ] Generate sanitized client diagnostic bundles containing connection states and interface error codes.
-  - [ ] Guarantee zero capture of user payload data, destination IPs, or browsing history in diagnostics.
-- [ ] **9.3 Autonomous Self-Healing**
-  - [ ] Implement automated dead-peer detection (DPD) with exponential backoff retries.
-  - [ ] Seamlessly re-route around failing relays or offline providers to alternate authorized gateways.
+- [x] **9.1 In-App Diagnostic Tools**
+  - [x] Path MTU discovery and packet fragmentation analysis.
+  - [x] NAT type classification probe (Full Cone, Restricted Cone, Port Restricted, Symmetric).
+  - [x] End-to-end latency and throughput benchmarking against test endpoints.
+  - [x] Upstream DNS resolution and leak validation tests.
+- [x] **9.2 Privacy-Preserving Troubleshooting Telemetry**
+  - [x] Generate sanitized client diagnostic bundles containing connection states and interface error codes.
+  - [x] Guarantee zero capture of user payload data, destination IPs, or browsing history in diagnostics.
+- [x] **9.3 Autonomous Self-Healing**
+  - [x] Implement automated dead-peer detection (DPD) with exponential backoff retries.
+  - [x] Seamlessly re-route around failing relays or offline providers to alternate authorized gateways.
 
 ---
 

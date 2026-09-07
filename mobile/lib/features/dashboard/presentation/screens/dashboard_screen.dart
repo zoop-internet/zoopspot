@@ -15,6 +15,8 @@ import '../../../provider/presentation/widgets/gateway_settings_sheet.dart';
 import '../../application/peers_notifier.dart';
 import '../widgets/connection_details_sheet.dart';
 import '../widgets/provider_selection_sheet.dart';
+import '../../../diagnostics/domain/diagnostic_models.dart';
+import '../../../diagnostics/application/diagnostics_notifier.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -422,6 +424,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               else
                 _buildProviderView(
                     context, providerSettings, providerNotifier),
+
+              const SizedBox(height: 24),
+              _buildDiagnosticsCard(context),
             ],
           ),
         ),
@@ -611,6 +616,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ),
 
         const SizedBox(height: 24),
+
+        if (_status.isConnected) ...[
+          _buildSelfHealingBadge(context),
+          const SizedBox(height: 16),
+        ],
 
         // Status Text & Step Details
         Text(
@@ -1070,6 +1080,108 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
         ),
       ],
+    );
+  }
+
+  Widget _buildDiagnosticsCard(BuildContext context) {
+    return InkWell(
+      onTap: () => context.push('/diagnostics'),
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        color: ZoopColors.surfaceElevated,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: ZoopColors.surfaceBorder),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.monitor_heart, color: ZoopColors.primaryCyan),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Network Diagnostics',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Check network health, NAT type, and MTU',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: ZoopColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelfHealingBadge(BuildContext context) {
+    final healingStatus = ref.watch(selfHealingStatusProvider);
+    if (!healingStatus.active) return const SizedBox.shrink();
+
+    Color color;
+    String text;
+    IconData icon;
+
+    switch (healingStatus.peerState) {
+      case DPDState.alive:
+        color = ZoopColors.accentGreen;
+        text = 'Peer Alive';
+        icon = Icons.favorite;
+        break;
+      case DPDState.suspect:
+        color = ZoopColors.accentAmber;
+        text = 'Peer Suspect';
+        icon = Icons.warning_amber_rounded;
+        break;
+      case DPDState.dead:
+        color = ZoopColors.accentRose;
+        text = 'Peer Dead - Failing Over...';
+        icon = Icons.broken_image;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

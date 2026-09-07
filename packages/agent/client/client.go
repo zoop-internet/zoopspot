@@ -195,3 +195,19 @@ func (c *APIClient) CreatePairingToken(ctx context.Context, expiresInSeconds int
 	return &resp, err
 }
 
+// SubmitDiagnosticReport uploads a diagnostic report to the Control Plane.
+func (c *APIClient) SubmitDiagnosticReport(ctx context.Context, report api.DiagnosticReportRequest) (*api.DiagnosticReportResponse, error) {
+	var resp api.DiagnosticReportResponse
+	err := c.do(ctx, http.MethodPost, "/v1/diagnostics/report", report, &resp)
+	return &resp, err
+}
+
+// GetDiagnosticReports retrieves diagnostic reports for the client device from the Control Plane.
+func (c *APIClient) GetDiagnosticReports(ctx context.Context) ([]api.DiagnosticReportRequest, error) {
+	var resp []api.DiagnosticReportRequest
+	path := fmt.Sprintf("/v1/diagnostics/report/%s", c.Identity.EndpointID.String())
+	err := c.do(ctx, http.MethodGet, path, nil, &resp)
+	return resp, err
+}
+
+

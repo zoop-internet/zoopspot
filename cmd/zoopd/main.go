@@ -363,6 +363,25 @@ func handleIPC(
 			Data:    claimResp,
 		}
 
+	case "run_diagnostics":
+		cloudURL := "http://localhost:8080"
+		if apiClient != nil && apiClient.BaseURL != "" {
+			cloudURL = apiClient.BaseURL
+		}
+		tunName := "zoop0"
+		if devMgr != nil && devMgr.InterfaceName() != "" {
+			tunName = devMgr.InterfaceName()
+		}
+		sm := state.NewManager()
+		sm.Set(state.StateRunning)
+		checker := health.NewChecker(sm, tunName, cloudURL, "stun.l.google.com:19302")
+		report := checker.RunDiagnostics(ctx)
+		resp = DaemonResponse{
+			Success: true,
+			Message: "Diagnostics completed",
+			Data:    report,
+		}
+
 	case "get_peers":
 		devices, err := apiClient.ListDevices(ctx)
 		if err != nil {
