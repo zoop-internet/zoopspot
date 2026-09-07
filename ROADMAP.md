@@ -1,130 +1,225 @@
-# ZOOP: Product & Engineering Roadmap
+# ZOOP: Full-Stack Product & Engineering Roadmap
 
-This roadmap defines the core phases and milestones to take ZOOP to a shippable, consumer-ready Minimum Viable Product (MVP).
+This roadmap defines the architectural milestones, functional capabilities, and engineering phases required to deliver ZOOP as a production-grade, globally distributed connectivity platform.
 
-The foundational networking engine (Data Plane, Control Plane, Cloud Infrastructure) is operational. The current focus is on **the Mobile Client, Native Platform Integrations, and Public Store Launch**.
+ZOOP is an end-to-end ecosystem connecting **Android Mobile**, **Desktop Clients**, **Edge Routers (OpenWrt/Linux)**, and the **Cloud Control Plane (`zoop-cloud`)** backed by **Neon Lakebase Postgres**, **Signaling Hubs**, **Encrypted Relays**, and the **Web Management Console**.
 
 > [!NOTE]
-> **Space for Innovation**: This roadmap outlines functional capabilities, architectural milestones, and user goals. Specific visual layouts, color palettes, typography, and interaction patterns are deliberately left open to allow design freedom and continuous innovation based on user feedback and evolving platform capabilities.
+> **Space for Innovation**: This roadmap focuses strictly on functional capabilities, architectural contracts, security guarantees, and user outcomes. Specific visual layouts, color schemes, typography, and micro-interactions are intentionally left flexible to empower creative design and continuous platform-native innovation.
 
 ---
 
-## Phase 1: Infrastructure & Store Compliance
-*Establish production hosting and fulfill store prerequisites.*
+## Architecture Overview
 
-- [ ] **1.1 Production Domain & Routing** *(Pending custom domain purchase)*
-  - [ ] Connect production custom domain (`zoopinternet.online`).
-  - [ ] Configure production API endpoints and edge routing.
-- [x] **1.2 Legal & Privacy Prerequisites**
-  - [x] Publish comprehensive Privacy Policy declaring zero logging of traffic payloads, DNS, or browsing activity (`PRIVACY.md`).
-  - [x] Publish Terms of Service & EULA defining acceptable use and provider/recipient guidelines (`TERMS.md`).
-  - [x] Host legal pages on the public web edge (`/privacy`, `/terms`).
-  - [x] Establish official support and compliance communication channels.
-
----
-
-## Phase 2: Mobile Application Foundation (Completed)
-*Cross-platform client architecture and foundational application infrastructure.*
-
-- [x] **2.1 Mobile Workspace & Toolchain**
-  - [x] Initialize cross-platform mobile application in `mobile/` (`network.zoop.app`).
-  - [x] Configure build toolchains, SDK dependencies, and development environment.
-- [x] **2.2 Design System & Component Library**
-  - [x] Establish core design tokens, thematic styles, and reusable UI components.
-  - [x] Create extensible visual foundations adaptable to future styling iterations.
-- [x] **2.3 Application Architecture & State Management**
-  - [x] Implement reactive state management across app modules.
-  - [x] Configure declarative routing supporting deep linking and screen transitions.
-- [x] **2.4 Secure Local Storage**
-  - [x] Implement encrypted key-value storage using hardware-backed platform keystores.
-  - [x] Protect cryptographic identity credentials and authentication tokens at rest.
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              EXPERIENCE LAYER                               │
+│      Mobile Client (Android / iOS)    •    Web Console    •    Desktop      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                           CONTROL & SIGNALING PLANE                         │
+│   Zoop Cloud Control Plane (`zoop-cloud` on EC2)  •  Neon Postgres Database  │
+│   WebSocket Signaling Hub  •  STUN / TURN (Port 3478)  •  Encrypted Relays  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                              DATA PLANE & MESH                              │
+│       Native VpnService (Android)     •    Virtual TUN Routing Engine       │
+│       Direct P2P Encrypted Tunnels    •    Edge Gateways (OpenWrt/Linux)    │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Phase 3: Identity & Onboarding
-*First-run user journey establishing decentralized identity and device trust.*
+## Phase 1: Global Infrastructure, Cloud Control Plane & Compliance
 
-- [ ] **3.1 Frictionless Onboarding**
-  - [ ] Introduce Zoop's decentralized connectivity model without commercial VPN cliches.
-  - [ ] Support zero-knowledge account creation (no email, phone number, or third-party sign-in required).
-- [ ] **3.2 Cryptographic Identity Generation**
-  - [ ] Generate cryptographic keypairs locally on the client device.
-  - [ ] Derive user-friendly device identifiers and cryptographic fingerprints.
-  - [ ] Authenticate and register the device with the cloud signaling control plane.
-- [ ] **3.3 Identity Protection & Recovery**
-  - [ ] Provide simple, secure backup and recovery mechanisms for user keys.
-  - [ ] Guard sensitive key export behind device biometric authentication.
+*Establish production cloud services, database orchestration, and legal foundations.*
 
----
-
-## Phase 4: Native VPN & Packet Routing Engine
-*Operating system packet routing and background tunnel lifecycle.*
-
-- [ ] **4.1 Android VPN Service**
-  - [ ] Establish communication bridge between cross-platform UI and Android background VPN service.
-  - [ ] Handle system VPN permissions, TUN interface provisioning, and routing tables.
-  - [ ] Stream real-time connection lifecycle and network events to the UI.
-- [ ] **4.2 iOS NetworkExtension**
-  - [ ] Integrate packet tunnel provider for iOS network extension.
-  - [ ] Manage system VPN configurations and memory optimization.
-- [ ] **4.3 Background Persistence & Power Optimization**
-  - [ ] Configure persistent background service and status notifications.
-  - [ ] Handle system sleep states and provide battery optimization guidance.
+- [x] **1.1 Cloud Control Plane Infrastructure**
+  - [x] Deploy `zoop-cloud` service on cloud instance (`3.70.135.200.sslip.io`) with automated systemd supervision.
+  - [x] Provision Neon Lakebase Postgres database in Frankfurt with automated schema migrations.
+  - [x] Configure automated TLS certificate provisioning via Caddy reverse proxy.
+  - [x] Implement cryptographic authentication (`zoop-auth-v2`) with Ed25519 signature verification and replay prevention.
+- [ ] **1.2 Production Domain & Global Edge**
+  - [ ] Provision production domain (`zoopinternet.online`) and DNS routing.
+  - [ ] Deploy edge reverse proxy with DDoS protection and low-latency API termination.
+- [x] **1.3 Legal, Privacy & Compliance Foundations**
+  - [x] Publish comprehensive zero-log Privacy Policy (`PRIVACY.md`) guaranteeing no traffic, payload, or DNS logging.
+  - [x] Publish Terms of Service & Acceptable Use Policy (`TERMS.md`) covering provider and recipient guidelines.
+  - [x] Deploy public legal edge on Cloudflare Pages (`/privacy`, `/terms`).
+  - [x] Establish official privacy and security compliance channels.
 
 ---
 
-## Phase 5: Connecting (Recipient Experience)
-*Discovering, connecting to, and monitoring secure tunnels through trusted providers.*
+## Phase 2: Mobile Client Architecture & Toolchains (Completed)
 
-- [ ] **5.1 Provider Discovery**
-  - [ ] Discover and list available authorized providers across personal devices, peers, and organizations.
-  - [ ] Display real-time availability and provider status.
-- [ ] **5.2 Connection Flow & State Transparency**
-  - [ ] Establish secure tunnels with transparent connection phase feedback.
-  - [ ] Clearly indicate connection type (direct peer-to-peer vs. encrypted relay).
-- [ ] **5.3 Real-Time Network Observability**
-  - [ ] Display live connection telemetry: latency, throughput, and protocol health.
-  - [ ] Handle seamless network roaming during network transitions (Wi-Fi <-> Cellular).
+*Establish the cross-platform mobile foundation, native compilation environment, and core app structure.*
 
----
-
-## Phase 6: Sharing (Provider Experience)
-*Enabling devices to act as secure egress gateways for authorized peers.*
-
-- [ ] **6.1 Gateway Sharing Controls**
-  - [ ] Provide clear, intentional controls to enable or disable connection sharing.
-  - [ ] Communicate provider responsibilities and network boundaries.
-- [ ] **6.2 Connected Peer Management**
-  - [ ] Provide real-time visibility into connected peers and resource usage.
-  - [ ] Support instant access revocation and session termination.
-- [ ] **6.3 Access Authorization & Safeguards**
-  - [ ] Handle inbound connection requests with flexible authorization rules.
-  - [ ] Apply automated safeguards for metered networks and low battery states.
+- [x] **2.1 Host Environment & Native Toolchains**
+  - [x] Configure Flutter SDK (v3.47.2) and Dart toolchain.
+  - [x] Configure Android SDK (API 34/35/36) and command-line build tools.
+  - [x] Accept all platform licenses and verify environment readiness via `flutter doctor`.
+- [x] **2.2 Mobile Client Scaffolding**
+  - [x] Initialize Flutter application workspace in `mobile/` (`network.zoop.app`).
+  - [x] Establish reactive state management architecture using Riverpod.
+  - [x] Implement declarative routing with GoRouter supporting deep links and navigation flows.
+- [x] **2.3 Flexible Design System & Tokens**
+  - [x] Define theme tokens, semantic palettes, and dynamic typography foundations.
+  - [x] Build reusable layout containers and interactive components adaptable to future design evolutions.
+- [x] **2.4 Hardware-Backed Secure Storage**
+  - [x] Implement encrypted key-value storage backed by Android Keystore and iOS Keychain.
+  - [x] Secure cryptographic keypairs, authentication tokens, and sensitive state at rest.
+- [x] **2.5 Native Android VPN Service Scaffolding**
+  - [x] Create native `ZoopVpnService.kt` and network state listener in Kotlin.
+  - [x] Declare required permissions and background service attributes in `AndroidManifest.xml`.
 
 ---
 
-## Phase 7: Multi-Device Mesh & Fleet Management
-*Unified device management and collaborative network relationships.*
+## Phase 3: Decentralized Identity, Cloud Handshake & Device Trust
 
-- [ ] **7.1 Multi-Device Management**
-  - [ ] Manage all personal devices under a unified cryptographic identity.
-  - [ ] Enable frictionless device pairing across platforms.
-  - [ ] Support team networks, shared access circles, and organization policies.
-- [ ] **7.2 Diagnostics & Self-Healing**
-  - [ ] Provide built-in network path testing, NAT detection, and diagnostic tools.
-  - [ ] Generate sanitized logs for troubleshooting without compromising privacy.
+*Generate zero-knowledge device identities and establish cryptographically authenticated sessions with the Cloud Control Plane.*
+
+- [ ] **3.1 Client-Side Identity Generation**
+  - [ ] Generate Ed25519 cryptographic keypairs entirely on the local device without requiring personal identifiers.
+  - [ ] Derive canonical Zoop identifiers and verifiable fingerprints.
+  - [ ] Provide seamless backup, recovery phrase generation, and biometric-gated key export.
+- [ ] **3.2 Cloud Registration & Mutual Handshake**
+  - [ ] Perform mutual cryptographic handshake with `zoop-cloud` using `zoop-auth-v2` signed headers.
+  - [ ] Register new device records in Neon Postgres via `/api/v1/devices` with public key binding.
+  - [ ] Securely store session credentials and device tokens in hardware-backed storage.
+- [ ] **3.3 Real-Time Device Presence & Signaling Session**
+  - [ ] Establish authenticated WebSocket connection to the Cloud Signaling Hub.
+  - [ ] Maintain lightweight heartbeat for live presence detection, peer reachability, and incoming session signaling.
 
 ---
 
-## Phase 8: Hardening & App Store Distribution
-*Validation, platform compliance, and public release.*
+## Phase 4: Android Native Packet Routing Engine & Data Plane Bridge
 
-- [ ] **8.1 Quality Assurance & Resilience**
-  - [ ] Validate tunnel stability across real-world network disruptions and edge cases.
-  - [ ] Verify zero-leak kill-switch behavior during transitions.
-- [ ] **8.2 Store Compliance & Assets**
-  - [ ] Complete Google Play and Apple App Store privacy questionnaires and documentation.
-  - [ ] Prepare store presentation assets and demonstration materials.
-- [ ] **8.3 Distribution & Release**
-  - [ ] Launch internal and public beta test tracks (TestFlight / Google Play Console).
-  - [ ] Public store submission and general availability.
+*Implement system-level TUN interface provisioning, IP routing rules, and packet forwarding.*
+
+- [ ] **4.1 Flutter-to-Native IPC Bridge**
+  - [ ] Build bi-directional platform channels (MethodChannel for commands, EventChannel for real-time telemetry).
+  - [ ] Handle system VPN permissions dialog and user consent lifecycle.
+- [ ] **4.2 Virtual TUN Interface & System Routing**
+  - [ ] Provision Android virtual TUN interface via `VpnService.Builder`.
+  - [ ] Configure IP routing rules (IPv4/IPv6 CIDR routing, MTU configuration, and DNS server assignment).
+  - [ ] Implement robust DNS routing to prevent platform DNS leakage.
+- [ ] **4.3 Data Plane Core Integration**
+  - [ ] Integrate compiled Go mobile data plane engine (`libzoop`) via JNI/CGO.
+  - [ ] Pass TUN file descriptor to the data plane worker for zero-copy packet encryption and routing.
+- [ ] **4.4 Fail-Closed Kill-Switch & Leak Prevention**
+  - [ ] Enforce strict firewall rules: block all non-tunnel traffic when the tunnel drops unexpectedly.
+  - [ ] Verify zero data leaks during interface switching or engine re-initialization.
+- [ ] **4.5 Background Persistence & Power Optimization**
+  - [ ] Configure persistent foreground service with user-friendly status notification.
+  - [ ] Gracefully handle Android Doze mode and system low-memory conditions without dropping active sessions.
+
+---
+
+## Phase 5: Peer Discovery, Cloud Signaling & Dynamic NAT Traversal
+
+*Coordinate direct peer-to-peer tunnels between mobile clients and edge providers, with seamless relay fallback.*
+
+- [ ] **5.1 Cloud-Mediated Peer Discovery**
+  - [ ] Query authorized providers and accessible networks via `zoop-cloud` APIs.
+  - [ ] Receive real-time peer availability updates through the WebSocket signaling channel.
+- [ ] **5.2 STUN/TURN & Interactive Connectivity Establishment (ICE)**
+  - [ ] Perform STUN discovery against Zoop infrastructure (port 3478) to identify public endpoints and NAT mapping behaviors.
+  - [ ] Exchange candidate endpoints and cryptographic handshake tokens via Cloud Signaling.
+  - [ ] Execute UDP hole punching to establish direct, low-latency P2P tunnels.
+- [ ] **5.3 Zero-Knowledge Encrypted Relay Fallback**
+  - [ ] Detect symmetric NAT or restrictive corporate/cellular firewalls that prevent direct P2P.
+  - [ ] Transparently fall back to Zoop encrypted relays without exposing plaintext traffic or session keys to the relay server.
+  - [ ] Continuously probe for direct path recovery in the background.
+
+---
+
+## Phase 6: Recipient Experience & Transparent Routing
+
+*Deliver an intuitive, high-performance connection experience for browsing and accessing networks.*
+
+- [ ] **6.1 Provider Selection & Dynamic Routing Modes**
+  - [ ] Display available provider gateways across personal devices, shared circles, and authorized networks.
+  - [ ] Support flexible routing policies: full internet egress vs. split-tunnel access for specific networks.
+- [ ] **6.2 Connection Lifecycle & Status Feedback**
+  - [ ] Provide transparent, step-by-step progress through connection phases (negotiating, punching, authenticating, connected).
+  - [ ] Clearly display whether the active path is direct peer-to-peer or routed through an encrypted relay.
+- [ ] **6.3 Real-Time Network Telemetry**
+  - [ ] Stream real-time performance indicators: round-trip latency, transfer throughput (RX/TX), packet loss, and tunnel uptime.
+  - [ ] Maintain an active connection log for user review.
+- [ ] **6.4 Seamless Network Roaming**
+  - [ ] Handle uninterrupted tunnel migration across network changes (e.g., transition between Wi-Fi and Cellular).
+  - [ ] Re-negotiate cryptographic session keys and ICE candidates without dropping user application sockets.
+
+---
+
+## Phase 7: Provider Experience & Controlled Gateway Sharing
+
+*Transform mobile and edge devices into secure egress gateways with strict owner controls and safety limits.*
+
+- [ ] **7.1 Gateway Mode Activation**
+  - [ ] Provide clear, intentional activation controls for sharing internet access.
+  - [ ] Enforce client-side cryptographic access checks before routing any third-party packets.
+- [ ] **7.2 Granular Access Policies**
+  - [ ] Define sharing boundaries: restrict to personal devices, approved contacts, or explicit access tokens.
+  - [ ] Enable per-peer approval workflows and dynamic session revocation.
+- [ ] **7.3 Real-Time Session Monitoring**
+  - [ ] Display active recipient sessions, current bandwidth consumption, and total data routed.
+  - [ ] Provide one-tap session disconnection for any active recipient.
+- [ ] **7.4 Automated Resource Safeguards**
+  - [ ] Automatically pause or disable sharing on metered cellular connections based on user preferences.
+  - [ ] Enforce battery and thermal thresholds to prevent device overheating or unexpected power drain.
+
+---
+
+## Phase 8: Multi-Device Mesh, Web Console & Fleet Coordination
+
+*Unify mobile devices, desktop nodes, and edge routers into an integrated personal or organizational network.*
+
+- [ ] **8.1 Unified Device Graph**
+  - [ ] Link multiple endpoints (Android, Desktop, OpenWrt Routers) under a single cryptographic account entity.
+  - [ ] Synchronize authorized peer lists and access rules via the Cloud Control Plane.
+- [ ] **8.2 Frictionless Device Pairing**
+  - [ ] Implement fast cross-device pairing using cryptographic QR codes and short-lived out-of-band tokens.
+  - [ ] Enable mutual authorization between mobile clients and router/desktop nodes.
+- [ ] **8.3 Edge Router Integration**
+  - [ ] Connect home and office routers running `zoop-router` to act as dedicated high-speed providers.
+  - [ ] Allow mobile clients to route egress traffic through home/office routers from anywhere in the world.
+- [ ] **8.4 Web Management Console Synchronization**
+  - [ ] Reflect live device fleet status, active sessions, and access permissions in the Zoop Web Console.
+  - [ ] Enable centralized policy management for teams and organizations.
+
+---
+
+## Phase 9: Diagnostics, Observability & Network Self-Healing
+
+*Empower users and network operators with built-in testing tools and autonomous recovery.*
+
+- [ ] **9.1 In-App Diagnostic Tools**
+  - [ ] Path MTU discovery and packet fragmentation analysis.
+  - [ ] NAT type classification probe (Full Cone, Restricted Cone, Port Restricted, Symmetric).
+  - [ ] End-to-end latency and throughput benchmarking against test endpoints.
+  - [ ] Upstream DNS resolution and leak validation tests.
+- [ ] **9.2 Privacy-Preserving Troubleshooting Telemetry**
+  - [ ] Generate sanitized client diagnostic bundles containing connection states and interface error codes.
+  - [ ] Guarantee zero capture of user payload data, destination IPs, or browsing history in diagnostics.
+- [ ] **9.3 Autonomous Self-Healing**
+  - [ ] Implement automated dead-peer detection (DPD) with exponential backoff retries.
+  - [ ] Seamlessly re-route around failing relays or offline providers to alternate authorized gateways.
+
+---
+
+## Phase 10: Production Hardening, Compliance & App Store Launch
+
+*Verify security, optimize system efficiency, and achieve public release on mobile distribution channels.*
+
+- [ ] **10.1 Security & Leak Verification**
+  - [ ] Conduct end-to-end audit for IPv6 leaks, DNS leaks, and WebRTC address leaks under all network transitions.
+  - [ ] Validate cryptographic security of key storage, handshake nonces, and packet encryption.
+- [ ] **10.2 Battery & Performance Optimization**
+  - [ ] Profile CPU and memory overhead during sustained high-throughput transfers.
+  - [ ] Minimize wake locks and background polling to ensure negligible battery impact in idle state.
+- [ ] **10.3 App Store Compliance & Submission**
+  - [ ] Complete Google Play Console safety questionnaires, VPN service policy declarations, and permission disclosures.
+  - [ ] Complete Apple App Store NetworkExtension entitlement review and privacy declarations.
+  - [ ] Prepare store presentation assets, product documentation, and release metadata.
+- [ ] **10.4 Deployment Tracks & General Availability**
+  - [ ] Distribute release builds through internal testing tracks (Google Play Internal / TestFlight).
+  - [ ] Expand to open beta and execute public store release.
