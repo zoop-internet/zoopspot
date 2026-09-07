@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:crypto/crypto.dart' as dart_crypto;
 
 class MnemonicException implements Exception {

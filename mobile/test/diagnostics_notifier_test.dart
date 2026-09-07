@@ -5,7 +5,6 @@ import 'package:http/testing.dart';
 import 'package:zoop_mobile/core/crypto/crypto_service.dart';
 import 'package:zoop_mobile/core/network/cloud_api_client.dart';
 import 'package:zoop_mobile/features/diagnostics/application/diagnostics_notifier.dart';
-import 'package:zoop_mobile/features/diagnostics/domain/diagnostic_models.dart';
 
 void main() {
   late CryptoService cryptoService;

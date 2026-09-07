@@ -38,6 +38,8 @@ class PairingState {
     String? successMessage,
     List<Map<String, dynamic>>? fleetDevices,
     bool clearActiveCode = false,
+    bool clearErrorMessage = false,
+    bool clearSuccessMessage = false,
   }) {
     return PairingState(
       activeCode: clearActiveCode ? null : (activeCode ?? this.activeCode),
@@ -45,8 +47,8 @@ class PairingState {
       isGenerating: isGenerating ?? this.isGenerating,
       isClaiming: isClaiming ?? this.isClaiming,
       isLoadingFleet: isLoadingFleet ?? this.isLoadingFleet,
-      errorMessage: errorMessage,
-      successMessage: successMessage,
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      successMessage: clearSuccessMessage ? null : (successMessage ?? this.successMessage),
       fleetDevices: fleetDevices ?? this.fleetDevices,
     );
   }
@@ -122,7 +124,11 @@ class PairingNotifier extends StateNotifier<PairingState> {
       return false;
     }
 
-    state = state.copyWith(isClaiming: true, errorMessage: null, successMessage: null);
+    state = state.copyWith(
+      isClaiming: true,
+      clearErrorMessage: true,
+      clearSuccessMessage: true,
+    );
 
     try {
       final endpointId = await _storage.getEndpointId();
@@ -186,6 +192,6 @@ class PairingNotifier extends StateNotifier<PairingState> {
   }
 
   void clearMessages() {
-    state = state.copyWith(errorMessage: null, successMessage: null);
+    state = state.copyWith(clearErrorMessage: true, clearSuccessMessage: true);
   }
 }

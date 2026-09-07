@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
-import '../application/diagnostics_notifier.dart';
-import '../domain/diagnostic_models.dart';
+import '../../application/diagnostics_notifier.dart';
+import '../../domain/diagnostic_models.dart';
 
 class DiagnosticsScreen extends ConsumerWidget {
   const DiagnosticsScreen({super.key});
@@ -200,7 +200,6 @@ class DiagnosticsScreen extends ConsumerWidget {
               color = ZoopColors.textSecondary;
               break;
             case CheckStatus.running:
-            default:
               icon = Icons.pending;
               color = ZoopColors.primaryCyan;
               break;

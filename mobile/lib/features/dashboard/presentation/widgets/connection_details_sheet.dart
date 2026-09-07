@@ -150,8 +150,10 @@ class ConnectionDetailsSheet extends ConsumerWidget {
                 _buildInfoRow(
                   context,
                   label: 'WireGuard Noise_IK Key',
-                  value: peer?.wireguardPublicKey.isNotEmpty == true
-                      ? '${peer!.wireguardPublicKey.substring(0, 10)}...${peer!.wireguardPublicKey.substring(peer!.wireguardPublicKey.length - 6)}'
+                  value: (peer?.wireguardPublicKey != null && peer!.wireguardPublicKey!.isNotEmpty)
+                      ? (peer!.wireguardPublicKey!.length > 16
+                          ? '${peer!.wireguardPublicKey!.substring(0, 10)}...${peer!.wireguardPublicKey!.substring(peer!.wireguardPublicKey!.length - 6)}'
+                          : peer!.wireguardPublicKey!)
                       : 'Verified Session Key',
                   icon: Icons.key_rounded,
                 ),

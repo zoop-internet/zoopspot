@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/cloud_api_client.dart';
+import '../../identity/application/identity_notifier.dart';
 import '../domain/diagnostic_models.dart';
 
 class DiagnosticsState {

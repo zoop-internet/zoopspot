@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/models/peer_device.dart';
 import '../../../../core/theme/zoop_colors.dart';
-import '../application/peers_notifier.dart';
+import '../../application/peers_notifier.dart';
 
 class ProviderSelectionSheet extends ConsumerWidget {
   const ProviderSelectionSheet({super.key});

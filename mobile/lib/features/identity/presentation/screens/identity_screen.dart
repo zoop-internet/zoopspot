@@ -114,6 +114,7 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
 
     if (confirmed == true && mounted) {
       await ref.read(identityNotifierProvider.notifier).resetIdentity();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Device identity successfully reset')),
       );
@@ -452,6 +453,9 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
           ),
         ),
       ),
+    );
+  }
+
   Widget _buildFleetCard(BuildContext context) {
     final pairingState = ref.watch(pairingNotifierProvider);
     final fleet = pairingState.fleetDevices;
@@ -510,7 +514,7 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: fleet.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, color: ZoopColors.surfaceBorder),
+                separatorBuilder: (context, index) => const Divider(height: 1, color: ZoopColors.surfaceBorder),
                 itemBuilder: (context, index) {
                   final dev = fleet[index];
                   final isSelf = dev['is_self'] as bool? ?? false;
