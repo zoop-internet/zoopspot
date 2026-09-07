@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../identity/application/identity_notifier.dart';
 
-class WelcomeScreen extends StatefulWidget {
+class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -20,8 +22,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'icon': 'hub',
     },
     {
-      'title': 'WireGuard Noise_IK Security',
-      'subtitle': 'All peer tunnels are end-to-end encrypted with state-of-the-art Ed25519 authentication and ChaCha20-Poly1305 encryption.',
+      'title': 'Zero-Knowledge Identity',
+      'subtitle': 'No email, phone number, or password required. Your cryptographic identity is generated entirely on your local device.',
       'icon': 'lock',
     },
     {
@@ -33,6 +35,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final identityState = ref.watch(identityNotifierProvider);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -75,10 +79,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () => context.go('/dashboard'),
-                    child: const Text('Skip', style: TextStyle(color: ZoopColors.textMuted)),
-                  ),
+                  if (identityState.isRegistered)
+                    TextButton.icon(
+                      onPressed: () => context.go('/dashboard'),
+                      icon: const Icon(Icons.dashboard_outlined, size: 18, color: ZoopColors.primaryCyan),
+                      label: const Text('Dashboard', style: TextStyle(color: ZoopColors.primaryCyan)),
+                    )
+                  else
+                    TextButton(
+                      onPressed: () => context.go('/identity'),
+                      child: const Text('Skip', style: TextStyle(color: ZoopColors.textMuted)),
+                    ),
                 ],
               ),
               const Spacer(),
@@ -107,7 +118,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             p['icon'] == 'hub'
                                 ? Icons.device_hub
                                 : p['icon'] == 'lock'
-                                    ? Icons.security
+                                    ? Icons.fingerprint
                                     : Icons.compare_arrows,
                             size: 40,
                             color: ZoopColors.primaryCyan,
@@ -161,11 +172,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         curve: Curves.easeInOut,
                       );
                     } else {
-                      context.go('/identity');
+                      if (identityState.isRegistered) {
+                        context.go('/dashboard');
+                      } else {
+                        context.go('/identity');
+                      }
                     }
                   },
                   child: Text(
-                    _currentPage == _pages.length - 1 ? 'Get Started' : 'Continue',
+                    _currentPage == _pages.length - 1
+                        ? (identityState.isRegistered ? 'Open Dashboard' : 'Get Started')
+                        : 'Continue',
                   ),
                 ),
               ),

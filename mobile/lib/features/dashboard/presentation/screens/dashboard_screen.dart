@@ -1,18 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/models/connection_state.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/vpn/vpn_bridge_service.dart';
+import '../../../identity/application/identity_notifier.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
   ConnectionStatus _status = ConnectionStatus.disconnected;
   bool _isProviderMode = false;
   late AnimationController _animController;
+  StreamSubscription? _vpnEventSubscription;
 
   @override
   void initState() {
@@ -21,32 +27,103 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       vsync: this,
       duration: const Duration(seconds: 2),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialVpnStatus();
+      _listenToVpnEvents();
+    });
   }
 
   @override
   void dispose() {
+    _vpnEventSubscription?.cancel();
     _animController.dispose();
     super.dispose();
   }
 
-  void _toggleConnection() {
-    setState(() {
-      if (_status == ConnectionStatus.disconnected) {
-        _status = ConnectionStatus.connecting;
-        _animController.repeat();
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            setState(() {
-              _status = ConnectionStatus.connectedDirect;
-              _animController.stop();
-            });
+  Future<void> _checkInitialVpnStatus() async {
+    final vpnBridge = ref.read(vpnBridgeServiceProvider);
+    final isRunning = await vpnBridge.isTunnelRunning();
+    if (isRunning && mounted) {
+      setState(() {
+        _status = ConnectionStatus.connectedDirect;
+      });
+    }
+  }
+
+  void _listenToVpnEvents() {
+    final vpnBridge = ref.read(vpnBridgeServiceProvider);
+    _vpnEventSubscription = vpnBridge.vpnEvents.listen((event) {
+      if (!mounted) return;
+      final type = event['type'] as String?;
+      if (type == 'state_change') {
+        final state = event['state'] as String?;
+        final isDirect = event['isDirect'] as bool? ?? true;
+        setState(() {
+          if (state == 'connected') {
+            _status = isDirect ? ConnectionStatus.connectedDirect : ConnectionStatus.connectedRelay;
+            _animController.stop();
+          } else if (state == 'disconnected') {
+            _status = ConnectionStatus.disconnected;
+            _animController.stop();
+          } else if (state == 'roaming') {
+            _status = ConnectionStatus.roaming;
           }
         });
-      } else {
-        _status = ConnectionStatus.disconnected;
-        _animController.stop();
+      } else if (type == 'error') {
+        final message = event['message'] as String? ?? 'VPN Error occurred';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: ZoopColors.accentRose,
+          ),
+        );
       }
     });
+  }
+
+  Future<void> _toggleConnection() async {
+    final vpnBridge = ref.read(vpnBridgeServiceProvider);
+
+    if (_status == ConnectionStatus.disconnected) {
+      setState(() {
+        _status = ConnectionStatus.connecting;
+      });
+      _animController.repeat();
+
+      final prepared = await vpnBridge.prepareVpn();
+      if (!prepared) {
+        if (mounted) {
+          setState(() {
+            _status = ConnectionStatus.disconnected;
+          });
+          _animController.stop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('VPN permission was denied by the user'),
+              backgroundColor: ZoopColors.accentRose,
+            ),
+          );
+        }
+        return;
+      }
+
+      await vpnBridge.startTunnel();
+      if (mounted) {
+        setState(() {
+          _status = ConnectionStatus.connectedDirect;
+          _animController.stop();
+        });
+      }
+    } else {
+      await vpnBridge.stopTunnel();
+      if (mounted) {
+        setState(() {
+          _status = ConnectionStatus.disconnected;
+          _animController.stop();
+        });
+      }
+    }
   }
 
   Color get _statusColor {
@@ -66,6 +143,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final identityState = ref.watch(identityNotifierProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -91,21 +170,62 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ],
         ),
         actions: [
+          // ZoopID Badge Button
+          if (identityState.zoopId != null)
+            GestureDetector(
+              onTap: () => context.push('/identity'),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      identityState.zoopId!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ZoopColors.primaryCyan,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.sync_alt, color: ZoopColors.textSecondary),
+            tooltip: 'Toggle Provider / Recipient Mode',
             onPressed: () {
               setState(() => _isProviderMode = !_isProviderMode);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(_isProviderMode ? 'Switched to Provider Mode (Sharing)' : 'Switched to Recipient Mode (Connecting)'),
+                  content: Text(_isProviderMode
+                      ? 'Switched to Provider Mode (Sharing)'
+                      : 'Switched to Recipient Mode (Connecting)'),
                   duration: const Duration(seconds: 1),
                 ),
               );
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: ZoopColors.textSecondary),
-            onPressed: () {},
+            icon: const Icon(Icons.fingerprint, color: ZoopColors.textSecondary),
+            tooltip: 'Device Identity',
+            onPressed: () => context.push('/identity'),
           ),
         ],
       ),
@@ -114,6 +234,47 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             children: [
+              // Cloud Status Banner
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: ZoopColors.surfaceBorder),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_done,
+                          size: 16,
+                          color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          identityState.isRegistered
+                              ? 'Cloud Control: Frankfurt (3.70.135.200)'
+                              : 'Cloud Registration Pending',
+                          style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      (identityState.cloudStatus ?? 'trusted').toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // Mode Indicator Chip
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -147,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               // Orbital Connection Node
               GestureDetector(
@@ -219,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
               // Status Text
               Text(
@@ -237,7 +398,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
 
               // Live Telemetry Card
               Card(
