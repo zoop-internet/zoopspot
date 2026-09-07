@@ -60,17 +60,20 @@ class ProviderSelectionSheet extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Select Mesh Provider', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Route encrypted WireGuard traffic through this peer',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textMuted),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Select Mesh Provider', style: Theme.of(context).textTheme.titleLarge),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Route encrypted WireGuard traffic through this peer',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: peersState.isLoading
                         ? const SizedBox(
