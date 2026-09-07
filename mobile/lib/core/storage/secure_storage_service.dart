@@ -25,6 +25,7 @@ class SecureStorageService {
   static const _keyWireGuardPrivKey = 'zoop_wireguard_privkey_b64';
   static const _keyCloudUrl = 'zoop_cloud_url';
   static const _keyIsRegistered = 'zoop_is_registered';
+  static const _keyIsBackedUp = 'zoop_is_backed_up';
 
   static const String defaultCloudUrl = 'https://3.70.135.200.sslip.io';
 
@@ -86,6 +87,44 @@ class SecureStorageService {
     final key = await getEd25519PublicKeyBase64();
     return key != null && key.isNotEmpty;
   }
+
+  Future<bool> isBackedUp() async {
+    final val = await _storage.read(key: _keyIsBackedUp);
+    return val == 'true';
+  }
+
+  Future<void> setBackedUp(bool backedUp) =>
+      _storage.write(key: _keyIsBackedUp, value: backedUp.toString());
+
+  static const _keyProviderScope = 'zoop_provider_scope';
+  static const _keyProviderPauseCellular = 'zoop_provider_pause_cellular';
+  static const _keyProviderPauseBattery = 'zoop_provider_pause_battery';
+  static const _keyProviderBandwidthLimit = 'zoop_provider_bandwidth_limit';
+
+  Future<String?> getProviderSharingScope() => _storage.read(key: _keyProviderScope);
+  Future<void> setProviderSharingScope(String scope) =>
+      _storage.write(key: _keyProviderScope, value: scope);
+
+  Future<bool> getProviderPauseOnCellular() async {
+    final val = await _storage.read(key: _keyProviderPauseCellular);
+    return val != 'false'; // default true
+  }
+  Future<void> setProviderPauseOnCellular(bool val) =>
+      _storage.write(key: _keyProviderPauseCellular, value: val.toString());
+
+  Future<bool> getProviderPauseOnLowBattery() async {
+    final val = await _storage.read(key: _keyProviderPauseBattery);
+    return val != 'false'; // default true
+  }
+  Future<void> setProviderPauseOnLowBattery(bool val) =>
+      _storage.write(key: _keyProviderPauseBattery, value: val.toString());
+
+  Future<int> getProviderBandwidthLimit() async {
+    final val = await _storage.read(key: _keyProviderBandwidthLimit);
+    return val != null ? (int.tryParse(val) ?? 50) : 50;
+  }
+  Future<void> setProviderBandwidthLimit(int limit) =>
+      _storage.write(key: _keyProviderBandwidthLimit, value: limit.toString());
 
   Future<void> clearAll() async {
     await _storage.deleteAll();

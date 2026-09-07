@@ -140,5 +140,84 @@ void main() {
         throwsA(isA<CloudApiException>().having((e) => e.code, 'code', 'device_not_found')),
       );
     });
+
+    test('listDevices parses device list successfully', () async {
+      final keyBundle = await cryptoService.generateIdentityKeyPair();
+      const endpointId = 'self-endpoint-id';
+
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/devices');
+        expect(request.method, 'GET');
+        return http.Response(
+          json.encode([
+            {
+              'id': 'peer-1',
+              'endpoint_id': 'peer-1',
+              'name': 'Frankfurt Gateway',
+              'os': 'linux',
+              'status': 'trusted',
+            },
+            {
+              'id': 'peer-2',
+              'endpoint_id': 'peer-2',
+              'name': 'Office Mac',
+              'os': 'darwin',
+              'status': 'trusted',
+            },
+          ]),
+          200,
+          headers: {'Content-Type': 'application/json'},
+        );
+      });
+
+      final client = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final devices = await client.listDevices(
+        endpointId: endpointId,
+        privateKeySeed: keyBundle.ed25519SeedBytes,
+      );
+
+      expect(devices.length, 2);
+      expect(devices[0].name, 'Frankfurt Gateway');
+      expect(devices[0].platform, 'linux');
+      expect(devices[1].name, 'Office Mac');
+    });
+
+    test('getDeviceEndpoints retrieves wireguard key and candidates', () async {
+      final keyBundle = await cryptoService.generateIdentityKeyPair();
+      const endpointId = 'self-endpoint-id';
+
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/devices/peer-1/endpoints');
+        return http.Response(
+          json.encode({
+            'device_id': 'peer-1',
+            'wireguard_public_key': 'test-wireguard-pubkey',
+            'endpoints': ['3.70.135.200:51820', '192.168.1.10:51820'],
+          }),
+          200,
+          headers: {'Content-Type': 'application/json'},
+        );
+      });
+
+      final client = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final endpointsData = await client.getDeviceEndpoints(
+        endpointId: endpointId,
+        targetDeviceId: 'peer-1',
+        privateKeySeed: keyBundle.ed25519SeedBytes,
+      );
+
+      expect(endpointsData['wireguard_public_key'], 'test-wireguard-pubkey');
+      expect((endpointsData['endpoints'] as List).length, 2);
+    });
   });
 }

@@ -72,100 +72,100 @@ ZOOP is an end-to-end ecosystem connecting **Android Mobile**, **Desktop Clients
 
 ---
 
-## Phase 3: Decentralized Identity, Cloud Handshake & Device Trust
+## Phase 3: Decentralized Identity, Cloud Handshake & Device Trust (Completed)
 
 *Generate zero-knowledge device identities and establish cryptographically authenticated sessions with the Cloud Control Plane.*
 
-- [ ] **3.1 Client-Side Identity Generation**
-  - [ ] Generate Ed25519 cryptographic keypairs entirely on the local device without requiring personal identifiers.
-  - [ ] Derive canonical Zoop identifiers and verifiable fingerprints.
-  - [ ] Provide seamless backup, recovery phrase generation, and biometric-gated key export.
-- [ ] **3.2 Cloud Registration & Mutual Handshake**
-  - [ ] Perform mutual cryptographic handshake with `zoop-cloud` using `zoop-auth-v2` signed headers.
-  - [ ] Register new device records in Neon Postgres via `/api/v1/devices` with public key binding.
-  - [ ] Securely store session credentials and device tokens in hardware-backed storage.
-- [ ] **3.3 Real-Time Device Presence & Signaling Session**
-  - [ ] Establish authenticated WebSocket connection to the Cloud Signaling Hub.
-  - [ ] Maintain lightweight heartbeat for live presence detection, peer reachability, and incoming session signaling.
+- [x] **3.1 Client-Side Identity Generation**
+  - [x] Generate Ed25519 cryptographic keypairs entirely on the local device without requiring personal identifiers.
+  - [x] Derive canonical Zoop identifiers and verifiable fingerprints (`ZP-XXXXXX`).
+  - [x] Provide seamless backup, recovery phrase generation (BIP-39 24 words), and biometric-gated key export.
+- [x] **3.2 Cloud Registration & Mutual Handshake**
+  - [x] Perform mutual cryptographic handshake with `zoop-cloud` using `zoop-auth-v2` signed headers.
+  - [x] Register new device records in Neon Postgres via `/api/v1/devices` with public key binding.
+  - [x] Securely store session credentials and device tokens in hardware-backed storage.
+- [x] **3.3 Real-Time Device Presence & Signaling Session**
+  - [x] Establish authenticated WebSocket connection to the Cloud Signaling Hub.
+  - [x] Maintain lightweight heartbeat for live presence detection, peer reachability, and incoming session signaling.
 
 ---
 
-## Phase 4: Android Native Packet Routing Engine & Data Plane Bridge
+## Phase 4: Android Native Packet Routing Engine & Data Plane Bridge (Completed)
 
 *Implement system-level TUN interface provisioning, IP routing rules, and packet forwarding.*
 
-- [ ] **4.1 Flutter-to-Native IPC Bridge**
-  - [ ] Build bi-directional platform channels (MethodChannel for commands, EventChannel for real-time telemetry).
-  - [ ] Handle system VPN permissions dialog and user consent lifecycle.
-- [ ] **4.2 Virtual TUN Interface & System Routing**
-  - [ ] Provision Android virtual TUN interface via `VpnService.Builder`.
-  - [ ] Configure IP routing rules (IPv4/IPv6 CIDR routing, MTU configuration, and DNS server assignment).
-  - [ ] Implement robust DNS routing to prevent platform DNS leakage.
-- [ ] **4.3 Data Plane Core Integration**
-  - [ ] Integrate compiled Go mobile data plane engine (`libzoop`) via JNI/CGO.
-  - [ ] Pass TUN file descriptor to the data plane worker for zero-copy packet encryption and routing.
-- [ ] **4.4 Fail-Closed Kill-Switch & Leak Prevention**
-  - [ ] Enforce strict firewall rules: block all non-tunnel traffic when the tunnel drops unexpectedly.
-  - [ ] Verify zero data leaks during interface switching or engine re-initialization.
-- [ ] **4.5 Background Persistence & Power Optimization**
-  - [ ] Configure persistent foreground service with user-friendly status notification.
-  - [ ] Gracefully handle Android Doze mode and system low-memory conditions without dropping active sessions.
+- [x] **4.1 Flutter-to-Native IPC Bridge**
+  - [x] Build bi-directional platform channels (MethodChannel for commands, EventChannel for real-time telemetry).
+  - [x] Handle system VPN permissions dialog and user consent lifecycle.
+- [x] **4.2 Virtual TUN Interface & System Routing**
+  - [x] Provision Android virtual TUN interface via `VpnService.Builder`.
+  - [x] Configure IP routing rules (IPv4/IPv6 CIDR routing, MTU configuration, and DNS server assignment).
+  - [x] Implement robust DNS routing to prevent platform DNS leakage.
+- [x] **4.3 Data Plane Core Integration**
+  - [x] Integrate compiled Go mobile data plane engine (`libzoop`) via JNI/CGO.
+  - [x] Pass TUN file descriptor to the data plane worker for zero-copy packet encryption and routing.
+- [x] **4.4 Fail-Closed Kill-Switch & Leak Prevention**
+  - [x] Enforce strict firewall rules: block all non-tunnel traffic when the tunnel drops unexpectedly.
+  - [x] Verify zero data leaks during interface switching or engine re-initialization.
+- [x] **4.5 Background Persistence & Power Optimization**
+  - [x] Configure persistent foreground service with user-friendly status notification.
+  - [x] Gracefully handle Android Doze mode and system low-memory conditions without dropping active sessions.
 
 ---
 
-## Phase 5: Peer Discovery, Cloud Signaling & Dynamic NAT Traversal
+## Phase 5: Peer Discovery, Cloud Signaling & Dynamic NAT Traversal (Completed)
 
 *Coordinate direct peer-to-peer tunnels between mobile clients and edge providers, with seamless relay fallback.*
 
-- [ ] **5.1 Cloud-Mediated Peer Discovery**
-  - [ ] Query authorized providers and accessible networks via `zoop-cloud` APIs.
-  - [ ] Receive real-time peer availability updates through the WebSocket signaling channel.
-- [ ] **5.2 STUN/TURN & Interactive Connectivity Establishment (ICE)**
-  - [ ] Perform STUN discovery against Zoop infrastructure (port 3478) to identify public endpoints and NAT mapping behaviors.
-  - [ ] Exchange candidate endpoints and cryptographic handshake tokens via Cloud Signaling.
-  - [ ] Execute UDP hole punching to establish direct, low-latency P2P tunnels.
-- [ ] **5.3 Zero-Knowledge Encrypted Relay Fallback**
-  - [ ] Detect symmetric NAT or restrictive corporate/cellular firewalls that prevent direct P2P.
-  - [ ] Transparently fall back to Zoop encrypted relays without exposing plaintext traffic or session keys to the relay server.
-  - [ ] Continuously probe for direct path recovery in the background.
+- [x] **5.1 Cloud-Mediated Peer Discovery**
+  - [x] Query authorized providers and accessible networks via `zoop-cloud` APIs.
+  - [x] Receive real-time peer availability updates through the WebSocket signaling channel.
+- [x] **5.2 STUN/TURN & Interactive Connectivity Establishment (ICE)**
+  - [x] Perform STUN discovery against Zoop infrastructure (port 3478) to identify public endpoints and NAT mapping behaviors.
+  - [x] Exchange candidate endpoints and cryptographic handshake tokens via Cloud Signaling.
+  - [x] Execute UDP hole punching to establish direct, low-latency P2P tunnels.
+- [x] **5.3 Zero-Knowledge Encrypted Relay Fallback**
+  - [x] Detect symmetric NAT or restrictive corporate/cellular firewalls that prevent direct P2P.
+  - [x] Transparently fall back to Zoop encrypted relays without exposing plaintext traffic or session keys to the relay server.
+  - [x] Continuously probe for direct path recovery in the background.
 
 ---
 
-## Phase 6: Recipient Experience & Transparent Routing
+## Phase 6: Recipient Experience & Transparent Routing (Completed)
 
 *Deliver an intuitive, high-performance connection experience for browsing and accessing networks.*
 
-- [ ] **6.1 Provider Selection & Dynamic Routing Modes**
-  - [ ] Display available provider gateways across personal devices, shared circles, and authorized networks.
-  - [ ] Support flexible routing policies: full internet egress vs. split-tunnel access for specific networks.
-- [ ] **6.2 Connection Lifecycle & Status Feedback**
-  - [ ] Provide transparent, step-by-step progress through connection phases (negotiating, punching, authenticating, connected).
-  - [ ] Clearly display whether the active path is direct peer-to-peer or routed through an encrypted relay.
-- [ ] **6.3 Real-Time Network Telemetry**
-  - [ ] Stream real-time performance indicators: round-trip latency, transfer throughput (RX/TX), packet loss, and tunnel uptime.
-  - [ ] Maintain an active connection log for user review.
-- [ ] **6.4 Seamless Network Roaming**
-  - [ ] Handle uninterrupted tunnel migration across network changes (e.g., transition between Wi-Fi and Cellular).
-  - [ ] Re-negotiate cryptographic session keys and ICE candidates without dropping user application sockets.
+- [x] **6.1 Provider Selection & Dynamic Routing Modes**
+  - [x] Display available provider gateways across personal devices, shared circles, and authorized networks.
+  - [x] Support flexible routing policies: full internet egress vs. split-tunnel access for specific networks.
+- [x] **6.2 Connection Lifecycle & Status Feedback**
+  - [x] Provide transparent, step-by-step progress through connection phases (negotiating, punching, authenticating, connected).
+  - [x] Clearly display whether the active path is direct peer-to-peer or routed through an encrypted relay.
+- [x] **6.3 Real-Time Network Telemetry**
+  - [x] Stream real-time performance indicators: round-trip latency, transfer throughput (RX/TX), packet loss, and tunnel uptime.
+  - [x] Maintain an active connection log for user review.
+- [x] **6.4 Seamless Network Roaming**
+  - [x] Handle uninterrupted tunnel migration across network changes (e.g., transition between Wi-Fi and Cellular).
+  - [x] Re-negotiate cryptographic session keys and ICE candidates without dropping user application sockets.
 
 ---
 
-## Phase 7: Provider Experience & Controlled Gateway Sharing
+## Phase 7: Provider Experience & Controlled Gateway Sharing (Completed)
 
 *Transform mobile and edge devices into secure egress gateways with strict owner controls and safety limits.*
 
-- [ ] **7.1 Gateway Mode Activation**
-  - [ ] Provide clear, intentional activation controls for sharing internet access.
-  - [ ] Enforce client-side cryptographic access checks before routing any third-party packets.
-- [ ] **7.2 Granular Access Policies**
-  - [ ] Define sharing boundaries: restrict to personal devices, approved contacts, or explicit access tokens.
-  - [ ] Enable per-peer approval workflows and dynamic session revocation.
-- [ ] **7.3 Real-Time Session Monitoring**
-  - [ ] Display active recipient sessions, current bandwidth consumption, and total data routed.
-  - [ ] Provide one-tap session disconnection for any active recipient.
-- [ ] **7.4 Automated Resource Safeguards**
-  - [ ] Automatically pause or disable sharing on metered cellular connections based on user preferences.
-  - [ ] Enforce battery and thermal thresholds to prevent device overheating or unexpected power drain.
+- [x] **7.1 Gateway Mode Activation**
+  - [x] Provide clear, intentional activation controls for sharing internet access.
+  - [x] Enforce client-side cryptographic access checks before routing any third-party packets.
+- [x] **7.2 Granular Access Policies**
+  - [x] Define sharing boundaries: restrict to personal devices, approved contacts, or explicit access tokens.
+  - [x] Enable per-peer approval workflows and dynamic session revocation.
+- [x] **7.3 Real-Time Session Monitoring**
+  - [x] Display active recipient sessions, current bandwidth consumption, and total data routed.
+  - [x] Provide one-tap session disconnection for any active recipient.
+- [x] **7.4 Automated Resource Safeguards**
+  - [x] Automatically pause or disable sharing on metered cellular connections based on user preferences.
+  - [x] Enforce battery and thermal thresholds to prevent device overheating or unexpected power drain.
 
 ---
 

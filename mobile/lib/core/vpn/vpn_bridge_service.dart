@@ -28,11 +28,12 @@ class VpnBridgeService {
     }
   }
 
-  /// Starts the Android native ZoopVpnService with peer connection parameters.
+  /// Starts the Android native ZoopVpnService with peer connection parameters and routing policy.
   Future<bool> startTunnel({
     String? peerKey,
     String? candidatesJson,
     String? relayUrl,
+    String routingMode = 'full',
   }) async {
     try {
       final bool? result =
@@ -40,6 +41,7 @@ class VpnBridgeService {
         'peerKey': peerKey ?? '',
         'candidates': candidatesJson ?? '[]',
         'relayUrl': relayUrl ?? '',
+        'routingMode': routingMode,
       });
       return result ?? false;
     } on MissingPluginException {

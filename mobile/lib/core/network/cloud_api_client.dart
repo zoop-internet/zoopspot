@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../crypto/crypto_service.dart';
+import '../models/peer_device.dart';
 
 class CloudApiException implements Exception {
   final String code;
@@ -103,7 +104,7 @@ class CloudApiClient {
   }
 
   /// Performs an authenticated HTTP request using the zoop-auth-v2 cryptographic protocol.
-  Future<Map<String, dynamic>> authenticatedRequest({
+  Future<dynamic> authenticatedRequest({
     required String method,
     required String path,
     required String endpointId,
@@ -158,7 +159,7 @@ class CloudApiClient {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {};
-      return json.decode(response.body) as Map<String, dynamic>;
+      return json.decode(response.body);
     } else {
       _throwError(response);
     }
@@ -169,12 +170,67 @@ class CloudApiClient {
     required String endpointId,
     required List<int> privateKeySeed,
   }) async {
-    return authenticatedRequest(
+    final result = await authenticatedRequest(
       method: 'GET',
       path: '/v1/devices/$endpointId',
       endpointId: endpointId,
       privateKeySeed: privateKeySeed,
     );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Lists accessible peer devices in the network mesh.
+  Future<List<PeerDevice>> listDevices({
+    required String endpointId,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/devices',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+
+    if (result is List) {
+      return result
+          .map((item) => PeerDevice.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Fetches endpoint candidates and keys for a target peer device.
+  Future<Map<String, dynamic>> getDeviceEndpoints({
+    required String endpointId,
+    required String targetDeviceId,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/devices/$targetDeviceId/endpoints',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Creates a registered connection session with the cloud control plane.
+  Future<Map<String, dynamic>> createConnection({
+    required String endpointId,
+    required String targetDeviceId,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/connections',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'requester_device_id': endpointId,
+        'target_device_id': targetDeviceId,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
   }
 
   /// Lists active shares for this device.
@@ -182,12 +238,13 @@ class CloudApiClient {
     required String endpointId,
     required List<int> privateKeySeed,
   }) async {
-    return authenticatedRequest(
+    final result = await authenticatedRequest(
       method: 'GET',
       path: '/v1/shares',
       endpointId: endpointId,
       privateKeySeed: privateKeySeed,
     );
+    return result is Map<String, dynamic> ? result : {};
   }
 
   Never _throwError(http.Response response) {

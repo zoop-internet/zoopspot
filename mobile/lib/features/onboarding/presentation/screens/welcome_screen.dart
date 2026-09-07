@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../identity/application/identity_notifier.dart';
+import '../../../identity/presentation/widgets/recover_identity_sheet.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
@@ -186,6 +187,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   ),
                 ),
               ),
+              if (!identityState.isRegistered && _currentPage == _pages.length - 1) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => RecoverIdentitySheet.show(context),
+                  child: const Text(
+                    'I already have a Zoop ID (Recover)',
+                    style: TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
             ],
           ),

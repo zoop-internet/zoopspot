@@ -1,11 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/models/connection_state.dart';
+import '../../../../core/models/peer_device.dart';
+import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
 import '../../../identity/application/identity_notifier.dart';
+import '../../../provider/application/provider_notifier.dart';
+import '../../../provider/domain/provider_settings.dart';
+import '../../../provider/presentation/widgets/gateway_settings_sheet.dart';
+import '../../application/peers_notifier.dart';
+import '../widgets/connection_details_sheet.dart';
+import '../widgets/provider_selection_sheet.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -14,9 +23,12 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   ConnectionStatus _status = ConnectionStatus.disconnected;
   bool _isProviderMode = false;
+  RoutingMode _routingMode = RoutingMode.fullInternet;
+  String _connectingStep = 'Initializing...';
   late AnimationController _animController;
   StreamSubscription? _vpnEventSubscription;
 
@@ -61,7 +73,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         final isDirect = event['isDirect'] as bool? ?? true;
         setState(() {
           if (state == 'connected') {
-            _status = isDirect ? ConnectionStatus.connectedDirect : ConnectionStatus.connectedRelay;
+            _status = isDirect
+                ? ConnectionStatus.connectedDirect
+                : ConnectionStatus.connectedRelay;
             _animController.stop();
           } else if (state == 'disconnected') {
             _status = ConnectionStatus.disconnected;
@@ -84,10 +98,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   Future<void> _toggleConnection() async {
     final vpnBridge = ref.read(vpnBridgeServiceProvider);
+    final peersState = ref.read(peersNotifierProvider);
 
     if (_status == ConnectionStatus.disconnected) {
+      final selectedPeer = peersState.selectedPeer;
+      if (selectedPeer == null) {
+        ProviderSelectionSheet.show(context);
+        return;
+      }
+
       setState(() {
         _status = ConnectionStatus.connecting;
+        _connectingStep = 'Requesting VPN Permission...';
       });
       _animController.repeat();
 
@@ -108,7 +130,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         return;
       }
 
-      await vpnBridge.startTunnel();
+      // Step 1: Resolve endpoints & keys
+      if (mounted) {
+        setState(() {
+          _connectingStep = 'Resolving Provider ICE Candidates...';
+        });
+      }
+      final resolved = await ref
+          .read(peersNotifierProvider.notifier)
+          .resolvePeerDetails(selectedPeer);
+      final peerKey = resolved?.wireguardPublicKey ?? '';
+      final candidatesJson = json.encode(resolved?.endpoints ?? []);
+      const relayUrl = 'wss://3.70.135.200.sslip.io/v1/relay';
+
+      // Step 2: Register connection session in Cloud Control Plane
+      if (mounted) {
+        setState(() {
+          _connectingStep = 'Exchanging Cryptographic Session...';
+        });
+      }
+      try {
+        final endpointId = ref.read(identityNotifierProvider).endpointId;
+        final storage = ref.read(secureStorageServiceProvider);
+        final client = ref.read(cloudApiClientProvider);
+        final seed = await storage.getEd25519SeedBytes();
+        if (endpointId != null && seed != null) {
+          await client.createConnection(
+            endpointId: endpointId,
+            targetDeviceId: selectedPeer.id.isNotEmpty
+                ? selectedPeer.id
+                : selectedPeer.endpointId,
+            privateKeySeed: seed,
+          );
+        }
+      } catch (_) {
+        // Fallback gracefully if connection session exists or offline
+      }
+
+      // Step 3: Start tunnel with selected routing mode
+      if (mounted) {
+        setState(() {
+          _connectingStep = 'Punching NAT & Initializing Tunnel...';
+        });
+      }
+      await vpnBridge.startTunnel(
+        peerKey: peerKey,
+        candidatesJson: candidatesJson,
+        relayUrl: relayUrl,
+        routingMode: _routingMode.wireRouteParam,
+      );
+
       if (mounted) {
         setState(() {
           _status = ConnectionStatus.connectedDirect;
@@ -144,6 +215,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     final identityState = ref.watch(identityNotifierProvider);
+    final peersState = ref.watch(peersNotifierProvider);
+    final selectedPeer = peersState.selectedPeer;
+    final providerSettings = ref.watch(providerNotifierProvider);
+    final providerNotifier = ref.read(providerNotifierProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -161,7 +236,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               child: const Center(
                 child: Text(
                   'Z',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Colors.black, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -180,7 +256,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 decoration: BoxDecoration(
                   color: ZoopColors.surfaceElevated,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -190,7 +267,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                        color: identityState.isRegistered
+                            ? ZoopColors.accentGreen
+                            : ZoopColors.accentAmber,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -208,14 +287,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ),
             ),
           IconButton(
-            icon: const Icon(Icons.sync_alt, color: ZoopColors.textSecondary),
+            icon: Icon(
+              Icons.sync_alt,
+              color: _isProviderMode
+                  ? ZoopColors.accentPurple
+                  : ZoopColors.textSecondary,
+            ),
             tooltip: 'Toggle Provider / Recipient Mode',
             onPressed: () {
               setState(() => _isProviderMode = !_isProviderMode);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(_isProviderMode
-                      ? 'Switched to Provider Mode (Sharing)'
+                      ? 'Switched to Provider Console (Sharing)'
                       : 'Switched to Recipient Mode (Connecting)'),
                   duration: const Duration(seconds: 1),
                 ),
@@ -250,14 +334,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                         Icon(
                           Icons.cloud_done,
                           size: 16,
-                          color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                          color: identityState.isRegistered
+                              ? ZoopColors.accentGreen
+                              : ZoopColors.accentAmber,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           identityState.isRegistered
                               ? 'Cloud Control: Frankfurt (3.70.135.200)'
                               : 'Cloud Registration Pending',
-                          style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 12, color: ZoopColors.textSecondary),
                         ),
                       ],
                     ),
@@ -266,195 +353,701 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: identityState.isRegistered ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                        color: identityState.isRegistered
+                            ? ZoopColors.accentGreen
+                            : ZoopColors.textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // Mode Indicator Chip
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              // Mode Indicator Switcher Chip
+              GestureDetector(
+                onTap: () {
+                  setState(() => _isProviderMode = !_isProviderMode);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isProviderMode
+                          ? ZoopColors.accentPurple
+                          : ZoopColors.primaryCyan,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isProviderMode ? Icons.upload : Icons.download,
+                        size: 16,
+                        color: _isProviderMode
+                            ? ZoopColors.accentPurple
+                            : ZoopColors.primaryCyan,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isProviderMode
+                            ? 'PROVIDER MODE (GATEWAY SHARING)'
+                            : 'RECIPIENT MODE (CONNECTING)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _isProviderMode
+                              ? ZoopColors.accentPurple
+                              : ZoopColors.primaryCyan,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.swap_horiz,
+                          size: 14, color: ZoopColors.textMuted),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Render Recipient vs Provider UI
+              if (!_isProviderMode)
+                _buildRecipientView(context, selectedPeer)
+              else
+                _buildProviderView(
+                    context, providerSettings, providerNotifier),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // RECIPIENT MODE (PHASE 6)
+  // ==========================================
+  Widget _buildRecipientView(BuildContext context, PeerDevice? selectedPeer) {
+    return Column(
+      children: [
+        // Provider Node Selector & Routing Mode Row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Target Provider Selector
+            InkWell(
+              onTap: _status.isConnected
+                  ? null
+                  : () => ProviderSelectionSheet.show(context),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: ZoopColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(20),
+                  color: ZoopColors.surface,
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _isProviderMode ? ZoopColors.accentPurple : ZoopColors.primaryCyan,
-                    width: 1,
+                    color: selectedPeer != null
+                        ? ZoopColors.surfaceBorder
+                        : ZoopColors.accentAmber.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _isProviderMode ? Icons.upload : Icons.download,
-                      size: 14,
-                      color: _isProviderMode ? ZoopColors.accentPurple : ZoopColors.primaryCyan,
+                      selectedPeer != null
+                          ? Icons.dns_rounded
+                          : Icons.hub_outlined,
+                      size: 16,
+                      color: selectedPeer != null
+                          ? ZoopColors.primaryCyan
+                          : ZoopColors.accentAmber,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      _isProviderMode ? 'PROVIDER MODE (SHARING)' : 'RECIPIENT MODE',
+                      selectedPeer != null
+                          ? selectedPeer.name
+                          : 'Select Provider',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: selectedPeer != null
+                            ? ZoopColors.textPrimary
+                            : ZoopColors.accentAmber,
+                      ),
+                    ),
+                    if (!_status.isConnected) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down,
+                          size: 16, color: ZoopColors.textMuted),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Routing Mode Selector
+            InkWell(
+              onTap: _status.isConnected ? null : _toggleRoutingMode,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: ZoopColors.surfaceBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _routingMode.icon,
+                      size: 16,
+                      color: ZoopColors.accentGreen,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _routingMode == RoutingMode.fullInternet
+                          ? 'Full Internet'
+                          : 'Split Mesh',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ZoopColors.textPrimary,
+                      ),
+                    ),
+                    if (!_status.isConnected) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down,
+                          size: 16, color: ZoopColors.textMuted),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 28),
+
+        // Orbital Connection Node
+        GestureDetector(
+          onTap: _toggleConnection,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer Pulse Ring
+              Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _statusColor.withValues(alpha: 0.25),
+                    width: 2,
+                  ),
+                ),
+              ),
+              // Middle Ring
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _statusColor.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
+                ),
+              ),
+              // Core Node Button
+              Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ZoopColors.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _statusColor.withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _status.isConnected
+                          ? Icons.power_settings_new
+                          : Icons.sensors,
+                      size: 44,
+                      color: _statusColor,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _status.isConnected ? 'DISCONNECT' : 'CONNECT',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _isProviderMode ? ZoopColors.accentPurple : ZoopColors.primaryCyan,
-                        letterSpacing: 0.5,
+                        fontWeight: FontWeight.w800,
+                        color: _statusColor,
+                        letterSpacing: 1,
                       ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
 
-              const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
-              // Orbital Connection Node
-              GestureDetector(
-                onTap: _toggleConnection,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer Pulse Ring
-                    Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _statusColor.withValues(alpha: 0.25),
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    // Middle Ring
-                    Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _statusColor.withValues(alpha: 0.5),
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    // Core Node Button
-                    Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: ZoopColors.surface,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _statusColor.withValues(alpha: 0.3),
-                            blurRadius: 24,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _status.isConnected ? Icons.power_settings_new : Icons.sensors,
-                            size: 44,
-                            color: _statusColor,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _status.isConnected ? 'DISCONNECT' : 'CONNECT',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: _statusColor,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+        // Status Text & Step Details
+        Text(
+          _status == ConnectionStatus.connecting
+              ? 'Connecting...'
+              : _status.label,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: _statusColor,
+                fontWeight: FontWeight.w700,
               ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _status == ConnectionStatus.connecting
+              ? _connectingStep
+              : (_status.isConnected
+                  ? '100.64.0.2 • Routed via ${selectedPeer?.name ?? 'Frankfurt Node'}'
+                  : (selectedPeer != null
+                      ? 'Ready to route via ${selectedPeer.name} (${_routingMode.label})'
+                      : 'Select a target provider above and tap connect')),
+          style: Theme.of(context).textTheme.bodyMedium,
+          textAlign: TextAlign.center,
+        ),
 
-              const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
-              // Status Text
-              Text(
-                _status.label,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: _statusColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _status.isConnected
-                    ? '100.64.0.2 • Peer: Frankfurt-Node-1'
-                    : 'Tap the node to establish encrypted tunnel',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Live Telemetry Card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
+        // Live Telemetry Card (Tappable for Tunnel Inspector)
+        InkWell(
+          onTap: _status.isConnected
+              ? () => ConnectionDetailsSheet.show(
+                    context,
+                    peer: selectedPeer,
+                    status: _status,
+                    routingMode: _routingMode,
+                  )
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildTelemetryItem(
-                            context,
-                            icon: Icons.speed,
-                            label: 'PING',
-                            value: _status.isConnected ? '24 ms' : '--',
-                            color: ZoopColors.accentGreen,
-                          ),
-                          _buildTelemetryItem(
-                            context,
-                            icon: Icons.arrow_downward,
-                            label: 'DOWNLOAD',
-                            value: _status.isConnected ? '42.8 Mbps' : '--',
-                            color: ZoopColors.primaryCyan,
-                          ),
-                          _buildTelemetryItem(
-                            context,
-                            icon: Icons.arrow_upward,
-                            label: 'UPLOAD',
-                            value: _status.isConnected ? '18.4 Mbps' : '--',
-                            color: ZoopColors.accentPurple,
-                          ),
-                        ],
+                      _buildTelemetryItem(
+                        context,
+                        icon: Icons.speed,
+                        label: 'PING',
+                        value: _status.isConnected ? '24 ms' : '--',
+                        color: ZoopColors.accentGreen,
                       ),
-                      if (_status.isConnected) ...[
-                        const Divider(height: 24, color: ZoopColors.surfaceBorder),
+                      _buildTelemetryItem(
+                        context,
+                        icon: Icons.arrow_downward,
+                        label: 'DOWNLOAD',
+                        value: _status.isConnected ? '42.8 Mbps' : '--',
+                        color: ZoopColors.primaryCyan,
+                      ),
+                      _buildTelemetryItem(
+                        context,
+                        icon: Icons.arrow_upward,
+                        label: 'UPLOAD',
+                        value: _status.isConnected ? '18.4 Mbps' : '--',
+                        color: ZoopColors.accentPurple,
+                      ),
+                    ],
+                  ),
+                  if (_status.isConnected) ...[
+                    const Divider(height: 24, color: ZoopColors.surfaceBorder),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Tunnel Protocol', style: Theme.of(context).textTheme.bodyMedium),
+                            const Icon(Icons.info_outline,
+                                size: 14, color: ZoopColors.primaryCyan),
+                            const SizedBox(width: 6),
                             Text(
-                              'WireGuard Noise_IK (UDP)',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: ZoopColors.textPrimary,
-                                  ),
+                              'Tap to Inspect Tunnel Details',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: ZoopColors.primaryCyan
+                                    .withValues(alpha: 0.9),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
+                        Text(
+                          'WireGuard Noise_IK',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: ZoopColors.textPrimary,
+                              ),
+                        ),
                       ],
-                    ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _toggleRoutingMode() {
+    setState(() {
+      _routingMode = _routingMode == RoutingMode.fullInternet
+          ? RoutingMode.splitTunnel
+          : RoutingMode.fullInternet;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Routing Mode: ${_routingMode.label}'),
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
+  // ==========================================
+  // PROVIDER MODE (PHASE 7)
+  // ==========================================
+  Widget _buildProviderView(
+    BuildContext context,
+    ProviderSettings settings,
+    ProviderNotifier notifier,
+  ) {
+    final isActive = settings.isGatewayActive;
+    final themeColor =
+        isActive ? ZoopColors.accentPurple : ZoopColors.disconnected;
+
+    return Column(
+      children: [
+        // Provider Policy & Scope Chip
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: ZoopColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: ZoopColors.surfaceBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.security,
+                      size: 14, color: ZoopColors.accentPurple),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Scope: ${settings.sharingScope.label}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ZoopColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () => GatewaySettingsSheet.show(context),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: ZoopColors.accentPurple.withValues(alpha: 0.5)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune, size: 14, color: ZoopColors.accentPurple),
+                    SizedBox(width: 6),
+                    Text(
+                      'Policies',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: ZoopColors.accentPurple),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 28),
+
+        // Orbital Provider Power Switch
+        GestureDetector(
+          onTap: () {
+            notifier.toggleGateway(!isActive);
+          },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.25),
+                    width: 2,
+                  ),
+                ),
+              ),
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: themeColor.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
+                ),
+              ),
+              Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ZoopColors.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeColor.withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isActive ? Icons.power_settings_new : Icons.sensors,
+                      size: 44,
+                      color: themeColor,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isActive ? 'STOP SHARING' : 'START SHARING',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: themeColor,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Provider Status Headline
+        Text(
+          isActive ? 'Gateway Active (Sharing)' : 'Gateway Standby',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: themeColor,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          isActive
+              ? '${settings.activeSessions.length} active client${settings.activeSessions.length == 1 ? '' : 's'} • ${settings.formattedTotalShared} routed'
+              : 'Tap button to start sharing egress access with your devices',
+          style: Theme.of(context).textTheme.bodyMedium,
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 28),
+
+        // Shared Egress Telemetry Card
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildTelemetryItem(
+                  context,
+                  icon: Icons.devices,
+                  label: 'CLIENTS',
+                  value: isActive ? '${settings.activeSessions.length}' : '0',
+                  color: ZoopColors.accentPurple,
+                ),
+                _buildTelemetryItem(
+                  context,
+                  icon: Icons.speed,
+                  label: 'EGRESS RATE',
+                  value: isActive ? '3.4 Mbps' : '--',
+                  color: ZoopColors.primaryCyan,
+                ),
+                _buildTelemetryItem(
+                  context,
+                  icon: Icons.cloud_upload_outlined,
+                  label: 'TOTAL ROUTED',
+                  value: isActive ? settings.formattedTotalShared : '--',
+                  color: ZoopColors.accentGreen,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Connected Recipients List Card
+        if (isActive && settings.activeSessions.isNotEmpty) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'CONNECTED CLIENTS (${settings.activeSessions.length})',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    color: ZoopColors.accentPurple,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: ZoopColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ZoopColors.surfaceBorder),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: settings.activeSessions.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: ZoopColors.surfaceBorder),
+              itemBuilder: (context, index) {
+                final session = settings.activeSessions[index];
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      session.platform == 'macos'
+                          ? Icons.laptop_mac
+                          : Icons.phone_android,
+                      size: 20,
+                      color: ZoopColors.accentPurple,
+                    ),
+                  ),
+                  title: Text(
+                    session.clientName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${session.clientVirtualIp} • Shared ${session.formattedUploaded}',
+                    style: const TextStyle(
+                        fontSize: 12, color: ZoopColors.textSecondary),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close,
+                        size: 18, color: ZoopColors.accentRose),
+                    tooltip: 'Disconnect Client',
+                    onPressed: () {
+                      notifier.disconnectRecipient(session.clientId);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Disconnected ${session.clientName}'),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 16),
+
+        // Safeguards Summary Pill
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: ZoopColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ZoopColors.surfaceBorder),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.shield,
+                      size: 16, color: ZoopColors.accentGreen),
+                  const SizedBox(width: 8),
+                  Text(
+                    settings.pauseOnCellular
+                        ? 'Wi-Fi Enforced • Battery Protected (< 20%)'
+                        : 'Cellular Allowed • Battery Protected (< 20%)',
+                    style: const TextStyle(
+                        fontSize: 11, color: ZoopColors.textSecondary),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => GatewaySettingsSheet.show(context),
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: ZoopColors.accentPurple,
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -473,7 +1066,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         const SizedBox(height: 2),
         Text(
           value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
+          style:
+              Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
         ),
       ],
     );

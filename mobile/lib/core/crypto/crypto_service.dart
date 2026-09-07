@@ -40,13 +40,27 @@ class CryptoService {
 
   /// Generates a fresh Ed25519 identity keypair and X25519 WireGuard keypair.
   Future<IdentityKeyPairBundle> generateIdentityKeyPair() async {
-    // 1. Generate Ed25519 KeyPair
     final edKeyPair = await _ed25519.newKeyPair();
-    final edPubKey = await edKeyPair.extractPublicKey();
     final edSeed = await edKeyPair.extractPrivateKeyBytes();
+    return restoreIdentityFromSeed(edSeed);
+  }
 
-    // 2. Generate X25519 KeyPair for WireGuard tunnel data plane
-    final wgKeyPair = await _x25519.newKeyPair();
+  /// Deterministically restores the full identity and WireGuard keypair bundle from an Ed25519 seed.
+  Future<IdentityKeyPairBundle> restoreIdentityFromSeed(List<int> ed25519SeedBytes) async {
+    if (ed25519SeedBytes.length != 32) {
+      throw ArgumentError('Seed must be exactly 32 bytes. Received: ${ed25519SeedBytes.length}');
+    }
+
+    // 1. Recreate Ed25519 KeyPair from seed
+    final edKeyPair = await _ed25519.newKeyPairFromSeed(ed25519SeedBytes);
+    final edPubKey = await edKeyPair.extractPublicKey();
+
+    // 2. Deterministically derive X25519 WireGuard KeyPair from seed
+    final wgSeed = dart_crypto.sha256.convert([
+      ...ed25519SeedBytes,
+      ...utf8.encode('zoop_wireguard_seed_v1'),
+    ]).bytes;
+    final wgKeyPair = await _x25519.newKeyPairFromSeed(wgSeed);
     final wgPubKey = await wgKeyPair.extractPublicKey();
     final wgPriv = await wgKeyPair.extractPrivateKeyBytes();
 
@@ -55,7 +69,7 @@ class CryptoService {
     return IdentityKeyPairBundle(
       zoopId: zoopId,
       ed25519PublicKeyBytes: edPubKey.bytes,
-      ed25519SeedBytes: edSeed,
+      ed25519SeedBytes: ed25519SeedBytes,
       wireGuardPublicKeyBytes: wgPubKey.bytes,
       wireGuardPrivateKeyBytes: wgPriv,
     );

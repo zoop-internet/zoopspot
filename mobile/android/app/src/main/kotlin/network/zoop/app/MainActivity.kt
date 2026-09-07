@@ -13,12 +13,44 @@ class MainActivity : FlutterActivity() {
 
     private val VPN_CHANNEL = "network.zoop.app/vpn"
     private val EVENTS_CHANNEL = "network.zoop.app/vpn_events"
+    private val BIOMETRIC_CHANNEL = "network.zoop.app/biometrics"
     private val VPN_REQUEST_CODE = 0x2009
+    private val BIOMETRIC_REQUEST_CODE = 0x2010
 
     private var pendingVpnResult: MethodChannel.Result? = null
+    private var pendingAuthResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Biometric / Device Security Channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BIOMETRIC_CHANNEL).setMethodCallHandler { call, result ->
+            val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+            when (call.method) {
+                "canAuthenticate" -> {
+                    result.success(keyguardManager?.isDeviceSecure ?: false)
+                }
+                "authenticate" -> {
+                    if (keyguardManager == null || !keyguardManager.isDeviceSecure) {
+                        // Device has no screen lock/biometrics configured; permit access
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
+                    val title = call.argument<String>("title") ?: "Zoop Key Security"
+                    val desc = call.argument<String>("description") ?: "Authenticate to access your private recovery phrase"
+                    val intent = keyguardManager.createConfirmDeviceCredentialIntent(title, desc)
+                    if (intent != null) {
+                        pendingAuthResult = result
+                        startActivityForResult(intent, BIOMETRIC_REQUEST_CODE)
+                    } else {
+                        result.success(true)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
 
         // Command Channel (Flutter -> Native)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VPN_CHANNEL).setMethodCallHandler { call, result ->
@@ -37,12 +69,14 @@ class MainActivity : FlutterActivity() {
                     val peerKey = call.argument<String>("peerKey")
                     val candidates = call.argument<String>("candidates")
                     val relayUrl = call.argument<String>("relayUrl")
+                    val routingMode = call.argument<String>("routingMode") ?: "full"
 
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
                         action = ZoopVpnService.ACTION_CONNECT
                         putExtra(ZoopVpnService.EXTRA_PEER_KEY, peerKey)
                         putExtra(ZoopVpnService.EXTRA_CANDIDATES, candidates)
                         putExtra(ZoopVpnService.EXTRA_RELAY_URL, relayUrl)
+                        putExtra(ZoopVpnService.EXTRA_ROUTING_MODE, routingMode)
                     }
                     startService(intent)
                     result.success(true)
@@ -56,6 +90,16 @@ class MainActivity : FlutterActivity() {
                 }
                 "getStatus" -> {
                     result.success(ZoopVpnService.isRunning)
+                }
+                "getBatteryLevel" -> {
+                    val batteryManager = getSystemService(android.content.Context.BATTERY_SERVICE) as? android.os.BatteryManager
+                    val level = batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+                    result.success(level)
+                }
+                "isMeteredNetwork" -> {
+                    val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                    val isMetered = cm?.isActiveNetworkMetered ?: false
+                    result.success(isMetered)
                 }
                 else -> {
                     result.notImplemented()
@@ -87,6 +131,10 @@ class MainActivity : FlutterActivity() {
             val authorized = resultCode == Activity.RESULT_OK
             pendingVpnResult?.success(authorized)
             pendingVpnResult = null
+        } else if (requestCode == BIOMETRIC_REQUEST_CODE) {
+            val authorized = resultCode == Activity.RESULT_OK
+            pendingAuthResult?.success(authorized)
+            pendingAuthResult = null
         }
     }
 }

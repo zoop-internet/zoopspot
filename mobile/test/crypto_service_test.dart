@@ -80,5 +80,16 @@ void main() {
       );
       expect(isTamperedValid, isFalse);
     });
+
+    test('restoreIdentityFromSeed deterministically recreates the identical keypair and Zoop ID', () async {
+      final original = await cryptoService.generateIdentityKeyPair();
+      final restored = await cryptoService.restoreIdentityFromSeed(original.ed25519SeedBytes);
+
+      expect(restored.zoopId, equals(original.zoopId));
+      expect(restored.ed25519PublicKeyBytes, equals(original.ed25519PublicKeyBytes));
+      expect(restored.ed25519SeedBytes, equals(original.ed25519SeedBytes));
+      expect(restored.wireGuardPublicKeyBytes, equals(original.wireGuardPublicKeyBytes));
+      expect(restored.wireGuardPrivateKeyBytes, equals(original.wireGuardPrivateKeyBytes));
+    });
   });
 }
