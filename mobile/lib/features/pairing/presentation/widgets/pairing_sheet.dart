@@ -105,23 +105,25 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Device Mesh Pairing',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Connect desktop nodes, edge routers, and secondary phones',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: ZoopColors.textSecondary,
-                        ),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Device Mesh Pairing',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Connect desktop nodes, edge routers, and secondary phones',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: ZoopColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: ZoopColors.textMuted),
