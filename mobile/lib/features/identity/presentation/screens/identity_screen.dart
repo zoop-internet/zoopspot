@@ -174,19 +174,25 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.verified, color: ZoopColors.accentGreen, size: 22),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Verified Identity',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      color: ZoopColors.accentGreen,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified, color: ZoopColors.accentGreen, size: 22),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Verified Identity',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                          color: ZoopColors.accentGreen,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
@@ -279,31 +285,37 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                state.isBackedUp ? Icons.shield_rounded : Icons.shield_outlined,
-                                color: state.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Security & Recovery',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  state.isBackedUp ? Icons.shield_rounded : Icons.shield_outlined,
+                                  color: state.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Security & Recovery',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: (state.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber)
                                   .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              state.isBackedUp ? 'BACKED UP' : 'BACKUP RECOMMENDED',
+                              state.isBackedUp ? 'BACKED UP' : 'BACKUP PENDING',
                               style: TextStyle(
                                 color: state.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber,
                                 fontSize: 10,
@@ -473,13 +485,22 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.hub_outlined, size: 20, color: ZoopColors.primaryCyan),
-                  const SizedBox(width: 8),
-                  Text('Personal Mesh Fleet', style: Theme.of(context).textTheme.titleMedium),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.hub_outlined, size: 20, color: ZoopColors.primaryCyan),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Personal Mesh Fleet',
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(

@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.Build
 import android.os.Handler
@@ -158,7 +159,19 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
 
     private fun startVpn(intent: Intent?) {
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Connecting to Zoop Mesh...", false))
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification("Connecting to Zoop Mesh...", false),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification("Connecting to Zoop Mesh...", false))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
+        }
 
         try {
             val routingMode = intent?.getStringExtra(EXTRA_ROUTING_MODE) ?: "full"
