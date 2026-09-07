@@ -23,8 +23,17 @@ func (m *DeviceManager) ConfigureDevice(privKey wgtypes.Key, listenPort int) err
 	return nil
 }
 
-// AddPeer adds a remote peer to the WireGuard configuration.
+// WireGuardMTU is clamped to 1420 bytes to guarantee zero IP fragmentation over IPv6 cellular encapsulation overhead.
+const WireGuardMTU = 1420
+
+// AddPeer adds a remote peer to the WireGuard configuration with default 25s keepalive.
 func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpointPort int, allowedIPs []string) error {
+	return m.AddPeerWithKeepalive(peerPubKey, endpointIP, endpointPort, allowedIPs, 25)
+}
+
+// AddPeerWithKeepalive adds a remote peer to the WireGuard configuration with a custom keepalive interval.
+// Pass 0 to disable keepalives (idle battery saving mode) or e.g. 25-120 for active/background maintenance.
+func (m *DeviceManager) AddPeerWithKeepalive(peerPubKey wgtypes.Key, endpointIP string, endpointPort int, allowedIPs []string, keepaliveIntervalSec int) error {
 	peerKeyHex := hex.EncodeToString(peerPubKey[:])
 	
 	var sb strings.Builder
@@ -44,7 +53,7 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 	for _, aip := range allowedIPs {
 		sb.WriteString(fmt.Sprintf("allowed_ip=%s\n", aip))
 	}
-	sb.WriteString("persistent_keepalive_interval=25\n")
+	sb.WriteString(fmt.Sprintf("persistent_keepalive_interval=%d\n", keepaliveIntervalSec))
 
 	if err := m.wgDev.IpcSet(sb.String()); err != nil {
 		return fmt.Errorf("failed to add peer to wireguard device: %w", err)

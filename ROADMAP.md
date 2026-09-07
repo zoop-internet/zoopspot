@@ -210,16 +210,16 @@ ZOOP is an end-to-end ecosystem connecting **Android Mobile**, **Desktop Clients
 
 *Verify security, optimize system efficiency, and achieve public release on mobile distribution channels.*
 
-- [ ] **10.1 Security & Leak Verification**
-  - [ ] Conduct end-to-end audit for IPv6 leaks, DNS leaks, and WebRTC address leaks under all network transitions.
-  - [ ] Validate cryptographic security of key storage, handshake nonces, and packet encryption.
-- [ ] **10.2 Battery & Performance Optimization**
-  - [ ] Profile CPU and memory overhead during sustained high-throughput transfers.
-  - [ ] Minimize wake locks and background polling to ensure negligible battery impact in idle state.
-- [ ] **10.3 App Store Compliance & Submission**
-  - [ ] Complete Google Play Console safety questionnaires, VPN service policy declarations, and permission disclosures.
-  - [ ] Complete Apple App Store NetworkExtension entitlement review and privacy declarations.
-  - [ ] Prepare store presentation assets, product documentation, and release metadata.
-- [ ] **10.4 Deployment Tracks & General Availability**
-  - [ ] Distribute release builds through internal testing tracks (Google Play Internal / TestFlight).
-  - [ ] Expand to open beta and execute public store release.
+- [x] **10.1 Security & Leak Verification**
+  - [x] Conduct end-to-end audit for IPv6 leaks, DNS leaks, and WebRTC address leaks under all network transitions.
+  - [x] Validate cryptographic security of key storage, handshake nonces, and packet encryption.
+- [x] **10.2 Battery & Performance Optimization**
+  - [x] Profile CPU and memory overhead during sustained high-throughput transfers.
+  - [x] Minimize wake locks and background polling to ensure negligible battery impact in idle state.
+- [x] **10.3 App Store Compliance & Submission**
+  - [x] Complete Google Play Console safety questionnaires, VPN service policy declarations, and permission disclosures.
+  - [x] Complete Apple App Store NetworkExtension entitlement review and privacy declarations.
+  - [x] Prepare store presentation assets, product documentation, and release metadata.
+- [x] **10.4 Deployment Tracks & General Availability**
+  - [x] Distribute release builds through internal testing tracks (Google Play Internal / TestFlight).
+  - [x] Expand to open beta and execute public store release.

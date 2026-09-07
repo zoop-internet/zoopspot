@@ -1,0 +1,41 @@
+{
+  "app_details": {
+    "name": "Zoop - Resilient Mesh VPN",
+    "subtitle": "Direct P2P Mesh & Secure Gateway",
+    "bundle_id_android": "network.zoop.app",
+    "bundle_id_ios": "network.zoop.mobile",
+    "primary_category": "Tools",
+    "secondary_category": "Communication",
+    "content_rating": "Everyone",
+    "price": "Free",
+    "license": "Apache-2.0 / Open Source"
+  },
+  "listing_text": {
+    "short_description": "Direct device-to-device mesh connectivity. Zero logs, sovereign identity, kernel-grade encryption.",
+    "promotional_text": "Connect directly to your devices anywhere in the world. No middleman. No traffic logs.",
+    "full_description": "Zoop is a modern, open-source peer-to-peer mesh networking platform engineered for high-speed direct device connectivity and privacy.\n\nKey Features:\n• Sovereign Identity: Generate your decentralized Ed25519 identity protected by BIP-39 24-word recovery seeds. No phone numbers, passwords, or emails required.\n• Direct P2P Mesh: High-performance WireGuard tunnels connect your phone, laptop, and home server directly through NATs with automated STUN/ICE traversal.\n• Zero Traffic Logging: We never inspect, record, or track your traffic, browsing destinations, or DNS queries.\n• IPv6 & DNS Leak Defenses: Built-in sinkhole routing and strictly bound resolvers prevent traffic leakage across network transitions.\n• Dual Operational Modes: Switch between Recipient Mode (browse through trusted personal gateways) and Provider Mode (safely share internet egress with personal devices or team members).\n• Autonomous Network Self-Healing: Real-time dead-peer detection with automatic failover to encrypted relay fallback when direct paths are temporarily blocked.",
+    "keywords": [
+      "mesh vpn",
+      "wireguard",
+      "p2p vpn",
+      "peer to peer",
+      "direct connection",
+      "sovereign identity",
+      "zero log vpn",
+      "nat traversal",
+      "encrypted tunnel",
+      "self hosted vpn"
+    ]
+  },
+  "urls": {
+    "privacy_policy": "https://zoop.network/privacy",
+    "terms_of_service": "https://zoop.network/terms",
+    "support": "https://github.com/zoop-internet/zoop/issues",
+    "marketing": "https://zoop.network"
+  },
+  "release": {
+    "version_name": "1.0.0",
+    "version_code": 1,
+    "release_notes": "Official 1.0.0 release of Zoop:\n- Decentralized Ed25519 identity & BIP-39 phrase recovery\n- Android VpnService & WireGuard tunnel integration\n- Direct P2P NAT hole-punching and encrypted relay failover\n- In-app diagnostics (NAT type classification, PMTU discovery, DNS leak test)\n- Zero-log, privacy-preserving troubleshooting bundles"
+  }
+}

@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.VpnService
 import android.os.Build
 import android.os.Handler
@@ -39,6 +41,7 @@ object ZoopMobileBridge {
     external fun startTunnel(fd: Int, ifName: String): Int
     external fun connectPeer(peerPubKeyHex: String, candidatesJson: String, relayUrl: String): Int
     external fun notifyNetworkChange(networkType: String)
+    external fun setPowerSavingMode(enabled: Boolean)
     external fun getConnectionStatus(): String
     external fun disconnect()
 }
@@ -48,6 +51,30 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
     private var vpnInterface: ParcelFileDescriptor? = null
     private var networkMonitor: NetworkMonitor? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isScreenReceiverRegistered = false
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    Log.i(TAG, "Screen off: engaging low-power battery-saving mode")
+                    try {
+                        ZoopMobileBridge.setPowerSavingMode(true)
+                    } catch (e: UnsatisfiedLinkError) {
+                        Log.w(TAG, "Native power saving mode bypassed")
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    Log.i(TAG, "Screen on: restoring active performance mode")
+                    try {
+                        ZoopMobileBridge.setPowerSavingMode(false)
+                    } catch (e: UnsatisfiedLinkError) {
+                        Log.w(TAG, "Native power saving mode bypassed")
+                    }
+                }
+            }
+        }
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -135,7 +162,8 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
 
         try {
             val routingMode = intent?.getStringExtra(EXTRA_ROUTING_MODE) ?: "full"
-            Log.i(TAG, "Configuring VPN with routing mode: $routingMode")
+            val killSwitch = intent?.getBooleanExtra(EXTRA_KILL_SWITCH, false) ?: false
+            Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch")
 
             val builder = Builder()
                 .setSession("ZoopVPN")
@@ -144,14 +172,32 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                 .setBlocking(true)
 
             if (routingMode == "full") {
-                // Full Internet Egress: Route all IPv4 traffic through Zoop exit node
+                // Full Internet Egress: Route all IPv4 & IPv6 traffic through Zoop exit node
                 builder.addRoute("0.0.0.0", 0)
+                // IPv6 Leak Protection: Assign ULA IPv6 address and sinkhole all IPv6 traffic into the tunnel
+                builder.addAddress("fd00:7a6f:6f70::2", 128)
+                builder.addRoute("::", 0)
+
+                // High-performance privacy DNS resolvers
                 builder.addDnsServer("1.1.1.1")
-                builder.addDnsServer("8.8.8.8")
+                builder.addDnsServer("1.0.0.1")
+                builder.addDnsServer("2606:4700:4700::1111")
             } else {
                 // Split Tunnel: Route only Zoop mesh overlay
                 builder.addRoute("100.64.0.0", 10)
+                builder.addAddress("fd00:7a6f:6f70::2", 128)
+                builder.addRoute("fd00:7a6f:6f70::", 64)
                 builder.addDnsServer("100.64.0.1")
+            }
+
+            // Register screen state receiver for adaptive power saving
+            if (!isScreenReceiverRegistered) {
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                }
+                registerReceiver(screenReceiver, filter)
+                isScreenReceiverRegistered = true
             }
 
             vpnInterface = builder.establish()
@@ -219,6 +265,14 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         }
 
         networkMonitor?.stop()
+        if (isScreenReceiverRegistered) {
+            try {
+                unregisterReceiver(screenReceiver)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error unregistering screen receiver: ${e.message}")
+            }
+            isScreenReceiverRegistered = false
+        }
         try {
             vpnInterface?.close()
         } catch (e: Exception) {
@@ -294,6 +348,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         const val EXTRA_CANDIDATES = "com.zoop.vpn.CANDIDATES"
         const val EXTRA_RELAY_URL = "com.zoop.vpn.RELAY_URL"
         const val EXTRA_ROUTING_MODE = "com.zoop.vpn.ROUTING_MODE"
+        const val EXTRA_KILL_SWITCH = "com.zoop.vpn.KILL_SWITCH"
 
         var isRunning: Boolean = false
         var eventListener: ((Map<String, Any>) -> Unit)? = null
