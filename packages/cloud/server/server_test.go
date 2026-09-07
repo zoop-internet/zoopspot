@@ -621,3 +621,106 @@ func TestServer_AdminDeviceSuspendRestore(t *testing.T) {
 		t.Fatalf("suspend of revoked device: expected 409, got %d", w.Result().StatusCode)
 	}
 }
+
+func TestServer_DevicePairing(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Register Device A (Phone)
+	pubA, privA, _ := ed25519.GenerateKey(rand.Reader)
+	reqA, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Pixel 8", Platform: "android", PublicKey: base64.StdEncoding.EncodeToString(pubA)})
+	recA := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recA, httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(reqA)))
+	var devA api.DeviceResponse
+	json.NewDecoder(recA.Body).Decode(&devA)
+
+	// Register Device B (Router)
+	pubB, privB, _ := ed25519.GenerateKey(rand.Reader)
+	reqB, _ := json.Marshal(api.RegisterDeviceRequest{Name: "OpenWrt Home Router", Platform: "linux", PublicKey: base64.StdEncoding.EncodeToString(pubB)})
+	recB := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recB, httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(reqB)))
+	var devB api.DeviceResponse
+	json.NewDecoder(recB.Body).Decode(&devB)
+
+	// Helper to send authenticated request
+	authReq := func(method, path string, priv ed25519.PrivateKey, endpointID types.ID, body []byte) *http.Request {
+		r := httptest.NewRequest(method, path, bytes.NewReader(body))
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		p := api.BuildCanonicalPayload(method, path, ts, nonce, bodyHash(string(body)))
+		sig := ed25519.Sign(priv, p)
+		r.Header.Set("X-Zoop-Identity", endpointID.String())
+		r.Header.Set("X-Zoop-Signature", base64.StdEncoding.EncodeToString(sig))
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		if len(body) > 0 {
+			r.Header.Set("Content-Type", "application/json")
+		}
+		return r
+	}
+
+	// 1. Device A creates a pairing token
+	wToken := httptest.NewRecorder()
+	tokenReqBody, _ := json.Marshal(api.CreatePairingTokenRequest{ExpiresInSeconds: 600})
+	srv.mux.ServeHTTP(wToken, authReq(http.MethodPost, "/v1/pairing/token", privA, devA.EndpointID, tokenReqBody))
+	if wToken.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("create pairing token: expected 201, got %d (%s)", wToken.Result().StatusCode, wToken.Body.String())
+	}
+	var tokenResp api.PairingTokenResponse
+	json.NewDecoder(wToken.Body).Decode(&tokenResp)
+	if tokenResp.Code == "" || len(tokenResp.Code) < 6 {
+		t.Fatalf("expected valid pairing code, got %s", tokenResp.Code)
+	}
+
+	// 2. Device B claims the pairing token
+	wClaim := httptest.NewRecorder()
+	claimReqBody, _ := json.Marshal(api.ClaimPairingRequest{Code: tokenResp.Code})
+	srv.mux.ServeHTTP(wClaim, authReq(http.MethodPost, "/v1/pairing/claim", privB, devB.EndpointID, claimReqBody))
+	if wClaim.Result().StatusCode != http.StatusOK {
+		t.Fatalf("claim pairing token: expected 200, got %d (%s)", wClaim.Result().StatusCode, wClaim.Body.String())
+	}
+	var claimResp api.ClaimPairingResponse
+	json.NewDecoder(wClaim.Body).Decode(&claimResp)
+	if !claimResp.Success || claimResp.PairedDeviceID != devA.EndpointID.String() {
+		t.Fatalf("expected successful claim pairing with Device A, got %+v", claimResp)
+	}
+
+	// 3. Re-claiming the token should fail (single-use)
+	wClaimAgain := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wClaimAgain, authReq(http.MethodPost, "/v1/pairing/claim", privB, devB.EndpointID, claimReqBody))
+	if wClaimAgain.Result().StatusCode != http.StatusNotFound {
+		t.Fatalf("re-claim token: expected 404, got %d", wClaimAgain.Result().StatusCode)
+	}
+
+	// 4. Device A checks its Fleet devices
+	wFleet := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wFleet, authReq(http.MethodGet, "/v1/devices/"+devA.EndpointID.String()+"/fleet", privA, devA.EndpointID, nil))
+	if wFleet.Result().StatusCode != http.StatusOK {
+		t.Fatalf("get fleet: expected 200, got %d", wFleet.Result().StatusCode)
+	}
+	var fleet []api.FleetDevice
+	json.NewDecoder(wFleet.Body).Decode(&fleet)
+	if len(fleet) < 2 {
+		t.Fatalf("expected at least 2 fleet devices (self + router), got %d", len(fleet))
+	}
+	hasRouter := false
+	for _, f := range fleet {
+		if f.ID == devB.EndpointID.String() {
+			hasRouter = true
+			if f.IsSelf {
+				t.Fatalf("router should not be marked as IsSelf")
+			}
+		}
+	}
+	if !hasRouter {
+		t.Fatalf("router was not found in Device A's fleet")
+	}
+}
+

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -80,6 +82,15 @@ type Server struct {
 	mux           *http.ServeMux
 	server        *http.Server
 	upgrader      websocket.Upgrader
+	pairingMu     sync.RWMutex
+	pairingTokens map[string]pairingEntry
+}
+
+type pairingEntry struct {
+	code       string
+	endpointID types.ID
+	zoopID     string
+	expiresAt  time.Time
 }
 
 func checkOrigin(allowed []string) func(r *http.Request) bool {
@@ -171,6 +182,7 @@ func NewServer(
 			WriteBufferSize: 1024,
 			CheckOrigin:     checkOrigin(cfg.AllowedOrigins),
 		},
+		pairingTokens: make(map[string]pairingEntry),
 	}
 	s.routes()
 	return s
@@ -229,6 +241,11 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/events", authMw(http.HandlerFunc(s.handleEventStream())))
 	s.mux.Handle("GET /v1/users/by-zoop-id/{zoopId}", authMw(http.HandlerFunc(s.handleGetUserByZoopID())))
 	s.mux.Handle("GET /v1/users/by-username/{username}", authMw(http.HandlerFunc(s.handleGetUserByUsername())))
+
+	// Device Pairing & Multi-Device Mesh (Phase 8)
+	s.mux.Handle("POST /v1/pairing/token", authMw(http.HandlerFunc(s.handleCreatePairingToken())))
+	s.mux.Handle("POST /v1/pairing/claim", authMw(http.HandlerFunc(s.handleClaimPairingToken())))
+	s.mux.Handle("GET /v1/devices/{id}/fleet", authMw(http.HandlerFunc(s.handleGetDeviceFleet())))
 
 	// Admin endpoints (operator console)
 	adminMw := api.AdminMiddleware(authMw, s.cfg.AdminIDs)
@@ -1838,6 +1855,234 @@ func stripAPIPrefixMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func generatePairingCode() (string, error) {
+	const charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	var sb strings.Builder
+	sb.WriteString("ZP-")
+	for i := 0; i < 6; i++ {
+		sb.WriteByte(charset[int(b[i])%len(charset)])
+	}
+	return sb.String(), nil
+}
+
+func (s *Server) handleCreatePairingToken() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID := api.IdentityFromContext(r.Context())
+		if callerID == (types.ID{}) {
+			api.WriteError(w, "unauthenticated", "caller identity required", http.StatusUnauthorized)
+			return
+		}
+
+		var req api.CreatePairingTokenRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		ttl := 10 * time.Minute
+		if req.ExpiresInSeconds > 0 && req.ExpiresInSeconds <= 3600 {
+			ttl = time.Duration(req.ExpiresInSeconds) * time.Second
+		}
+
+		code, err := generatePairingCode()
+		if err != nil {
+			api.WriteError(w, "internal_error", "failed to generate pairing code", http.StatusInternalServerError)
+			return
+		}
+
+		zoopID := "ZP-" + callerID.String()[:8]
+		if user, err := s.store.GetUser(r.Context(), callerID); err == nil && user.ZoopID != "" {
+			zoopID = user.ZoopID
+		}
+
+		now := time.Now().UTC()
+		expiresAt := now.Add(ttl)
+
+		s.pairingMu.Lock()
+		for k, v := range s.pairingTokens {
+			if now.After(v.expiresAt) {
+				delete(s.pairingTokens, k)
+			}
+		}
+		s.pairingTokens[code] = pairingEntry{
+			code:       code,
+			endpointID: callerID,
+			zoopID:     zoopID,
+			expiresAt:  expiresAt,
+		}
+		s.pairingMu.Unlock()
+
+		cloudURL := "https://3.70.135.200.sslip.io"
+		if r.Host != "" {
+			scheme := "https"
+			if r.TLS == nil && !strings.Contains(r.Host, "sslip.io") {
+				scheme = "http"
+			}
+			cloudURL = fmt.Sprintf("%s://%s", scheme, r.Host)
+		}
+
+		resp := api.PairingTokenResponse{
+			Code:       code,
+			EndpointID: callerID.String(),
+			ZoopID:     zoopID,
+			CloudURL:   cloudURL,
+			ExpiresAt:  expiresAt.Format(time.RFC3339),
+		}
+		api.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func (s *Server) handleClaimPairingToken() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claimerID := api.IdentityFromContext(r.Context())
+		if claimerID == (types.ID{}) {
+			api.WriteError(w, "unauthenticated", "caller identity required", http.StatusUnauthorized)
+			return
+		}
+
+		var req api.ClaimPairingRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "invalid json body", http.StatusBadRequest)
+			return
+		}
+
+		code := strings.TrimSpace(strings.ToUpper(req.Code))
+		if !strings.HasPrefix(code, "ZP-") && len(code) == 6 {
+			code = "ZP-" + code
+		}
+
+		s.pairingMu.Lock()
+		entry, exists := s.pairingTokens[code]
+		if exists && time.Now().UTC().After(entry.expiresAt) {
+			delete(s.pairingTokens, code)
+			exists = false
+		}
+		if exists {
+			delete(s.pairingTokens, code)
+		}
+		s.pairingMu.Unlock()
+
+		if !exists {
+			api.WriteError(w, "not_found", "invalid or expired pairing code", http.StatusNotFound)
+			return
+		}
+
+		if entry.endpointID == claimerID {
+			api.WriteError(w, "invalid_request", "cannot pair a device with itself", http.StatusBadRequest)
+			return
+		}
+
+		issuerDev, err := s.store.GetDevice(r.Context(), entry.endpointID)
+		if err != nil {
+			api.WriteError(w, "not_found", "issuing device not found", http.StatusNotFound)
+			return
+		}
+
+		// Provision bidirectional sharing relationships
+		_, _ = s.shares.CreateShare(r.Context(), api.CreateShareRequest{
+			ProviderID:  entry.endpointID,
+			RecipientID: claimerID,
+		})
+		_, _ = s.shares.CreateShare(r.Context(), api.CreateShareRequest{
+			ProviderID:  claimerID,
+			RecipientID: entry.endpointID,
+		})
+
+		ev := services.ServerEvent{
+			Type:   "device_paired",
+			Entity: "device",
+			ID:     claimerID.String(),
+			Payload: map[string]interface{}{
+				"paired_with": entry.endpointID.String(),
+				"device_name": issuerDev.Name,
+			},
+		}
+		s.events.PublishTo(entry.endpointID, ev)
+		s.events.PublishTo(claimerID, ev)
+
+		s.audit.Log(r.Context(), claimerID, "device.pair", "issuer:"+entry.endpointID.String(), "claimer:"+claimerID.String())
+
+		resp := api.ClaimPairingResponse{
+			Success:          true,
+			PairedDeviceID:   entry.endpointID.String(),
+			PairedDeviceName: issuerDev.Name,
+			Message:          fmt.Sprintf("Successfully paired with %s", issuerDev.Name),
+		}
+		api.WriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func (s *Server) handleGetDeviceFleet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		callerID := api.IdentityFromContext(r.Context())
+		idStr := r.PathValue("id")
+		targetID, err := uuid.Parse(idStr)
+		if err != nil {
+			api.WriteError(w, "invalid_request", "invalid device id format", http.StatusBadRequest)
+			return
+		}
+
+		endpointID := types.ID(targetID)
+		if callerID != endpointID {
+			if _, err := s.store.GetSharingRelationshipByEndpoints(r.Context(), callerID, endpointID); err != nil {
+				if _, err2 := s.store.GetSharingRelationshipByEndpoints(r.Context(), endpointID, callerID); err2 != nil {
+					api.WriteError(w, "forbidden", "not authorized to view this device fleet", http.StatusForbidden)
+					return
+				}
+			}
+		}
+
+		shares, err := s.store.ListShares(r.Context(), endpointID)
+		if err != nil {
+			s.logger.Error("failed to list shares for fleet", "error", err)
+			api.WriteError(w, "internal_error", "failed to list fleet", http.StatusInternalServerError)
+			return
+		}
+
+		fleet := make([]api.FleetDevice, 0)
+		seen := make(map[types.ID]bool)
+
+		if selfDev, err := s.store.GetDevice(r.Context(), endpointID); err == nil {
+			seen[endpointID] = true
+			fleet = append(fleet, api.FleetDevice{
+				ID:       selfDev.ID.String(),
+				Name:     selfDev.Name + " (This Device)",
+				Platform: selfDev.OS,
+				Status:   string(selfDev.State),
+				IsSelf:   true,
+				PairedAt: selfDev.CreatedAt.Format(time.RFC3339),
+			})
+		}
+
+		for _, sh := range shares {
+			otherID := sh.ProviderID
+			if otherID == endpointID {
+				otherID = sh.RecipientID
+			}
+			if seen[otherID] {
+				continue
+			}
+			seen[otherID] = true
+
+			dev, err := s.store.GetDevice(r.Context(), otherID)
+			if err != nil {
+				continue
+			}
+
+			fleet = append(fleet, api.FleetDevice{
+				ID:       dev.ID.String(),
+				Name:     dev.Name,
+				Platform: dev.OS,
+				Status:   string(dev.State),
+				IsSelf:   false,
+				PairedAt: sh.CreatedAt.Format(time.RFC3339),
+			})
+		}
+
+		api.WriteJSON(w, http.StatusOK, fleet)
+	}
 }
 
 // Start runs the HTTP server and blocks until the context is canceled.

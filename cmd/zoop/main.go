@@ -39,6 +39,13 @@ func main() {
 	switch action {
 	case "peers":
 		daemonAction = "get_peers"
+	case "pair":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: zoop pair <CODE>")
+			fmt.Println("Example: zoop pair ZP-9X4K2P")
+			os.Exit(1)
+		}
+		daemonAction = "pair_device"
 	case "telemetry":
 		daemonAction = "get_telemetry"
 	case "doctor":
@@ -118,6 +125,7 @@ func printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  status             Get running daemon status and WireGuard port")
 	fmt.Println("  peers              List all available devices in your Zoop network")
+	fmt.Println("  pair <CODE>        Pair this device with a mobile or remote mesh node (e.g. ZP-9X4K2P)")
 	fmt.Println("  connect <peer_id>  Request a direct connection to a peer")
 	fmt.Println("  disconnect         Disconnect current active tunnel")
 	fmt.Println("  telemetry          View network telemetry (latency, throughput)")

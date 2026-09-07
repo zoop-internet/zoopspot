@@ -247,6 +247,59 @@ class CloudApiClient {
     return result is Map<String, dynamic> ? result : {};
   }
 
+  /// Generates an ephemeral pairing token to pair another device to this identity.
+  Future<Map<String, dynamic>> createPairingToken({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    int expiresInSeconds = 600,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/pairing/token',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'expires_in_seconds': expiresInSeconds,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Claims a pairing token to mutually link with the issuing device.
+  Future<Map<String, dynamic>> claimPairingToken({
+    required String endpointId,
+    required String code,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/pairing/claim',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'code': code,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Lists all paired devices in the user's personal mesh fleet.
+  Future<List<Map<String, dynamic>>> getFleetDevices({
+    required String endpointId,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/devices/$endpointId/fleet',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+    if (result is List) {
+      return result.map((item) => item as Map<String, dynamic>).toList();
+    }
+    return [];
+  }
+
   Never _throwError(http.Response response) {
     try {
       final body = json.decode(response.body) as Map<String, dynamic>;

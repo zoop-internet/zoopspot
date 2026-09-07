@@ -178,3 +178,20 @@ func (c *APIClient) ListDevices(ctx context.Context) ([]api.DeviceResponse, erro
 	err := c.do(ctx, http.MethodGet, "/v1/devices", nil, &resp)
 	return resp, err
 }
+
+// ClaimPairingToken claims an ephemeral pairing code to link with another device in the mesh.
+func (c *APIClient) ClaimPairingToken(ctx context.Context, code string) (*api.ClaimPairingResponse, error) {
+	req := api.ClaimPairingRequest{Code: code}
+	var resp api.ClaimPairingResponse
+	err := c.do(ctx, http.MethodPost, "/v1/pairing/claim", req, &resp)
+	return &resp, err
+}
+
+// CreatePairingToken generates an ephemeral pairing code.
+func (c *APIClient) CreatePairingToken(ctx context.Context, expiresInSeconds int) (*api.PairingTokenResponse, error) {
+	req := api.CreatePairingTokenRequest{ExpiresInSeconds: expiresInSeconds}
+	var resp api.PairingTokenResponse
+	err := c.do(ctx, http.MethodPost, "/v1/pairing/token", req, &resp)
+	return &resp, err
+}
+

@@ -347,6 +347,22 @@ func handleIPC(
 		}
 		resp = DaemonResponse{Success: true, Message: "tunnel disconnected"}
 
+	case "pair_device":
+		if cmd.PeerID == "" {
+			resp = DaemonResponse{Success: false, Message: "pairing code required (e.g. ZP-XXXXXX)"}
+			break
+		}
+		claimResp, err := apiClient.ClaimPairingToken(ctx, cmd.PeerID)
+		if err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("pairing failed: %v", err)}
+			break
+		}
+		resp = DaemonResponse{
+			Success: true,
+			Message: fmt.Sprintf("Successfully paired with %s (ID: %s)", claimResp.PairedDeviceName, claimResp.PairedDeviceID),
+			Data:    claimResp,
+		}
+
 	case "get_peers":
 		devices, err := apiClient.ListDevices(ctx)
 		if err != nil {

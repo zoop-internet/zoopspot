@@ -112,3 +112,41 @@ type EndpointsResponse struct {
 type UpdateConnectionStateRequest struct {
 	State types.ConnectionState `json:"state"`
 }
+
+// CreatePairingTokenRequest is the payload for POST /v1/pairing/token
+type CreatePairingTokenRequest struct {
+	ExpiresInSeconds int `json:"expires_in_seconds,omitempty"`
+}
+
+// PairingTokenResponse is returned by POST /v1/pairing/token
+type PairingTokenResponse struct {
+	Code       string `json:"code"`
+	EndpointID string `json:"endpoint_id"`
+	ZoopID     string `json:"zoop_id"`
+	CloudURL   string `json:"cloud_url"`
+	ExpiresAt  string `json:"expires_at"`
+}
+
+// ClaimPairingRequest is the payload for POST /v1/pairing/claim
+type ClaimPairingRequest struct {
+	Code string `json:"code"`
+}
+
+// ClaimPairingResponse is returned by POST /v1/pairing/claim
+type ClaimPairingResponse struct {
+	Success          bool   `json:"success"`
+	PairedDeviceID   string `json:"paired_device_id"`
+	PairedDeviceName string `json:"paired_device_name"`
+	Message          string `json:"message"`
+}
+
+// FleetDevice represents a device in the user's personal mesh fleet
+type FleetDevice struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Platform string `json:"platform"`
+	Status   string `json:"status"`
+	IsSelf   bool   `json:"is_self"`
+	PairedAt string `json:"paired_at"`
+}
+

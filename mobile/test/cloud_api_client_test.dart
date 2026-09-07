@@ -219,5 +219,107 @@ void main() {
       expect(endpointsData['wireguard_public_key'], 'test-wireguard-pubkey');
       expect((endpointsData['endpoints'] as List).length, 2);
     });
+
+    test('createPairingToken posts request and parses code', () async {
+      final keyBundle = await cryptoService.generateIdentityKeyPair();
+      const endpointId = 'self-endpoint-id';
+
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/pairing/token');
+        expect(request.method, 'POST');
+        return http.Response(
+          json.encode({
+            'code': 'ZP-ABC123',
+            'endpoint_id': endpointId,
+            'expires_at': '2026-09-07T14:00:00Z',
+          }),
+          201,
+          headers: {'Content-Type': 'application/json'},
+        );
+      });
+
+      final client = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final tokenData = await client.createPairingToken(
+        endpointId: endpointId,
+        privateKeySeed: keyBundle.ed25519SeedBytes,
+      );
+
+      expect(tokenData['code'], 'ZP-ABC123');
+      expect(tokenData['endpoint_id'], endpointId);
+    });
+
+    test('claimPairingToken claims code and returns paired device details', () async {
+      final keyBundle = await cryptoService.generateIdentityKeyPair();
+      const endpointId = 'self-endpoint-id';
+
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/pairing/claim');
+        expect(request.method, 'POST');
+        final body = json.decode(request.body) as Map<String, dynamic>;
+        expect(body['code'], 'ZP-ABC123');
+        return http.Response(
+          json.encode({
+            'success': true,
+            'paired_device_id': 'peer-router',
+            'paired_device_name': 'Home Router',
+          }),
+          200,
+          headers: {'Content-Type': 'application/json'},
+        );
+      });
+
+      final client = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final claimData = await client.claimPairingToken(
+        endpointId: endpointId,
+        code: 'ZP-ABC123',
+        privateKeySeed: keyBundle.ed25519SeedBytes,
+      );
+
+      expect(claimData['success'], isTrue);
+      expect(claimData['paired_device_name'], 'Home Router');
+    });
+
+    test('getFleetDevices retrieves list of paired devices', () async {
+      final keyBundle = await cryptoService.generateIdentityKeyPair();
+      const endpointId = 'self-endpoint-id';
+
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/v1/devices/$endpointId/fleet');
+        expect(request.method, 'GET');
+        return http.Response(
+          json.encode([
+            {'id': endpointId, 'name': 'Pixel 8', 'is_self': true},
+            {'id': 'peer-router', 'name': 'Home Router', 'is_self': false},
+          ]),
+          200,
+          headers: {'Content-Type': 'application/json'},
+        );
+      });
+
+      final client = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final fleet = await client.getFleetDevices(
+        endpointId: endpointId,
+        privateKeySeed: keyBundle.ed25519SeedBytes,
+      );
+
+      expect(fleet.length, 2);
+      expect(fleet[0]['name'], 'Pixel 8');
+      expect(fleet[1]['name'], 'Home Router');
+    });
   });
 }
