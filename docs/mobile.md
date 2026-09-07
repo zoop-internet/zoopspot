@@ -1,1094 +1,1266 @@
-# Zoop Mobile UI Specification
+# Zoop Mobile — Product Experience Specification
 
-## 1. Purpose
+## 1. Overview
 
-The Zoop Mobile application is the primary mobile interface for using Zoop from Android and iOS.
+Zoop Mobile is the primary mobile interface for interacting with the Zoop platform on Android and iOS.
 
-The application combines:
+The mobile experience brings together Zoop identity, devices, connectivity, provider and recipient relationships, sharing, security, privacy, activity, diagnostics, organizations, and future financial functionality.
 
-* Zoop identity management
-* Device management
-* Connectivity
-* Provider functionality
-* Recipient functionality
-* Connection monitoring
-* Sharing management
-* Security
-* Privacy
-* Future payment functionality
+Zoop is fundamentally a **connectivity platform**, not simply a VPN application.
 
-The application must feel like **Zoop**, not like a conventional VPN application.
+The mobile product should therefore help users understand and manage relationships between:
 
-Zoop is a connectivity platform. The interface should communicate relationships between people, devices, and networks rather than presenting the product as a simple VPN on/off switch.
+* people
+* identities
+* devices
+* connections
+* providers
+* recipients
+* networks
+* organizations
+* trust and access
 
----
+The experience should make these relationships understandable without requiring users to understand the underlying networking architecture.
 
-# 2. Platforms
-
-The mobile application targets:
-
-* Android
-* iOS
-
-The UI is implemented using **Flutter**.
-
-Platform-specific networking functionality remains implemented through the appropriate native Android and iOS interfaces.
-
-Flutter owns the product interface and interaction model.
+The goal is to create a mobile product that feels distinctly like Zoop rather than a conventional VPN client.
 
 ---
 
-# 3. Design Philosophy
+# 2. Purpose of This Specification
 
-The Zoop mobile experience should be:
+This document defines:
 
-* Modern
-* Minimal
-* Distinctive
-* Fast
-* Calm
-* Trustworthy
-* Technical without being complicated
-* Privacy-conscious
-* Easy for first-time users
-* Powerful for advanced users
+* product capabilities
+* user outcomes
+* functional requirements
+* UX principles
+* visual direction
+* technical boundaries
+* accessibility expectations
+* behavioral expectations
+* quality standards
 
-The interface must not resemble a traditional VPN application.
+It is intentionally **not a screen-by-screen UI specification**.
 
-Avoid:
+The implementation and design agent should not interpret this document as requiring a predetermined set of screens, layouts, navigation patterns, component arrangements, or interaction mechanisms.
 
-* Giant VPN ON/OFF switches as the primary experience
-* Generic VPN server lists
-* Excessive cards
-* Excessive gradients
-* Dense dashboards
-* Unnecessary technical terminology
-* Fake networking statistics
-* Decorative UI without purpose
+There may be multiple valid ways to satisfy the requirements.
 
-Zoop should feel like a **connectivity network**, not a VPN utility.
+The agent should use product judgment, mobile UX best practices, accessibility principles, Android and iOS conventions, and the Zoop product model to determine the most effective implementation.
+
+The objective is to produce the **best possible Zoop mobile experience**, not to reproduce a particular interface structure.
 
 ---
 
-# 4. Brand Language
+# 3. Design Freedom
 
-The UI should use the existing Zoop visual identity.
+The following principle applies throughout this specification.
 
-Primary characteristics:
+> **Requirements describe what the product must accomplish, not necessarily how the interface must accomplish it.**
 
-* Deep dark surfaces
-* Strong typography
-* Blue, cyan, and green accents
-* Flat surfaces
-* High contrast
-* Subtle borders
-* Controlled use of color
-* Small amounts of motion
-* Strong visual hierarchy
+Unless a behavior is explicitly required by a functional, security, accessibility, or platform constraint, the implementation is free to determine:
 
-The Zoop orbital/node concept should influence:
+* information architecture
+* navigation model
+* screen composition
+* interaction patterns
+* component selection
+* information hierarchy
+* content presentation
+* transitions
+* progressive disclosure mechanisms
+* placement of actions
+* visual composition
 
-* Connection indicators
-* Device relationships
-* Network states
-* Provider/Recipient relationships
-* Loading states
-* Transitions
+Do not create UI solely because a section of this document happens to describe a capability.
 
-The visual language should be recognizable even when the Zoop logo is not visible.
+A capability may be represented through:
 
----
+* a dedicated experience
+* contextual UI
+* an existing product surface
+* a flow
+* a modal or sheet
+* a settings area
+* a progressive disclosure pattern
+* another interaction model
 
-# 5. Application Structure
+The appropriate solution should be selected based on usability and context.
 
-Primary navigation:
-
-```text
-Home
-Connections
-Sharing
-Devices
-Settings
-```
-
-Secondary screens are opened from these sections.
-
-The navigation must remain simple.
-
-The user should not need to understand the internal Zoop architecture to operate the application.
+The implementation should avoid unnecessarily multiplying screens simply to mirror this document.
 
 ---
 
-# 6. First Launch
+# 4. Product Vision
 
-## 6.1 Welcome
+Zoop should feel like a user's interface to a living connectivity network.
 
-### Purpose
+The product should communicate:
 
-Introduce Zoop to a new user.
+* who the user is
+* what devices belong to them
+* what they are connected to
+* who they are sharing connectivity with
+* what is happening now
+* whether something needs attention
+* what the user can do next
+* how trust and access are being managed
 
-### Content
+The product should feel:
 
-* Zoop branding
-* Short explanation of Zoop
-* Privacy-oriented message
-* Create Zoop ID
-* Existing Zoop ID option
+* modern
+* minimal
+* distinctive
+* fast
+* calm
+* trustworthy
+* technically capable without being complicated
+* privacy-conscious
+* approachable to first-time users
+* powerful for advanced users
 
-### Interaction
+Zoop should not feel like a traditional VPN utility with additional features added around it.
 
-Primary action:
-
-**Create Zoop ID**
-
-Secondary action:
-
-**I already have a Zoop ID**
-
-### Design
-
-The screen should be visually strong and simple.
-
-It should establish the Zoop identity immediately rather than looking like a generic registration screen.
+The central product concept is **connectivity and relationships**, rather than simply turning a network tunnel on or off.
 
 ---
 
-# 7. Identity Screens
+# 5. Core User Outcomes
 
-## 7.1 Create Zoop ID
+The experience should enable users to answer, with minimal effort:
 
-### Purpose
+> **What is happening?**
 
-Create the user's Zoop identity.
+> **Who or what am I connected to?**
 
-### Content
+> **What can I do next?**
 
-* Username
-* Username availability
-* Zoop ID generation
-* Zoop PIN creation
-* PIN confirmation
-* Privacy information
+Users should be able to:
 
-### Result
+* establish and manage their Zoop identity
+* understand their current connectivity state
+* connect through authorized connectivity relationships
+* understand provider and recipient relationships
+* share connectivity when acting as a Provider
+* manage devices associated with their identity
+* manage access and permissions
+* understand important activity
+* troubleshoot connectivity problems
+* manage security and recovery
+* understand privacy and data usage
+* participate in organizations where applicable
+* access advanced technical information when necessary
 
-The user receives:
+The product should not require users to understand Zoop's internal architecture before they can successfully use it.
 
-```text
-Zoop ID
-ZP-XXXXXXXX
-```
+---
 
-and a username:
+# 6. Core Product Model
 
-```text
-@username
-```
+Zoop's mobile experience should be designed around a set of related concepts.
+
+## Identity
+
+A Zoop identity represents the user's presence within the Zoop ecosystem.
+
+The identity system should support:
+
+* creation
+* authentication
+* identification
+* protection
+* PIN management
+* recovery
+* device association
+* security management
 
 The Zoop ID is permanent.
 
-The username may be changeable according to platform rules.
+A username may be changeable according to platform rules.
+
+The system should avoid collecting unnecessary personal information.
+
+Zoop intentionally does not depend on email or phone numbers as the primary identity model.
 
 ---
 
-## 7.2 Zoop ID
+## Devices
 
-### Purpose
+Devices are first-class objects within Zoop.
 
-Show the user's identity.
+A device may:
 
-### Content
+* belong to a Zoop identity
+* participate in connectivity
+* provide connectivity
+* receive connectivity
+* have its own credentials
+* have security state
+* have activity history
+* be revoked or removed
 
-* Zoop ID
-* Username
-* Account status
-* Device count
-* Identity information
-* Security entry point
+Each device should have its own device credential.
 
-### Important
+A user's identity credential must not simply be copied between devices.
 
-The Zoop ID should be visually important.
-
-It represents the user's identity within Zoop.
+The mobile experience should make device ownership, registration, status, and security understandable.
 
 ---
 
-## 7.3 Sign In
+## Connectivity
 
-### Purpose
+Connectivity is the central product capability.
 
-Authenticate an existing Zoop identity.
+The product should allow users to establish and manage authorized connectivity relationships while abstracting unnecessary networking complexity.
 
-### Content
+Relevant connectivity concepts may include:
+
+* connection state
+* provider
+* recipient
+* direct connectivity
+* relayed connectivity
+* connection duration
+* quality
+* latency
+* packet loss
+* recovery
+* connection events
+
+The interface should present complexity progressively.
+
+---
+
+## Providers
+
+Providers are users or devices that make connectivity available.
+
+Providers should feel like intentional participants in the Zoop network rather than anonymous VPN servers.
+
+Users should have enough information to understand:
+
+* who or what the Provider is
+* whether the Provider is available
+* whether the connection is healthy
+* what trust information is relevant
+* whether sharing is active
+* what action is available
+
+The experience should help users make informed decisions without requiring networking knowledge.
+
+---
+
+## Recipients
+
+Recipients are users or devices using shared connectivity.
+
+The product should support management of:
+
+* recipient identity
+* recipient device
+* connection status
+* usage
+* access permissions
+* history
+* revocation
+
+The interface should frame this as a relationship rather than as an anonymous VPN session.
+
+---
+
+## Sharing
+
+Users may act as Providers and make their connectivity available to others.
+
+The sharing experience should communicate:
+
+* whether sharing is active
+* who currently has access
+* relevant activity
+* usage
+* requests
+* permissions
+* limits
+* availability
+
+The language should describe the concept as **sharing connectivity**, rather than presenting it as a generic VPN toggle.
+
+---
+
+## Organizations
+
+A Zoop identity may participate in organizations.
+
+The product should support organization-related concepts including:
+
+* organization membership
+* roles
+* invitations
+* organization devices
+* organization connections
+* organizational policies
+* usage
+
+Advanced organizational administration may remain outside the mobile application where appropriate.
+
+The mobile experience should still provide enough context for users to understand their role and relevant organization state.
+
+---
+
+# 7. First-Time Experience
+
+The first-time experience should introduce Zoop without overwhelming the user.
+
+It should communicate:
+
+* what Zoop is
+* why it exists
+* the role of privacy and trust
+* how identity works
+* what the user can accomplish
+
+The onboarding experience must support both:
+
+* creation of a new Zoop identity
+* authentication of an existing identity
+
+The implementation should determine the most effective flow for doing this.
+
+The experience should establish the Zoop brand and product model from the beginning rather than resembling a generic account-registration flow.
+
+---
+
+# 8. Identity and Authentication
+
+Zoop identity creation should support the information and security requirements necessary to establish a user's identity.
+
+Relevant concepts include:
+
+* username
+* username availability
+* Zoop ID generation
+* PIN creation
+* PIN confirmation
+* privacy information
+
+The resulting identity includes:
+
+* a permanent Zoop ID
+* a username
+
+Authentication for an existing identity should support:
 
 * Zoop ID
 * Zoop PIN
-* Continue
-* Recovery option
+* recovery where applicable
 
-The user should not be asked for unnecessary personal information.
-
----
-
-## 7.4 Zoop PIN
-
-### Purpose
-
-Create, change, or verify the user's Zoop PIN.
-
-### Behavior
-
-The PIN should not be requested every time the application opens.
-
-It is primarily used for:
-
-* Authentication
-* Sensitive actions
-* Device registration
-* Security changes
-* Future financial authorization
-
-The interface should make PIN entry quick and low-friction.
+Avoid unnecessary personal-information requirements.
 
 ---
 
-# 8. Device Registration
+# 9. PIN and Sensitive Actions
 
-## 8.1 Register This Device
+The Zoop PIN is a security mechanism rather than a general application-opening requirement.
 
-### Purpose
+It may be used for:
 
-Connect the current Android or iOS device to a Zoop identity.
+* authentication
+* sensitive actions
+* device registration
+* security changes
+* future financial authorization
 
-### Content
+The experience should minimize friction while maintaining appropriate security.
 
-* Device name
-* Device type
+The PIN should not be unnecessarily requested every time the application is opened.
+
+The implementation should use the platform's available secure mechanisms where appropriate.
+
+---
+
+# 10. Device Registration and Management
+
+The product must support associating Android and iOS devices with a Zoop identity.
+
+Relevant device information may include:
+
+* device name
+* device type
 * Zoop identity
-* Registration status
-* Security status
-* Confirmation
+* registration status
+* security state
+* capabilities
+* registration date
+* last activity or last-seen information
 
-The device generates its own device credential.
-
-The user's identity credential must not simply be copied between devices.
-
----
-
-## 8.2 Add Device
-
-### Purpose
-
-Add another device to the Zoop identity.
-
-### Methods
-
-The UI may support:
+Adding another device may use mechanisms such as:
 
 * QR pairing
 * Zoop ID authentication
-* Device invitation
+* device invitations
+* other appropriate secure mechanisms
 
-### Goal
+The exact interaction should be determined by the implementation.
 
-Device registration should be simple enough for a non-technical user.
+Device management must allow users to understand and control devices associated with their identity.
 
----
-
-# 9. Home
-
-## Purpose
-
-The Home screen is the primary Zoop experience.
-
-It communicates:
-
-* Current Zoop state
-* Current connectivity
-* Current role
-* Important activity
-* Device status
-* Quick actions
-
-It should not look like a VPN control panel.
+The product must support appropriate device revocation and removal.
 
 ---
 
-## 9.1 Home States
+# 11. Primary Experience
 
-The Home screen must support:
+The primary mobile experience should provide an immediate understanding of the user's current context.
 
-### Not connected
+Depending on the user's state, it may need to communicate:
 
-Explain that the device is currently not using a Zoop connection.
+* current Zoop state
+* connectivity state
+* relevant connectivity relationship
+* user role
+* device state
+* sharing state
+* meaningful recent activity
+* recommended or available actions
 
-Provide an appropriate next action.
+The primary experience should adapt to context.
 
-### Connecting
+For example, an actively connected user should not necessarily receive the same presentation as a user who is disconnected, troubleshooting, sharing connectivity, or setting up the product for the first time.
 
-Show that Zoop is establishing connectivity.
-
-Use subtle motion.
-
-### Connected
-
-Show:
-
-* Connected Provider or network relationship
-* Connection state
-* Direct or relay path
-* Duration
-* Relevant connection information
-
-### Reconnecting
-
-Explain that Zoop is attempting to recover connectivity.
-
-### Connection failed
-
-Explain the failure in human language and provide recovery options.
-
-### Sharing
-
-If the user is acting as a Provider, show that their device is currently sharing connectivity.
+The implementation should determine the most effective information hierarchy for each state.
 
 ---
 
-# 10. Home Visual Model
+# 12. Connectivity States
 
-The Home screen should visually represent the user's current position in Zoop.
+Connectivity is stateful and the UI must represent meaningful state changes.
 
-For example:
+The product should support, at minimum:
 
-```text
-Your Device
-     │
-     │
-Zoop Connection
-     │
-     │
-Provider / Recipient
-```
+* not connected
+* connecting
+* connected
+* reconnecting
+* connection failure
+* sharing state where applicable
 
-The actual implementation should use the Zoop visual language rather than a literal technical diagram.
+The experience should explain failures in human language.
 
-The goal is to make the relationship understandable at a glance.
+Users should understand what happened and what action, if any, is available.
 
----
-
-# 11. Connections
-
-## Purpose
-
-Manage the user's active and available connectivity relationships.
-
-### Content
-
-* Active connections
-* Available authorized connections
-* Provider identity
-* Recipient identity
-* Connection status
-* Direct/relay state
-* Duration
-* Connection quality
-
-Connections should feel like relationships rather than VPN servers.
+During connection establishment and recovery, motion may be used to communicate progress and state changes, provided it remains purposeful and accessible.
 
 ---
 
-# 12. Connection Details
+# 13. Connection Information
 
-### Purpose
+For an active or recent connection, the product should be capable of communicating relevant information such as:
 
-Provide detailed information about a connection.
+* participants
+* devices
+* provider relationship
+* recipient relationship
+* connection state
+* direct versus relay path
+* duration
+* latency
+* packet loss
+* usage
+* recent events
 
-### Content
+The product should not expose all technical information at once.
 
-* Connection participants
-* Device identities
-* Connection state
-* Path type
-* Direct/relay status
-* Duration
-* Latency
-* Packet loss
-* Usage
-* Recent connection events
-* Disconnect
+Ordinary users should encounter a simple explanation first.
 
-Technical details should be progressively disclosed.
-
-Ordinary users should see a simple explanation first.
-
-Advanced information can be expanded.
+Advanced users should be able to inspect additional technical detail when necessary.
 
 ---
 
-# 13. Providers
+# 14. Connection Quality and Diagnostics
 
-## Purpose
+Zoop contains complex networking systems beneath the user experience.
 
-Show connectivity Providers available to the user.
+The product should provide a way to understand connectivity health and troubleshoot problems.
 
-### Content
+Relevant diagnostic information can include:
 
-* Provider username
-* Provider/device
-* Availability
-* Connection quality
-* Trust information
-* Connection action
+* network availability
+* endpoint reachability
+* direct connectivity
+* relay state
+* latency
+* packet loss
+* connection attempts
+* recovery events
+* tunnel state
 
-Providers should not be presented like anonymous VPN servers.
+Diagnostics should remain secondary to the primary experience.
 
-The relationship should feel understandable and intentional.
+Users should enter advanced diagnostics when they want to investigate a problem or understand deeper networking behavior.
 
----
-
-# 14. Provider Details
-
-### Purpose
-
-Show information before connecting to a Provider.
-
-### Content
-
-* Provider identity
-* Username
-* Device
-* Availability
-* Connection quality
-* Sharing status
-* Trust information
-* Connect
-
-The screen should help users make an informed connection decision.
+Diagnostics should never replace understandable explanations.
 
 ---
 
-# 15. Sharing
+# 15. Sharing and Access Management
 
-## Purpose
+The product must allow Providers to control how connectivity is shared.
 
-Control Provider functionality.
+Relevant controls and concepts include:
 
-### Content
+* who can connect
+* which devices are allowed
+* access permissions
+* usage restrictions
+* sharing limits
+* provider availability
+* current recipients
+* requests for access
 
-* Sharing status
-* Current recipients
-* Sharing activity
-* Usage
-* Sharing controls
-* Requests
+The implementation should make these controls understandable to non-technical users.
 
-The main control should communicate:
+Avoid unnecessary exposure of raw networking terminology, firewall concepts, or implementation details in normal workflows.
 
-> **Share my connectivity**
-
-rather than:
-
-> VPN ON
+Advanced controls may exist for users who need them.
 
 ---
 
 # 16. Sharing Requests
 
-### Purpose
+When another user requests access to shared connectivity, the request experience should provide enough context for an informed decision.
 
-Handle requests from potential Recipients.
+Relevant information may include:
 
-### Content
+* requester identity
+* requesting device
+* request status
+* requested access
+* relevant trust information
 
-* Requester identity
-* Requesting device
-* Request status
-* Requested access
-* Approve
-* Reject
-* Block
+The user should be able to make appropriate decisions such as:
 
-Requests should be understandable without networking knowledge.
+* approve
+* reject
+* block
 
----
-
-# 17. Recipient Details
-
-### Purpose
-
-Manage a person/device using shared connectivity.
-
-### Content
-
-* Recipient identity
-* Device
-* Connection state
-* Usage
-* Access permissions
-* Connection history
-* Revoke access
+The exact interaction mechanism is an implementation decision.
 
 ---
 
-# 18. Sharing Policies
+# 17. Activity
 
-### Purpose
+The product should expose meaningful activity without becoming a raw developer log.
 
-Control how the user's connectivity can be shared.
+Potential events include:
 
-### Content
+* device registration
+* connection establishment
+* disconnection
+* direct connection establishment
+* relay activation
+* connection recovery
+* sharing started
+* recipient connected
+* device revoked
+* security events
+* organization events
 
-* Who can connect
-* Allowed devices
-* Access permissions
-* Usage restrictions
-* Sharing limits
-* Provider availability
+The activity experience should prioritize events that help users understand what is happening or identify something that needs attention.
 
-Policies should use simple language.
+Detailed event information may include:
 
-Avoid exposing raw firewall or networking terminology unless the user enters an advanced section.
-
----
-
-# 19. Devices
-
-## Purpose
-
-Manage all devices owned by the Zoop identity.
-
-### Content
-
-* Device list
-* Device names
-* Device types
-* Online/offline state
-* Provider/Recipient capability
-* Last activity
-* Security state
-* Add device
+* event type
+* time
+* device
+* connection
+* participants
+* result
+* relevant technical information
 
 ---
 
-# 20. Device Details
+# 18. Security
 
-### Purpose
+Security is a core product capability.
 
-Manage an individual device.
+The experience should give users meaningful control over:
 
-### Content
-
-* Device name
-* Device ID
-* Device type
 * Zoop identity
-* Status
-* Capabilities
-* Registration date
-* Last seen
-* Security state
-* Revoke
-* Remove
-
----
-
-# 21. Activity
-
-## Purpose
-
-Show meaningful events occurring within Zoop.
-
-### Events
-
-Examples:
-
-* Device registered
-* Connection established
-* Connection disconnected
-* Direct connection established
-* Relay activated
-* Connection recovered
-* Sharing started
-* Recipient connected
-* Device revoked
-
-The Activity interface should prioritize meaningful information.
-
-It must not become a raw developer log.
-
----
-
-# 22. Activity Details
-
-### Purpose
-
-Explain an individual event.
-
-### Content
-
-* Event type
-* Time
-* Device
-* Connection
-* Participants
-* Result
-* Relevant technical information
-
----
-
-# 23. Diagnostics
-
-## Purpose
-
-Provide advanced networking information.
-
-### Content
-
-* Network availability
-* Endpoint reachability
-* Direct connectivity
-* Relay status
-* Latency
-* Packet loss
-* Connection attempts
-* Recovery events
-* Tunnel state
-
-Diagnostics should be hidden from the primary experience.
-
-The user enters Diagnostics when they want to understand a problem.
-
----
-
-# 24. Security
-
-## Purpose
-
-Manage identity and device security.
-
-### Content
-
-* Zoop ID
 * PIN
-* Registered devices
-* Active sessions
-* Security events
-* Device revocation
-* Recovery
+* registered devices
+* active sessions
+* security events
+* device revocation
+* recovery
+
+Device-level security may include:
+
+* credential state
+* registration status
+* last authentication
+* security events
+* revocation
+
+The implementation should balance transparency with simplicity.
+
+Security information should be understandable without unnecessarily exposing internal security implementation details.
 
 ---
 
-# 25. Device Security
+# 19. Account Recovery
 
-### Purpose
+Zoop recovery is a specialized part of the product because the platform does not intentionally rely on email or phone numbers as conventional recovery mechanisms.
 
-Protect individual devices.
+The recovery experience must clearly communicate:
 
-### Content
+* the available recovery method
+* information required from the user
+* consequences of the recovery process
+* how identity protection is maintained
 
-* Device credential state
-* Registration status
-* Last authentication
-* Security events
-* Revoke device
+Recovery must never expose another user's identity, credentials, or private information.
 
----
-
-# 26. Account Recovery
-
-## Purpose
-
-Provide a method for recovering access to a Zoop identity.
-
-Zoop intentionally does not require email or phone numbers.
-
-Therefore recovery must be designed as an independent security system.
-
-The recovery experience must clearly explain:
-
-* Recovery method
-* What information is required
-* Security consequences
-* Identity protection
-
-Recovery must never expose another user's identity or credentials.
+Recovery workflows should prioritize preventing irreversible user mistakes.
 
 ---
 
-# 27. Privacy
+# 20. Privacy
 
-## Purpose
+Zoop should make privacy understandable rather than presenting privacy as a legal document hidden from users.
 
-Show users what Zoop knows and why.
+The product should be capable of explaining relevant areas such as:
 
-### Content
+* account information
+* device information
+* network metadata
+* usage information
+* analytics
+* data management
+* privacy controls
 
-* Account information
-* Device information
-* Network metadata
-* Usage information
-* Analytics controls
-* Data management
-* Privacy explanation
+The language should be simple, direct, and transparent.
 
-The language should be simple and transparent.
-
----
-
-# 28. Organizations
-
-## Purpose
-
-Allow a Zoop identity to participate in organizations.
-
-### Content
-
-* Organizations
-* Organization roles
-* Membership
-* Invitations
-* Organization devices
-* Organization connections
+Users should understand what information Zoop handles and why.
 
 ---
 
-# 29. Organization Details
+# 21. Organizations
 
-### Purpose
+When an identity participates in an organization, the mobile experience should communicate the user's organizational context.
 
-Provide organization-level information.
+Relevant information may include:
 
-### Content
+* organizations
+* membership
+* role
+* invitations
+* organization devices
+* organization connections
+* policies
+* usage
 
-* Organization identity
-* User role
-* Members
-* Devices
-* Connections
-* Policies
-* Usage
-* Organization settings
-
-Advanced organization administration may remain Web-only.
+Advanced administrative functionality may remain Web-only when mobile exposure would create unnecessary complexity.
 
 ---
 
-# 30. Settings
+# 22. Notifications
 
-## Purpose
+Notifications should prioritize events that require attention or provide meaningful information.
 
-Provide general application and account configuration.
+Potential categories include:
 
-### Sections
+* connection events
+* sharing requests
+* device events
+* security events
+* organization events
 
-* Account
-* Zoop Identity
-* Security
-* Devices
-* Notifications
-* Network
-* Privacy
-* Appearance
-* Support
-* About
+Notifications should avoid becoming a continuous stream of low-value technical events.
 
----
+The product should distinguish between:
 
-# 31. Notifications
+* information
+* actionable events
+* urgent security events
 
-### Purpose
-
-Control important Zoop notifications.
-
-### Notification categories
-
-* Connection events
-* Sharing requests
-* Device events
-* Security events
-* Organization events
-
-Notifications should prioritize events that require action.
+The implementation should follow platform notification conventions.
 
 ---
 
-# 32. About
+# 23. Settings
 
-### Purpose
+The mobile product should provide appropriate controls for application and account configuration.
 
-Provide product and system information.
+Relevant domains include:
 
-### Content
+* account
+* identity
+* security
+* devices
+* notifications
+* network behavior
+* privacy
+* appearance
+* support
+* about
+
+The exact information architecture should be determined by the implementation based on discoverability, hierarchy, frequency of use, and platform conventions.
+
+---
+
+# 24. About and Support
+
+The product should provide appropriate product and system information, including where relevant:
 
 * Zoop version
 * Agent version
-* Platform
-* Legal information
-* Open-source information where applicable
-* Support
-* Diagnostics
+* platform
+* legal information
+* applicable open-source information
+* support
+* diagnostics
+
+Technical information should be accessible when useful without dominating the everyday experience.
 
 ---
 
-# 33. Future Payment Screens
+# 25. Future Payments
 
-Payment functionality is not required for the initial networking implementation but the architecture must support it.
+Payment functionality is not required for the initial networking implementation.
 
-Future screens may include:
+However, the product architecture should not prevent future financial capabilities.
 
-## Zoop Balance
+Potential future concepts include:
 
-Shows:
+* Zoop balance
+* pending balance
+* transactions
+* connectivity purchases
+* provider earnings
+* pending earnings
+* available earnings
+* withdrawals
+* fees
+* adding funds
+* payment methods
 
-* Available balance
-* Pending balance
-* Recent transactions
-* Earnings
+Payment functionality must remain conceptually and architecturally separate from Zoop identity.
 
-## Add Funds
-
-Allows users to:
-
-* Select amount
-* Select payment method
-* Confirm
-* View transaction status
-
-## Provider Earnings
-
-Shows:
-
-* Connectivity provided
-* Earnings
-* Pending earnings
-* Available earnings
-* Withdrawals
-
-## Transactions
-
-Shows:
-
-* Payments
-* Connectivity purchases
-* Provider earnings
-* Fees
-* Withdrawals
-
-Payment functionality must remain separate from Zoop identity.
+The mobile experience for future financial features should follow the same product principles as the rest of Zoop while being designed as a distinct capability.
 
 ---
 
-# 34. Error States
+# 26. Visual Direction
 
-Every major screen must have designed states for:
+Zoop should have a recognizable visual identity that does not depend on constant use of the logo.
 
-* Loading
-* Empty
-* Offline
-* Authentication failure
-* Permission failure
-* Network failure
-* Server failure
-* Connection failure
-* Recovery
-* Success
+The visual language should generally favor:
 
-Errors must explain what happened and what the user can do next.
+* deep or dark surfaces where appropriate
+* strong typography
+* high contrast
+* controlled blue, cyan, and green accents
+* restrained use of color
+* flat or visually disciplined surfaces
+* subtle borders
+* clear hierarchy
+* purposeful motion
+* strong readability
 
----
+These are visual directions, not mandatory component prescriptions.
 
-# 35. Empty States
+The implementation agent should determine the appropriate composition and component system.
 
-Empty states should not simply say:
+Avoid visual decisions that make Zoop appear like a generic:
 
-> Nothing here.
-
-They should explain the purpose of the section and provide a useful next action.
-
-Examples:
-
-* No devices → Add your first device
-* No connections → Find or connect to a Provider
-* No recipients → Share your connectivity
-* No organizations → Create or join an organization
+* VPN client
+* network monitoring dashboard
+* enterprise admin console
+* cryptocurrency application
+* technical developer tool
 
 ---
 
-# 36. Mobile Navigation
+# 27. Zoop Visual Language
 
-Primary navigation:
+The Zoop concept of nodes, relationships, and connectivity may influence the visual system.
 
-```text
-Home
-Connections
-Sharing
-Devices
-Settings
-```
+It can inform:
 
-Secondary features should be reached contextually.
+* connection states
+* device relationships
+* provider and recipient relationships
+* network states
+* loading
+* transitions
+* status communication
 
-The application should avoid excessive navigation tabs.
+This concept should be interpreted creatively.
+
+It does not require literal network diagrams or fixed graphical compositions.
+
+The goal is to make the product feel like a coherent Zoop system.
 
 ---
 
-# 37. Responsive Design
+# 28. Navigation and Information Architecture
 
-The same design system must work across:
+The application must provide intuitive access to the major product capabilities.
 
-* Small Android phones
-* Large Android phones
+Relevant domains include:
+
+* primary connectivity experience
+* connections
+* sharing
+* devices
+* identity
+* security
+* activity
+* organizations
+* privacy
+* settings
+* support
+
+The final navigation architecture should be chosen according to mobile usability rather than by mechanically translating this list into navigation tabs.
+
+The product should avoid excessive navigation complexity.
+
+Users should be able to discover secondary functionality contextually.
+
+The navigation model should work well on both Android and iOS.
+
+---
+
+# 29. Responsive Mobile Design
+
+The design system must support:
+
+* small Android phones
+* large Android phones
 * iPhones
-* Different aspect ratios
-* Small and large text settings
-* Light and dark system configurations if supported
+* different aspect ratios
+* different text-size configurations
+* accessibility settings
+* platform-specific interaction conventions
+* supported light and dark appearance modes
 
-The interface must not depend on one specific phone size.
+The product must not depend on a single phone size, exact viewport dimensions, or fixed positioning.
 
----
-
-# 38. Accessibility
-
-The application must support:
-
-* Accessible text sizes
-* Screen readers
-* Sufficient contrast
-* Touch targets
-* Reduced motion
-* Clear focus states
-* Meaningful labels
-* Non-color-only status indicators
-
-Connection state must never be communicated through color alone.
+Layouts should adapt to content, user settings, and device characteristics.
 
 ---
 
-# 39. Motion
+# 30. Accessibility
 
-Motion should be subtle and purposeful.
+Accessibility is a product requirement, not a later enhancement.
 
-Use animation for:
+The experience must support:
 
-* Connection establishment
-* Connection recovery
-* Device registration
-* State transitions
-* Network activity
+* accessible text sizing
+* screen readers
+* sufficient contrast
+* accessible touch targets
+* reduced motion
+* meaningful labels
+* clear focus states
+* understandable interaction feedback
+* status communication that does not depend only on color
+
+Important connection states must never be communicated solely through color.
+
+The implementation should follow current Android and iOS accessibility conventions.
+
+---
+
+# 31. Motion
+
+Motion should communicate meaningful system behavior.
+
+Appropriate uses may include:
+
+* connection establishment
+* connection recovery
+* device registration
+* state transitions
+* network activity
+
+Motion should be:
+
+* subtle
+* purposeful
+* understandable
+* responsive
 
 Avoid:
 
-* Constant animation
-* Decorative motion
-* Distracting effects
+* constant animation
+* decorative movement without meaning
+* distracting effects
+* motion that obscures system state
 
-Motion should make Zoop feel alive without making it feel like a game.
+Zoop should feel alive without feeling like a game.
+
+Reduced-motion preferences must be respected.
 
 ---
 
-# 40. Technical Information
+# 32. Information Hierarchy
 
-Zoop has complex networking underneath the interface.
+Zoop operates across several levels of complexity.
 
-The UI should progressively expose that complexity.
+The experience should progressively disclose information.
 
-### Normal user
+### Everyday user
 
-Sees:
+The user should primarily see:
 
-> Connected directly
+* understandable state
+* relevant relationships
+* useful actions
+* meaningful explanations
 
 ### Advanced user
 
-Can inspect:
+The user may need access to:
 
-> Direct path
-> Latency
-> Packet loss
-> Endpoint state
-> Connection events
+* direct versus relay path
+* latency
+* packet loss
+* endpoint state
+* connection attempts
+* recovery events
+* tunnel state
+* additional technical information
 
-The application should never force users to understand networking terminology just to use Zoop.
-
----
-
-# 41. Core Product Principle
-
-The Zoop mobile application must answer three questions immediately:
-
-1. **What is happening?**
-2. **Who or what am I connected to?**
-3. **What can I do next?**
-
-Everything else should remain secondary.
+Advanced information should be available without forcing all users to understand it.
 
 ---
 
-# 42. Design Principle
+# 33. Error Handling
 
-Zoop should not feel like:
+Every important product capability should have appropriate behavior for:
 
-> "A VPN app with some extra features."
+* loading
+* empty state
+* offline state
+* authentication failure
+* permission failure
+* network failure
+* service failure
+* connection failure
+* recovery
+* success
 
-It should feel like:
+Error experiences should answer:
 
-> **"My interface to the Zoop connectivity network."**
+> What happened?
 
-The design should communicate people, devices, relationships, trust, and connectivity.
+> Why does it matter?
+
+> What can the user do next?
+
+Where recovery is possible, the product should provide an understandable recovery path.
+
+Errors should not expose unnecessary internal implementation details.
 
 ---
 
-# 43. Implementation Direction
+# 34. Empty States
 
-The mobile UI will be implemented in:
+An empty state should explain the meaning of the current area rather than simply stating that nothing exists.
 
-**Flutter**
+Where appropriate, an empty state should help the user understand:
 
-The mobile application will communicate with the Zoop Control Plane through the defined Zoop API.
+* what the area is for
+* why it is empty
+* what could appear there
+* what useful next action is available
 
-Platform-specific functionality will integrate with:
+Examples of useful outcomes include:
+
+* adding a device
+* establishing a connection
+* sharing connectivity
+* joining or creating an organization
+
+The specific presentation should be determined by the context.
+
+---
+
+# 35. Performance and Responsiveness
+
+The mobile experience should feel fast and deliberate.
+
+The implementation should prioritize:
+
+* quick feedback
+* responsive interactions
+* efficient loading
+* stable state transitions
+* predictable behavior
+* graceful offline handling
+* minimal unnecessary work
+
+Users should receive immediate feedback when an action has begun, even when the underlying networking operation takes longer.
+
+Long-running operations should communicate progress or current state appropriately.
+
+---
+
+# 36. Trust and Transparency
+
+Zoop manages connectivity and access relationships that can have security and privacy implications.
+
+The interface should therefore make important relationships understandable.
+
+Users should be able to determine, where relevant:
+
+* who they are connected to
+* what device is involved
+* whether connectivity is direct or relayed
+* who has access to their shared connectivity
+* what permissions exist
+* whether a security action succeeded
+* what happened after an important event
+
+The product should favor understandable transparency over opaque automation.
+
+---
+
+# 37. Design System
+
+The implementation should establish a coherent Zoop mobile design system before creating a large number of independent product experiences.
+
+The system should cover, as appropriate:
+
+* color tokens
+* typography
+* spacing
+* icons
+* buttons
+* inputs
+* navigation
+* device representations
+* connection representations
+* Provider representations
+* Recipient representations
+* status indicators
+* dialogs
+* PIN entry
+* loading states
+* empty states
+* errors
+* success feedback
+* motion
+* accessibility
+
+Product experiences should share common principles and components rather than becoming visually inconsistent.
+
+The design system should evolve as the product is implemented.
+
+It should not become a constraint that prevents appropriate contextual design decisions.
+
+---
+
+# 38. Technical Architecture
+
+The mobile UI is implemented using **Flutter**.
+
+Flutter owns the product interface and interaction model.
+
+Platform-specific networking and operating-system functionality remains implemented using the appropriate Android and iOS technologies.
+
+The mobile experience may integrate with:
 
 * Android networking APIs
 * Android VPN/network interfaces
 * iOS Network Extension APIs
-* Secure platform storage
-* Background execution mechanisms
+* secure platform storage
+* background execution mechanisms
+* platform-specific Agent components
 
-The Flutter application owns the user experience while the platform-specific Agent components handle actual networking functionality.
+The Flutter application communicates with the Zoop Control Plane through the defined Zoop API.
 
----
+The architecture should preserve a clear boundary between:
 
-# 44. Design Deliverable
-
-Before implementation, the design process should produce a complete Zoop Mobile Design System containing:
-
-* Color tokens
-* Typography
-* Spacing
-* Icons
-* Buttons
-* Inputs
-* Navigation
-* Device components
-* Connection components
-* Provider components
-* Recipient components
-* Status components
-* Dialogs
-* PIN components
-* Loading states
-* Empty states
-* Error states
-* Success states
-* Motion guidelines
-* Accessibility guidelines
-
-All screens should be constructed from this design system rather than designed independently.
+* product interface
+* platform-specific networking functionality
+* authentication and identity
+* secure device credentials
+* backend/control-plane communication
 
 ---
 
-# 45. Final Experience
+# 39. Product Security Requirements
+
+Security-related information should be handled according to least-privilege and secure-storage principles appropriate to the platform architecture.
+
+Important requirements include:
+
+* device credentials remain device-specific
+* identity credentials are not casually copied between devices
+* sensitive actions require appropriate authentication
+* device revocation must be supported
+* recovery must protect identity integrity
+* privacy-sensitive information must not be exposed unnecessarily
+
+The interface should never imply security guarantees that the underlying system does not actually provide.
+
+The implementation should accurately communicate system state.
+
+---
+
+# 40. Platform Experience
+
+The product should feel appropriate on both Android and iOS.
+
+The overall Zoop identity should remain consistent, while the implementation should respect platform conventions where doing so improves usability.
+
+Avoid forcing identical interaction behavior across platforms when native conventions would make the experience better.
+
+Visual consistency should come from the Zoop design language and system rather than from making Android and iOS mechanically identical.
+
+---
+
+# 41. Product Language
+
+Language should be:
+
+* simple
+* direct
+* calm
+* trustworthy
+* human
+* technically accurate
+
+Prefer user-centered explanations over implementation terminology.
+
+For example, the experience should explain a connectivity problem in terms a normal user can understand before exposing lower-level diagnostic concepts.
+
+Avoid unnecessary terms such as:
+
+* tunnel state
+* endpoint reachability
+* packet loss
+* relay state
+
+in primary user flows unless they are genuinely useful in context.
+
+Technical terminology is appropriate in advanced diagnostic experiences.
+
+---
+
+# 42. AI Agent Implementation Principles
+
+An implementation agent working from this specification should behave as a product designer and engineer, not as a document renderer.
+
+The agent should:
+
+* infer appropriate information architecture
+* evaluate multiple possible interaction models
+* prioritize mobile usability
+* respect Android and iOS conventions
+* use progressive disclosure
+* avoid unnecessary UI complexity
+* create reusable components
+* account for accessibility
+* account for edge cases
+* design complete states
+* preserve Zoop's visual identity
+* make thoughtful decisions where the specification is intentionally open
+
+The agent should not:
+
+* blindly turn every requirement into a screen
+* blindly turn every list into a card layout
+* assume every capability requires a navigation tab
+* copy literal diagrams into the UI
+* add decorative UI without product purpose
+* expose technical information simply because it exists
+* invent functionality that conflicts with the product model
+* sacrifice usability in order to mirror the structure of this specification
+
+When several designs satisfy the requirements, choose the solution that provides the strongest overall user experience.
+
+---
+
+# 43. Quality Bar
+
+The final experience should be evaluated against the following qualities.
+
+## Clarity
+
+A first-time user should understand what is happening without studying the architecture.
+
+## Efficiency
+
+Common tasks should require minimal unnecessary effort.
+
+## Trust
+
+Connectivity, access, identity, and security states should be understandable and honest.
+
+## Distinctiveness
+
+The product should feel recognizably Zoop rather than like a repackaged VPN.
+
+## Flexibility
+
+The system should support both straightforward everyday usage and advanced investigation.
+
+## Accessibility
+
+The experience should remain usable across accessibility configurations and different user abilities.
+
+## Consistency
+
+The product should feel like one coherent system rather than a collection of independently designed screens.
+
+## Resilience
+
+The product should behave well when connectivity is poor, services fail, devices are unavailable, or actions do not succeed.
+
+## Scalability
+
+The architecture and design language should accommodate future product capabilities without requiring the entire mobile experience to be redesigned.
+
+---
+
+# 44. Design Decision Principle
+
+When a requirement can be satisfied in several ways, choose the solution that best balances:
+
+1. user comprehension
+2. task efficiency
+3. discoverability
+4. accessibility
+5. platform conventions
+6. visual identity
+7. technical feasibility
+8. consistency
+9. future extensibility
+
+Do not optimize for adherence to an imagined screen structure.
+
+Optimize for the user's ability to understand and use Zoop.
+
+---
+
+# 45. Core Product Principle
+
+The Zoop mobile application should make the following questions easy to answer:
+
+> **What is happening?**
+
+> **Who or what am I connected to?**
+
+> **What can I do next?**
+
+Everything else should remain secondary unless the user deliberately chooses to explore more detail.
+
+---
+
+# 46. Final Experience
 
 The final Zoop mobile application should be:
 
@@ -1102,6 +1274,10 @@ The final Zoop mobile application should be:
 
 **Private enough that users do not feel forced to surrender unnecessary personal information.**
 
-The application is not merely a control panel for a VPN.
+**Flexible enough to support future capabilities.**
 
-It is the mobile interface to the Zoop identity, device, connectivity, sharing, and network ecosystem.
+Zoop is not merely a mobile VPN control panel.
+
+It is the mobile interface to a connectivity ecosystem built around identity, devices, relationships, trust, sharing, and networks.
+
+The implementation should preserve that product philosophy while using its own judgment to determine the best possible mobile experience.
