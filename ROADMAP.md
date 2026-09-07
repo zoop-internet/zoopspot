@@ -1,137 +1,141 @@
 # ZOOP: The Real MVP Roadmap
 
-This roadmap defines the precise, step-by-step execution plan to take ZOOP from a proven backend architecture to a **shippable, consumer-ready Minimum Viable Product (MVP)**. 
+This roadmap defines the outcome-oriented execution plan to take ZOOP from a proven backend architecture to a **shippable, consumer-ready Minimum Viable Product (MVP)**.
 
-The core networking (Data Plane, Control Plane, Cloud Infrastructure) is **done**. The focus is now entirely on **the Mobile UI, Native App Integration, and Public Launch**.
+The core networking (Data Plane, Control Plane, Cloud Infrastructure) is **operational**. The roadmap focuses on **the Mobile Product Experience, Native OS Bridges, Trust & Sharing Architecture, and Store Launch**.
 
-> **Note**: Desktop GUI packaging is deferred for post-MVP. The existing `zoopd` daemon and `zoop` CLI provide sufficient desktop functionality for early technical adopters.
-
----
-
-## Phase 1: Production Polish & Legal (Store Prerequisites)
-*Before submitting any VPN or networking app to the Apple App Store or Google Play Store, specific infrastructure and legal prerequisites must be met.*
-
-- [ ] **1.1 Custom Domain Integration** *(Pending domain purchase by user)*
-  - [ ] Purchase/configure `zoopinternet.online`.
-  - [ ] Map Cloudflare Pages web app to `app.zoopinternet.online` (or apex `zoopinternet.online`).
-  - [ ] Map AWS EC2 API to `api.zoopinternet.online` and update Caddy TLS certificates.
-  - [ ] Update frontend environment variable (`VITE_API_BASE`) to use `api.zoopinternet.online`.
-- [x] **1.2 Legal & Compliance (Mandatory for App Stores)**
-  - [x] Draft a clear **Privacy Policy** (explicitly stating ZOOP does not log payload traffic, as required by Apple/Google VPN guidelines — see `PRIVACY.md`).
-  - [x] Draft **Terms of Service** / EULA (defining P2P mesh usage, EULA, Provider/Recipient responsibilities, and AUP — see `TERMS.md`).
-  - [x] Host legal documents on the Cloudflare Pages web app (accessible at `/privacy` and `/terms`, fully prerendered with sitemap support).
-  - [x] Set up official support & legal channels (`support@zoopinternet.online`, `legal@zoopinternet.online`, `security@zoopinternet.online`).
+> [!NOTE]
+> **Product & Design Philosophy**: Aligned with the **[Zoop Mobile Product Experience Specification](mobile/README.md)**, this roadmap describes **real user outcomes, system capabilities, behavioral expectations, and technical boundaries**. It intentionally avoids prescribing rigid UI widgets or micro-wireframes ("put an icon here"), empowering the engineering and design agent to utilize its skills and best judgment to create a distinct, modern, dark-mode experience that feels authentically like Zoop.
 
 ---
 
-## Phase 2: Mobile App Foundation (Flutter)
-*Building the cross-platform mobile UI using Flutter, ensuring a premium, non-traditional "dark mode" network aesthetic.*
+## Phase 1: Production Infrastructure & Legal Compliance (Store Prerequisites)
+*Ensure legal compliance, zero-logging transparency, and cloud endpoints meet Apple App Store and Google Play requirements.*
 
-- [x] **2.1 Project Initialization**
-  - [x] Initialize the Flutter project (`zoop_mobile`).
-  - [x] Configure App Icons, Splash Screens, and package names (`network.zoop.app`).
-- [x] **2.2 Design System Implementation**
-  - [x] Implement the dark-mode color palette (deep surfaces, cyan/green accents).
-  - [x] Set up global typography and theme data.
-  - [x] Build reusable UI components: Node/Orbital connection animations, custom buttons, biometric lock screens.
-- [x] **2.3 State Management & Architecture**
-  - [x] Set up Riverpod or Bloc for predictable state management.
-  - [x] Implement GoRouter for deep-linking and screen navigation.
-- [x] **2.4 Local Secure Storage**
-  - [x] Integrate `flutter_secure_storage` (Keychain on iOS, Keystore on Android).
-  - [x] Write the local repository to securely store the user's Ed25519 identity keypair.
+- [ ] **1.1 Custom Domain & Production Edge Integration** *(Pending domain purchase by user)*
+  - [ ] Acquire and configure target apex domain `zoopinternet.online`.
+  - [ ] Attach Cloudflare Pages production web frontend (`app.zoopinternet.online` / apex).
+  - [ ] Configure AWS EC2 control plane API endpoint (`api.zoopinternet.online`) with automated Caddy TLS.
+  - [ ] Point frontend and mobile environment configuration to the production API.
+- [x] **1.2 Legal, Privacy & Store Compliance**
+  - [x] Formulate legally binding **Privacy Policy** declaring zero logging of traffic payloads, DNS, or browsing destinations (`PRIVACY.md`).
+  - [x] Establish **Terms of Service & EULA** governing P2P mesh usage, provider egress responsibilities, and acceptable use (`TERMS.md`).
+  - [x] Host prerendered legal pages on the public web edge (`/privacy`, `/terms`) with full sitemap and SEO support.
+  - [x] Set up official store contact and compliance channels (`support@zoopinternet.online`, `legal@zoopinternet.online`).
 
 ---
 
-## Phase 3: Mobile Onboarding & Identity (Flutter UI)
-*The user's first experience when opening the ZOOP app.*
+## Phase 2: Mobile Platform & Architecture Foundation (Completed)
+*Cross-platform Flutter application foundation with production tooling, reactive state architecture, and hardware-backed security.*
 
-- [ ] **3.1 Welcome Screens**
-  - [ ] Build a 3-page swipeable introduction explaining ZOOP (Decentralized, Peer-to-Peer, Secure).
-- [ ] **3.2 Identity Generation**
-  - [ ] UI: "Generate My Zoop Identity" button with a cryptographic loading animation.
-  - [ ] Logic: Generate the Ed25519 keypair securely on the device.
-  - [ ] Logic: Call the `zoop-cloud` API to register the device.
-- [ ] **3.3 Security & Recovery**
-  - [ ] UI: Display the backup phrase or QR code for identity recovery.
-  - [ ] Logic: Require OS biometric authentication (FaceID / Fingerprint) to view the recovery key.
-
----
-
-## Phase 4: Native VPN Networking Bridge (The Hardest Mobile Part)
-*Connecting the beautiful Flutter UI to the raw Go networking engine via native OS VPN APIs.*
-
-- [ ] **4.1 Android Native Wiring (`ZoopVpnService.kt`)**
-  - [ ] Establish Flutter `MethodChannel` to communicate with the Android background service.
-  - [ ] Implement the `VpnService.prepare()` permission dialog (Prompts user: "ZOOP wants to set up a VPN connection...").
-  - [ ] Wire Go library callbacks (State, Ping, Bandwidth) into Android `EventChannel` streams to push to Flutter.
-- [ ] **4.2 iOS Native Wiring (`ZoopPacketTunnelProvider.swift`)**
-  - [ ] Establish Flutter `MethodChannel` to communicate with the iOS NetworkExtension.
-  - [ ] Handle the iOS VPN Profile installation prompt (`NETunnelProviderManager.loadAllFromPreferences`).
-  - [ ] Pass Go library state metrics across the iOS XPC boundary into Flutter streams.
-- [ ] **4.3 Cross-Platform Control Logic**
-  - [ ] Implement start/stop tunnel commands from Flutter to the native bridges.
-  - [ ] Implement graceful disconnects when the app is swiped away (or maintain foreground service).
+- [x] **2.1 Mobile Application Toolchain & Project Initialization**
+  - [x] Initialize cross-platform Flutter application in `mobile/` with bundle ID `network.zoop.app`.
+  - [x] Set up host development toolchain with Flutter 3.47 (Channel stable), Dart 3.13, and Android SDK (API 34/36).
+  - [x] Establish Android build automation using Gradle 9.3.1 and persistent environment configuration.
+- [x] **2.2 Design System & Visual Foundation**
+  - [x] Establish dark-mode design system tokens (`ZoopColors`) featuring deep space surfaces (`#0B0F19`), slate card elevations, brand cyan (`#00D2FF`), and emerald green status accents.
+  - [x] Configure global typography with Inter for primary readability and JetBrains Mono for cryptographic identifiers.
+  - [x] Establish high-contrast Material 3 dark theme with standardized component elevations and button treatments.
+- [x] **2.3 Reactive State & Declarative Routing**
+  - [x] Integrate Riverpod reactive state management at the application root (`ProviderScope`).
+  - [x] Implement declarative routing via `GoRouter` supporting deep linking and unified screen transitions.
+- [x] **2.4 Hardware-Backed Secure Storage**
+  - [x] Implement secure storage service backed by Android Keystore (encrypted shared preferences) and iOS Keychain.
+  - [x] Ensure Ed25519 identity keypairs and sensitive auth tokens never touch unencrypted local storage.
 
 ---
 
-## Phase 5: Mobile Core UI - Connecting (Recipient Mode)
-*The screens where users actually connect to the mesh network.*
+## Phase 3: Identity, Cryptographic Trust & Onboarding Experience
+*First-run user journey establishing decentralized identity and device trust without invasive personal data collection.*
 
-- [ ] **5.1 The Dashboard**
-  - [ ] Build the Home Screen showing the device's current IP and connection status (Disconnected / Direct / Relay).
-  - [ ] Fetch and display a list of available authorized Providers.
-- [ ] **5.2 The Connection Experience**
-  - [ ] Tap a Provider -> Trigger Orbital connecting animation.
-  - [ ] Handle STUN/TURN negotiation state UI (e.g., "Punching NAT...", "Establishing Direct Tunnel...").
-- [ ] **5.3 Live Telemetry**
-  - [ ] Build a real-time graph showing upstream/downstream bandwidth.
-  - [ ] Display connection health metrics: RTT (Ping), Protocol (WireGuard), Route (Direct vs Relay).
-
----
-
-## Phase 6: Mobile Core UI - Sharing (Provider Mode)
-*Allowing a mobile device to act as a secure gateway for others.*
-
-- [ ] **6.1 Provider Toggle**
-  - [ ] UI: A prominent toggle to "Share My Connection".
-  - [ ] Logic: Signal the `zoop-cloud` that this device is now accepting inbound requests.
-- [ ] **6.2 Connected Peers Management**
-  - [ ] UI: Display a list of currently connected Recipient devices.
-  - [ ] Display individual bandwidth consumption per peer.
-  - [ ] UI/Logic: "Kick" or "Block" button to instantly terminate a peer's WireGuard session.
-- [ ] **6.3 Connection Approvals**
-  - [ ] Listen for inbound connection requests via WebSocket signaling.
-  - [ ] Display a local push notification: "Device X wants to connect".
+- [ ] **3.1 Frictionless Decentralized Onboarding**
+  - [ ] Introduce Zoop's core mental model: a private connectivity mesh connecting people, devices, and networks — not a conventional commercial VPN.
+  - [ ] Emphasize zero-knowledge architecture: no phone number, email, or third-party OAuth account required to establish an identity.
+- [ ] **3.2 Cryptographic Identity Generation & Registration**
+  - [ ] Generate secure Ed25519 keypairs entirely on the local device.
+  - [ ] Derive a deterministic, user-friendly ZoopID and device fingerprint.
+  - [ ] Execute an authenticated cryptographic handshake (`zoop-auth-v2`) with the `zoop-cloud` control plane to register the new device.
+- [ ] **3.3 Identity Protection, Export & Recovery**
+  - [ ] Provide clear, secure mechanisms for users to backup and restore their identity keypair (exportable phrase / offline backup).
+  - [ ] Guard identity export actions behind device-level biometric authentication (Fingerprint / FaceID).
 
 ---
 
-## Phase 7: Quality Assurance & Pre-Launch Hardening
-*Testing the mobile apps against real-world chaos before the public sees them.*
+## Phase 4: Native OS VPN & Packet Routing Engine Bridge
+*Low-level operating system integration routing system network traffic through the userspace WireGuard engine.*
 
-- [ ] **7.1 Network Roaming Tests**
-  - [ ] Connect app, walk out of Wi-Fi range into 4G LTE. Verify the tunnel reconnects without dropping active TCP sessions.
-- [ ] **7.2 Battery & Memory Profiling**
-  - [ ] Leave the app connected overnight. Measure Android Doze mode impact.
-  - [ ] Ensure iOS doesn't terminate the NetworkExtension due to memory limits (50MB cap on iOS).
-- [ ] **7.3 Internal Beta Distribution**
-  - [ ] Submit iOS build to Apple TestFlight (Internal testing).
-  - [ ] Submit Android build to Google Play Console (Internal testing track).
-  - [ ] Distribute to core team for daily driver usage.
+- [ ] **4.1 Android VpnService Lifecycle & Permission Management**
+  - [ ] Wire Flutter `MethodChannel` to manage `ZoopVpnService` lifecycle (prepare, start, pause, resume, terminate).
+  - [ ] Handle OS VPN preparation dialogs and establish native TUN interface with appropriate MTU and route configurations.
+  - [ ] Stream real-time native connection lifecycle and roaming updates into Flutter via `EventChannel`.
+- [ ] **4.2 iOS NetworkExtension & Packet Tunnel Provider**
+  - [ ] Wire Flutter bridge to communicate with `ZoopPacketTunnelProvider` (NetworkExtension).
+  - [ ] Manage VPN profile installation via `NETunnelProviderManager`.
+  - [ ] Ensure tunnel memory profile stays strictly within iOS memory ceilings (<50MB).
+- [ ] **4.3 Background Persistence & Power Optimization**
+  - [ ] Configure Android persistent foreground notification displaying live tunnel status and quick-disconnect capability.
+  - [ ] Implement power-aware polling backoff during device sleep (Android Doze mode / iOS background execution).
+  - [ ] Provide user guidance for battery optimization whitelisting to prevent unintended background process termination.
 
 ---
 
-## Phase 8: Public Launch & Store Approvals
-*The final bureaucratic and marketing steps to get into the hands of global users.*
+## Phase 5: Connection Experience (Recipient Mode — Consuming Connectivity)
+*Empowering users to discover, connect to, and monitor secure tunnels through trusted providers.*
 
-- [ ] **8.1 App Store Metadata**
-  - [ ] Design and generate high-resolution screenshots for 6.5" and 5.5" iOS displays, and Android equivalents.
-  - [ ] Write App Store descriptions highlighting privacy, direct connections, and mesh routing.
-- [ ] **8.2 Compliance Questionnaires**
-  - [ ] Complete Google Play's "Data Safety" form (CRITICAL: Declare no payload data collection).
-  - [ ] Complete Apple's Privacy Label questionnaire.
-  - [ ] Provide Apple Review team with a demo account/video of the connection process if requested.
-- [ ] **8.3 The Launch**
-  - [ ] Pass Apple App Store Review.
-  - [ ] Pass Google Play Store Review.
-  - [ ] Flip the switch: Public release. 🚀
+- [ ] **5.1 Relationship Discovery & Provider Availability**
+  - [ ] Fetch and display authorized providers across personal devices, shared circles, and organizations.
+  - [ ] Clearly distinguish between provider types: personal home gateways, trusted peers, and organization exit nodes.
+- [ ] **5.2 Transparent Connection Progression**
+  - [ ] Provide continuous, clear feedback through all connection phases: local TUN setup, STUN/TURN discovery, direct P2P NAT traversal, or encrypted relay fallback.
+  - [ ] Ensure the user can always answer: *"Who or what am I connected through, and is this connection direct or relayed?"*
+- [ ] **5.3 Real-Time Connection Health & Telemetry**
+  - [ ] Surface real-time connection telemetry: round-trip latency (ping), upstream/downstream throughput, and tunnel protocol confirmation.
+  - [ ] Implement seamless network roaming: automatically adjust routing and re-probe endpoints during Wi-Fi <-> Cellular handovers without dropping TCP sessions.
+
+---
+
+## Phase 6: Sharing Experience (Provider Mode — Gateway & Trust Management)
+*Transforming the mobile device into a secure gateway for authorized peers with full provider autonomy.*
+
+- [ ] **6.1 Provider Sharing Controls & Responsibilities**
+  - [ ] Provide explicit, unambiguous controls to enable or disable connection sharing.
+  - [ ] Clearly communicate provider responsibilities (acting as the network egress for connected recipients).
+- [ ] **6.2 Connected Recipient Visibility & Session Control**
+  - [ ] Provide real-time visibility into all currently connected peer devices.
+  - [ ] Display per-peer session duration and bandwidth consumption.
+  - [ ] Implement immediate, one-tap session termination to instantly sever a recipient's tunnel.
+- [ ] **6.3 Inbound Connection Authorization & Safeguards**
+  - [ ] Handle inbound connection requests via real-time signaling with options for one-time, session-based, or permanent authorization.
+  - [ ] Enforce automated safeguards: pause sharing on metered cellular networks, low battery thresholds, or high thermal state.
+
+---
+
+## Phase 7: Multi-Device Mesh, Organizations & Diagnostics
+*Deepening user capability across device fleets, team networks, and advanced troubleshooting.*
+
+- [ ] **7.1 Multi-Device Fleet Management**
+  - [ ] Manage all devices belonging to the user's ZoopID (mobile, laptop, home server, router) in a unified view.
+  - [ ] Enable peer-to-peer pairing between user devices via QR code scan or ephemeral exchange code.
+- [ ] **7.2 Organization & Workspace Scoping**
+  - [ ] Allow users to join or switch between personal and organizational network contexts.
+  - [ ] Enforce organization access policies and custom gateway routing rules.
+- [ ] **7.3 Diagnostics, Connectivity Probing & Self-Healing**
+  - [ ] Built-in diagnostic tools: STUN NAT type detection, TURN relay reachability testing, MTU path probing, and DNS leak checks.
+  - [ ] Exportable, sanitized diagnostic logs to facilitate user support without exposing private payload metadata.
+
+---
+
+## Phase 8: Quality Assurance, Hardening & Public Store Launch
+*Rigorous real-world validation, store submission compliance, and release distribution.*
+
+- [ ] **8.1 Real-World Chaos & Roaming Validation**
+  - [ ] Validate tunnel survival through cellular signal drops, captive portal transitions, and rapid network switching.
+  - [ ] Verify zero traffic leakage during tunnel establishment and teardown (fail-closed kill switch behavior).
+- [ ] **8.2 Store Assets & Compliance Questionnaires**
+  - [ ] Complete Google Play Data Safety declaration (confirming zero collection of payload or browsing data).
+  - [ ] Complete Apple Privacy Nutrition Labels and App Store Review Guideline 5.4 compliance documentation.
+  - [ ] Prepare high-fidelity store screenshots, demo walk-through video, and clear value-proposition descriptions.
+- [ ] **8.3 Distribution & Public Availability**
+  - [ ] Release internal test tracks (Google Play Internal Testing & Apple TestFlight).
+  - [ ] Conduct end-to-end beta with distributed nodes.
+  - [ ] Public store submission and global release.
