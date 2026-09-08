@@ -43,11 +43,10 @@ final selfHealingStatusProvider = Provider<SelfHealingStatus>((ref) {
 });
 
 class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
-  final CloudApiClient _client;
+  final CloudApiClient client;
 
-  DiagnosticsNotifier({required CloudApiClient client})
-      : _client = client,
-        super(const DiagnosticsState());
+  DiagnosticsNotifier({required this.client})
+      : super(const DiagnosticsState());
 
   Future<void> runDiagnostics() async {
     state = state.copyWith(isRunning: true, error: null);
@@ -82,7 +81,7 @@ class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
       addCheck('Control Plane', CheckStatus.running, 'Checking control plane reachability...');
       final startTime = DateTime.now();
       try {
-        final healthy = await _client.checkHealth();
+        final healthy = await client.checkHealth();
         final latency = DateTime.now().difference(startTime);
         checks.last = checks.last.copyWith(
             status: healthy ? CheckStatus.passed : CheckStatus.failed,
@@ -158,7 +157,7 @@ class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
           'latency_ms': c.latency?.inMilliseconds,
         }).toList(),
       };
-      await _client.submitDiagnosticReport(jsonReport);
+      await client.submitDiagnosticReport(jsonReport);
       return true;
     } catch (e) {
       state = state.copyWith(error: 'Submit failed: $e');

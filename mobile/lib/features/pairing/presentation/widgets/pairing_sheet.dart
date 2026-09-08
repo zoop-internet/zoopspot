@@ -440,12 +440,13 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
             onPressed: state.isClaiming
                 ? null
                 : () async {
+                    final navigator = Navigator.of(context);
                     final success =
                         await notifier.claimToken(_codeController.text);
                     if (success && mounted) {
                       _codeController.clear();
                       Future.delayed(const Duration(seconds: 2), () {
-                        if (mounted) Navigator.of(context).pop();
+                        if (mounted) navigator.pop();
                       });
                     }
                   },

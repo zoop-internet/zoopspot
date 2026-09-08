@@ -313,6 +313,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             tooltip: 'Device Identity',
             onPressed: () => context.push('/identity'),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
         ],
       ),
       body: SafeArea(
@@ -968,7 +973,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: settings.activeSessions.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (context, index) =>
                   const Divider(height: 1, color: ZoopColors.surfaceBorder),
               itemBuilder: (context, index) {
                 final session = settings.activeSessions[index];

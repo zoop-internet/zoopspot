@@ -180,7 +180,7 @@ class DiagnosticsScreen extends ConsumerWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: checks.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: ZoopColors.surfaceBorder),
+        separatorBuilder: (context, index) => const Divider(height: 1, color: ZoopColors.surfaceBorder),
         itemBuilder: (context, index) {
           final check = checks[index];
           IconData icon;

@@ -156,7 +156,7 @@ class ProviderSelectionSheet extends ConsumerWidget {
                     : ListView.separated(
                         controller: scrollController,
                         itemCount: peersState.peers.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final peer = peersState.peers[index];
                           final isSelected = selectedPeer?.endpointId == peer.endpointId;

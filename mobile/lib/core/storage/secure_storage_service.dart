@@ -126,7 +126,13 @@ class SecureStorageService {
   Future<void> setProviderBandwidthLimit(int limit) =>
       _storage.write(key: _keyProviderBandwidthLimit, value: limit.toString());
 
+  static const _keyPin = 'zoop_security_pin';
+
+  Future<String?> getPin() => _storage.read(key: _keyPin);
+  Future<void> savePin(String pin) => _storage.write(key: _keyPin, value: pin);
+
   Future<void> clearAll() async {
     await _storage.deleteAll();
   }
 }
+

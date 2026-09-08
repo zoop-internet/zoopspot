@@ -79,31 +79,33 @@ class GatewaySettingsSheet extends ConsumerWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: ZoopColors.surfaceBorder),
             ),
-            child: Column(
-              children: SharingScope.values.map((scope) {
-                final isSelected = settings.sharingScope == scope;
-                return RadioListTile<SharingScope>(
-                  value: scope,
-                  groupValue: settings.sharingScope,
-                  activeColor: ZoopColors.accentPurple,
-                  title: Text(
-                    scope.label,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? ZoopColors.textPrimary : ZoopColors.textSecondary,
+            child: RadioGroup<SharingScope>(
+              groupValue: settings.sharingScope,
+              onChanged: (newScope) {
+                if (newScope != null) {
+                  notifier.updateSharingScope(newScope);
+                }
+              },
+              child: Column(
+                children: SharingScope.values.map((scope) {
+                  final isSelected = settings.sharingScope == scope;
+                  return RadioListTile<SharingScope>(
+                    value: scope,
+                    activeColor: ZoopColors.accentPurple,
+                    title: Text(
+                      scope.label,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? ZoopColors.textPrimary : ZoopColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    scope.description,
-                    style: const TextStyle(fontSize: 12, color: ZoopColors.textMuted),
-                  ),
-                  onChanged: (newScope) {
-                    if (newScope != null) {
-                      notifier.updateSharingScope(newScope);
-                    }
-                  },
-                );
-              }).toList(),
+                    subtitle: Text(
+                      scope.description,
+                      style: const TextStyle(fontSize: 12, color: ZoopColors.textMuted),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
 
@@ -128,7 +130,7 @@ class GatewaySettingsSheet extends ConsumerWidget {
               children: [
                 SwitchListTile(
                   value: settings.pauseOnCellular,
-                  activeColor: ZoopColors.accentGreen,
+                  activeThumbColor: ZoopColors.accentGreen,
                   title: const Text('Wi-Fi Only (Pause on Cellular)'),
                   subtitle: const Text(
                     'Automatically stops sharing egress when connected to mobile data.',
@@ -141,7 +143,7 @@ class GatewaySettingsSheet extends ConsumerWidget {
                 const Divider(height: 1, color: ZoopColors.surfaceBorder),
                 SwitchListTile(
                   value: settings.pauseOnLowBattery,
-                  activeColor: ZoopColors.accentGreen,
+                  activeThumbColor: ZoopColors.accentGreen,
                   title: const Text('Battery Protection (< 20%)'),
                   subtitle: const Text(
                     'Pauses sharing if battery drops below 20% and device is unplugged.',
