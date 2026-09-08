@@ -20,13 +20,13 @@ tests: test
 test-all: test mobile-test
 
 integration-tests:
-	$(GO) run tests/direct_connectivity.go
-	$(GO) run tests/nat_traversal.go
-	$(GO) run tests/relay_fallback.go
-	$(GO) run tests/connection_recovery.go
-	$(GO) run tests/security_hardening.go
-	$(GO) run tests/platform_implementations.go
-	$(GO) run tests/router_integration.go
+	$(GO) run test/integration/direct_connectivity.go
+	$(GO) run test/integration/nat_traversal.go
+	$(GO) run test/integration/relay_fallback.go
+	$(GO) run test/integration/connection_recovery.go
+	$(GO) run test/integration/security_hardening.go
+	$(GO) run test/integration/platform_implementations.go
+	$(GO) run test/integration/router_integration.go
 
 mobile-test:
 	$(GO) test -v ./packages/platform/mobile/...

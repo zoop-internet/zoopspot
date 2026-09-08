@@ -898,7 +898,7 @@ mobile/ios/
 packages/
     Shared supporting code
 
-tests/
+test/
     Cross-component testing
 ```
 

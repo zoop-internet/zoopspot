@@ -229,7 +229,7 @@ zoop/
 ├── mobile/                   # Flutter mobile app & UI specification (README.md)
 ├── router/                   # Router daemon entrypoint
 ├── web/                      # React + TypeScript management web app
-├── tests/                    # End-to-end integration and simulation tests
+├── test/                     # Automated E2E testbeds and integration simulations
 ├── infrastructure/           # Docker Compose & Helm chart definitions
 └── scripts/                  # Network degradation and service install scripts
 ```
