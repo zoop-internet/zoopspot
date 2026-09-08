@@ -6,11 +6,14 @@ on:
   pull_request:
     branches: [ main, master, dev ]
 
-jobs:
-  build-and-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
+  backend:
+    name: Go Backend & Networking Core
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,6 +22,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          cache: true
 
       - name: Verify dependencies
         run: go mod verify
@@ -35,5 +39,58 @@ jobs:
       - name: Run Unit Tests
         run: make test
 
+      - name: Run Mobile Go Bindings Test
+        run: make mobile-test
+
       - name: Build Binaries
         run: make build
+
+  cross-compile:
+    name: Cross-Platform Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Build CLI for macOS (Darwin arm64)
+        run: GOOS=darwin GOARCH=arm64 go build -v -o /dev/null ./cmd/zoop
+
+      - name: Build CLI for Windows (Windows amd64)
+        run: GOOS=windows GOARCH=amd64 go build -v -o /dev/null ./cmd/zoop
+
+      - name: Build Router Gateway for MIPS
+        run: GOOS=linux GOARCH=mips go build -v -o /dev/null ./router
+
+  web:
+    name: Web Dashboard Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run linter
+        working-directory: web
+        run: npm run lint
+
+      - name: Type check and build web bundle
+        working-directory: web
+        env:
+          VITE_API_BASE: https://3.70.135.200.sslip.io
+        run: npm run build

@@ -107,6 +107,6 @@ type responseRecorder struct {
 	status int
 }
 
-func (r *responseRecorder) Header() http.Header { return r.header }
+func (r *responseRecorder) Header() http.Header         { return r.header }
 func (r *responseRecorder) Write(b []byte) (int, error) { return r.body.Write(b) }
-func (r *responseRecorder) WriteHeader(statusCode int) { r.status = statusCode }
+func (r *responseRecorder) WriteHeader(statusCode int)  { r.status = statusCode }

@@ -220,4 +220,3 @@ func TestSignalingClient_ReportConnected(t *testing.T) {
 }
 
 var _ = wgtypes.Key{} // keep wgtypes import for parity with tunnel usage
-

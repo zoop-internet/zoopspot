@@ -64,26 +64,26 @@ func paginateSlice[T any](items []T, limit, offset int) []T {
 }
 
 type Server struct {
-	cfg           config.Config
-	logger        *slog.Logger
-	store         store.Store
-	devices       *services.DeviceService
-	users         *services.UserService
-	organizations *services.OrganizationService
-	shares        *services.ShareService
-	connections   *services.ConnectionService
-	signaling     *services.SignalingHub
-	events        *services.EventHub
-	audit         *services.AuditService
-	relayServer   *relay.RelayServer
-	relayRegistry *relay.RelayRegistry
-	turnManager   *relay.TURNManager
-	startTime     time.Time
-	mux           *http.ServeMux
-	server        *http.Server
-	upgrader      websocket.Upgrader
-	pairingMu     sync.RWMutex
-	pairingTokens map[string]pairingEntry
+	cfg               config.Config
+	logger            *slog.Logger
+	store             store.Store
+	devices           *services.DeviceService
+	users             *services.UserService
+	organizations     *services.OrganizationService
+	shares            *services.ShareService
+	connections       *services.ConnectionService
+	signaling         *services.SignalingHub
+	events            *services.EventHub
+	audit             *services.AuditService
+	relayServer       *relay.RelayServer
+	relayRegistry     *relay.RelayRegistry
+	turnManager       *relay.TURNManager
+	startTime         time.Time
+	mux               *http.ServeMux
+	server            *http.Server
+	upgrader          websocket.Upgrader
+	pairingMu         sync.RWMutex
+	pairingTokens     map[string]pairingEntry
 	diagnosticsMu     sync.RWMutex
 	diagnosticReports map[types.ID][]api.DiagnosticReportRequest
 }
@@ -184,7 +184,7 @@ func NewServer(
 			WriteBufferSize: 1024,
 			CheckOrigin:     checkOrigin(cfg.AllowedOrigins),
 		},
-		pairingTokens: make(map[string]pairingEntry),
+		pairingTokens:     make(map[string]pairingEntry),
 		diagnosticReports: make(map[types.ID][]api.DiagnosticReportRequest),
 	}
 	s.routes()
@@ -796,7 +796,7 @@ func (s *Server) handleGetPendingConnections() http.HandlerFunc {
 				RecipientIP: conn.RecipientIP,
 			})
 		}
-		
+
 		if resp == nil {
 			resp = []api.ConnectionResponse{}
 		}
@@ -1228,10 +1228,10 @@ func (s *Server) handleAdminNetwork() http.HandlerFunc {
 			return
 		}
 		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
-			"pool":            "100.64.0.0/10",
+			"pool":              "100.64.0.0/10",
 			"subnets_allocated": allocated,
-			"capacity":        capacity,
-			"utilization_pct": float64(allocated) / float64(capacity) * 100,
+			"capacity":          capacity,
+			"utilization_pct":   float64(allocated) / float64(capacity) * 100,
 		})
 	}
 }
@@ -1362,13 +1362,13 @@ func (s *Server) handleAdminUsage() http.HandlerFunc {
 		}
 		// Build timeseries payload with cumulative totals per day as well
 		type dailyPoint struct {
-			Date        string `json:"date"`
-			NewDevices  int    `json:"new_devices"`
-			NewConns    int    `json:"new_connections"`
-			NewMembers  int    `json:"new_members"`
-			NewShares   int    `json:"new_shares"`
-			CumDevices  int    `json:"cum_devices,omitempty"`
-			CumConns    int    `json:"cum_connections,omitempty"`
+			Date       string `json:"date"`
+			NewDevices int    `json:"new_devices"`
+			NewConns   int    `json:"new_connections"`
+			NewMembers int    `json:"new_members"`
+			NewShares  int    `json:"new_shares"`
+			CumDevices int    `json:"cum_devices,omitempty"`
+			CumConns   int    `json:"cum_connections,omitempty"`
 		}
 		points := make([]dailyPoint, rangeDays)
 		cumD, cumC := 0, 0
@@ -1596,10 +1596,10 @@ func (s *Server) handleAdminUsage() http.HandlerFunc {
 				"active_sessions": activeSessions,
 			},
 			"ipam": map[string]interface{}{
-				"pool":               "100.64.0.0/10",
-				"subnets_allocated":  allocated,
-				"capacity":           capacity,
-				"utilization_pct":    utilization,
+				"pool":              "100.64.0.0/10",
+				"subnets_allocated": allocated,
+				"capacity":          capacity,
+				"utilization_pct":   utilization,
 			},
 			"timeseries": points,
 			"range_days": rangeDays,
@@ -1640,14 +1640,14 @@ func (s *Server) handleAdminAddRelay() http.HandlerFunc {
 		}
 
 		node := relay.RelayNode{
-			ID:          req.ID,
-			Region:      req.Region,
-			Host:        req.Host,
-			Port:        req.Port,
+			ID:           req.ID,
+			Region:       req.Region,
+			Host:         req.Host,
+			Port:         req.Port,
 			WebSocketURL: req.WebSocketURL,
-			STUNPort:    req.STUNPort,
-			TURNPort:    req.TURNPort,
-			MaxCapacity: req.MaxCapacity,
+			STUNPort:     req.STUNPort,
+			TURNPort:     req.TURNPort,
+			MaxCapacity:  req.MaxCapacity,
 		}
 		s.relayRegistry.RegisterNode(node)
 

@@ -27,25 +27,25 @@ type RecoveryCallback func(newState ConnectionRecoveryState, activeEndpoint stri
 
 // ConnectionRecoveryManager monitors and manages connection recovery across network changes and failures.
 type ConnectionRecoveryManager struct {
-	mux          *muxbind.MuxBind
-	peerPubKey   wgtypes.Key
-	candidates   []types.EndpointCandidate
-	connID       string
-	listenPort   int
-	deviceMgr    *DeviceManager
-	relayURL     string
-	relayURLs    []string
-	relayIdx     int
-	monitor      *PathMonitor
-	dpd          *DeadPeerDetector
+	mux           *muxbind.MuxBind
+	peerPubKey    wgtypes.Key
+	candidates    []types.EndpointCandidate
+	connID        string
+	listenPort    int
+	deviceMgr     *DeviceManager
+	relayURL      string
+	relayURLs     []string
+	relayIdx      int
+	monitor       *PathMonitor
+	dpd           *DeadPeerDetector
 	onStateChange RecoveryCallback
-	logger       *slog.Logger
+	logger        *slog.Logger
 
-	mu             sync.Mutex
-	currentState   ConnectionRecoveryState
+	mu              sync.Mutex
+	currentState    ConnectionRecoveryState
 	currentEndpoint string
-	isDirect       bool
-	cancelFunc     context.CancelFunc
+	isDirect        bool
+	cancelFunc      context.CancelFunc
 	lastUpgradeTime time.Time
 }
 
@@ -89,20 +89,20 @@ func NewMultiRelayRecoveryManager(
 	}
 
 	crm := &ConnectionRecoveryManager{
-		mux:             mux,
-		peerPubKey:      peerPubKey,
-		candidates:      initialCandidates,
-		connID:          connID,
-		listenPort:      listenPort,
-		deviceMgr:       deviceMgr,
-		relayURL:        primaryRelay,
-		relayURLs:       relayURLs,
-		relayIdx:        0,
-		monitor:         NewPathMonitor(deviceMgr, logger),
-		onStateChange:   onStateChange,
-		logger:          logger,
-		currentState:    StateDirect,
-		isDirect:        true,
+		mux:           mux,
+		peerPubKey:    peerPubKey,
+		candidates:    initialCandidates,
+		connID:        connID,
+		listenPort:    listenPort,
+		deviceMgr:     deviceMgr,
+		relayURL:      primaryRelay,
+		relayURLs:     relayURLs,
+		relayIdx:      0,
+		monitor:       NewPathMonitor(deviceMgr, logger),
+		onStateChange: onStateChange,
+		logger:        logger,
+		currentState:  StateDirect,
+		isDirect:      true,
 	}
 
 	crm.dpd = NewDeadPeerDetector(

@@ -85,4 +85,3 @@ func platformAddRoute(ifName, cidr string) error {
 
 	return nil
 }
-

@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/zoop-internet/zoop/packages/core/types"
 )
 

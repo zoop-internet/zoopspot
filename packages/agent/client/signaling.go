@@ -29,8 +29,8 @@ type SignalingClient struct {
 
 	// activeConns tracks established tunnels (connection_id -> peer key) so a
 	// disconnect can tear down the right WireGuard peer.
-	activeMu      sync.Mutex
-	activeConns   map[types.ID]wgtypes.Key
+	activeMu    sync.Mutex
+	activeConns map[types.ID]wgtypes.Key
 }
 
 // NewSignalingClient creates a new WebSocket client.
@@ -121,7 +121,7 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 
 func (s *SignalingClient) resync(ctx context.Context) {
 	s.Logger.Info("signaling resyncing missed connection states")
-	
+
 	pending, err := s.apiClient.GetPendingConnections(ctx, s.apiClient.Identity.EndpointID)
 	if err != nil {
 		s.Logger.Error("failed to fetch pending connections during resync", "error", err)
@@ -131,13 +131,13 @@ func (s *SignalingClient) resync(ctx context.Context) {
 	for _, conn := range pending {
 		if conn.ProviderID == s.apiClient.Identity.EndpointID {
 			s.Logger.Info("found pending connection request, simulating signaling message", "connection_id", conn.ID)
-			
+
 			endpoints, err := s.apiClient.DiscoverEndpoints(ctx, conn.RecipientID)
 			var wgKey string
 			if err == nil && endpoints != nil {
 				wgKey = endpoints.WireGuardPublicKey
 			}
-			
+
 			payloadBytes, _ := json.Marshal(types.ConnectionPayload{
 				ConnectionID:       conn.ID,
 				ProviderIP:         conn.ProviderIP,
@@ -221,7 +221,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 			if s.tunnelManager != nil {
 				// Provider gets its own info and candidates
 				replyPayload.WireGuardPublicKey = s.tunnelManager.PublicKey().String()
-				
+
 				port, _ := s.tunnelManager.GetListenPort()
 				replyPayload.EndpointPort = port
 

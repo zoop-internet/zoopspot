@@ -74,13 +74,13 @@ func main() {
 
 	// 4. Create Share
 	fmt.Println("[4] Creating Share (Provider -> Recipient)...")
-	
+
 	// Load Identities
 	provIdent, provPriv, err := loadIdentity(filepath.Join(testDataDir, "provider", "identity.key"))
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load provider identity: %v", err))
 	}
-	
+
 	recIdent, _, err := loadIdentity(filepath.Join(testDataDir, "recipient", "identity.key"))
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load recipient identity: %v", err))
@@ -88,7 +88,7 @@ func main() {
 
 	fmt.Printf("Provider ID: %s\n", provIdent.EndpointID)
 	fmt.Printf("Recipient ID: %s\n", recIdent.EndpointID)
-	
+
 	reqBody := api.CreateShareRequest{
 		ProviderID:  provIdent.EndpointID,
 		RecipientID: recIdent.EndpointID,
@@ -151,7 +151,7 @@ func main() {
 	fmt.Println("Recipient Overlay IP: 100.64.0.2 (Interface: zoop1)")
 
 	fmt.Println("\n[6] Automating Traffic Validation...")
-	
+
 	// Create success file and start python HTTP server in provider
 	exec.Command("docker", "exec", "zoop-provider", "sh", "-c", "echo 'ZOOP_TUNNEL_SUCCESS' > /data/success.txt").Run()
 	httpCmd := exec.Command("docker", "exec", "-d", "zoop-provider", "python3", "-m", "http.server", "8000", "--bind", "0.0.0.0", "--directory", "/data")

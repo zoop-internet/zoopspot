@@ -6,9 +6,9 @@ import "encoding/json"
 type SignalingMessageType string
 
 const (
-	SignalingTypeConnectionRequest    SignalingMessageType = "connection_request"
-	SignalingTypeConnectionAccepted   SignalingMessageType = "connection_accepted"
-	SignalingTypeConnectionRejected   SignalingMessageType = "connection_rejected"
+	SignalingTypeConnectionRequest      SignalingMessageType = "connection_request"
+	SignalingTypeConnectionAccepted     SignalingMessageType = "connection_accepted"
+	SignalingTypeConnectionRejected     SignalingMessageType = "connection_rejected"
 	SignalingTypeConnectionDisconnected SignalingMessageType = "connection_disconnected"
 )
 

@@ -11,9 +11,9 @@ import (
 type RelayStatus string
 
 const (
-	RelayStatusOnline  RelayStatus = "online"
+	RelayStatusOnline   RelayStatus = "online"
 	RelayStatusDraining RelayStatus = "draining"
-	RelayStatusOffline RelayStatus = "offline"
+	RelayStatusOffline  RelayStatus = "offline"
 )
 
 // RelayNode represents a single geo-distributed relay server node in the cluster.

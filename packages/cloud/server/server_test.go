@@ -525,8 +525,6 @@ func TestServer_ServeWebApp(t *testing.T) {
 	}
 }
 
-
-
 func TestServer_AdminDeviceSuspendRestore(t *testing.T) {
 	st := store.NewInMemoryStore()
 	ds := services.NewDeviceService(st)
@@ -800,5 +798,3 @@ func TestServer_DiagnosticReports(t *testing.T) {
 		t.Errorf("report data mismatch: %+v", reports[0])
 	}
 }
-
-

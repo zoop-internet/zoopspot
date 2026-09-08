@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean help mobile-test mobile-cshared
+.PHONY: all build test lint format clean clean-all help mobile-test mobile-cshared build-android-core build-ios-core test-all dev-cloud dev-web build-web
 
 GO ?= go
 BIN_DIR ?= bin
@@ -16,6 +16,8 @@ test:
 	$(GO) test -v ./...
 
 tests: test
+
+test-all: test mobile-test
 
 integration-tests:
 	$(GO) run tests/direct_connectivity.go
@@ -41,6 +43,18 @@ build-ios-core:
 	@mkdir -p ios/Frameworks
 	gomobile bind -target=ios -o ios/Frameworks/ZoopCore.xcframework ./packages/platform/mobile
 
+dev-cloud:
+	$(GO) run ./cloud
+
+dev-web:
+	cd web && npm run dev
+
+build-web:
+	cd web && npm run build
+
+format:
+	gofmt -s -w .
+
 lint:
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -52,13 +66,22 @@ clean:
 	rm -rf $(BIN_DIR)
 	$(GO) clean
 
+clean-all: clean
+	rm -rf web/dist web/build coverage.txt *.out
+
 help:
 	@echo "Zoop Build System"
 	@echo "  make build              - Compile all Go binaries into bin/"
-	@echo "  make mobile-build       - Build mobile native bindings"
+	@echo "  make test               - Run all Go unit tests"
+	@echo "  make test-all           - Run Go unit tests and mobile binding tests"
+	@echo "  make format             - Auto-format Go code using gofmt"
+	@echo "  make lint               - Run linters (golangci-lint / go vet)"
 	@echo "  make mobile-test        - Run mobile binding tests"
 	@echo "  make mobile-cshared     - Build C-shared library (libzoop.so) for native mobile integration"
 	@echo "  make build-android-core - Build Android AAR library (zoopcore.aar) using gomobile"
 	@echo "  make build-ios-core     - Build iOS XCFramework (ZoopCore.xcframework) using gomobile"
-	@echo "  make lint               - Run linters (golangci-lint / go vet)"
-
+	@echo "  make dev-cloud          - Run Zoop Cloud locally with in-memory store"
+	@echo "  make dev-web            - Start local Vite development server for web console"
+	@echo "  make build-web          - Compile production web bundle"
+	@echo "  make clean              - Remove compiled Go binaries"
+	@echo "  make clean-all          - Remove compiled binaries, web dist, and test artifacts"

@@ -274,4 +274,3 @@ func TestInMemoryStore_UserIdentity(t *testing.T) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
-

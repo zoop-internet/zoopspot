@@ -14,17 +14,17 @@ import (
 
 // PathUpgrader continuously monitors a relayed connection and upgrades it to direct P2P when available.
 type PathUpgrader struct {
-	mu           sync.Mutex
-	mb           *muxbind.MuxBind
-	peerKey      wgtypes.Key
-	candidates   []types.EndpointCandidate
-	connID       string
-	defaultPort  int
-	deviceMgr    *DeviceManager
-	currentPath  *PathState
-	onUpgraded   func(newPath *PathState)
-	logger       *slog.Logger
-	stopCh       chan struct{}
+	mu            sync.Mutex
+	mb            *muxbind.MuxBind
+	peerKey       wgtypes.Key
+	candidates    []types.EndpointCandidate
+	connID        string
+	defaultPort   int
+	deviceMgr     *DeviceManager
+	currentPath   *PathState
+	onUpgraded    func(newPath *PathState)
+	logger        *slog.Logger
+	stopCh        chan struct{}
 	probeInterval time.Duration
 }
 

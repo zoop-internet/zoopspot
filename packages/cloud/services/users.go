@@ -56,4 +56,3 @@ func (s *UserService) GetAccountByZoopID(ctx context.Context, zoopID string) (*t
 func (s *UserService) GetAccountByUsername(ctx context.Context, username string) (*types.Account, error) {
 	return s.store.GetUserByUsername(ctx, username)
 }
-

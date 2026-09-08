@@ -35,10 +35,10 @@ func (m *DeviceManager) AddPeer(peerPubKey wgtypes.Key, endpointIP string, endpo
 // Pass 0 to disable keepalives (idle battery saving mode) or e.g. 25-120 for active/background maintenance.
 func (m *DeviceManager) AddPeerWithKeepalive(peerPubKey wgtypes.Key, endpointIP string, endpointPort int, allowedIPs []string, keepaliveIntervalSec int) error {
 	peerKeyHex := hex.EncodeToString(peerPubKey[:])
-	
+
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("public_key=%s\n", peerKeyHex))
-	
+
 	if endpointIP != "" && endpointPort != 0 {
 		// IPv6 needs brackets
 		ip := net.ParseIP(endpointIP)
@@ -82,4 +82,3 @@ func (m *DeviceManager) RemovePeer(peerPubKey wgtypes.Key) error {
 	}
 	return nil
 }
-

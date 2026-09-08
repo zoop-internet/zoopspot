@@ -25,7 +25,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 	// 2. Setup the testbed
 	t.Log("Starting Docker Compose Testbed...")
 	runCommand(t, "docker", "compose", "-f", composeFile, "up", "--build", "-d")
-	
+
 	// Ensure cleanup runs after all tests
 	defer func() {
 		t.Log("Tearing down Docker Compose Testbed...")
@@ -52,7 +52,7 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 		// Now, trigger a connection via the agent API
 		// First we need to get agent-b's identity ID. We can fetch it via the cloud API.
 		// For simplicity, since this is a simulation framework scaffold, we'll verify the agent doctor reports health.
-		
+
 		t.Log("Running zoop doctor on agent-a...")
 		out, err := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoopd", "-doctor")
 		if err != nil {
@@ -74,17 +74,17 @@ func TestE2E_NetworkSimulation(t *testing.T) {
 
 	t.Run("TestDegradedNetwork", func(t *testing.T) {
 		t.Log("Injecting 10% packet loss and 200ms latency on agent-a's eth0...")
-		
+
 		// Use the net_sim script
 		runCommand(t, "../../scripts/net_sim.sh", "zoop-agent-a-1", "eth0", "delay", "200")
 		runCommand(t, "../../scripts/net_sim.sh", "zoop-agent-a-1", "eth0", "loss", "10")
 
 		// Verify health probe latency increases
 		out, _ := runCommandOutput(t, "docker", "exec", "zoop-agent-a-1", "/bin/zoopd", "-doctor")
-		
+
 		// Just clear it for now to verify the script execution
 		runCommand(t, "../../scripts/net_sim.sh", "zoop-agent-a-1", "eth0", "clear")
-		
+
 		if out != "" {
 			t.Log("Successfully manipulated traffic control")
 		}

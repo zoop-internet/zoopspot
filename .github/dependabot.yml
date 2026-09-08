@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Go backend dependencies
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "backend"
+    open-pull-requests-limit: 10
+
+  # Web dashboard npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "frontend"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions CI workflow dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci"
+    open-pull-requests-limit: 5

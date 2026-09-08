@@ -85,10 +85,10 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
-		ifName:   ifName,
-		tunDev:   tunDev,
-		wgDev:    wgDev,
-		muxBind:  mb,
+		ifName:  ifName,
+		tunDev:  tunDev,
+		wgDev:   wgDev,
+		muxBind: mb,
 	}, nil
 }
 
@@ -195,8 +195,8 @@ func (m *mockTUN) Read(bufs [][]byte, sizes []int, offset int) (int, error) {
 func (m *mockTUN) Write(bufs [][]byte, offset int) (int, error) {
 	return len(bufs), nil
 }
-func (m *mockTUN) MTU() (int, error) { return 1420, nil }
-func (m *mockTUN) Name() (string, error) { return m.name, nil }
+func (m *mockTUN) MTU() (int, error)        { return 1420, nil }
+func (m *mockTUN) Name() (string, error)    { return m.name, nil }
 func (m *mockTUN) Events() <-chan tun.Event { return m.events }
 func (m *mockTUN) Close() error {
 	select {
@@ -207,5 +207,3 @@ func (m *mockTUN) Close() error {
 	return nil
 }
 func (m *mockTUN) BatchSize() int { return 1 }
-
-

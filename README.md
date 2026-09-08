@@ -4,7 +4,9 @@
 
 **High-Performance Direct Device-to-Device Mesh & Connectivity Platform**
 
+[![CI](https://github.com/zoop-internet/zoop/actions/workflows/ci.yml/badge.svg)](https://github.com/zoop-internet/zoop/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Version](https://img.shields.io/badge/Version-0.1.0--alpha-orange.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android%20%7C%20iOS%20%7C%20OpenWrt-green.svg)](#platform-support)
 [![Encryption](https://img.shields.io/badge/Tunnel-WireGuard%20(Noise_IK)-9b59b6.svg)](https://www.wireguard.com)
@@ -267,6 +269,15 @@ ZOOP_E2E_TESTS=1 go test -v ./test/e2e/...
 - **Identity Keys**: Ed25519 signatures authenticate every control plane API request.
 - **Replay Protection**: Cryptographic nonces and bounded TTL timestamps mitigate replay attacks.
 - **Zero-Knowledge Traffic**: The control plane and relays only coordinate signaling and metadata; payload packets are end-to-end encrypted and completely opaque to relays.
+
+---
+
+## Contributing & Team Guidelines
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Development setup, branch naming, Conventional Commits, and PR instructions.
+- **[SECURITY.md](SECURITY.md)**: Vulnerability disclosure policies, response SLA, and encryption specifications.
+- **[SUPPORT.md](SUPPORT.md)**: Troubleshooting, diagnostic commands (`zoop doctor`), and internal help channels.
+- **[CHANGELOG.md](CHANGELOG.md)**: Version history and release notes.
 
 ---
 

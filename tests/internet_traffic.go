@@ -127,7 +127,7 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load provider identity: %v", err))
 	}
-	
+
 	recIdent, _, err := loadIdentity(filepath.Join(testDataDir, "recipient", "identity.key"))
 	if err != nil {
 		log.Fatal(fmt.Errorf("failed to load recipient identity: %v", err))
@@ -135,7 +135,7 @@ func main() {
 
 	fmt.Printf("Provider ID: %s\n", provIdent.EndpointID)
 	fmt.Printf("Recipient ID: %s\n", recIdent.EndpointID)
-	
+
 	reqBody := api.CreateShareRequest{
 		ProviderID:  provIdent.EndpointID,
 		RecipientID: recIdent.EndpointID,

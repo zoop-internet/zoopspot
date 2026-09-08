@@ -19,10 +19,10 @@ func TestSecurityAndLeakCompliance_IPv6LeakProtection(t *testing.T) {
 	}
 
 	testIPv6Addresses := []string{
-		"2606:4700:4700::1111", // Cloudflare DNS
-		"2001:4860:4860::8888", // Google DNS
+		"2606:4700:4700::1111",     // Cloudflare DNS
+		"2001:4860:4860::8888",     // Google DNS
 		"2a00:1450:4001:830::200e", // Google IPv6
-		"fd00:7a6f:6f70::1",    // Zoop mesh overlay ULA
+		"fd00:7a6f:6f70::1",        // Zoop mesh overlay ULA
 	}
 
 	for _, addrStr := range testIPv6Addresses {

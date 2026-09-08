@@ -1,0 +1,74 @@
+name: Bug Report
+description: File a bug or unexpected behavior report
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please check existing issues first.
+        If this is a network connectivity or daemon issue, please include the output of `zoop doctor --json`.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      options:
+        - "Daemon (zoopd)"
+        - "CLI (zoop)"
+        - "Control Plane (zoop-cloud)"
+        - "Router (zoop-router)"
+        - "Mobile App (Flutter / Gomobile)"
+        - "Web Dashboard (React)"
+        - "WireGuard Tunnel / NAT Traversal"
+        - "Infrastructure & Deployment"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating System & Architecture
+      placeholder: "e.g., Ubuntu 24.04 (amd64), macOS Sonoma 14.5 (arm64), Android 14"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zoop Version / Git Commit
+      placeholder: "e.g., v0.1.0-alpha, commit abc1234"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem Description
+      placeholder: Clear and concise description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Start daemon: `sudo zoopd`
+        2. Execute: `zoop connect <peer_id>`
+        3. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor_output
+    attributes:
+      label: Zoop Doctor Diagnostics
+      description: Run `zoop doctor --json` and paste output here.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: System daemon (`journalctl -u zoopd`) or container logs.
+      render: shell

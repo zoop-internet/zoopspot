@@ -2,10 +2,10 @@ package tunnel
 
 import (
 	"crypto/rand"
-	"os"
-	"testing"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"os"
+	"testing"
 )
 
 func TestDeviceManager(t *testing.T) {

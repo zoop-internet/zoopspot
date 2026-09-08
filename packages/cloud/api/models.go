@@ -173,5 +173,3 @@ type DiagnosticReportResponse struct {
 	Timestamp string `json:"timestamp"`
 	Status    string `json:"status"`
 }
-
-

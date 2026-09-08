@@ -1,0 +1,33 @@
+# Zoop Codeowners
+# Automatic code review assignment across subsystem boundaries
+
+# Global repository maintainers
+* @zoop-internet/maintainers
+
+# Core Networking & WireGuard Daemon
+/packages/agent/ @zoop-internet/networking-team
+/packages/core/ @zoop-internet/networking-team
+/cmd/zoop/ @zoop-internet/networking-team
+/cmd/zoopd/ @zoop-internet/networking-team
+
+# Cloud Control Plane & Storage Layer
+/packages/cloud/ @zoop-internet/backend-team
+/cloud/ @zoop-internet/backend-team
+/infrastructure/ @zoop-internet/devops-team
+/deployments/ @zoop-internet/devops-team
+
+# Router Firmware & Gateway Routing
+/packages/router/ @zoop-internet/embedded-team
+/router/ @zoop-internet/embedded-team
+
+# Web Dashboard (React + TypeScript)
+/web/ @zoop-internet/frontend-team
+
+# Mobile (Flutter, Gomobile, Android, iOS)
+/mobile/ @zoop-internet/mobile-team
+/packages/platform/ @zoop-internet/mobile-team
+/android/ @zoop-internet/mobile-team
+/ios/ @zoop-internet/mobile-team
+
+# Architecture Specifications & Runbooks
+/docs/ @zoop-internet/maintainers

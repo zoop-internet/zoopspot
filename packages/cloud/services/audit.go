@@ -27,11 +27,11 @@ type AuditEvent struct {
 
 // AuditService records and cryptographically chains audit log entries.
 type AuditService struct {
-	mu        sync.Mutex
-	secret    []byte
-	events    []*AuditEvent
-	logger    *slog.Logger
-	lastSig   string
+	mu      sync.Mutex
+	secret  []byte
+	events  []*AuditEvent
+	logger  *slog.Logger
+	lastSig string
 }
 
 // NewAuditService creates an audit logger with an HMAC signing secret.

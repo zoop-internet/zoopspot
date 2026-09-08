@@ -59,10 +59,10 @@ type apiStatus struct {
 
 // wireStatus represents a live WireGuard UAPI status snapshot.
 type wireStatus struct {
-	Endpoint   string
-	Handshake  int64
-	RxBytes    uint64
-	TxBytes    uint64
+	Endpoint  string
+	Handshake int64
+	RxBytes   uint64
+	TxBytes   uint64
 }
 
 func (a *daemonAPI) corsMiddleware(next http.Handler) http.Handler {
@@ -201,13 +201,13 @@ func (a *daemonAPI) handleTelemetry(w http.ResponseWriter, r *http.Request) {
 	wire := a.wireSnapshot()
 
 	type telemetryEntry struct {
-		ConnectionID   string  `json:"connection_id"`
-		State          string  `json:"state"`
-		LatencyMs      float64 `json:"latency_ms"`
-		RxBytes        uint64  `json:"rx_bytes"`
-		TxBytes        uint64  `json:"tx_bytes"`
-		Endpoint       string  `json:"endpoint,omitempty"`
-		LastHandshake  int64   `json:"last_handshake_sec,omitempty"`
+		ConnectionID  string  `json:"connection_id"`
+		State         string  `json:"state"`
+		LatencyMs     float64 `json:"latency_ms"`
+		RxBytes       uint64  `json:"rx_bytes"`
+		TxBytes       uint64  `json:"tx_bytes"`
+		Endpoint      string  `json:"endpoint,omitempty"`
+		LastHandshake int64   `json:"last_handshake_sec,omitempty"`
 	}
 
 	// Merge cloud connection states with live WireGuard byte counts.
@@ -431,7 +431,7 @@ func (a *daemonAPI) handleStream(w http.ResponseWriter, r *http.Request) {
 
 func (a *daemonAPI) telemetrySnapshot(ctx context.Context) map[string]interface{} {
 	snap := map[string]interface{}{
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"active_tunnels": len(a.sigClient.ActiveConnections()),
 		"telemetry":      a.handleTelemetryData(ctx),
 	}

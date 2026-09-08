@@ -209,5 +209,3 @@ func (c *APIClient) GetDiagnosticReports(ctx context.Context) ([]api.DiagnosticR
 	err := c.do(ctx, http.MethodGet, path, nil, &resp)
 	return resp, err
 }
-
-

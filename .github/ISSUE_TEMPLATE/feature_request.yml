@@ -1,0 +1,47 @@
+name: Feature Request
+description: Propose a new feature, enhancement, or protocol capability
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Please provide as much detail as possible to help evaluate the design and operational impact.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Component
+      options:
+        - "Daemon (zoopd)"
+        - "CLI (zoop)"
+        - "Control Plane (zoop-cloud)"
+        - "Router (zoop-router)"
+        - "Mobile App (Flutter)"
+        - "Web Dashboard"
+        - "Protocol / Cryptography"
+        - "Developer Tooling / CI"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      placeholder: Is your feature request related to a specific problem or limitation? Describe the user pain point.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      placeholder: Describe the solution you'd like to see implemented.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      placeholder: Any alternative solutions or workarounds you've considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      placeholder: Add any architectural diagrams, links, or references.

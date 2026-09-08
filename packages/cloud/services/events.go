@@ -25,10 +25,10 @@ type eventSubscriber struct {
 
 // EventHub fans server events out to subscribed web clients, per identity.
 type EventHub struct {
-	mu       sync.RWMutex
-	clients  map[types.ID]map[*eventSubscriber]struct{}
-	closed   bool
-	onDrop   func(id types.ID, sub *eventSubscriber)
+	mu      sync.RWMutex
+	clients map[types.ID]map[*eventSubscriber]struct{}
+	closed  bool
+	onDrop  func(id types.ID, sub *eventSubscriber)
 }
 
 // NewEventHub creates an event hub.

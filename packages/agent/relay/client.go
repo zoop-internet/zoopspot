@@ -317,4 +317,3 @@ func (c *RelayClient) readLoop() {
 		}
 	}
 }
-

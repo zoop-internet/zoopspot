@@ -38,33 +38,32 @@ type CheckResult struct {
 
 // DiagnosticReport is the aggregate diagnostic health report for the local agent.
 type DiagnosticReport struct {
-	Timestamp      string                            `json:"timestamp"`
-	Version        string                            `json:"version"`
-	AgentState     string                            `json:"agent_state"`
-	Healthy        bool                              `json:"healthy"`
-	Checks         []CheckResult                     `json:"checks"`
-	PeerTelemetry  []telemetry.PeerTelemetrySnapshot `json:"peer_telemetry"`
-	NATType        NATType                           `json:"nat_type,omitempty"`
-	PathMTU        int                               `json:"path_mtu,omitempty"`
-	DNSLeakDetected *bool                            `json:"dns_leak_detected,omitempty"`
-	LatencyStats   *LatencyStats                     `json:"latency_stats,omitempty"`
+	Timestamp       string                            `json:"timestamp"`
+	Version         string                            `json:"version"`
+	AgentState      string                            `json:"agent_state"`
+	Healthy         bool                              `json:"healthy"`
+	Checks          []CheckResult                     `json:"checks"`
+	PeerTelemetry   []telemetry.PeerTelemetrySnapshot `json:"peer_telemetry"`
+	NATType         NATType                           `json:"nat_type,omitempty"`
+	PathMTU         int                               `json:"path_mtu,omitempty"`
+	DNSLeakDetected *bool                             `json:"dns_leak_detected,omitempty"`
+	LatencyStats    *LatencyStats                     `json:"latency_stats,omitempty"`
 }
 
 // LatencyStats holds min/avg/max RTT measurements to the control plane.
 type LatencyStats struct {
-	MinMs float64 `json:"min_ms"`
-	AvgMs float64 `json:"avg_ms"`
-	MaxMs float64 `json:"max_ms"`
-	Samples int   `json:"samples"`
+	MinMs   float64 `json:"min_ms"`
+	AvgMs   float64 `json:"avg_ms"`
+	MaxMs   float64 `json:"max_ms"`
+	Samples int     `json:"samples"`
 }
-
 
 // Checker provides health status and diagnostic probes for the agent.
 type Checker struct {
-	stateMgr  *state.Manager
-	tunName   string
-	cloudURL  string
-	stunAddr  string
+	stateMgr *state.Manager
+	tunName  string
+	cloudURL string
+	stunAddr string
 }
 
 // NewChecker creates a new health checker.
@@ -785,4 +784,3 @@ func (c *Checker) checkLatencyThroughput(ctx context.Context) (CheckResult, *Lat
 			minRTT, avgRTT, maxRTT, len(rtts), throughputMsg),
 	}, stats
 }
-

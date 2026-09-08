@@ -157,13 +157,15 @@ func main() {
 		if err := devMgr.ConfigureDevice(wgKeys.PrivateKey, 0); err != nil {
 			logger.Error("failed to configure wireguard device", "error", err)
 		}
-		
+
 		hostname, _ := os.Hostname()
-		if hostname == "" { hostname = "zoop-desktop" }
-		
+		if hostname == "" {
+			hostname = "zoop-desktop"
+		}
+
 		regCtx, regCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer regCancel()
-		
+
 		if _, err := apiClient.RegisterDevice(regCtx, hostname, wgKeys.EncodePublicKey()); err != nil {
 			logger.Error("failed to register device with cloud", "error", err)
 		} else {
@@ -475,7 +477,7 @@ func handleIPC(
 	case "subscribe":
 		// Respond success first
 		_ = json.NewEncoder(conn).Encode(DaemonResponse{Success: true, Message: "subscribed to state updates"})
-		
+
 		// Stream state periodically
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
@@ -488,10 +490,10 @@ func handleIPC(
 				stateUpdate := map[string]interface{}{
 					"event": "state_update",
 					"data": map[string]interface{}{
-						"status":       "connected", // If wireguard has peers we could infer this
-						"port":         port,
-						"pubkey":       devMgr.PublicKey().String(),
-						"latency_ms":   0,
+						"status":          "connected", // If wireguard has peers we could infer this
+						"port":            port,
+						"pubkey":          devMgr.PublicKey().String(),
+						"latency_ms":      0,
 						"throughput_down": 0,
 						"throughput_up":   0,
 					},

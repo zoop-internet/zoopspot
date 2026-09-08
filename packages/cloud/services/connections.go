@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	ErrUnauthorized    = errors.New("authorization denied")
-	ErrInvalidState    = errors.New("invalid connection state transition")
-	ErrConflict        = errors.New("conflict: duplicate connection")
+	ErrUnauthorized = errors.New("authorization denied")
+	ErrInvalidState = errors.New("invalid connection state transition")
+	ErrConflict     = errors.New("conflict: duplicate connection")
 )
 
 // validTransitions defines the allowed state machine transitions for a Connection.
