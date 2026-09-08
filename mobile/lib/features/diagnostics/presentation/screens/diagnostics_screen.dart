@@ -14,10 +14,54 @@ class DiagnosticsScreen extends ConsumerWidget {
     final notifier = ref.read(diagnosticsProvider.notifier);
 
     return Scaffold(
+      backgroundColor: ZoopColors.background,
       appBar: AppBar(
-        title: const Text('Network Diagnostics'),
+        backgroundColor: ZoopColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.network_check, color: ZoopColors.primaryCyan, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Diagnostics',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: ZoopColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: ZoopColors.textSecondary),
+            tooltip: 'Share Report',
+            onPressed: () {
+              if (state.report != null) {
+                final bundle = notifier.generateShareableBundle();
+                Clipboard.setData(ClipboardData(text: bundle));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Diagnostic bundle copied to clipboard'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Run diagnostics first'),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'diagnosticsFab',
         onPressed: state.isRunning ? null : () => notifier.runDiagnostics(),
         icon: state.isRunning
             ? const SizedBox(
@@ -56,7 +100,7 @@ class DiagnosticsScreen extends ConsumerWidget {
               if (state.report != null) ...[
                 _buildSummarySection(context, state.report!),
                 const SizedBox(height: 16),
-                _buildChecksList(context, state.report!.checks),
+                _buildChecksList(context, state.report!.checks, notifier),
                 const SizedBox(height: 16),
                 _buildActionButtons(context, notifier),
                 const SizedBox(height: 80), // spacing for fab
@@ -64,9 +108,28 @@ class DiagnosticsScreen extends ConsumerWidget {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 100),
-                    child: Text(
-                      'Tap "Run Diagnostics" to check network health',
-                      style: TextStyle(color: ZoopColors.textSecondary),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.network_check,
+                          size: 56,
+                          color: ZoopColors.textMuted,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No Report Yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: ZoopColors.textSecondary,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Tap "Run Diagnostics" to check network health',
+                          style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -78,12 +141,11 @@ class DiagnosticsScreen extends ConsumerWidget {
   }
 
   Widget _buildSummarySection(BuildContext context, DiagnosticsReport report) {
-    return Card(
-      elevation: 0,
-      color: ZoopColors.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: ZoopColors.surfaceBorder),
+    return Container(
+      decoration: BoxDecoration(
+        color: ZoopColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ZoopColors.surfaceBorder),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -168,13 +230,16 @@ class DiagnosticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildChecksList(BuildContext context, List<DiagnosticCheck> checks) {
-    return Card(
-      elevation: 0,
-      color: ZoopColors.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: ZoopColors.surfaceBorder),
+  Widget _buildChecksList(
+    BuildContext context,
+    List<DiagnosticCheck> checks,
+    DiagnosticsNotifier notifier,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ZoopColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ZoopColors.surfaceBorder),
       ),
       child: ListView.separated(
         shrinkWrap: true,
@@ -185,7 +250,7 @@ class DiagnosticsScreen extends ConsumerWidget {
           final check = checks[index];
           IconData icon;
           Color color;
-          
+
           switch (check.status) {
             case CheckStatus.passed:
               icon = Icons.check_circle;
@@ -205,21 +270,22 @@ class DiagnosticsScreen extends ConsumerWidget {
               break;
           }
 
-          return ListTile(
-            leading: check.status == CheckStatus.running
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: ZoopColors.primaryCyan),
-                  )
-                : Icon(icon, color: color),
-            title: Text(check.name),
-            subtitle: Text(
-              check.message,
-              style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
-            ),
-            trailing: check.latency != null
-                ? Container(
+          Widget leadingWidget = check.status == CheckStatus.running
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: ZoopColors.primaryCyan),
+                )
+              : Icon(icon, color: color);
+
+          // Build trailing: latency chip + retry button for failed checks
+          Widget? trailingWidget;
+          if (check.status == CheckStatus.failed) {
+            trailingWidget = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (check.latency != null)
+                  Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: ZoopColors.surface,
@@ -229,8 +295,38 @@ class DiagnosticsScreen extends ConsumerWidget {
                       '${check.latency!.inMilliseconds} ms',
                       style: const TextStyle(fontSize: 10, color: ZoopColors.textSecondary),
                     ),
-                  )
-                : null,
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 16, color: ZoopColors.accentAmber),
+                  tooltip: 'Retry',
+                  onPressed: () => notifier.runDiagnostics(),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: const EdgeInsets.all(4),
+                ),
+              ],
+            );
+          } else if (check.latency != null) {
+            trailingWidget = Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: ZoopColors.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${check.latency!.inMilliseconds} ms',
+                style: const TextStyle(fontSize: 10, color: ZoopColors.textSecondary),
+              ),
+            );
+          }
+
+          return ListTile(
+            leading: leadingWidget,
+            title: Text(check.name),
+            subtitle: Text(
+              check.message,
+              style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
+            ),
+            trailing: trailingWidget,
           );
         },
       ),

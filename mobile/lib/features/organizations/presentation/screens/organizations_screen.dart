@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../application/organizations_notifier.dart';
 import '../../domain/organization_models.dart';
@@ -40,7 +41,13 @@ class OrganizationsScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/fleet');
+            }
+          },
         ),
         title: const Row(
           children: [

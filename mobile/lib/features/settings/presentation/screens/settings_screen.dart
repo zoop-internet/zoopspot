@@ -75,6 +75,29 @@ class SettingsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 0. Navigation — informational tile
+              _buildSectionHeader('NAVIGATION'),
+              Container(
+                decoration: BoxDecoration(
+                  color: ZoopColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: ZoopColors.surfaceBorder),
+                ),
+                child: const ListTile(
+                  leading: Icon(Icons.apps, color: ZoopColors.primaryCyan, size: 22),
+                  title: Text(
+                    'App Hubs',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
+                  ),
+                  subtitle: Text(
+                    'Fleet, Vault, and Wallet are accessible from the bottom navigation bar',
+                    style: TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // 1. Identity & Account Card
               _buildSectionHeader('IDENTITY & ACCOUNT'),
               Container(
@@ -108,11 +131,11 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.cloud_done, color: ZoopColors.accentGreen, size: 22),
-                      title: const Text('Control Server', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Frankfurt (3.70.135.200:443)', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: const Text('ONLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen)),
+                    const ListTile(
+                      leading: Icon(Icons.cloud_done, color: ZoopColors.accentGreen, size: 22),
+                      title: Text('Control Server', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                      subtitle: Text('Frankfurt Control Plane (Active)', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                      trailing: Text('ONLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen)),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
                     ListTile(
@@ -128,54 +151,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 2. Ecosystem Quick Links
-              _buildSectionHeader('ECOSYSTEM HUBS'),
-              Container(
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: Column(
-                  children: [
-                    _buildHubTile(
-                      icon: Icons.business,
-                      title: 'Organizations Hub',
-                      subtitle: 'Corporate meshes, member rosters & team policies',
-                      color: ZoopColors.accentPurple,
-                      onTap: () => context.push('/organizations'),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    _buildHubTile(
-                      icon: Icons.timeline,
-                      title: 'Activity Timeline',
-                      subtitle: 'Audit logs, handshakes & connection history',
-                      color: ZoopColors.primaryCyan,
-                      onTap: () => context.push('/activity'),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    _buildHubTile(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Wallet & Earnings',
-                      subtitle: 'Prepaid bandwidth balance and provider payouts',
-                      color: ZoopColors.accentGreen,
-                      onTap: () => context.push('/wallet'),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    _buildHubTile(
-                      icon: Icons.network_check,
-                      title: 'Network Diagnostics',
-                      subtitle: 'Live STUN/TURN, MTU and socket ping tests',
-                      color: ZoopColors.accentAmber,
-                      onTap: () => context.push('/diagnostics'),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // 3. Security & Cryptography
+              // 2. Security & Cryptography
               _buildSectionHeader('SECURITY & CRYPTOGRAPHY'),
               Container(
                 decoration: BoxDecoration(
@@ -209,7 +185,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 4. Network & Routing
+              // 3. Network & Routing
               _buildSectionHeader('NETWORK & WIREGUARD'),
               Container(
                 decoration: BoxDecoration(
@@ -247,7 +223,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 5. Privacy & Data Governance
+              // 4. Privacy & Data Governance
               _buildSectionHeader('PRIVACY & TRANSPARENCY'),
               Container(
                 decoration: BoxDecoration(
@@ -279,7 +255,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 6. Notifications
+              // 5. Notifications
               _buildSectionHeader('NOTIFICATIONS'),
               Container(
                 decoration: BoxDecoration(
@@ -310,7 +286,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 7. About & Diagnostics
+              // 6. About & Diagnostics
               _buildSectionHeader('ABOUT ZOOP'),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -327,6 +303,16 @@ class SettingsScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     _buildAboutRow('Cryptographic Enclave', 'Ed25519 + ChaCha20-Poly1305'),
                     const SizedBox(height: 16),
+                    // Network Diagnostics shortcut
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.network_check, color: ZoopColors.accentAmber, size: 22),
+                      title: const Text('Network Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                      subtitle: const Text('9-stage probe: STUN, NAT, MTU, DNS', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                      trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                      onTap: () => context.push('/diagnostics'),
+                    ),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -371,29 +357,6 @@ class SettingsScreen extends ConsumerWidget {
           color: ZoopColors.textMuted,
         ),
       ),
-    );
-  }
-
-  Widget _buildHubTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-      trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-      onTap: onTap,
     );
   }
 

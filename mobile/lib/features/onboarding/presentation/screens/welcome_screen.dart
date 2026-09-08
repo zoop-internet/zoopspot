@@ -16,21 +16,21 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<Map<String, String>> _pages = [
+  final List<Map<String, dynamic>> _pages = [
     {
-      'title': 'Decentralized P2P Mesh',
-      'subtitle': 'Zoop connects your devices directly through NAT traversal and STUN/TURN signaling with zero centralized intermediary payload interception.',
-      'icon': 'hub',
+      'title': 'Your internet,\nyour rules.',
+      'subtitle': 'Direct device-to-device encrypted connections. No middlemen, no surveillance.',
+      'icon': Icons.shield_rounded,
     },
     {
-      'title': 'Zero-Knowledge Identity',
-      'subtitle': 'No email, phone number, or password required. Your cryptographic identity is generated entirely on your local device.',
-      'icon': 'lock',
+      'title': 'No accounts.\nNo passwords.',
+      'subtitle': 'Your cryptographic identity is generated on-device. Only you hold the keys.',
+      'icon': Icons.fingerprint,
     },
     {
-      'title': 'Share & Connect Freely',
-      'subtitle': 'Act as an egress provider for authorized devices, or connect to trusted peers across any cellular or Wi-Fi network.',
-      'icon': 'share',
+      'title': 'Share & earn\nbandwidth.',
+      'subtitle': 'Share your connection with trusted peers and earn bandwidth credits automatically.',
+      'icon': Icons.compare_arrows_rounded,
     },
   ];
 
@@ -39,6 +39,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     final identityState = ref.watch(identityNotifierProvider);
 
     return Scaffold(
+      backgroundColor: ZoopColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -53,9 +54,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       Container(
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [ZoopColors.primaryCyan, ZoopColors.primaryCyanDark],
                           ),
                         ),
@@ -97,7 +98,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
               // Page View Slides
               SizedBox(
-                height: 320,
+                height: 340,
                 child: PageView.builder(
                   controller: _pageController,
                   itemCount: _pages.length,
@@ -108,34 +109,46 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 96,
+                          height: 96,
                           decoration: BoxDecoration(
                             color: ZoopColors.surfaceElevated,
                             shape: BoxShape.circle,
                             border: Border.all(color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                                blurRadius: 24,
+                                spreadRadius: 2,
+                              ),
+                            ],
                           ),
                           child: Icon(
-                            p['icon'] == 'hub'
-                                ? Icons.device_hub
-                                : p['icon'] == 'lock'
-                                    ? Icons.fingerprint
-                                    : Icons.compare_arrows,
-                            size: 40,
+                            p['icon'] as IconData,
+                            size: 48,
                             color: ZoopColors.primaryCyan,
                           ),
                         ),
                         const SizedBox(height: 32),
                         Text(
-                          p['title']!,
+                          p['title'] as String,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                height: 1.2,
+                                fontWeight: FontWeight.w800,
+                              ),
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          p['subtitle']!,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            p['subtitle'] as String,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: ZoopColors.textSecondary,
+                                  height: 1.4,
+                                ),
+                          ),
                         ),
                       ],
                     );
@@ -148,13 +161,14 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   _pages.length,
-                  (index) => Container(
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 24 : 8,
-                    height: 8,
+                    width: _currentPage == index ? 28 : 6,
+                    height: 6,
                     decoration: BoxDecoration(
                       color: _currentPage == index ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
@@ -182,7 +196,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   },
                   child: Text(
                     _currentPage == _pages.length - 1
-                        ? (identityState.isRegistered ? 'Open Dashboard' : 'Get Started')
+                        ? (identityState.isRegistered ? 'Open Zoop' : 'Create My Identity')
                         : 'Continue',
                   ),
                 ),
@@ -192,7 +206,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                 TextButton(
                   onPressed: () => RecoverIdentitySheet.show(context),
                   child: const Text(
-                    'I already have a Zoop ID (Recover)',
+                    'I already have Zoop — Restore Identity',
                     style: TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.w600),
                   ),
                 ),

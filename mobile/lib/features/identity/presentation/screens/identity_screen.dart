@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/auth/biometric_auth_service.dart';
 import '../../../../core/theme/zoop_colors.dart';
-import '../../../pairing/application/pairing_notifier.dart';
-import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../application/identity_notifier.dart';
 import '../widgets/recover_identity_sheet.dart';
 import '../widgets/recovery_phrase_sheet.dart';
@@ -127,7 +125,17 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cryptographic Identity'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
+        title: const Text('Your Identity'),
         actions: [
           if (state.hasIdentity)
             IconButton(
@@ -146,12 +154,12 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Zero-Knowledge Trust',
+                'Zero-Knowledge Identity',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                'Zoop uses local Ed25519 public key cryptography. Your identity is generated securely on this device and registered with the Frankfurt Cloud Control Plane without email, passwords, or personal tracking.',
+                'Your Zoop identity lives only on this device. No accounts, no servers, and zero telemetry.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 28),
@@ -253,14 +261,45 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      Text('ENDPOINT UUID', style: Theme.of(context).textTheme.labelSmall),
-                      const SizedBox(height: 2),
-                      Text(
-                        state.endpointId ?? 'Deriving...',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              fontSize: 11,
-                              color: ZoopColors.textMuted,
+                      Theme(
+                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 8),
+                          title: const Text(
+                            'Advanced Technical Details',
+                            style: TextStyle(fontSize: 12, color: ZoopColors.primaryCyan, fontWeight: FontWeight.w600),
+                          ),
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('ENDPOINT UUID', style: Theme.of(context).textTheme.labelSmall),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    state.endpointId ?? 'Deriving...',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                          fontSize: 11,
+                                          color: ZoopColors.textMuted,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text('ALGORITHM', style: Theme.of(context).textTheme.labelSmall),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Ed25519 (Curve25519 Enclave)',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                          fontSize: 11,
+                                          color: ZoopColors.textMuted,
+                                        ),
+                                  ),
+                                ],
+                              ),
                             ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -356,8 +395,48 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Personal Mesh Fleet & Pairing Section (Phase 8)
-                _buildFleetCard(context),
+                // Link to Fleet Hub
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: ZoopColors.surfaceBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.device_hub, color: ZoopColors.primaryCyan, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Personal Mesh Fleet',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Manage paired phones, laptops & routers in Fleet tab',
+                              style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios, size: 14, color: ZoopColors.textMuted),
+                        onPressed: () => context.go('/fleet'),
+                      ),
+                    ],
+                  ),
+                ),
 
                 const SizedBox(height: 32),
 
@@ -467,134 +546,5 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
       ),
     );
   }
-
-  Widget _buildFleetCard(BuildContext context) {
-    final pairingState = ref.watch(pairingNotifierProvider);
-    final fleet = pairingState.fleetDevices;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: ZoopColors.surfaceBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.hub_outlined, size: 20, color: ZoopColors.primaryCyan),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Personal Mesh Fleet',
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${fleet.isEmpty ? 1 : fleet.length} NODES',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: ZoopColors.primaryCyan,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Link secondary phones, laptops, and OpenWrt edge routers to your personal Zoop network.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          if (fleet.isNotEmpty) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: ZoopColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ZoopColors.surfaceBorder),
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: fleet.length,
-                separatorBuilder: (context, index) => const Divider(height: 1, color: ZoopColors.surfaceBorder),
-                itemBuilder: (context, index) {
-                  final dev = fleet[index];
-                  final isSelf = dev['is_self'] as bool? ?? false;
-                  final platform = (dev['platform'] as String? ?? 'android').toLowerCase();
-                  final name = dev['name'] as String? ?? 'Node';
-
-                  IconData icon = Icons.phone_android;
-                  if (platform.contains('linux') || platform.contains('router') || platform.contains('openwrt')) {
-                    icon = Icons.router_rounded;
-                  } else if (platform.contains('mac') || platform.contains('apple')) {
-                    icon = Icons.laptop_mac;
-                  } else if (platform.contains('windows')) {
-                    icon = Icons.laptop_windows;
-                  }
-
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(icon, color: isSelf ? ZoopColors.accentGreen : ZoopColors.primaryCyan, size: 20),
-                    title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      isSelf ? 'Active Host' : 'Paired via Mesh',
-                      style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isSelf ? ZoopColors.accentGreen : ZoopColors.primaryCyan).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isSelf ? 'THIS DEVICE' : 'PAIRED',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: isSelf ? ZoopColors.accentGreen : ZoopColors.primaryCyan,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => PairingSheet.show(context),
-              icon: const Icon(Icons.qr_code_scanner, size: 18),
-              label: const Text('Pair New Device (QR / PIN)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ZoopColors.surfaceElevated,
-                foregroundColor: ZoopColors.primaryCyan,
-                side: const BorderSide(color: ZoopColors.primaryCyan),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+

@@ -58,6 +58,16 @@ class DevicesScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/fleet');
+            }
+          },
+        ),
         title: const Row(
           children: [
             Icon(Icons.devices, color: ZoopColors.primaryCyan, size: 22),

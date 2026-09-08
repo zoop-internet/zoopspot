@@ -4,6 +4,8 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/connections/presentation/screens/connections_screen.dart';
 import '../../features/sharing/presentation/screens/sharing_screen.dart';
 import '../../features/devices/presentation/screens/devices_screen.dart';
+import '../../features/fleet/presentation/screens/fleet_screen.dart';
+import '../../features/vault/presentation/screens/vault_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/identity/presentation/screens/identity_screen.dart';
 import '../../features/onboarding/presentation/screens/welcome_screen.dart';
@@ -15,7 +17,7 @@ import '../../features/wallet/presentation/screens/wallet_screen.dart';
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    // Shell Route hosting the 4 primary tabs
+    // Shell Route hosting the primary tabs
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
@@ -34,6 +36,14 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/devices',
           builder: (context, state) => const DevicesScreen(),
+        ),
+        GoRoute(
+          path: '/fleet',
+          builder: (context, state) => const FleetScreen(),
+        ),
+        GoRoute(
+          path: '/vault',
+          builder: (context, state) => const VaultScreen(),
         ),
       ],
     ),

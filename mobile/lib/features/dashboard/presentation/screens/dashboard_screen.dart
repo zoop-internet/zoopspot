@@ -9,9 +9,6 @@ import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
 import '../../../identity/application/identity_notifier.dart';
-import '../../../provider/application/provider_notifier.dart';
-import '../../../provider/domain/provider_settings.dart';
-import '../../../provider/presentation/widgets/gateway_settings_sheet.dart';
 import '../../application/peers_notifier.dart';
 import '../widgets/connection_details_sheet.dart';
 import '../widgets/provider_selection_sheet.dart';
@@ -28,11 +25,14 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with SingleTickerProviderStateMixin {
   ConnectionStatus _status = ConnectionStatus.disconnected;
-  bool _isProviderMode = false;
   RoutingMode _routingMode = RoutingMode.fullInternet;
   String _connectingStep = 'Initializing...';
   late AnimationController _animController;
   StreamSubscription? _vpnEventSubscription;
+
+  // Quick-reconnect peer chips state
+  final List<String> _recentPeers = ['Frankfurt #1', 'Amsterdam #2', 'Dubai #3'];
+  int _selectedRecentPeerIndex = 0;
 
   @override
   void initState() {
@@ -214,21 +214,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     }
   }
 
+  void _toggleRoutingMode() {
+    setState(() {
+      _routingMode = _routingMode == RoutingMode.fullInternet
+          ? RoutingMode.splitTunnel
+          : RoutingMode.fullInternet;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Routing Mode: ${_routingMode.label}'),
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final identityState = ref.watch(identityNotifierProvider);
     final peersState = ref.watch(peersNotifierProvider);
     final selectedPeer = peersState.selectedPeer;
-    final providerSettings = ref.watch(providerNotifierProvider);
-    final providerNotifier = ref.read(providerNotifierProvider.notifier);
 
     return Scaffold(
+      backgroundColor: ZoopColors.background,
       appBar: AppBar(
+        backgroundColor: ZoopColors.background,
+        elevation: 0,
+        titleSpacing: 12,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
@@ -239,25 +256,68 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 child: Text(
                   'Z',
                   style: TextStyle(
-                      color: Colors.black, fontWeight: FontWeight.bold),
+                      color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             ),
+            const SizedBox(width: 7),
+            const Text('ZOOP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(width: 8),
-            const Text('ZOOP'),
+            // Inline cloud status pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: identityState.isRegistered
+                    ? ZoopColors.accentGreen.withValues(alpha: 0.15)
+                    : ZoopColors.accentAmber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: identityState.isRegistered
+                      ? ZoopColors.accentGreen.withValues(alpha: 0.4)
+                      : ZoopColors.accentAmber.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: identityState.isRegistered
+                          ? ZoopColors.accentGreen
+                          : ZoopColors.accentAmber,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    identityState.isRegistered ? 'CLOUD' : 'PENDING',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      color: identityState.isRegistered
+                          ? ZoopColors.accentGreen
+                          : ZoopColors.accentAmber,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
-          // ZoopID Badge Button
+          // ZoopID Badge (if registered)
           if (identityState.zoopId != null)
             GestureDetector(
               onTap: () => context.push('/identity'),
               child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: ZoopColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                       color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
                 ),
@@ -265,8 +325,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 8,
-                      height: 8,
+                      width: 6,
+                      height: 6,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: identityState.isRegistered
@@ -274,50 +334,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             : ZoopColors.accentAmber,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 5),
                     Text(
                       identityState.zoopId!,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: ZoopColors.primaryCyan,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-          IconButton(
-            icon: Icon(
-              Icons.sync_alt,
-              color: _isProviderMode
-                  ? ZoopColors.accentPurple
-                  : ZoopColors.textSecondary,
-            ),
-            tooltip: 'Toggle Provider / Recipient Mode',
-            onPressed: () {
-              setState(() => _isProviderMode = !_isProviderMode);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(_isProviderMode
-                      ? 'Switched to Provider Console (Sharing)'
-                      : 'Switched to Recipient Mode (Connecting)'),
-                  duration: const Duration(seconds: 1),
+          // Wallet balance pill
+          GestureDetector(
+            onTap: () => context.go('/vault'),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: ZoopColors.accentGreen.withValues(alpha: 0.35)),
+              ),
+              child: const Text(
+                '\$12.50',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: ZoopColors.accentGreen,
+                  letterSpacing: 0.2,
                 ),
-              );
-            },
+              ),
+            ),
           ),
+          // Settings
           IconButton(
-            icon: const Icon(Icons.fingerprint, color: ZoopColors.textSecondary),
-            tooltip: 'Device Identity',
-            onPressed: () => context.push('/identity'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
+            icon: const Icon(Icons.settings_outlined,
+                color: ZoopColors.textSecondary, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
@@ -325,112 +388,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             children: [
-              // Cloud Status Banner
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.cloud_done,
-                          size: 16,
-                          color: identityState.isRegistered
-                              ? ZoopColors.accentGreen
-                              : ZoopColors.accentAmber,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          identityState.isRegistered
-                              ? 'Cloud Control: Frankfurt (3.70.135.200)'
-                              : 'Cloud Registration Pending',
-                          style: const TextStyle(
-                              fontSize: 12, color: ZoopColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      (identityState.cloudStatus ?? 'trusted').toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: identityState.isRegistered
-                            ? ZoopColors.accentGreen
-                            : ZoopColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Quick-reconnect peer chips
+              _buildRecentPeerChips(),
 
               const SizedBox(height: 20),
 
-              // Mode Indicator Switcher Chip
-              GestureDetector(
-                onTap: () {
-                  setState(() => _isProviderMode = !_isProviderMode);
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _isProviderMode
-                          ? ZoopColors.accentPurple
-                          : ZoopColors.primaryCyan,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isProviderMode ? Icons.upload : Icons.download,
-                        size: 16,
-                        color: _isProviderMode
-                            ? ZoopColors.accentPurple
-                            : ZoopColors.primaryCyan,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isProviderMode
-                            ? 'PROVIDER MODE (GATEWAY SHARING)'
-                            : 'RECIPIENT MODE (CONNECTING)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: _isProviderMode
-                              ? ZoopColors.accentPurple
-                              : ZoopColors.primaryCyan,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.swap_horiz,
-                          size: 14, color: ZoopColors.textMuted),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Render Recipient vs Provider UI
-              if (!_isProviderMode)
-                _buildRecipientView(context, selectedPeer)
-              else
-                _buildProviderView(
-                    context, providerSettings, providerNotifier),
+              // Recipient view (the main connect UI)
+              _buildRecipientView(context, selectedPeer),
 
               const SizedBox(height: 24),
+
               _buildDiagnosticsCard(context),
             ],
           ),
@@ -440,7 +407,73 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   // ==========================================
-  // RECIPIENT MODE (PHASE 6)
+  // QUICK-RECONNECT PEER CHIPS
+  // ==========================================
+  Widget _buildRecentPeerChips() {
+    return SizedBox(
+      height: 36,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_recentPeers.length, (index) {
+            final isSelected = _selectedRecentPeerIndex == index;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedRecentPeerIndex = index;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? ZoopColors.primaryCyan.withValues(alpha: 0.12)
+                      : ZoopColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isSelected
+                        ? ZoopColors.primaryCyan
+                        : ZoopColors.surfaceBorder,
+                    width: isSelected ? 1.5 : 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.dns_rounded,
+                      size: 12,
+                      color: isSelected
+                          ? ZoopColors.primaryCyan
+                          : ZoopColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _recentPeers[index],
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? ZoopColors.primaryCyan
+                            : ZoopColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // RECIPIENT VIEW (MESH / CONNECT)
   // ==========================================
   Widget _buildRecipientView(BuildContext context, PeerDevice? selectedPeer) {
     return Column(
@@ -548,7 +581,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
         const SizedBox(height: 28),
 
-        // Orbital Connection Node
+        // Orbital Connection Node (Radar Orb)
         GestureDetector(
           onTap: _toggleConnection,
           child: Stack(
@@ -736,336 +769,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  void _toggleRoutingMode() {
-    setState(() {
-      _routingMode = _routingMode == RoutingMode.fullInternet
-          ? RoutingMode.splitTunnel
-          : RoutingMode.fullInternet;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Routing Mode: ${_routingMode.label}'),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
-  }
-
-  // ==========================================
-  // PROVIDER MODE (PHASE 7)
-  // ==========================================
-  Widget _buildProviderView(
-    BuildContext context,
-    ProviderSettings settings,
-    ProviderNotifier notifier,
-  ) {
-    final isActive = settings.isGatewayActive;
-    final themeColor =
-        isActive ? ZoopColors.accentPurple : ZoopColors.disconnected;
-
-    return Column(
-      children: [
-        // Provider Policy & Scope Chip
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: ZoopColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: ZoopColors.surfaceBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.security,
-                      size: 14, color: ZoopColors.accentPurple),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Scope: ${settings.sharingScope.label}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: ZoopColors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: () => GatewaySettingsSheet.show(context),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: ZoopColors.accentPurple.withValues(alpha: 0.5)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.tune, size: 14, color: ZoopColors.accentPurple),
-                    SizedBox(width: 6),
-                    Text(
-                      'Policies',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: ZoopColors.accentPurple),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 28),
-
-        // Orbital Provider Power Switch
-        GestureDetector(
-          onTap: () {
-            notifier.toggleGateway(!isActive);
-          },
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: themeColor.withValues(alpha: 0.25),
-                    width: 2,
-                  ),
-                ),
-              ),
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: themeColor.withValues(alpha: 0.5),
-                    width: 2,
-                  ),
-                ),
-              ),
-              Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: ZoopColors.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: themeColor.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isActive ? Icons.power_settings_new : Icons.sensors,
-                      size: 44,
-                      color: themeColor,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isActive ? 'STOP SHARING' : 'START SHARING',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: themeColor,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Provider Status Headline
-        Text(
-          isActive ? 'Gateway Active (Sharing)' : 'Gateway Standby',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: themeColor,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          isActive
-              ? '${settings.activeSessions.length} active client${settings.activeSessions.length == 1 ? '' : 's'} • ${settings.formattedTotalShared} routed'
-              : 'Tap button to start sharing egress access with your devices',
-          style: Theme.of(context).textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        ),
-
-        const SizedBox(height: 28),
-
-        // Shared Egress Telemetry Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildTelemetryItem(
-                  context,
-                  icon: Icons.devices,
-                  label: 'CLIENTS',
-                  value: isActive ? '${settings.activeSessions.length}' : '0',
-                  color: ZoopColors.accentPurple,
-                ),
-                _buildTelemetryItem(
-                  context,
-                  icon: Icons.speed,
-                  label: 'EGRESS RATE',
-                  value: isActive ? '3.4 Mbps' : '--',
-                  color: ZoopColors.primaryCyan,
-                ),
-                _buildTelemetryItem(
-                  context,
-                  icon: Icons.cloud_upload_outlined,
-                  label: 'TOTAL ROUTED',
-                  value: isActive ? settings.formattedTotalShared : '--',
-                  color: ZoopColors.accentGreen,
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Connected Recipients List Card
-        if (isActive && settings.activeSessions.isNotEmpty) ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'CONNECTED CLIENTS (${settings.activeSessions.length})',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    letterSpacing: 1.2,
-                    color: ZoopColors.accentPurple,
-                  ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: ZoopColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ZoopColors.surfaceBorder),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: settings.activeSessions.length,
-              separatorBuilder: (context, index) =>
-                  const Divider(height: 1, color: ZoopColors.surfaceBorder),
-              itemBuilder: (context, index) {
-                final session = settings.activeSessions[index];
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: ZoopColors.surface,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      session.platform == 'macos'
-                          ? Icons.laptop_mac
-                          : Icons.phone_android,
-                      size: 20,
-                      color: ZoopColors.accentPurple,
-                    ),
-                  ),
-                  title: Text(
-                    session.clientName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    '${session.clientVirtualIp} • Shared ${session.formattedUploaded}',
-                    style: const TextStyle(
-                        fontSize: 12, color: ZoopColors.textSecondary),
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.close,
-                        size: 18, color: ZoopColors.accentRose),
-                    tooltip: 'Disconnect Client',
-                    onPressed: () {
-                      notifier.disconnectRecipient(session.clientId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Disconnected ${session.clientName}'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 16),
-
-        // Safeguards Summary Pill
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: ZoopColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ZoopColors.surfaceBorder),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.shield,
-                      size: 16, color: ZoopColors.accentGreen),
-                  const SizedBox(width: 8),
-                  Text(
-                    settings.pauseOnCellular
-                        ? 'Wi-Fi Enforced • Battery Protected (< 20%)'
-                        : 'Cellular Allowed • Battery Protected (< 20%)',
-                    style: const TextStyle(
-                        fontSize: 11, color: ZoopColors.textSecondary),
-                  ),
-                ],
-              ),
-              GestureDetector(
-                onTap: () => GatewaySettingsSheet.show(context),
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: ZoopColors.accentPurple,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTelemetryItem(
     BuildContext context, {
     required IconData icon,
@@ -1108,7 +811,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.monitor_heart, color: ZoopColors.primaryCyan),
+                child: const Icon(Icons.monitor_heart,
+                    color: ZoopColors.primaryCyan),
               ),
               const SizedBox(width: 16),
               Expanded(

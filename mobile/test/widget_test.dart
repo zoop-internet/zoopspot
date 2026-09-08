@@ -10,6 +10,6 @@ void main() {
       ),
     );
     expect(find.text('ZOOP'), findsOneWidget);
-    expect(find.text('Decentralized P2P Mesh'), findsOneWidget);
+    expect(find.text('Your internet,\nyour rules.'), findsOneWidget);
   });
 }

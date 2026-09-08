@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,7 @@ class RecoveryPhraseSheet extends ConsumerStatefulWidget {
 
 class _RecoveryPhraseSheetState extends ConsumerState<RecoveryPhraseSheet> {
   bool _copied = false;
+  bool _isRevealed = false;
 
   void _copyAll() {
     Clipboard.setData(ClipboardData(text: widget.words.join(' ')));
@@ -47,6 +49,55 @@ class _RecoveryPhraseSheetState extends ConsumerState<RecoveryPhraseSheet> {
         content: Text('Identity marked as securely backed up'),
         backgroundColor: ZoopColors.accentGreen,
       ),
+    );
+  }
+
+  Widget _buildWordGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2.8,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: widget.words.length,
+      itemBuilder: (context, idx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: ZoopColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: ZoopColors.surfaceBorder),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '${idx + 1}.',
+                style: const TextStyle(
+                  color: ZoopColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  widget.words[idx],
+                  style: const TextStyle(
+                    color: ZoopColors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -129,63 +180,71 @@ class _RecoveryPhraseSheetState extends ConsumerState<RecoveryPhraseSheet> {
               ),
               const SizedBox(height: 20),
 
-              // Word Grid (24 words in 2 columns)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 3.5,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: widget.words.length,
-                itemBuilder: (context, idx) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: ZoopColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: ZoopColors.surfaceBorder),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          '${idx + 1}.',
-                          style: const TextStyle(
-                            color: ZoopColors.textMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            widget.words[idx],
-                            style: const TextStyle(
-                              color: ZoopColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
+              // Word Grid with blur shield overlay when not revealed
+              Stack(
+                children: [
+                  // Always render the grid underneath
+                  _buildWordGrid(),
+
+                  // Blur overlay when not revealed
+                  if (!_isRevealed)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isRevealed = true),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              color: ZoopColors.background.withValues(alpha: 0.7),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.visibility_off,
+                                      size: 40,
+                                      color: ZoopColors.textMuted,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Tap to reveal recovery phrase',
+                                      style: TextStyle(
+                                        color: ZoopColors.textMuted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Make sure no one can see your screen',
+                                      style: TextStyle(
+                                        color: ZoopColors.textMuted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  );
-                },
+                ],
               ),
               const SizedBox(height: 24),
 
-              // Copy All Button
-              OutlinedButton.icon(
-                onPressed: _copyAll,
-                icon: Icon(_copied ? Icons.check : Icons.copy, size: 18),
-                label: Text(_copied ? 'Copied to Clipboard' : 'Copy All 24 Words'),
-              ),
-              const SizedBox(height: 12),
+              // Copy All Button — only shown when revealed
+              if (_isRevealed) ...[
+                OutlinedButton.icon(
+                  onPressed: _copyAll,
+                  icon: Icon(_copied ? Icons.check : Icons.copy, size: 18),
+                  label: Text(_copied ? 'Copied to Clipboard' : 'Copy All 24 Words'),
+                ),
+                const SizedBox(height: 12),
+              ],
 
-              // Confirm Button
+              // Confirm Button — always shown
               ElevatedButton(
                 onPressed: _confirmBackedUp,
                 child: const Text('I Have Safely Saved These Words'),

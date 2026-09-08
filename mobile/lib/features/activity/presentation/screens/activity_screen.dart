@@ -5,8 +5,22 @@ import '../../application/activity_notifier.dart';
 import '../../domain/activity_models.dart';
 import '../widgets/event_detail_sheet.dart';
 
-class ActivityScreen extends ConsumerWidget {
+class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key});
+
+  @override
+  ConsumerState<ActivityScreen> createState() => _ActivityScreenState();
+}
+
+class _ActivityScreenState extends ConsumerState<ActivityScreen> {
+  bool _showSearch = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _showEventDetail(BuildContext context, ActivityEventItem event) {
     showModalBottomSheet(
@@ -17,10 +31,36 @@ class ActivityScreen extends ConsumerWidget {
     );
   }
 
+  /// Returns a category-specific selected chip color.
+  Color _categoryChipColor(ActivityCategory cat) {
+    switch (cat) {
+      case ActivityCategory.connections:
+        return ZoopColors.primaryCyan;
+      case ActivityCategory.security:
+        return ZoopColors.accentRose;
+      case ActivityCategory.sharing:
+        return ZoopColors.accentPurple;
+      case ActivityCategory.devices:
+        return ZoopColors.accentAmber;
+      case ActivityCategory.all:
+        return ZoopColors.primaryCyan;
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(activityProvider);
     final notifier = ref.read(activityProvider.notifier);
+
+    // Apply search filter on top of state's filteredEvents
+    final searchQuery = _searchController.text.toLowerCase();
+    final displayedEvents = searchQuery.isEmpty
+        ? state.filteredEvents
+        : state.filteredEvents
+            .where((e) =>
+                e.title.toLowerCase().contains(searchQuery) ||
+                e.description.toLowerCase().contains(searchQuery))
+            .toList();
 
     return Scaffold(
       backgroundColor: ZoopColors.background,
@@ -33,10 +73,10 @@ class ActivityScreen extends ConsumerWidget {
         ),
         title: const Row(
           children: [
-            Icon(Icons.timeline, color: ZoopColors.primaryCyan, size: 22),
+            Icon(Icons.timeline, color: ZoopColors.primaryCyan, size: 20),
             SizedBox(width: 8),
             Text(
-              'Activity Timeline',
+              'Activity',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -46,6 +86,23 @@ class ActivityScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          // Search toggle
+          IconButton(
+            icon: Icon(
+              _showSearch ? Icons.search_off : Icons.search,
+              color: _showSearch ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
+            ),
+            tooltip: 'Search Events',
+            onPressed: () {
+              setState(() {
+                _showSearch = !_showSearch;
+                if (!_showSearch) {
+                  _searchController.clear();
+                }
+              });
+            },
+          ),
+          // Clear history
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined, color: ZoopColors.textSecondary),
             tooltip: 'Clear History',
@@ -59,11 +116,57 @@ class ActivityScreen extends ConsumerWidget {
               );
             },
           ),
+          // Export log
+          IconButton(
+            icon: const Icon(Icons.download_outlined, color: ZoopColors.textSecondary),
+            tooltip: 'Export Log',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Activity log export coming soon'),
+                  backgroundColor: ZoopColors.surfaceElevated,
+                ),
+              );
+            },
+          ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            // Search bar (conditionally visible)
+            if (_showSearch)
+              Container(
+                color: ZoopColors.surface,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search events...',
+                    hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: ZoopColors.textMuted, size: 20),
+                    filled: true,
+                    fillColor: ZoopColors.surfaceElevated,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: ZoopColors.primaryCyan),
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+
             // Category Filter Chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -71,6 +174,7 @@ class ActivityScreen extends ConsumerWidget {
               child: Row(
                 children: ActivityCategory.values.map((cat) {
                   final isSelected = state.selectedCategory == cat;
+                  final chipColor = _categoryChipColor(cat);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
@@ -93,9 +197,9 @@ class ActivityScreen extends ConsumerWidget {
                         color: isSelected ? ZoopColors.background : ZoopColors.textSecondary,
                       ),
                       backgroundColor: ZoopColors.surface,
-                      selectedColor: ZoopColors.primaryCyan,
+                      selectedColor: chipColor,
                       side: BorderSide(
-                        color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
+                        color: isSelected ? chipColor : ZoopColors.surfaceBorder,
                       ),
                       onSelected: (_) => notifier.setCategory(cat),
                     ),
@@ -106,20 +210,28 @@ class ActivityScreen extends ConsumerWidget {
 
             // Event List
             Expanded(
-              child: state.filteredEvents.isEmpty
+              child: displayedEvents.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.history_toggle_off, size: 48, color: ZoopColors.textMuted),
-                          SizedBox(height: 12),
-                          Text(
-                            'No Events Found',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: ZoopColors.textSecondary),
+                          Icon(
+                            Icons.checklist,
+                            size: 56,
+                            color: Color(0x4D6B7280), // textMuted with alpha 0.3
                           ),
-                          SizedBox(height: 4),
+                          SizedBox(height: 16),
                           Text(
-                            'Mesh, connection, and security logs will appear here.',
+                            'No Events',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: ZoopColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Activity will appear here as you use Zoop.',
                             style: TextStyle(fontSize: 12, color: ZoopColors.textMuted),
                           ),
                         ],
@@ -127,9 +239,9 @@ class ActivityScreen extends ConsumerWidget {
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: state.filteredEvents.length,
+                      itemCount: displayedEvents.length,
                       itemBuilder: (context, index) {
-                        final event = state.filteredEvents[index];
+                        final event = displayedEvents[index];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(

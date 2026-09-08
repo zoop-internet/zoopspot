@@ -9,9 +9,9 @@ class AppShell extends StatelessWidget {
 
   int _calculateSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/connections')) return 1;
-    if (location.startsWith('/sharing')) return 2;
-    if (location.startsWith('/devices')) return 3;
+    if (location.startsWith('/sharing')) return 1;
+    if (location.startsWith('/fleet')) return 2;
+    if (location.startsWith('/vault')) return 3;
     return 0; // default /dashboard
   }
 
@@ -21,13 +21,13 @@ class AppShell extends StatelessWidget {
         context.go('/dashboard');
         break;
       case 1:
-        context.go('/connections');
-        break;
-      case 2:
         context.go('/sharing');
         break;
+      case 2:
+        context.go('/fleet');
+        break;
       case 3:
-        context.go('/devices');
+        context.go('/vault');
         break;
     }
   }
@@ -54,7 +54,7 @@ class AppShell extends StatelessWidget {
           child: NavigationBarTheme(
             data: NavigationBarThemeData(
               backgroundColor: ZoopColors.surface,
-              indicatorColor: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+              indicatorColor: ZoopColors.primaryCyan.withValues(alpha: 0.18),
               labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
                 (Set<WidgetState> states) {
                   if (states.contains(WidgetState.selected)) {
@@ -91,14 +91,9 @@ class AppShell extends StatelessWidget {
               onDestinationSelected: (index) => _onItemTapped(index, context),
               destinations: const [
                 NavigationDestination(
-                  icon: Icon(Icons.shield_outlined),
-                  selectedIcon: Icon(Icons.shield),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.hub_outlined),
-                  selectedIcon: Icon(Icons.hub),
-                  label: 'Connections',
+                  icon: Icon(Icons.radar),
+                  selectedIcon: Icon(Icons.radar),
+                  label: 'Mesh',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.wifi_tethering_outlined),
@@ -106,9 +101,14 @@ class AppShell extends StatelessWidget {
                   label: 'Sharing',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.devices_outlined),
-                  selectedIcon: Icon(Icons.devices),
-                  label: 'Devices',
+                  icon: Icon(Icons.device_hub_outlined),
+                  selectedIcon: Icon(Icons.device_hub),
+                  label: 'Fleet',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.lock_outline),
+                  selectedIcon: Icon(Icons.lock),
+                  label: 'Vault',
                 ),
               ],
             ),

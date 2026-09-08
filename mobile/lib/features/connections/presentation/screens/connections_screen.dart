@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../application/connections_notifier.dart';
 import '../../domain/connection_models.dart';
@@ -73,6 +72,33 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
     );
   }
 
+  /// Returns 3 reliability dots colored by trustScore thresholds.
+  Widget _buildReliabilityDots(double trustScore) {
+    Color dotColor(int dotIndex) {
+      // dot 0: always lit, dot 1: >60%, dot 2: >85%
+      if (trustScore > 85) return ZoopColors.accentGreen;
+      if (trustScore > 60) {
+        return dotIndex < 2 ? ZoopColors.accentAmber : ZoopColors.surfaceBorder;
+      }
+      return dotIndex == 0 ? ZoopColors.accentRose : ZoopColors.surfaceBorder;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return Container(
+          width: 8,
+          height: 8,
+          margin: EdgeInsets.only(left: i == 0 ? 0 : 4),
+          decoration: BoxDecoration(
+            color: dotColor(i),
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(connectionsProvider);
@@ -85,10 +111,10 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         elevation: 0,
         title: const Row(
           children: [
-            Icon(Icons.hub_outlined, color: ZoopColors.primaryCyan, size: 22),
+            Icon(Icons.public, color: ZoopColors.primaryCyan, size: 22),
             SizedBox(width: 8),
             Text(
-              'Connections Hub',
+              'Network',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -99,9 +125,13 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
+            icon: const Icon(Icons.sort, color: ZoopColors.textSecondary),
+            tooltip: 'Sort by latency',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sorting by latency')),
+              );
+            },
           ),
         ],
         bottom: PreferredSize(
@@ -175,6 +205,24 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Filter icon button
+                Container(
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ZoopColors.surfaceBorder),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.filter_list, color: ZoopColors.textSecondary, size: 20),
+                    tooltip: 'Filter',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Filter options coming soon')),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -196,22 +244,44 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
   Widget _buildActiveConnectionsTab(List<ActiveConnectionItem> connections) {
     if (connections.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.link_off, size: 48, color: ZoopColors.textMuted.withValues(alpha: 0.6)),
-            const SizedBox(height: 12),
-            const Text(
-              'No Active Connections',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ZoopColors.textSecondary),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Discover and connect to a trusted node from the Discover tab.',
-              style: TextStyle(fontSize: 12, color: ZoopColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.sensors_off, size: 64, color: ZoopColors.surfaceBorder),
+              const SizedBox(height: 16),
+              const Text(
+                'No Active Tunnels',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: ZoopColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Connect to a provider from the Network tab below',
+                style: TextStyle(fontSize: 13, color: ZoopColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _tabController.animateTo(1),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ZoopColors.primaryCyan,
+                  foregroundColor: ZoopColors.background,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.travel_explore, size: 18),
+                label: const Text(
+                  'Discover Providers',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -337,10 +407,34 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
 
   Widget _buildDiscoverProvidersTab(List<DiscoveredProvider> providers) {
     if (providers.isEmpty) {
-      return const Center(
-        child: Text(
-          'No providers matching search filter',
-          style: TextStyle(color: ZoopColors.textMuted),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.travel_explore,
+                size: 64,
+                color: ZoopColors.textMuted.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No Providers Found',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: ZoopColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'No providers matching search filter',
+                style: TextStyle(fontSize: 13, color: ZoopColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -350,6 +444,9 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
       itemCount: providers.length,
       itemBuilder: (context, index) {
         final prov = providers[index];
+        // Derive latency display from existing latencyMs field
+        final latencyDisplay = '${prov.latencyMs} ms';
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
@@ -364,6 +461,7 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
               children: [
                 Row(
                   children: [
+                    // Left: icon with route-type color (using primaryCyan as provider default)
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -405,18 +503,22 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
                         ],
                       ),
                     ),
+                    // Latency badge (pill)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: ZoopColors.primaryCyan.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
-                        '${prov.trustScore}% Trust',
+                        latencyDisplay,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: ZoopColors.accentGreen,
+                          color: ZoopColors.primaryCyan,
                         ),
                       ),
                     ),
@@ -428,13 +530,20 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
                     Expanded(
                       child: Row(
                         children: [
-                          const Icon(Icons.speed, size: 14, color: ZoopColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text('${prov.latencyMs}ms', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
-                          const SizedBox(width: 12),
                           const Icon(Icons.bolt, size: 14, color: ZoopColors.accentAmber),
                           const SizedBox(width: 4),
-                          Text('${prov.bandwidthCapacityMbps} Mbps', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
+                          Text(
+                            '${prov.bandwidthCapacityMbps} Mbps',
+                            style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                          ),
+                          const SizedBox(width: 12),
+                          // Reliability dots replacing raw percentage
+                          _buildReliabilityDots(prov.trustScore),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${prov.trustScore.toInt()}%',
+                            style: const TextStyle(fontSize: 10, color: ZoopColors.textMuted),
+                          ),
                         ],
                       ),
                     ),

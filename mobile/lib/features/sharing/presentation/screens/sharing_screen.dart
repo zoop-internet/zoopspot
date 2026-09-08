@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
@@ -64,6 +65,11 @@ class SharingScreen extends ConsumerWidget {
     final state = ref.watch(sharingProvider);
     final notifier = ref.read(sharingProvider.notifier);
 
+    // Safe quota progress clamped to [0.0, 1.0]
+    final quotaProgress = state.policy.dailyDataCapGb > 0
+        ? (state.usedTodayGb / state.policy.dailyDataCapGb).clamp(0.0, 1.0)
+        : 0.0;
+
     return Scaffold(
       backgroundColor: ZoopColors.background,
       appBar: AppBar(
@@ -74,7 +80,7 @@ class SharingScreen extends ConsumerWidget {
             Icon(Icons.wifi_tethering, color: ZoopColors.primaryCyan, size: 22),
             SizedBox(width: 8),
             Text(
-              'Sharing & Egress',
+              'Sharing',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -88,11 +94,6 @@ class SharingScreen extends ConsumerWidget {
             icon: const Icon(Icons.tune, color: ZoopColors.textSecondary),
             tooltip: 'Sharing Policies',
             onPressed: () => _showPolicySheet(context, ref, state.policy),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -128,6 +129,7 @@ class SharingScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
+                    // Toggle row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -178,6 +180,7 @@ class SharingScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
+
                     // Live Egress & Quota Counters
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -186,55 +189,124 @@ class SharingScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: ZoopColors.surfaceBorder),
                       ),
-                      child: Row(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Live Outbound Egress',
-                                  style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
+                          Row(
+                            children: [
+                              // Live Egress
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.arrow_upward, size: 14, color: ZoopColors.accentGreen),
-                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Live Outbound Egress',
+                                      style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.arrow_upward, size: 14, color: ZoopColors.accentGreen),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${state.currentEgressMbps.toStringAsFixed(1)} Mbps',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: ZoopColors.accentGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(width: 1, height: 36, color: ZoopColors.surfaceBorder),
+                              const SizedBox(width: 14),
+                              // Daily Quota with progress bar
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Daily Quota Used',
+                                      style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: quotaProgress,
+                                        color: ZoopColors.accentGreen,
+                                        backgroundColor: ZoopColors.surfaceBorder,
+                                        minHeight: 5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
                                     Text(
-                                      '${state.currentEgressMbps.toStringAsFixed(1)} Mbps',
+                                      '${state.usedTodayGb.toStringAsFixed(1)} / ${state.policy.dailyDataCapGb.round()} GB',
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: ZoopColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                          const SizedBox(height: 12),
+                          // Earnings + Withdraw row
+                          Row(
+                            children: [
+                              // Today's earnings pill
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: ZoopColors.accentGreen.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.trending_up, size: 14, color: ZoopColors.accentGreen),
+                                    SizedBox(width: 5),
+                                    Text(
+                                      'Today +\$0.32',
+                                      style: TextStyle(
+                                        fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                         color: ZoopColors.accentGreen,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          Container(width: 1, height: 36, color: ZoopColors.surfaceBorder),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Daily Quota Used',
-                                  style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                              ),
+                              const Spacer(),
+                              // Withdraw stub
+                              TextButton(
+                                onPressed: () => context.go('/vault'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: ZoopColors.primaryCyan,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${state.usedTodayGb.toStringAsFixed(1)} / ${state.policy.dailyDataCapGb.round()} GB',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: ZoopColors.textPrimary,
+                                child: const Text(
+                                  'Withdraw',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: ZoopColors.primaryCyan,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -499,9 +571,24 @@ class SharingScreen extends ConsumerWidget {
                                       ),
                                     ],
                                   ),
-                                  Text(
-                                    'IP: ${recipient.assignedVirtualIp}',
-                                    style: const TextStyle(fontSize: 11, color: ZoopColors.primaryCyan, fontFamily: 'monospace'),
+                                  // Virtual IP hidden behind long-press; icon shown by default
+                                  GestureDetector(
+                                    onLongPress: () {
+                                      Clipboard.setData(
+                                        ClipboardData(text: recipient.assignedVirtualIp),
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Virtual IP copied'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(
+                                      Icons.vpn_lock,
+                                      size: 18,
+                                      color: ZoopColors.primaryCyan,
+                                    ),
                                   ),
                                 ],
                               ),
