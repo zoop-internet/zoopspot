@@ -98,17 +98,32 @@ class _PinChangeDialogState extends State<PinChangeDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel', style: TextStyle(color: ZoopColors.textSecondary)),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: ZoopColors.primaryCyan,
-            foregroundColor: ZoopColors.background,
+        Semantics(
+          button: true,
+          label: 'Cancel PIN change',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 64),
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: ZoopColors.textSecondary)),
+            ),
           ),
-          child: const Text('Update PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        Semantics(
+          button: true,
+          label: 'Update PIN',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 100),
+            child: ElevatedButton(
+              onPressed: _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ZoopColors.primaryCyan,
+                foregroundColor: ZoopColors.background,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text('Update PIN', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
         ),
       ],
     );

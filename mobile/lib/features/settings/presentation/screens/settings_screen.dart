@@ -50,9 +50,17 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Semantics(
+          label: 'Back',
+          button: true,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Back',
+            ),
+          ),
         ),
         title: const Row(
           children: [
@@ -115,19 +123,26 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       title: const Text('Permanent Zoop ID', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
                       subtitle: Text(zoopId, style: const TextStyle(fontSize: 12, color: ZoopColors.primaryCyan, fontFamily: 'monospace')),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.copy, size: 18, color: ZoopColors.textSecondary),
-                        tooltip: 'Copy Zoop ID',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: zoopId));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Zoop ID copied to clipboard'),
-                              backgroundColor: ZoopColors.accentGreen,
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
+                      trailing: Semantics(
+                        button: true,
+                        label: 'Copy Zoop ID to clipboard',
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          child: IconButton(
+                            icon: const Icon(Icons.copy, size: 18, color: ZoopColors.textSecondary),
+                            tooltip: 'Copy Zoop ID',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: zoopId));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Zoop ID copied to clipboard'),
+                                  backgroundColor: ZoopColors.accentGreen,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
@@ -138,12 +153,16 @@ class SettingsScreen extends ConsumerWidget {
                       trailing: Text('ONLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen)),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.key, color: ZoopColors.accentAmber, size: 22),
-                      title: const Text('Identity & Seed Recovery', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('View seed phrase and cryptographic keys', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                      onTap: () => context.push('/identity'),
+                    Semantics(
+                      button: true,
+                      label: 'Identity & Seed Recovery. View seed phrase and cryptographic keys.',
+                      child: ListTile(
+                        leading: const Icon(Icons.key, color: ZoopColors.accentAmber, size: 22),
+                        title: const Text('Identity & Seed Recovery', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('View seed phrase and cryptographic keys', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                        onTap: () => context.push('/identity'),
+                      ),
                     ),
                   ],
                 ),
@@ -165,9 +184,16 @@ class SettingsScreen extends ConsumerWidget {
                       leading: const Icon(Icons.lock_outline, color: ZoopColors.primaryCyan, size: 22),
                       title: const Text('Zoop Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
                       subtitle: Text(settings.hasPinSet ? 'PIN protection active' : 'No PIN configured', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: TextButton(
-                        onPressed: () => _showPinDialog(context, ref),
-                        child: Text(settings.hasPinSet ? 'Change' : 'Set PIN', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                      trailing: Semantics(
+                        button: true,
+                        label: settings.hasPinSet ? 'Change Zoop security PIN' : 'Set Zoop security PIN',
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          child: TextButton(
+                            onPressed: () => _showPinDialog(context, ref),
+                            child: Text(settings.hasPinSet ? 'Change' : 'Set PIN', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
                       ),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
@@ -233,12 +259,16 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.privacy_tip_outlined, color: ZoopColors.accentGreen, size: 22),
-                      title: const Text('Zero-Knowledge Guarantee', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Inspect what Zoop handles vs what stays private', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                      onTap: () => _showPrivacySheet(context),
+                    Semantics(
+                      button: true,
+                      label: 'Zero-Knowledge Guarantee. Inspect what Zoop handles versus what stays private.',
+                      child: ListTile(
+                        leading: const Icon(Icons.privacy_tip_outlined, color: ZoopColors.accentGreen, size: 22),
+                        title: const Text('Zero-Knowledge Guarantee', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Inspect what Zoop handles vs what stays private', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                        onTap: () => _showPrivacySheet(context),
+                      ),
                     ),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
                     SwitchListTile(
@@ -304,32 +334,43 @@ class SettingsScreen extends ConsumerWidget {
                     _buildAboutRow('Cryptographic Enclave', 'Ed25519 + ChaCha20-Poly1305'),
                     const SizedBox(height: 16),
                     // Network Diagnostics shortcut
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.network_check, color: ZoopColors.accentAmber, size: 22),
-                      title: const Text('Network Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('9-stage probe: STUN, NAT, MTU, DNS', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                      onTap: () => context.push('/diagnostics'),
+                    Semantics(
+                      button: true,
+                      label: 'Network Diagnostics. 9-stage probe: STUN, NAT, MTU, DNS.',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.network_check, color: ZoopColors.accentAmber, size: 22),
+                        title: const Text('Network Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('9-stage probe: STUN, NAT, MTU, DNS', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                        onTap: () => context.push('/diagnostics'),
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Sanitized diagnostic bundle saved to logs'),
-                              backgroundColor: ZoopColors.accentGreen,
+                    Semantics(
+                      button: true,
+                      label: 'Export Sanitized Diagnostics Bundle',
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Sanitized diagnostic bundle saved to logs'),
+                                  backgroundColor: ZoopColors.accentGreen,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.download, size: 16, color: ZoopColors.primaryCyan),
+                            label: const Text('Export Sanitized Diagnostics Bundle', style: TextStyle(fontSize: 12, color: ZoopColors.primaryCyan)),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: ZoopColors.surfaceBorder),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.download, size: 16, color: ZoopColors.primaryCyan),
-                        label: const Text('Export Sanitized Diagnostics Bundle', style: TextStyle(fontSize: 12, color: ZoopColors.primaryCyan)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: ZoopColors.surfaceBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                         ),
                       ),
                     ),

@@ -75,17 +75,24 @@ class PrivacyDisclosureSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ZoopColors.primaryCyan,
-                    foregroundColor: ZoopColors.background,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Semantics(
+                button: true,
+                label: 'I understand, dismiss privacy disclosure',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: ZoopColors.background,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                  child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
