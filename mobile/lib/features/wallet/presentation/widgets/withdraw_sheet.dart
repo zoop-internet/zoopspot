@@ -173,66 +173,76 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedProvider = 'MTN Mobile Money'),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedProvider.contains('MTN')
-                                ? const Color(0xFFFFCC00).withValues(alpha: 0.15)
-                                : ZoopColors.background,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
+                      child: Semantics(
+                        label: 'MTN Mobile Money ${_selectedProvider.contains("MTN") ? ", selected" : ""}',
+                        button: true,
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedProvider = 'MTN Mobile Money'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 48),
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            decoration: BoxDecoration(
                               color: _selectedProvider.contains('MTN')
-                                  ? const Color(0xFFFFCC00)
-                                  : ZoopColors.surfaceBorder,
-                              width: _selectedProvider.contains('MTN') ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const PaymentBrandIcon.mtn(size: 22, borderRadius: 5),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'MTN Mobile Money',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                                  ? const Color(0xFFFFCC00).withValues(alpha: 0.15)
+                                  : ZoopColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedProvider.contains('MTN')
+                                    ? const Color(0xFFFFCC00)
+                                    : ZoopColors.surfaceBorder,
+                                width: _selectedProvider.contains('MTN') ? 1.5 : 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const PaymentBrandIcon.mtn(size: 22, borderRadius: 5),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'MTN Mobile Money',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedProvider = 'Airtel Money'),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _selectedProvider.contains('Airtel')
-                                ? const Color(0xFFFF2020).withValues(alpha: 0.15)
-                                : ZoopColors.background,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
+                      child: Semantics(
+                        label: 'Airtel Money ${_selectedProvider.contains("Airtel") ? ", selected" : ""}',
+                        button: true,
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedProvider = 'Airtel Money'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 48),
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            decoration: BoxDecoration(
                               color: _selectedProvider.contains('Airtel')
-                                  ? const Color(0xFFFF2020)
-                                  : ZoopColors.surfaceBorder,
-                              width: _selectedProvider.contains('Airtel') ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const PaymentBrandIcon.airtel(size: 22, borderRadius: 5),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Airtel Money',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                                  ? const Color(0xFFFF2020).withValues(alpha: 0.15)
+                                  : ZoopColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedProvider.contains('Airtel')
+                                    ? const Color(0xFFFF2020)
+                                    : ZoopColors.surfaceBorder,
+                                width: _selectedProvider.contains('Airtel') ? 1.5 : 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const PaymentBrandIcon.airtel(size: 22, borderRadius: 5),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Airtel Money',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -299,9 +309,14 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 // Confirmation Step
                 Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary, size: 20),
-                      onPressed: () => setState(() => _isReviewing = false),
+                    Semantics(
+                      label: 'Back to edit withdrawal details',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary, size: 20),
+                        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                        onPressed: () => setState(() => _isReviewing = false),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     const Text(

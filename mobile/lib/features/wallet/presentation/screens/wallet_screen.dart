@@ -198,9 +198,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
         backgroundColor: ZoopColors.background,
         elevation: 0,
         leading: context.canPop()
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-                onPressed: () => context.pop(),
+            ? Semantics(
+                label: 'Back',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  onPressed: () => context.pop(),
+                ),
               )
             : null,
         title: const Row(
@@ -218,19 +223,30 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_card_rounded, color: ZoopColors.primaryCyan),
-            tooltip: 'Add Funds',
-            onPressed: () => _showAddFunds(context),
+          Semantics(
+            label: 'Add funds to mesh wallet',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.add_card_rounded, color: ZoopColors.primaryCyan),
+              tooltip: 'Add Funds',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () => _showAddFunds(context),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'App Settings',
-            onPressed: () => context.push('/settings'),
+          Semantics(
+            label: 'Open application settings',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
+              tooltip: 'App Settings',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () => context.push('/settings'),
+            ),
           ),
+          const SizedBox(width: 4),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
+          preferredSize: const Size.fromHeight(48),
           child: Container(
             decoration: const BoxDecoration(
               border: Border(
@@ -254,30 +270,39 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               dividerColor: Colors.transparent,
               tabs: const [
                 Tab(
-                  child: Row(
-                    children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 16),
-                      SizedBox(width: 6),
-                      Text('Balance & Earnings'),
-                    ],
+                  child: Semantics(
+                    label: 'Balance and earnings tab',
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Balance & Earnings'),
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    children: [
-                      Icon(Icons.timeline_rounded, size: 16),
-                      SizedBox(width: 6),
-                      Text('Activity Audit'),
-                    ],
+                  child: Semantics(
+                    label: 'Activity audit tab',
+                    child: Row(
+                      children: [
+                        Icon(Icons.timeline_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Activity Audit'),
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    children: [
-                      Icon(Icons.shield_outlined, size: 16),
-                      SizedBox(width: 6),
-                      Text('Security & Keys'),
-                    ],
+                  child: Semantics(
+                    label: 'Security and keys tab',
+                    child: Row(
+                      children: [
+                        Icon(Icons.shield_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Security & Keys'),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -345,17 +370,22 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: ZoopColors.textPrimary, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showAddFunds(context),
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Add Funds', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.primaryCyan,
-                      foregroundColor: ZoopColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                Semantics(
+                  label: 'Add funds to prepaid mesh balance',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showAddFunds(context),
+                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      label: const Text('Add Funds', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: ZoopColors.background,
+                        minimumSize: const Size.fromHeight(48),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                 ),
@@ -434,15 +464,20 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                         ),
                       ],
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
-                      icon: const Icon(Icons.arrow_outward, size: 16),
-                      label: const Text('Withdraw', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.surfaceElevated,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    Semantics(
+                      label: 'Withdraw available provider earnings: ${state.formatAmount(state.unwithdrawnEarnings)}',
+                      button: true,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
+                        icon: const Icon(Icons.arrow_outward, size: 16),
+                        label: const Text('Withdraw', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ZoopColors.surfaceElevated,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(110, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
                   ],
@@ -525,49 +560,53 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
             )
           else
             ...state.transactions.map((tx) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
+              return Semantics(
+                label: '${tx.type.label}, ${tx.description}, ${tx.formattedAmount}, status ${tx.status.name}. Tap to view transaction receipt.',
+                button: true,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    onTap: () => TransactionDetailSheet.show(context, tx),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          PaymentBrandIcon.forMethod(
-                            tx.paymentMethod,
-                            size: 38,
-                            borderRadius: 10,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    border: Border.all(color: ZoopColors.surfaceBorder),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => TransactionDetailSheet.show(context, tx),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            PaymentBrandIcon.forMethod(
+                              tx.paymentMethod,
+                              size: 38,
+                              borderRadius: 10,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(tx.type.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
+                                  const SizedBox(height: 2),
+                                  Text(tx.description, style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(tx.type.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
+                                Text(tx.formattedAmount, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tx.type.color)),
                                 const SizedBox(height: 2),
-                                Text(tx.description, style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                Text(tx.status.name.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: tx.status.color)),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(tx.formattedAmount, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tx.type.color)),
-                              const SizedBox(height: 2),
-                              Text(tx.status.name.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: tx.status.color)),
-                            ],
-                          ),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
-                        ],
+                            const SizedBox(width: 6),
+                            const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -634,6 +673,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       prefixIcon: const Icon(Icons.search, size: 18, color: ZoopColors.primaryCyan),
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.close, size: 16, color: ZoopColors.textMuted),
+                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                         onPressed: () {
                           _activitySearchController.clear();
                           setState(() => _showActivitySearch = false);
@@ -674,9 +714,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(_showActivitySearch ? Icons.search_off : Icons.search, size: 20, color: ZoopColors.primaryCyan),
-                    onPressed: () => setState(() => _showActivitySearch = !_showActivitySearch),
+                  Semantics(
+                    label: _showActivitySearch ? 'Close activity search' : 'Open activity search',
+                    button: true,
+                    child: IconButton(
+                      icon: Icon(_showActivitySearch ? Icons.search_off : Icons.search, size: 20, color: ZoopColors.primaryCyan),
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      onPressed: () => setState(() => _showActivitySearch = !_showActivitySearch),
+                    ),
                   ),
                 ],
               ),
@@ -705,33 +750,37 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                   itemBuilder: (context, index) {
                     final event = displayedEvents[index];
                     final chipColor = _categoryColor(event.category);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: ZoopColors.surfaceBorder),
-                      ),
-                      child: ListTile(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (ctx) => EventDetailSheet(event: event),
-                          );
-                        },
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: chipColor.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(event.category.icon, color: chipColor, size: 18),
+                    return Semantics(
+                      label: '${event.title}, ${event.relativeTime}, ${event.description}. Tap to view event details.',
+                      button: true,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: ZoopColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: ZoopColors.surfaceBorder),
                         ),
-                        title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        subtitle: Text('${event.relativeTime} • ${event.description}', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
+                        child: ListTile(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (ctx) => EventDetailSheet(event: event),
+                            );
+                          },
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: chipColor.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(event.category.icon, color: chipColor, size: 18),
+                          ),
+                          title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          subtitle: Text('${event.relativeTime} • ${event.description}', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
+                        ),
                       ),
                     );
                   },
@@ -802,16 +851,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                   style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _handleViewRecoveryPhrase,
-                    icon: const Icon(Icons.key_rounded, size: 16),
-                    label: const Text('View 24-Word Recovery Phrase'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: ZoopColors.primaryCyan,
-                      side: const BorderSide(color: ZoopColors.primaryCyan),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                Semantics(
+                  label: 'View 24-word cryptographic recovery phrase',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _handleViewRecoveryPhrase,
+                      icon: const Icon(Icons.key_rounded, size: 16),
+                      label: const Text('View 24-Word Recovery Phrase'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ZoopColors.primaryCyan,
+                        side: const BorderSide(color: ZoopColors.primaryCyan),
+                        minimumSize: const Size.fromHeight(48),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
                 ),
@@ -831,24 +885,28 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
             ),
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.pin, color: ZoopColors.primaryCyan, size: 22),
-                  title: const Text('Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                  subtitle: Text(settings.hasPinSet ? 'PIN protection is active' : 'Set a 6-digit PIN', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                  trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => PinChangeDialog(
-                        onPinChanged: (pin) {
-                          settingsNotifier.setPin(pin);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('PIN updated successfully'), backgroundColor: ZoopColors.accentGreen),
-                          );
-                        },
-                      ),
-                    );
-                  },
+                Semantics(
+                  label: 'Security PIN, ${settings.hasPinSet ? "PIN protection is active" : "Set a 6-digit PIN"}. Tap to configure PIN.',
+                  button: true,
+                  child: ListTile(
+                    leading: const Icon(Icons.pin, color: ZoopColors.primaryCyan, size: 22),
+                    title: const Text('Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                    subtitle: Text(settings.hasPinSet ? 'PIN protection is active' : 'Set a 6-digit PIN', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                    trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => PinChangeDialog(
+                          onPinChanged: (pin) {
+                            settingsNotifier.setPin(pin);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('PIN updated successfully'), backgroundColor: ZoopColors.accentGreen),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const Divider(color: ZoopColors.surfaceBorder, height: 1),
                 SwitchListTile(
@@ -882,19 +940,23 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: ZoopColors.surfaceBorder),
             ),
-            child: ListTile(
-              onTap: () => context.push('/diagnostics'),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+            child: Semantics(
+              label: 'Run network diagnostics probe. Double tap to start 9-point audit.',
+              button: true,
+              child: ListTile(
+                onTap: () => context.push('/diagnostics'),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.network_check, color: ZoopColors.primaryCyan, size: 20),
                 ),
-                child: const Icon(Icons.network_check, color: ZoopColors.primaryCyan, size: 20),
+                title: const Text('Network Diagnostics Probe', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
+                subtitle: const Text('Run 9-point audit: STUN, NAT, MTU, WireGuard handshake', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
               ),
-              title: const Text('Network Diagnostics Probe', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-              subtitle: const Text('Run 9-point audit: STUN, NAT, MTU, WireGuard handshake', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-              trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
             ),
           ),
         ],

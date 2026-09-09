@@ -230,35 +230,39 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 ..._methods.map((method) {
                   final isSelected = _selectedMethod == method['name'];
                   final methodColor = method['color'] as Color;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? ZoopColors.surfaceElevated : ZoopColors.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? methodColor : ZoopColors.surfaceBorder,
-                        width: isSelected ? 1.5 : 1.0,
+                  return Semantics(
+                    label: '${method['name']}, ${method['subtitle']}${isSelected ? ", selected" : ""}',
+                    button: true,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? ZoopColors.surfaceElevated : ZoopColors.background,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? methodColor : ZoopColors.surfaceBorder,
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
                       ),
-                    ),
-                    child: ListTile(
-                      dense: true,
-                      leading: PaymentBrandIcon(
-                        method: method['type'] as PaymentMethodType,
-                        size: 36,
-                        borderRadius: 8,
+                      child: ListTile(
+                        dense: true,
+                        leading: PaymentBrandIcon(
+                          method: method['type'] as PaymentMethodType,
+                          size: 36,
+                          borderRadius: 8,
+                        ),
+                        title: Text(
+                          method['name'] as String,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: ZoopColors.textPrimary, fontSize: 13),
+                        ),
+                        subtitle: Text(
+                          method['subtitle'] as String,
+                          style: const TextStyle(color: ZoopColors.textMuted, fontSize: 11),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: methodColor, size: 20)
+                            : null,
+                        onTap: () => setState(() => _selectedMethod = method['name'] as String),
                       ),
-                      title: Text(
-                        method['name'] as String,
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: ZoopColors.textPrimary, fontSize: 13),
-                      ),
-                      subtitle: Text(
-                        method['subtitle'] as String,
-                        style: const TextStyle(color: ZoopColors.textMuted, fontSize: 11),
-                      ),
-                      trailing: isSelected
-                          ? Icon(Icons.check_circle, color: methodColor, size: 20)
-                          : null,
-                      onTap: () => setState(() => _selectedMethod = method['name'] as String),
                     ),
                   );
                 }),
@@ -341,9 +345,14 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 // Review & Confirmation Screen
                 Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary, size: 20),
-                      onPressed: () => setState(() => _isReviewing = false),
+                    Semantics(
+                      label: 'Back to edit top-up details',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary, size: 20),
+                        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                        onPressed: () => setState(() => _isReviewing = false),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     const Text(
