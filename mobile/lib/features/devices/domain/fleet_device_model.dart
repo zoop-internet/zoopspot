@@ -41,6 +41,10 @@ class FleetDeviceItem {
   final DeviceRole role;
   final String ipAddress;
   final String version;
+  final int? pingMs;
+  final bool isExitNode;
+  final String connectionType; // 'Direct P2P' or 'Relayed DERP'
+  final String? subnetRoute;
 
   const FleetDeviceItem({
     required this.id,
@@ -54,6 +58,10 @@ class FleetDeviceItem {
     required this.role,
     required this.ipAddress,
     this.version = 'v1.0.0-rc3',
+    this.pingMs,
+    this.isExitNode = false,
+    this.connectionType = 'Direct P2P',
+    this.subnetRoute,
   });
 
   IconData get platformIcon {
@@ -79,6 +87,10 @@ class FleetDeviceItem {
     DeviceRole? role,
     String? ipAddress,
     String? version,
+    int? pingMs,
+    bool? isExitNode,
+    String? connectionType,
+    String? subnetRoute,
   }) {
     return FleetDeviceItem(
       id: id ?? this.id,
@@ -92,6 +104,10 @@ class FleetDeviceItem {
       role: role ?? this.role,
       ipAddress: ipAddress ?? this.ipAddress,
       version: version ?? this.version,
+      pingMs: pingMs ?? this.pingMs,
+      isExitNode: isExitNode ?? this.isExitNode,
+      connectionType: connectionType ?? this.connectionType,
+      subnetRoute: subnetRoute ?? this.subnetRoute,
     );
   }
 }

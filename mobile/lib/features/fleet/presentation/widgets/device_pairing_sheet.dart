@@ -27,7 +27,7 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _startTimer();
   }
 
@@ -138,7 +138,7 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
 
           // Tab Bar
           Container(
-            height: 38,
+            height: 40,
             decoration: BoxDecoration(
               color: ZoopColors.surfaceElevated,
               borderRadius: BorderRadius.circular(10),
@@ -147,6 +147,7 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
             child: TabBar(
               controller: _tabController,
               indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
               indicator: BoxDecoration(
                 color: ZoopColors.primaryCyan.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
@@ -156,10 +157,38 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
               labelColor: ZoopColors.primaryCyan,
               unselectedLabelColor: ZoopColors.textMuted,
               labelStyle:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
               tabs: const [
-                Tab(icon: Icon(Icons.qr_code, size: 16), text: 'QR Code'),
-                Tab(icon: Icon(Icons.pin, size: 16), text: 'Pairing PIN'),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.qr_code, size: 14),
+                      SizedBox(width: 4),
+                      Text('QR Code'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.terminal, size: 14),
+                      SizedBox(width: 4),
+                      Text('Terminal'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.pin, size: 14),
+                      SizedBox(width: 4),
+                      Text('Pair PIN'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -167,7 +196,7 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
 
           // Tab View
           SizedBox(
-            height: 280,
+            height: 290,
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -215,7 +244,81 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
                   ],
                 ),
 
-                // Tab 2: Pairing PIN
+                // Tab 2: Terminal / CLI
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Install and enroll Linux, Docker, or Raspberry Pi nodes:',
+                      style: TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.background,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: ZoopColors.surfaceBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFFF5F56), shape: BoxShape.circle)),
+                              const SizedBox(width: 6),
+                              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFFFBD2E), shape: BoxShape.circle)),
+                              const SizedBox(width: 6),
+                              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF27C93F), shape: BoxShape.circle)),
+                              const Spacer(),
+                              const Text('bash', style: TextStyle(color: ZoopColors.textMuted, fontSize: 10, fontFamily: 'monospace')),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SelectableText(
+                            'curl -fsSL https://get.zoop.network | sh && zoop join --pin $_pairingPin',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 11.5,
+                              color: ZoopColors.primaryCyan,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(
+                                text: 'curl -fsSL https://get.zoop.network | sh && zoop join --pin $_pairingPin'));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Terminal command copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.copy, size: 14),
+                          label: const Text('Copy Shell Command'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ZoopColors.primaryCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // Tab 3: Pairing PIN
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

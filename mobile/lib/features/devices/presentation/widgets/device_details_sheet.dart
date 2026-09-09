@@ -206,6 +206,16 @@ class DeviceDetailsSheet extends StatelessWidget {
                     const Divider(color: ZoopColors.surfaceBorder, height: 16),
                     _buildRow('Public Key Fingerprint', device.publicKeyFingerprint, ZoopColors.textSecondary),
                     const Divider(color: ZoopColors.surfaceBorder, height: 16),
+                    _buildRow('Connection Type', device.connectionType, ZoopColors.primaryCyan),
+                    if (device.pingMs != null) ...[
+                      const Divider(color: ZoopColors.surfaceBorder, height: 16),
+                      _buildRow('Direct Ping Latency', '${device.pingMs} ms', ZoopColors.accentGreen),
+                    ],
+                    if (device.isExitNode && device.subnetRoute != null) ...[
+                      const Divider(color: ZoopColors.surfaceBorder, height: 16),
+                      _buildRow('Advertised Subnet', device.subnetRoute!, ZoopColors.accentPurple),
+                    ],
+                    const Divider(color: ZoopColors.surfaceBorder, height: 16),
                     _buildRow('Daemon Version', device.version, ZoopColors.textSecondary),
                   ],
                 ),
