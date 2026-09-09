@@ -126,10 +126,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: ZoopColors.textPrimary,
-          onPressed: () => Navigator.of(context).maybePop(),
+        leading: Semantics(
+          button: true,
+          label: 'Back',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              color: ZoopColors.textPrimary,
+              onPressed: () => Navigator.of(context).maybePop(),
+              tooltip: 'Back',
+            ),
+          ),
         ),
         title: Row(
           children: [
@@ -167,39 +175,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         actions: [
           if (_notifications.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: ZoopColors.textSecondary),
-              color: ZoopColors.surfaceElevated,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: ZoopColors.surfaceBorder),
+            Semantics(
+              button: true,
+              label: 'Notification options',
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, color: ZoopColors.textSecondary),
+                  color: ZoopColors.surfaceElevated,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: const BorderSide(color: ZoopColors.surfaceBorder),
+                  ),
+                  onSelected: (value) {
+                    if (value == 'read') _markAllAsRead();
+                    if (value == 'clear') _clearAll();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'read',
+                      child: Row(
+                        children: [
+                          Icon(Icons.done_all_rounded, size: 18, color: ZoopColors.primaryCyan),
+                          SizedBox(width: 10),
+                          Text('Mark all as read', style: TextStyle(color: ZoopColors.textPrimary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'clear',
+                      child: Row(
+                        children: [
+                          Icon(Icons.clear_all_rounded, size: 18, color: ZoopColors.accentRose),
+                          SizedBox(width: 10),
+                          Text('Clear all', style: TextStyle(color: ZoopColors.accentRose, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onSelected: (value) {
-                if (value == 'read') _markAllAsRead();
-                if (value == 'clear') _clearAll();
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'read',
-                  child: Row(
-                    children: [
-                      Icon(Icons.done_all_rounded, size: 18, color: ZoopColors.primaryCyan),
-                      SizedBox(width: 10),
-                      Text('Mark all as read', style: TextStyle(color: ZoopColors.textPrimary, fontSize: 13)),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'clear',
-                  child: Row(
-                    children: [
-                      Icon(Icons.clear_all_rounded, size: 18, color: ZoopColors.accentRose),
-                      SizedBox(width: 10),
-                      Text('Clear all', style: TextStyle(color: ZoopColors.accentRose, fontSize: 13)),
-                    ],
-                  ),
-                ),
-              ],
             ),
           const SizedBox(width: 8),
         ],
@@ -250,25 +265,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildFilterChip(String label, NotificationCategory category) {
     final isSelected = _selectedCategory == category;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedCategory = category),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: isSelected ? ZoopColors.primaryCyan.withValues(alpha: 0.15) : ZoopColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
-            width: isSelected ? 1.2 : 1.0,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'Filter by $label notifications',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedCategory = category),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? ZoopColors.primaryCyan.withValues(alpha: 0.15) : ZoopColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
+                width: isSelected ? 1.2 : 1.0,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
+              ),
+            ),
           ),
         ),
       ),
@@ -276,15 +300,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationCard(NotificationItem item) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          item.isRead = true;
-        });
-        _showNotificationDetail(item);
-      },
+    return Semantics(
+      button: true,
+      label: '${item.title}, ${item.category.name}, ${item.time}. ${item.message}. ${item.isRead ? 'Read' : 'Unread'}. Tap to view notification details.',
       child: Container(
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: item.isRead ? ZoopColors.surface : ZoopColors.surfaceElevated.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(18),
@@ -295,75 +314,90 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             width: 1.0,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon container
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: item.iconColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: item.iconColor.withValues(alpha: 0.3),
-                  width: 1.0,
-                ),
-              ),
-              child: Icon(item.icon, color: item.iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            // Message body
-            Expanded(
-              child: Column(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              setState(() {
+                item.isRead = true;
+              });
+              _showNotificationDetail(item);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
+                  // Icon container
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: item.iconColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: item.iconColor.withValues(alpha: 0.3),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Icon(item.icon, color: item.iconColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  // Message body
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w700,
+                                  color: ZoopColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              item.time,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: ZoopColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.message,
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: item.isRead ? FontWeight.w600 : FontWeight.w700,
-                            color: ZoopColors.textPrimary,
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: item.isRead ? ZoopColors.textSecondary : ZoopColors.textPrimary.withValues(alpha: 0.85),
                           ),
                         ),
-                      ),
-                      Text(
-                        item.time,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: ZoopColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.message,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.35,
-                      color: item.isRead ? ZoopColors.textSecondary : ZoopColors.textPrimary.withValues(alpha: 0.85),
+                      ],
                     ),
                   ),
+                  if (!item.isRead) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: item.iconColor,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (!item.isRead) ...[
-              const SizedBox(width: 8),
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: item.iconColor,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -530,31 +564,45 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ZoopColors.textSecondary,
-                        side: const BorderSide(color: ZoopColors.surfaceBorder),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Semantics(
+                      button: true,
+                      label: 'Dismiss notification',
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ZoopColors.textSecondary,
+                            side: const BorderSide(color: ZoopColors.surfaceBorder),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
                       ),
-                      onPressed: () => Navigator.pop(sheetContext),
-                      child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.primaryCyan,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: actionHandler,
-                      child: Text(
-                        actionLabel,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                    child: Semantics(
+                      button: true,
+                      label: actionLabel,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ZoopColors.primaryCyan,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: actionHandler,
+                          child: Text(
+                            actionLabel,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
                       ),
                     ),
                   ),
