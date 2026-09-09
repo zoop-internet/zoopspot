@@ -15,7 +15,7 @@ import '../../features/activity/presentation/screens/activity_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/dashboard',
   routes: [
     // Shell Route hosting the primary tabs
     ShellRoute(

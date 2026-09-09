@@ -3,267 +3,249 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../application/peers_notifier.dart';
 
-class ProviderSelectionSheet extends ConsumerWidget {
+class ProviderSelectionSheet extends ConsumerStatefulWidget {
   const ProviderSelectionSheet({super.key});
 
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ZoopColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => const ProviderSelectionSheet(),
     );
   }
 
+  @override
+  ConsumerState<ProviderSelectionSheet> createState() =>
+      _ProviderSelectionSheetState();
+}
+
+class _ProviderSelectionSheetState
+    extends ConsumerState<ProviderSelectionSheet> {
+  String _searchQuery = '';
+
   IconData _getPlatformIcon(String platform) {
     final p = platform.toLowerCase();
     if (p.contains('android')) return Icons.phone_android_rounded;
-    if (p.contains('darwin') || p.contains('ios') || p.contains('mac')) return Icons.laptop_mac_rounded;
+    if (p.contains('darwin') || p.contains('ios') || p.contains('mac')) {
+      return Icons.laptop_mac_rounded;
+    }
     if (p.contains('windows')) return Icons.desktop_windows_rounded;
-    if (p.contains('router') || p.contains('openwrt')) return Icons.router_rounded;
-    return Icons.dns_rounded; // Linux server default
+    if (p.contains('router') || p.contains('openwrt')) {
+      return Icons.router_rounded;
+    }
+    return Icons.dns_rounded;
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final peersState = ref.watch(peersNotifierProvider);
     final selectedPeer = peersState.selectedPeer;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (context, scrollController) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sheet Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surfaceBorder,
-                    borderRadius: BorderRadius.circular(2),
+    final filteredPeers = peersState.peers.where((peer) {
+      if (_searchQuery.isEmpty) return true;
+      return peer.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          peer.platform.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: ZoopColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          // Clean Drag Handle
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: ZoopColors.surfaceBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Select Device',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: ZoopColors.textPrimary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Title and Refresh
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Select Mesh Provider', style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Route encrypted WireGuard traffic through this peer',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: peersState.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: ZoopColors.primaryCyan),
-                          )
-                        : const Icon(Icons.refresh, color: ZoopColors.textSecondary),
-                    tooltip: 'Refresh Nodes',
-                    onPressed: peersState.isLoading
-                        ? null
-                        : () => ref.read(peersNotifierProvider.notifier).loadPeers(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Error banner if any
-              if (peersState.errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.accentRose.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: ZoopColors.accentRose.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: ZoopColors.accentRose, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          peersState.errorMessage!,
-                          style: const TextStyle(color: ZoopColors.accentRose, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
+                IconButton(
+                  icon: peersState.isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: ZoopColors.primaryCyan,
+                          ),
+                        )
+                      : const Icon(Icons.refresh,
+                          size: 20, color: ZoopColors.textSecondary),
+                  onPressed: peersState.isLoading
+                      ? null
+                      : () =>
+                          ref.read(peersNotifierProvider.notifier).loadPeers(),
                 ),
               ],
+            ),
+          ),
 
-              // Peer List
-              Expanded(
-                child: peersState.peers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: ZoopColors.surfaceElevated,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: ZoopColors.surfaceBorder),
-                              ),
-                              child: const Icon(Icons.hub_outlined, color: ZoopColors.textMuted, size: 32),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No Other Nodes Discovered',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Register another device or router under this identity\nto form a peer-to-peer connection.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textMuted),
-                            ),
-                            const SizedBox(height: 16),
-                            OutlinedButton.icon(
-                              onPressed: () => ref.read(peersNotifierProvider.notifier).loadPeers(),
-                              icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Check Again'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        controller: scrollController,
-                        itemCount: peersState.peers.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final peer = peersState.peers[index];
-                          final isSelected = selectedPeer?.endpointId == peer.endpointId;
+          // Search Bar with Clean Underline
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+            child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val),
+              style: const TextStyle(
+                color: ZoopColors.textPrimary,
+                fontSize: 14,
+              ),
+              cursorColor: ZoopColors.primaryCyan,
+              decoration: const InputDecoration(
+                hintText: 'Search devices...',
+                hintStyle: TextStyle(
+                  color: ZoopColors.textMuted,
+                  fontSize: 14,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: ZoopColors.textMuted,
+                  size: 20,
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: ZoopColors.surfaceBorder,
+                    width: 1.5,
+                  ),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: ZoopColors.primaryCyan,
+                    width: 1.5,
+                  ),
+                ),
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
 
-                          return InkWell(
-                            onTap: () {
-                              ref.read(peersNotifierProvider.notifier).selectPeer(peer);
-                              Navigator.of(context).pop();
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: isSelected ? ZoopColors.surfaceElevated : ZoopColors.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
+          const SizedBox(height: 8),
+
+          // Device List (Calm, non-highlighted items)
+          Expanded(
+            child: filteredPeers.isEmpty
+                ? Center(
+                    child: Text(
+                      peersState.isLoading
+                          ? 'Loading nodes...'
+                          : 'No devices found',
+                      style: const TextStyle(
+                        color: ZoopColors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    itemCount: filteredPeers.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      color: ZoopColors.surfaceBorder,
+                      height: 1,
+                      indent: 52,
+                    ),
+                    itemBuilder: (context, index) {
+                      final peer = filteredPeers[index];
+                      final isSelected = (selectedPeer != null &&
+                              ((selectedPeer.id.isNotEmpty && selectedPeer.id == peer.id) ||
+                               (selectedPeer.endpointId.isNotEmpty && selectedPeer.endpointId == peer.endpointId) ||
+                               selectedPeer.name == peer.name)) ||
+                          (selectedPeer == null && index == 0);
+
+                      return InkWell(
+                        onTap: () {
+                          ref
+                              .read(peersNotifierProvider.notifier)
+                              .selectPeer(peer);
+                          Navigator.pop(context);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0, vertical: 12.0),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: ZoopColors.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  _getPlatformIcon(peer.platform),
                                   color: isSelected
                                       ? ZoopColors.primaryCyan
-                                      : ZoopColors.surfaceBorder,
-                                  width: isSelected ? 1.5 : 1.0,
+                                      : ZoopColors.textSecondary,
+                                  size: 20,
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  // Platform Icon
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: ZoopColors.surface,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      peer.name,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                         color: isSelected
-                                            ? ZoopColors.primaryCyan.withValues(alpha: 0.5)
-                                            : ZoopColors.surfaceBorder,
+                                            ? ZoopColors.primaryCyan
+                                            : ZoopColors.textPrimary,
                                       ),
                                     ),
-                                    child: Icon(
-                                      _getPlatformIcon(peer.platform),
-                                      color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // Name and Platform
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          peer.name,
-                                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textPrimary,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${peer.platform.toUpperCase()} • ID: ${peer.endpointId.substring(0, peer.endpointId.length >= 8 ? 8 : peer.endpointId.length)}...',
-                                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                                fontSize: 11,
-                                                color: ZoopColors.textMuted,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Online Status & Selected Checkmark
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: (peer.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted)
-                                              .withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          peer.isOnline ? 'ONLINE' : 'STANDBY',
-                                          style: TextStyle(
-                                            color: peer.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      peer.platform.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        color: ZoopColors.textMuted,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      if (isSelected) ...[
-                                        const SizedBox(height: 4),
-                                        const Icon(Icons.check_circle, size: 18, color: ZoopColors.primaryCyan),
-                                      ],
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: ZoopColors.primaryCyan,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

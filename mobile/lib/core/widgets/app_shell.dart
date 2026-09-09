@@ -93,7 +93,7 @@ class AppShell extends StatelessWidget {
                 NavigationDestination(
                   icon: Icon(Icons.radar),
                   selectedIcon: Icon(Icons.radar),
-                  label: 'Mesh',
+                  label: 'Home',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.wifi_tethering_outlined),
