@@ -1,5 +1,7 @@
 # Zoop Mobile — Product Experience Specification
 
+> **Engineering & UX Audit Roadmap**: For the active 22-phase professional audit, architecture review, and improvement milestones, see [IMPROVEMENT_README.md](file:///home/a-n/Documents/BUSINESS/ZOOP/mobile/IMPROVEMENT_README.md).
+
 ## 1. Overview
 
 Zoop Mobile is the primary mobile interface for interacting with the Zoop platform on Android and iOS.
