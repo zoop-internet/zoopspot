@@ -2,11 +2,19 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/connection_models.dart';
 
+enum ConnectionSortMode {
+  none,
+  latencyAsc,
+  trustScoreDesc,
+  bandwidthDesc,
+}
+
 class ConnectionsState {
   final List<ActiveConnectionItem> activeConnections;
   final List<DiscoveredProvider> discoveredProviders;
   final String searchQuery;
   final String selectedFilter;
+  final ConnectionSortMode sortMode;
   final bool isLoading;
   final String? errorMessage;
 
@@ -15,12 +23,13 @@ class ConnectionsState {
     this.discoveredProviders = const [],
     this.searchQuery = '',
     this.selectedFilter = 'all',
+    this.sortMode = ConnectionSortMode.none,
     this.isLoading = false,
     this.errorMessage,
   });
 
   List<ActiveConnectionItem> get filteredActiveConnections {
-    return activeConnections.where((conn) {
+    final list = activeConnections.where((conn) {
       final matchesQuery = conn.peerName.toLowerCase().contains(searchQuery.toLowerCase()) ||
           conn.peerId.toLowerCase().contains(searchQuery.toLowerCase());
       if (!matchesQuery) return false;
@@ -31,15 +40,39 @@ class ConnectionsState {
       }
       return true;
     }).toList();
+
+    if (sortMode == ConnectionSortMode.latencyAsc) {
+      list.sort((a, b) => a.latencyMs.compareTo(b.latencyMs));
+    }
+    return list;
   }
 
   List<DiscoveredProvider> get filteredDiscoveredProviders {
-    return discoveredProviders.where((prov) {
+    final list = discoveredProviders.where((prov) {
       final matchesQuery = prov.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
           prov.location.toLowerCase().contains(searchQuery.toLowerCase()) ||
           prov.zoopId.toLowerCase().contains(searchQuery.toLowerCase());
-      return matchesQuery;
+      if (!matchesQuery) return false;
+      if (selectedFilter == 'verified') {
+        return prov.isVerified;
+      }
+      return true;
     }).toList();
+
+    switch (sortMode) {
+      case ConnectionSortMode.latencyAsc:
+        list.sort((a, b) => a.latencyMs.compareTo(b.latencyMs));
+        break;
+      case ConnectionSortMode.trustScoreDesc:
+        list.sort((a, b) => b.trustScore.compareTo(a.trustScore));
+        break;
+      case ConnectionSortMode.bandwidthDesc:
+        list.sort((a, b) => b.bandwidthCapacityMbps.compareTo(a.bandwidthCapacityMbps));
+        break;
+      case ConnectionSortMode.none:
+        break;
+    }
+    return list;
   }
 
   ConnectionsState copyWith({
@@ -47,6 +80,7 @@ class ConnectionsState {
     List<DiscoveredProvider>? discoveredProviders,
     String? searchQuery,
     String? selectedFilter,
+    ConnectionSortMode? sortMode,
     bool? isLoading,
     String? errorMessage,
   }) {
@@ -55,6 +89,7 @@ class ConnectionsState {
       discoveredProviders: discoveredProviders ?? this.discoveredProviders,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedFilter: selectedFilter ?? this.selectedFilter,
+      sortMode: sortMode ?? this.sortMode,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
@@ -198,6 +233,18 @@ class ConnectionsNotifier extends StateNotifier<ConnectionsState> {
 
   void setFilter(String filter) {
     state = state.copyWith(selectedFilter: filter);
+  }
+
+  void toggleLatencySort() {
+    if (state.sortMode == ConnectionSortMode.latencyAsc) {
+      state = state.copyWith(sortMode: ConnectionSortMode.none);
+    } else {
+      state = state.copyWith(sortMode: ConnectionSortMode.latencyAsc);
+    }
+  }
+
+  void setSortMode(ConnectionSortMode mode) {
+    state = state.copyWith(sortMode: mode);
   }
 
   void disconnect(String connectionId) {

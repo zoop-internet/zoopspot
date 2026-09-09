@@ -70,6 +70,125 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         },
       ),
     );
+  void _showFilterSheet() {
+    final state = ref.read(connectionsProvider);
+    final notifier = ref.read(connectionsProvider.notifier);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ZoopColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Filter Connections',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: ZoopColors.textPrimary,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: ZoopColors.textMuted, size: 20),
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildFilterOption(
+                  ctx,
+                  label: 'All Connections & Providers',
+                  value: 'all',
+                  selectedValue: state.selectedFilter,
+                  onSelect: () {
+                    notifier.setFilter('all');
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _buildFilterOption(
+                  ctx,
+                  label: 'Direct P2P Only',
+                  value: 'direct',
+                  selectedValue: state.selectedFilter,
+                  onSelect: () {
+                    notifier.setFilter('direct');
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _buildFilterOption(
+                  ctx,
+                  label: 'Encrypted Relays Only',
+                  value: 'relay',
+                  selectedValue: state.selectedFilter,
+                  onSelect: () {
+                    notifier.setFilter('relay');
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _buildFilterOption(
+                  ctx,
+                  label: 'Verified Nodes Only',
+                  value: 'verified',
+                  selectedValue: state.selectedFilter,
+                  onSelect: () {
+                    notifier.setFilter('verified');
+                    Navigator.pop(ctx);
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterOption(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required String selectedValue,
+    required VoidCallback onSelect,
+  }) {
+    final isSelected = value == selectedValue;
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textMuted,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? ZoopColors.primaryCyan : ZoopColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Returns 3 reliability dots colored by trustScore thresholds.
@@ -125,11 +244,26 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.sort, color: ZoopColors.textSecondary),
-            tooltip: 'Sort by latency',
+            icon: Icon(
+              Icons.sort,
+              color: state.sortMode == ConnectionSortMode.latencyAsc
+                  ? ZoopColors.primaryCyan
+                  : ZoopColors.textSecondary,
+            ),
+            tooltip: state.sortMode == ConnectionSortMode.latencyAsc
+                ? 'Reset sorting'
+                : 'Sort by lowest latency',
             onPressed: () {
+              notifier.toggleLatencySort();
+              final isSorted =
+                  ref.read(connectionsProvider).sortMode == ConnectionSortMode.latencyAsc;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sorting by latency')),
+                SnackBar(
+                  content: Text(
+                    isSorted ? 'Sorted by lowest latency' : 'Sorting reset',
+                  ),
+                  duration: const Duration(seconds: 1),
+                ),
               );
             },
           ),
@@ -207,21 +341,45 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
                 ),
                 const SizedBox(width: 8),
                 // Filter icon button
-                Container(
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.filter_list, color: ZoopColors.textSecondary, size: 20),
-                    tooltip: 'Filter',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Filter options coming soon')),
-                      );
-                    },
-                  ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: state.selectedFilter != 'all'
+                              ? ZoopColors.primaryCyan
+                              : ZoopColors.surfaceBorder,
+                        ),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: state.selectedFilter != 'all'
+                              ? ZoopColors.primaryCyan
+                              : ZoopColors.textSecondary,
+                          size: 20,
+                        ),
+                        tooltip: 'Filter connections',
+                        onPressed: _showFilterSheet,
+                      ),
+                    ),
+                    if (state.selectedFilter != 'all')
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: ZoopColors.primaryCyan,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -291,23 +449,27 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
       itemCount: connections.length,
       itemBuilder: (context, index) {
         final conn = connections[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: ZoopColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: ZoopColors.surfaceBorder),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
+        return Semantics(
+          button: true,
+          label:
+              'Active tunnel to ${conn.peerName}, latency ${conn.latencyMs}ms, ${conn.formattedRx} received, ${conn.formattedTx} transmitted. Tap to view session details.',
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: ZoopColors.surface,
               borderRadius: BorderRadius.circular(16),
-              onTap: () => _showSessionSheet(conn),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              border: Border.all(color: ZoopColors.surfaceBorder),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => _showSessionSheet(conn),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     Row(
                       children: [
                         Container(
@@ -400,8 +562,9 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
               ),
             ),
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 
@@ -447,143 +610,154 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         // Derive latency display from existing latencyMs field
         final latencyDisplay = '${prov.latencyMs} ms';
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: ZoopColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: ZoopColors.surfaceBorder),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Left: icon with route-type color (using primaryCyan as provider default)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+        return Semantics(
+          container: true,
+          label:
+              'Provider ${prov.name}, located in ${prov.location}, bandwidth capacity ${prov.bandwidthCapacityMbps} Mbps, latency ${prov.latencyMs} milliseconds, trust score ${prov.trustScore.toInt()} percent. ${prov.isVerified ? "Verified node." : ""}',
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: ZoopColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ZoopColors.surfaceBorder),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Left: icon with route-type color (using primaryCyan as provider default)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.router, color: ZoopColors.primaryCyan, size: 20),
                       ),
-                      child: const Icon(Icons.router, color: ZoopColors.primaryCyan, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  prov.name,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: ZoopColors.textPrimary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    prov.name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: ZoopColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              if (prov.isVerified) ...[
-                                const SizedBox(width: 4),
-                                const Icon(Icons.verified, color: ZoopColors.primaryCyan, size: 14),
+                                if (prov.isVerified) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.verified, color: ZoopColors.primaryCyan, size: 14),
+                                ],
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${prov.location} • ${prov.pricingType}',
-                            style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Latency badge (pill)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: ZoopColors.primaryCyan.withValues(alpha: 0.3),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${prov.location} • ${prov.pricingType}',
+                              style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Text(
-                        latencyDisplay,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: ZoopColors.primaryCyan,
+                      // Latency badge (pill)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: ZoopColors.primaryCyan.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          latencyDisplay,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: ZoopColors.primaryCyan,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.bolt, size: 14, color: ZoopColors.accentAmber),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${prov.bandwidthCapacityMbps} Mbps',
-                            style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
-                          ),
-                          const SizedBox(width: 12),
-                          // Reliability dots replacing raw percentage
-                          _buildReliabilityDots(prov.trustScore),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${prov.trustScore.toInt()}%',
-                            style: const TextStyle(fontSize: 10, color: ZoopColors.textMuted),
-                          ),
-                        ],
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.bolt, size: 14, color: ZoopColors.accentAmber),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${prov.bandwidthCapacityMbps} Mbps',
+                              style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                            ),
+                            const SizedBox(width: 12),
+                            // Reliability dots replacing raw percentage
+                            _buildReliabilityDots(prov.trustScore),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${prov.trustScore.toInt()}%',
+                              style: const TextStyle(fontSize: 10, color: ZoopColors.textMuted),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _showProviderSheet(prov),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ZoopColors.textSecondary,
-                        side: const BorderSide(color: ZoopColors.surfaceBorder),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Profile', style: TextStyle(fontSize: 12)),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        ref.read(connectionsProvider.notifier).connectToProvider(prov);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Connected to ${prov.name}'),
-                            backgroundColor: ZoopColors.accentGreen,
+                      Semantics(
+                        button: true,
+                        label: 'View profile for ${prov.name}',
+                        child: OutlinedButton(
+                          onPressed: () => _showProviderSheet(prov),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ZoopColors.textSecondary,
+                            side: const BorderSide(color: ZoopColors.surfaceBorder),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            minimumSize: const Size(64, 38),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                        );
-                        _tabController.animateTo(0);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.primaryCyan,
-                        foregroundColor: ZoopColors.background,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          child: const Text('Profile', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
                       ),
-                      child: const Text('Connect', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 8),
+                      Semantics(
+                        button: true,
+                        label: 'Connect to ${prov.name}',
+                        child: ElevatedButton(
+                          onPressed: () {
+                            ref.read(connectionsProvider.notifier).connectToProvider(prov);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Connected to ${prov.name} via WireGuard P2P'),
+                                backgroundColor: ZoopColors.accentGreen,
+                              ),
+                            );
+                            _tabController.animateTo(0);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ZoopColors.primaryCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            minimumSize: const Size(72, 38),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Connect', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
