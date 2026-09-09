@@ -11,6 +11,7 @@ import '../../../../core/vpn/vpn_bridge_service.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../application/peers_notifier.dart';
 import '../widgets/connection_details_sheet.dart';
+import '../widgets/gateway_selector_sheet.dart';
 import '../widgets/provider_selection_sheet.dart';
 import '../../../diagnostics/domain/diagnostic_models.dart';
 import '../../../diagnostics/application/diagnostics_notifier.dart';
@@ -214,16 +215,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     }
   }
 
-  void _toggleRoutingMode() {
-    setState(() {
-      _routingMode = _routingMode == RoutingMode.fullInternet
-          ? RoutingMode.splitTunnel
-          : RoutingMode.fullInternet;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Routing Mode: ${_routingMode.label}'),
-        duration: const Duration(milliseconds: 1200),
+  void _showGatewaySelector() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => GatewaySelectorSheet(
+        currentGatewayId: _recentPeers[_selectedRecentPeerIndex],
+        isFullInternet: _routingMode == RoutingMode.fullInternet,
+        onSelectGateway: (gw) {
+          setState(() {
+            if (!_recentPeers.contains(gw.name)) {
+              _recentPeers.insert(0, gw.name);
+              _selectedRecentPeerIndex = 0;
+            } else {
+              _selectedRecentPeerIndex = _recentPeers.indexOf(gw.name);
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Selected ${gw.name} (${gw.location})'),
+              backgroundColor: ZoopColors.primaryCyan,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+        onToggleFullInternet: (full) {
+          setState(() {
+            _routingMode =
+                full ? RoutingMode.fullInternet : RoutingMode.splitTunnel;
+          });
+        },
       ),
     );
   }
@@ -415,58 +437,87 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(_recentPeers.length, (index) {
-            final isSelected = _selectedRecentPeerIndex == index;
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedRecentPeerIndex = index;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? ZoopColors.primaryCyan.withValues(alpha: 0.12)
-                      : ZoopColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
+          children: [
+            ...List.generate(_recentPeers.length, (index) {
+              final isSelected = _selectedRecentPeerIndex == index;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedRecentPeerIndex = index;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
                     color: isSelected
-                        ? ZoopColors.primaryCyan
-                        : ZoopColors.surfaceBorder,
-                    width: isSelected ? 1.5 : 1.0,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.dns_rounded,
-                      size: 12,
+                        ? ZoopColors.primaryCyan.withValues(alpha: 0.12)
+                        : ZoopColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
                       color: isSelected
                           ? ZoopColors.primaryCyan
-                          : ZoopColors.textMuted,
+                          : ZoopColors.surfaceBorder,
+                      width: isSelected ? 1.5 : 1.0,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _recentPeers[index],
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.dns_rounded,
+                        size: 12,
                         color: isSelected
                             ? ZoopColors.primaryCyan
-                            : ZoopColors.textSecondary,
+                            : ZoopColors.textMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _recentPeers[index],
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? ZoopColors.primaryCyan
+                              : ZoopColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            GestureDetector(
+              onTap: _showGatewaySelector,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: ZoopColors.surfaceBorder),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune, size: 12, color: ZoopColors.primaryCyan),
+                    SizedBox(width: 5),
+                    Text(
+                      'All Gateways',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ZoopColors.primaryCyan,
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          }),
+            ),
+          ],
         ),
       ),
     );
@@ -538,7 +589,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
             // Routing Mode Selector
             InkWell(
-              onTap: _status.isConnected ? null : _toggleRoutingMode,
+              onTap: _status.isConnected ? null : _showGatewaySelector,
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 padding:

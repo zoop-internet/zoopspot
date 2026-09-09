@@ -8,7 +8,7 @@ import '../../../devices/presentation/widgets/device_details_sheet.dart';
 import '../../../organizations/application/organizations_notifier.dart';
 import '../../../organizations/domain/organization_models.dart';
 import '../../../organizations/presentation/widgets/organization_details_sheet.dart';
-import '../../../pairing/presentation/widgets/pairing_sheet.dart';
+import '../widgets/device_pairing_sheet.dart';
 
 class FleetScreen extends ConsumerStatefulWidget {
   const FleetScreen({super.key});
@@ -40,7 +40,10 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const PairingSheet(),
+      builder: (ctx) => const DevicePairingSheet(
+        deviceName: 'Zoop Primary Phone',
+        deviceId: 'ZP-85E550',
+      ),
     );
   }
 
