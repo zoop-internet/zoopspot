@@ -15,6 +15,7 @@ import '../widgets/provider_selection_sheet.dart';
 import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
 import '../../../diagnostics/domain/diagnostic_models.dart';
 import '../../../diagnostics/application/diagnostics_notifier.dart';
+import '../../../notifications/presentation/screens/notifications_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -377,6 +378,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ),
               ),
             ),
+          IconButton(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_outlined,
+                  color: ZoopColors.textSecondary,
+                  size: 21,
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ZoopColors.primaryCyan,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.settings_outlined,
@@ -830,112 +865,151 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   // ===========================================================================
-  // ZOOP POINTS CARD (Participation Requirements)
+  // ZOOP POINTS CARD (Wallet Presentation)
   // ===========================================================================
   Widget _buildZoopPointsCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: ZoopColors.primaryCyan.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [ZoopColors.primaryCyan, ZoopColors.accentPurple],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.stars_rounded,
-                color: Colors.black,
-                size: 24,
-              ),
-            ),
+    return GestureDetector(
+      onTap: () => context.push('/wallet'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF131C2D),
+              Color(0xFF0E131E),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: ZoopColors.primaryCyan.withValues(alpha: 0.22),
+            width: 1.1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Label + Recent Points Gain
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Zoop Points',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: ZoopColors.textSecondary,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
+                        color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text(
-                        'ELIGIBLE',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: ZoopColors.accentGreen,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                const Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '1,250',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: ZoopColors.textPrimary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'ZP',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        size: 13,
                         color: ZoopColors.primaryCyan,
                       ),
                     ),
-                    Spacer(),
-                    Text(
-                      'Min. 100 ZP required',
+                    const SizedBox(width: 7),
+                    const Text(
+                      'ZOOP POINTS',
                       style: TextStyle(
-                        fontSize: 10.5,
-                        color: ZoopColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: ZoopColors.textSecondary,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 11,
+                        color: ZoopColors.accentGreen,
+                      ),
+                      SizedBox(width: 2),
+                      Text(
+                        '+45 ZP',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: ZoopColors.accentGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 10),
+
+            // Middle Row: Big Points Display
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                const Text(
+                  '1,250',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: ZoopColors.textPrimary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'ZP',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: ZoopColors.primaryCyan,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: ZoopColors.textMuted,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Bottom Micro-Info
+            const Text(
+              'Min. 100 ZP required to participate',
+              style: TextStyle(
+                fontSize: 10.5,
+                color: ZoopColors.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

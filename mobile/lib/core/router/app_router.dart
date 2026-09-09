@@ -13,6 +13,7 @@ import '../../features/diagnostics/presentation/screens/diagnostics_screen.dart'
 import '../../features/organizations/presentation/screens/organizations_screen.dart';
 import '../../features/activity/presentation/screens/activity_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/dashboard',
@@ -76,6 +77,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/wallet',
       builder: (context, state) => const WalletScreen(),
+    ),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
     ),
   ],
 );
