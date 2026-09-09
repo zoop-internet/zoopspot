@@ -274,3 +274,97 @@ func TestInMemoryStore_UserIdentity(t *testing.T) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
+
+func TestInMemoryStore_Payments(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+
+	ownerID := types.NewID()
+	walletID := types.NewID()
+
+	// 1. Wallet
+	w := &types.Wallet{
+		ID:               walletID,
+		OwnerID:          ownerID,
+		Currency:         "UGX",
+		AvailableBalance: 15000,
+		PendingBalance:   5000,
+		TotalEarned:      20000,
+	}
+	if err := s.SaveWallet(ctx, w); err != nil {
+		t.Fatalf("SaveWallet failed: %v", err)
+	}
+
+	retrievedWallet, err := s.GetWallet(ctx, ownerID)
+	if err != nil {
+		t.Fatalf("GetWallet failed: %v", err)
+	}
+	if retrievedWallet.AvailableBalance != 15000 {
+		t.Errorf("expected available balance 15000, got %f", retrievedWallet.AvailableBalance)
+	}
+
+	// 2. Transaction
+	txnID := types.NewID()
+	txn := &types.PaymentTransaction{
+		ID:        txnID,
+		WalletID:  walletID,
+		OwnerID:   ownerID,
+		Reference: "ZP-TXN-ABC123",
+		Type:      types.TypeDeposit,
+		Method:    types.MethodMobileMoney,
+		Amount:    15000,
+		Currency:  "UGX",
+		Status:    types.StatusCompleted,
+	}
+	if err := s.SaveTransaction(ctx, txn); err != nil {
+		t.Fatalf("SaveTransaction failed: %v", err)
+	}
+
+	byID, err := s.GetTransaction(ctx, txnID)
+	if err != nil {
+		t.Fatalf("GetTransaction failed: %v", err)
+	}
+	if byID.Reference != "ZP-TXN-ABC123" {
+		t.Errorf("expected reference ZP-TXN-ABC123, got %s", byID.Reference)
+	}
+
+	byRef, err := s.GetTransactionByReference(ctx, "ZP-TXN-ABC123")
+	if err != nil {
+		t.Fatalf("GetTransactionByReference failed: %v", err)
+	}
+	if byRef.ID != txnID {
+		t.Errorf("expected txn ID match")
+	}
+
+	txns, total, err := s.ListTransactions(ctx, ownerID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListTransactions failed: %v", err)
+	}
+	if total != 1 || len(txns) != 1 {
+		t.Errorf("expected 1 transaction, got total %d, count %d", total, len(txns))
+	}
+
+	// 3. Earnings
+	earnID := types.NewID()
+	earn := &types.EarningRecord{
+		ID:           earnID,
+		WalletID:     walletID,
+		OwnerID:      ownerID,
+		Source:       types.SourceBandwidthRelay,
+		BytesRelayed: 1024 * 1024 * 1024,
+		Amount:       1000,
+		Currency:     "UGX",
+	}
+	if err := s.SaveEarningRecord(ctx, earn); err != nil {
+		t.Fatalf("SaveEarningRecord failed: %v", err)
+	}
+
+	earnings, totalEarn, err := s.ListEarnings(ctx, ownerID, 10, 0)
+	if err != nil {
+		t.Fatalf("ListEarnings failed: %v", err)
+	}
+	if totalEarn != 1 || len(earnings) != 1 {
+		t.Errorf("expected 1 earning record, got total %d, count %d", totalEarn, len(earnings))
+	}
+}
+

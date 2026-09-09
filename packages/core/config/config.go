@@ -18,10 +18,15 @@ type Config struct {
 	SignalingTimeout time.Duration
 	AllowedOrigins   []string
 	TURNSecret       string
-	TURNRealm        string
-	STUNServer       string
-	AdminIDs         []string
-	WebDistDir       string
+	TURNRealm            string
+	STUNServer           string
+	AdminIDs             []string
+	WebDistDir           string
+	PaymentGatewayURL    string
+	PaymentAPIKey        string
+	PaymentAPISecret     string
+	PaymentWebhookSecret string
+	PaymentCurrency      string
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
@@ -37,9 +42,14 @@ func LoadConfig() Config {
 		AllowedOrigins:   []string{},
 		TURNSecret:       "zoop-turn-secret",
 		TURNRealm:        "zoop.network",
-		STUNServer:       "stun.l.google.com:19302",
-		AdminIDs:         []string{},
-		WebDistDir:       "",
+		STUNServer:           "stun.l.google.com:19302",
+		AdminIDs:             []string{},
+		WebDistDir:           "",
+		PaymentGatewayURL:    "https://wallet.wearemarz.com/api/v1",
+		PaymentAPIKey:        "",
+		PaymentAPISecret:     "",
+		PaymentWebhookSecret: "",
+		PaymentCurrency:      "UGX",
 	}
 
 	if url := os.Getenv("ZOOP_CONTROL_PLANE_URL"); url != "" {
@@ -88,6 +98,27 @@ func LoadConfig() Config {
 	}
 	if dist := os.Getenv("ZOOP_WEB_DIST"); dist != "" {
 		cfg.WebDistDir = dist
+	}
+	if gwURL := os.Getenv("ZOOP_PAYMENTS_GATEWAY_URL"); gwURL != "" {
+		cfg.PaymentGatewayURL = gwURL
+	}
+	if key := os.Getenv("ZOOP_PAYMENTS_API_KEY"); key != "" {
+		cfg.PaymentAPIKey = key
+	} else if key := os.Getenv("MARZPAY_API_KEY"); key != "" {
+		cfg.PaymentAPIKey = key
+	}
+	if secret := os.Getenv("ZOOP_PAYMENTS_API_SECRET"); secret != "" {
+		cfg.PaymentAPISecret = secret
+	} else if secret := os.Getenv("MARZPAY_API_SECRET"); secret != "" {
+		cfg.PaymentAPISecret = secret
+	}
+	if whSecret := os.Getenv("ZOOP_PAYMENTS_WEBHOOK_SECRET"); whSecret != "" {
+		cfg.PaymentWebhookSecret = whSecret
+	} else if whSecret := os.Getenv("MARZPAY_WEBHOOK_SECRET"); whSecret != "" {
+		cfg.PaymentWebhookSecret = whSecret
+	}
+	if curr := os.Getenv("ZOOP_PAYMENTS_CURRENCY"); curr != "" {
+		cfg.PaymentCurrency = curr
 	}
 
 	return cfg

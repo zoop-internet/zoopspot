@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/zoop-internet/zoop/packages/cloud/payments"
 	"github.com/zoop-internet/zoop/packages/cloud/server"
 	"github.com/zoop-internet/zoop/packages/cloud/services"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
@@ -44,8 +45,19 @@ func main() {
 	hub := services.NewSignalingHub()
 	connService := services.NewConnectionService(st, hub)
 
+	// Initialize payment gateway & service
+	var gateway payments.GatewayClient
+	if cfg.PaymentAPIKey != "" && cfg.PaymentAPISecret != "" {
+		logger.Info("Initializing production MarzPay payment gateway", "url", cfg.PaymentGatewayURL)
+		gateway = payments.NewMarzPayGateway(cfg.PaymentGatewayURL, cfg.PaymentAPIKey, cfg.PaymentAPISecret, cfg.PaymentWebhookSecret, nil)
+	} else {
+		logger.Info("Payment credentials not set; using MockGateway for development")
+		gateway = payments.NewMockGateway()
+	}
+	paymentService := payments.NewPaymentService(st, gateway, logger)
+
 	// Initialize server (relay server shares the store for auth).
-	srv := server.NewServer(cfg, logger, st, deviceService, userService, orgService, shareService, connService, hub)
+	srv := server.NewServer(cfg, logger, st, deviceService, userService, orgService, shareService, connService, hub, paymentService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

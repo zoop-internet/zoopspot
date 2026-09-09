@@ -56,6 +56,16 @@ type Store interface {
 	ListAllConnections(ctx context.Context) ([]*types.Connection, error)
 	ListSharesAll(ctx context.Context) ([]*types.SharingRelationship, error)
 
+	// Wallets & Payments
+	SaveWallet(ctx context.Context, wallet *types.Wallet) error
+	GetWallet(ctx context.Context, ownerID types.ID) (*types.Wallet, error)
+	SaveTransaction(ctx context.Context, txn *types.PaymentTransaction) error
+	GetTransaction(ctx context.Context, id types.ID) (*types.PaymentTransaction, error)
+	GetTransactionByReference(ctx context.Context, ref string) (*types.PaymentTransaction, error)
+	ListTransactions(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.PaymentTransaction, int, error)
+	SaveEarningRecord(ctx context.Context, earning *types.EarningRecord) error
+	ListEarnings(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.EarningRecord, int, error)
+
 	// AllocateConnectionIPs returns a unique (providerIP, recipientIP) pair for a new connection
 	// from the 100.64.0.0/10 CGNAT block (RFC 6598). Each pair occupies a /30 subnet.
 	AllocateConnectionIPs(ctx context.Context) (providerIP, recipientIP string, err error)
@@ -138,25 +148,33 @@ type InMemoryStore struct {
 	orgMembers      map[types.ID][]*types.OrgMember
 	shares          map[types.ID]*types.SharingRelationship
 	connections     map[types.ID]*types.Connection
-	identitiesByKey map[string]types.ID
-	usersByZoopID   map[string]types.ID
-	usersByUsername map[string]types.ID
-	ipam            *ipamAllocator
+	identitiesByKey   map[string]types.ID
+	usersByZoopID     map[string]types.ID
+	usersByUsername   map[string]types.ID
+	wallets           map[types.ID]*types.Wallet
+	transactions      map[types.ID]*types.PaymentTransaction
+	transactionsByRef map[string]types.ID
+	earnings          map[types.ID][]*types.EarningRecord
+	ipam              *ipamAllocator
 }
 
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
-		devices:         make(map[types.ID]*types.Device),
-		identities:      make(map[types.ID]*types.Identity),
-		users:           make(map[types.ID]*types.Account),
-		organizations:   make(map[types.ID]*types.Organization),
-		orgMembers:      make(map[types.ID][]*types.OrgMember),
-		shares:          make(map[types.ID]*types.SharingRelationship),
-		connections:     make(map[types.ID]*types.Connection),
-		identitiesByKey: make(map[string]types.ID),
-		usersByZoopID:   make(map[string]types.ID),
-		usersByUsername: make(map[string]types.ID),
-		ipam:            &ipamAllocator{},
+		devices:           make(map[types.ID]*types.Device),
+		identities:        make(map[types.ID]*types.Identity),
+		users:             make(map[types.ID]*types.Account),
+		organizations:     make(map[types.ID]*types.Organization),
+		orgMembers:        make(map[types.ID][]*types.OrgMember),
+		shares:            make(map[types.ID]*types.SharingRelationship),
+		connections:       make(map[types.ID]*types.Connection),
+		identitiesByKey:   make(map[string]types.ID),
+		usersByZoopID:     make(map[string]types.ID),
+		usersByUsername:   make(map[string]types.ID),
+		wallets:           make(map[types.ID]*types.Wallet),
+		transactions:      make(map[types.ID]*types.PaymentTransaction),
+		transactionsByRef: make(map[string]types.ID),
+		earnings:          make(map[types.ID][]*types.EarningRecord),
+		ipam:              &ipamAllocator{},
 	}
 }
 
@@ -557,3 +575,139 @@ func (s *InMemoryStore) DeleteOrgMember(ctx context.Context, orgID, memberID typ
 	}
 	return ErrNotFound
 }
+
+// ─── Wallets & Payments ──────────────────────────────────────────
+
+func (s *InMemoryStore) SaveWallet(_ context.Context, wallet *types.Wallet) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cp := *wallet
+	s.wallets[wallet.OwnerID] = &cp
+	return nil
+}
+
+func (s *InMemoryStore) GetWallet(_ context.Context, ownerID types.ID) (*types.Wallet, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	w, ok := s.wallets[ownerID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *w
+	return &cp, nil
+}
+
+func (s *InMemoryStore) SaveTransaction(_ context.Context, txn *types.PaymentTransaction) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cp := *txn
+	s.transactions[txn.ID] = &cp
+	if txn.Reference != "" {
+		s.transactionsByRef[txn.Reference] = txn.ID
+	}
+	return nil
+}
+
+func (s *InMemoryStore) GetTransaction(_ context.Context, id types.ID) (*types.PaymentTransaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	t, ok := s.transactions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *t
+	return &cp, nil
+}
+
+func (s *InMemoryStore) GetTransactionByReference(_ context.Context, ref string) (*types.PaymentTransaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	id, ok := s.transactionsByRef[ref]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	t, ok := s.transactions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *t
+	return &cp, nil
+}
+
+func (s *InMemoryStore) ListTransactions(_ context.Context, ownerID types.ID, limit, offset int) ([]*types.PaymentTransaction, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var matches []*types.PaymentTransaction
+	for _, t := range s.transactions {
+		if t.OwnerID == ownerID {
+			cp := *t
+			matches = append(matches, &cp)
+		}
+	}
+
+	// Sort descending by CreatedAt
+	for i := 0; i < len(matches)-1; i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if matches[i].CreatedAt.Before(matches[j].CreatedAt) {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+
+	total := len(matches)
+	if offset >= total {
+		return []*types.PaymentTransaction{}, total, nil
+	}
+	end := offset + limit
+	if end > total || limit <= 0 {
+		end = total
+	}
+	return matches[offset:end], total, nil
+}
+
+func (s *InMemoryStore) SaveEarningRecord(_ context.Context, earning *types.EarningRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cp := *earning
+	s.earnings[earning.OwnerID] = append(s.earnings[earning.OwnerID], &cp)
+	return nil
+}
+
+func (s *InMemoryStore) ListEarnings(_ context.Context, ownerID types.ID, limit, offset int) ([]*types.EarningRecord, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	records := s.earnings[ownerID]
+	var matches []*types.EarningRecord
+	for _, r := range records {
+		cp := *r
+		matches = append(matches, &cp)
+	}
+
+	// Sort descending by CreatedAt
+	for i := 0; i < len(matches)-1; i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if matches[i].CreatedAt.Before(matches[j].CreatedAt) {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+
+	total := len(matches)
+	if offset >= total {
+		return []*types.EarningRecord{}, total, nil
+	}
+	end := offset + limit
+	if end > total || limit <= 0 {
+		end = total
+	}
+	return matches[offset:end], total, nil
+}
+

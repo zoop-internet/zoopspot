@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -18,6 +19,9 @@ var initialSchemaSQL string
 
 //go:embed migrations/002_user_identity.sql
 var userIdentitySQL string
+
+//go:embed migrations/003_payments_and_wallets.sql
+var paymentsAndWalletsSQL string
 
 // CleanPostgresURL sanitizes PostgreSQL connection strings for lib/pq compatibility.
 // Drivers like lib/pq do not support parameters like channel_binding, which modern
@@ -75,6 +79,9 @@ func (s *PostgresStore) Migrate(ctx context.Context) error {
 	}
 	if _, err := s.db.ExecContext(ctx, userIdentitySQL); err != nil {
 		return fmt.Errorf("migration 002_user_identity: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, paymentsAndWalletsSQL); err != nil {
+		return fmt.Errorf("migration 003_payments_and_wallets: %w", err)
 	}
 	return nil
 }
@@ -963,4 +970,285 @@ func (s *PostgresStore) IPAMUsage(ctx context.Context) (allocated, capacity uint
 		return 0, 0, err
 	}
 	return allocatedPairs, ipamMaxPairs, nil
+}
+
+// ─── Wallets & Payments ──────────────────────────────────────────
+
+func (s *PostgresStore) SaveWallet(ctx context.Context, wallet *types.Wallet) error {
+	query := `
+		INSERT INTO wallets (id, owner_id, currency, available_balance, pending_balance, total_earned, total_withdrawn, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (owner_id) DO UPDATE SET
+			currency = EXCLUDED.currency,
+			available_balance = EXCLUDED.available_balance,
+			pending_balance = EXCLUDED.pending_balance,
+			total_earned = EXCLUDED.total_earned,
+			total_withdrawn = EXCLUDED.total_withdrawn,
+			updated_at = NOW();
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		wallet.ID.String(),
+		wallet.OwnerID.String(),
+		wallet.Currency,
+		wallet.AvailableBalance,
+		wallet.PendingBalance,
+		wallet.TotalEarned,
+		wallet.TotalWithdrawn,
+	)
+	return err
+}
+
+func (s *PostgresStore) GetWallet(ctx context.Context, ownerID types.ID) (*types.Wallet, error) {
+	query := `
+		SELECT id, owner_id, currency, available_balance, pending_balance, total_earned, total_withdrawn, created_at, updated_at
+		FROM wallets
+		WHERE owner_id = $1;
+	`
+	var w types.Wallet
+	var idStr, ownerStr string
+	err := s.db.QueryRowContext(ctx, query, ownerID.String()).Scan(
+		&idStr,
+		&ownerStr,
+		&w.Currency,
+		&w.AvailableBalance,
+		&w.PendingBalance,
+		&w.TotalEarned,
+		&w.TotalWithdrawn,
+		&w.CreatedAt,
+		&w.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil, err
+	}
+	w.ID = types.ID(id)
+	w.OwnerID = ownerID
+	return &w, nil
+}
+
+func (s *PostgresStore) SaveTransaction(ctx context.Context, txn *types.PaymentTransaction) error {
+	metaBytes, err := json.Marshal(txn.Metadata)
+	if err != nil {
+		metaBytes = []byte("{}")
+	}
+	query := `
+		INSERT INTO payment_transactions (
+			id, wallet_id, owner_id, reference, gateway_reference, type, method, provider,
+			amount, fee, currency, status, phone_number, checkout_url, description, metadata, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			gateway_reference = EXCLUDED.gateway_reference,
+			status = EXCLUDED.status,
+			checkout_url = EXCLUDED.checkout_url,
+			metadata = EXCLUDED.metadata,
+			updated_at = NOW();
+	`
+	_, err = s.db.ExecContext(ctx, query,
+		txn.ID.String(),
+		txn.WalletID.String(),
+		txn.OwnerID.String(),
+		txn.Reference,
+		txn.GatewayReference,
+		string(txn.Type),
+		string(txn.Method),
+		txn.Provider,
+		txn.Amount,
+		txn.Fee,
+		txn.Currency,
+		string(txn.Status),
+		txn.PhoneNumber,
+		txn.CheckoutURL,
+		txn.Description,
+		string(metaBytes),
+	)
+	return err
+}
+
+func (s *PostgresStore) GetTransaction(ctx context.Context, id types.ID) (*types.PaymentTransaction, error) {
+	query := `
+		SELECT id, wallet_id, owner_id, reference, gateway_reference, type, method, provider,
+		       amount, fee, currency, status, phone_number, checkout_url, description, metadata, created_at, updated_at
+		FROM payment_transactions
+		WHERE id = $1;
+	`
+	return s.scanTransaction(s.db.QueryRowContext(ctx, query, id.String()))
+}
+
+func (s *PostgresStore) GetTransactionByReference(ctx context.Context, ref string) (*types.PaymentTransaction, error) {
+	query := `
+		SELECT id, wallet_id, owner_id, reference, gateway_reference, type, method, provider,
+		       amount, fee, currency, status, phone_number, checkout_url, description, metadata, created_at, updated_at
+		FROM payment_transactions
+		WHERE reference = $1;
+	`
+	return s.scanTransaction(s.db.QueryRowContext(ctx, query, ref))
+}
+
+type rowScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func (s *PostgresStore) scanTransaction(scanner rowScanner) (*types.PaymentTransaction, error) {
+	var t types.PaymentTransaction
+	var idStr, walletStr, ownerStr, typeStr, methodStr, statusStr string
+	var metaBytes []byte
+
+	err := scanner.Scan(
+		&idStr,
+		&walletStr,
+		&ownerStr,
+		&t.Reference,
+		&t.GatewayReference,
+		&typeStr,
+		&methodStr,
+		&t.Provider,
+		&t.Amount,
+		&t.Fee,
+		&t.Currency,
+		&statusStr,
+		&t.PhoneNumber,
+		&t.CheckoutURL,
+		&t.Description,
+		&metaBytes,
+		&t.CreatedAt,
+		&t.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	id, _ := uuid.Parse(idStr)
+	walletID, _ := uuid.Parse(walletStr)
+	ownerID, _ := uuid.Parse(ownerStr)
+
+	t.ID = types.ID(id)
+	t.WalletID = types.ID(walletID)
+	t.OwnerID = types.ID(ownerID)
+	t.Type = types.TransactionType(typeStr)
+	t.Method = types.PaymentMethod(methodStr)
+	t.Status = types.TransactionStatus(statusStr)
+
+	if len(metaBytes) > 0 {
+		_ = json.Unmarshal(metaBytes, &t.Metadata)
+	}
+	return &t, nil
+}
+
+func (s *PostgresStore) ListTransactions(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.PaymentTransaction, int, error) {
+	var total int
+	countQuery := `SELECT COUNT(*) FROM payment_transactions WHERE owner_id = $1;`
+	if err := s.db.QueryRowContext(ctx, countQuery, ownerID.String()).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, wallet_id, owner_id, reference, gateway_reference, type, method, provider,
+		       amount, fee, currency, status, phone_number, checkout_url, description, metadata, created_at, updated_at
+		FROM payment_transactions
+		WHERE owner_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3;
+	`
+	rows, err := s.db.QueryContext(ctx, query, ownerID.String(), limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var txns []*types.PaymentTransaction
+	for rows.Next() {
+		t, err := s.scanTransaction(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		txns = append(txns, t)
+	}
+	if txns == nil {
+		txns = []*types.PaymentTransaction{}
+	}
+	return txns, total, nil
+}
+
+func (s *PostgresStore) SaveEarningRecord(ctx context.Context, earning *types.EarningRecord) error {
+	query := `
+		INSERT INTO earning_records (id, wallet_id, owner_id, source, session_id, bytes_relayed, rate_per_gb, amount, currency, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW());
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		earning.ID.String(),
+		earning.WalletID.String(),
+		earning.OwnerID.String(),
+		string(earning.Source),
+		earning.SessionID,
+		earning.BytesRelayed,
+		earning.RatePerGB,
+		earning.Amount,
+		earning.Currency,
+	)
+	return err
+}
+
+func (s *PostgresStore) ListEarnings(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.EarningRecord, int, error) {
+	var total int
+	countQuery := `SELECT COUNT(*) FROM earning_records WHERE owner_id = $1;`
+	if err := s.db.QueryRowContext(ctx, countQuery, ownerID.String()).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, wallet_id, owner_id, source, session_id, bytes_relayed, rate_per_gb, amount, currency, created_at
+		FROM earning_records
+		WHERE owner_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3;
+	`
+	rows, err := s.db.QueryContext(ctx, query, ownerID.String(), limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var earnings []*types.EarningRecord
+	for rows.Next() {
+		var e types.EarningRecord
+		var idStr, walletStr, ownerStr, sourceStr string
+		err := rows.Scan(
+			&idStr,
+			&walletStr,
+			&ownerStr,
+			&sourceStr,
+			&e.SessionID,
+			&e.BytesRelayed,
+			&e.RatePerGB,
+			&e.Amount,
+			&e.Currency,
+			&e.CreatedAt,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		id, _ := uuid.Parse(idStr)
+		walletID, _ := uuid.Parse(walletStr)
+		ownerID, _ := uuid.Parse(ownerStr)
+		e.ID = types.ID(id)
+		e.WalletID = types.ID(walletID)
+		e.OwnerID = types.ID(ownerID)
+		e.Source = types.EarningSource(sourceStr)
+
+		earnings = append(earnings, &e)
+	}
+	if earnings == nil {
+		earnings = []*types.EarningRecord{}
+	}
+	return earnings, total, nil
 }

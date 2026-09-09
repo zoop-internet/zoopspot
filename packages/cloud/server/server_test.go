@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/zoop-internet/zoop/packages/cloud/api"
+	"github.com/zoop-internet/zoop/packages/cloud/payments"
 	"github.com/zoop-internet/zoop/packages/cloud/services"
 	"github.com/zoop-internet/zoop/packages/cloud/store"
 	"github.com/zoop-internet/zoop/packages/core/config"
@@ -798,3 +799,139 @@ func TestServer_DiagnosticReports(t *testing.T) {
 		t.Errorf("report data mismatch: %+v", reports[0])
 	}
 }
+
+func TestServer_WalletEndpoints(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// 1. Register device
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	reqDev, _ := json.Marshal(api.RegisterDeviceRequest{
+		Name:      "Wallet Test Phone",
+		Platform:  "android",
+		PublicKey: base64.StdEncoding.EncodeToString(pub),
+	})
+	recDev := httptest.NewRecorder()
+	srv.mux.ServeHTTP(recDev, httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(reqDev)))
+	if recDev.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("register device: expected 201, got %d", recDev.Result().StatusCode)
+	}
+	var dev api.DeviceResponse
+	json.NewDecoder(recDev.Body).Decode(&dev)
+
+	authReq := func(method, path string, body []byte) *http.Request {
+		r := httptest.NewRequest(method, path, bytes.NewReader(body))
+		ts := time.Now().UTC().Format(time.RFC3339)
+		nonce := uuid.NewString()
+		p := api.BuildCanonicalPayload(method, r.URL.Path, ts, nonce, bodyHash(string(body)))
+		sig := ed25519.Sign(priv, p)
+		r.Header.Set("X-Zoop-Identity", dev.EndpointID.String())
+		r.Header.Set("X-Zoop-Signature", base64.StdEncoding.EncodeToString(sig))
+		r.Header.Set("X-Zoop-Timestamp", ts)
+		r.Header.Set("X-Zoop-Nonce", nonce)
+		if len(body) > 0 {
+			r.Header.Set("Content-Type", "application/json")
+		}
+		return r
+	}
+
+	// 2. GET /v1/wallet (initial query)
+	wGetWallet := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wGetWallet, authReq(http.MethodGet, "/v1/wallet", nil))
+	if wGetWallet.Result().StatusCode != http.StatusOK {
+		t.Fatalf("get wallet: expected 200, got %d", wGetWallet.Result().StatusCode)
+	}
+	var initialWallet types.Wallet
+	if err := json.NewDecoder(wGetWallet.Body).Decode(&initialWallet); err != nil {
+		t.Fatalf("failed to decode wallet: %v", err)
+	}
+	if initialWallet.AvailableBalance != 0 {
+		t.Errorf("expected 0 available balance, got %f", initialWallet.AvailableBalance)
+	}
+
+	// 3. POST /v1/wallet/deposit/mobile-money
+	depPayload, _ := json.Marshal(map[string]interface{}{
+		"amount":       25000,
+		"phone_number": "0771234567",
+		"provider":     "mtn",
+		"description":  "Zoop wallet top-up",
+	})
+	wDeposit := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wDeposit, authReq(http.MethodPost, "/v1/wallet/deposit/mobile-money", depPayload))
+	if wDeposit.Result().StatusCode != http.StatusOK {
+		t.Fatalf("initiate deposit: expected 200, got %d (body: %s)", wDeposit.Result().StatusCode, wDeposit.Body.String())
+	}
+	var depResp payments.DepositResponse
+	if err := json.NewDecoder(wDeposit.Body).Decode(&depResp); err != nil {
+		t.Fatalf("failed to decode deposit response: %v", err)
+	}
+	if depResp.Reference == "" || depResp.Status != types.StatusPending {
+		t.Errorf("unexpected deposit response: %+v", depResp)
+	}
+
+	// 4. POST /v1/payments/webhook (settle the deposit)
+	whPayload, _ := json.Marshal(map[string]interface{}{
+		"event":            "collection.successful",
+		"transaction_uuid": "mock-gw-txn-123",
+		"reference":        depResp.Reference,
+		"status":           "success",
+		"amount":           25000,
+		"currency":         "UGX",
+	})
+	whReq := httptest.NewRequest(http.MethodPost, "/v1/payments/webhook", bytes.NewReader(whPayload))
+	whReq.Header.Set("Content-Type", "application/json")
+	wWebhook := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wWebhook, whReq)
+	if wWebhook.Result().StatusCode != http.StatusOK {
+		t.Fatalf("webhook: expected 200, got %d (body: %s)", wWebhook.Result().StatusCode, wWebhook.Body.String())
+	}
+
+	// 5. GET /v1/wallet (verify balance credited)
+	wGetWallet2 := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wGetWallet2, authReq(http.MethodGet, "/v1/wallet", nil))
+	if wGetWallet2.Result().StatusCode != http.StatusOK {
+		t.Fatalf("get wallet after webhook: expected 200, got %d", wGetWallet2.Result().StatusCode)
+	}
+	var updatedWallet types.Wallet
+	if err := json.NewDecoder(wGetWallet2.Body).Decode(&updatedWallet); err != nil {
+		t.Fatalf("failed to decode updated wallet: %v", err)
+	}
+	if updatedWallet.AvailableBalance != 25000 {
+		t.Errorf("expected available balance 25000, got %f", updatedWallet.AvailableBalance)
+	}
+
+	// 6. POST /v1/wallet/withdraw
+	wdrPayload, _ := json.Marshal(map[string]interface{}{
+		"amount":       10000,
+		"phone_number": "0771234567",
+		"provider":     "mtn",
+		"description":  "Cash out earnings",
+	})
+	wWithdraw := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wWithdraw, authReq(http.MethodPost, "/v1/wallet/withdraw", wdrPayload))
+	if wWithdraw.Result().StatusCode != http.StatusOK {
+		t.Fatalf("withdraw: expected 200, got %d (body: %s)", wWithdraw.Result().StatusCode, wWithdraw.Body.String())
+	}
+
+	// 7. GET /v1/wallet/transactions
+	wTxns := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wTxns, authReq(http.MethodGet, "/v1/wallet/transactions?limit=10", nil))
+	if wTxns.Result().StatusCode != http.StatusOK {
+		t.Fatalf("list transactions: expected 200, got %d", wTxns.Result().StatusCode)
+	}
+	var txnList payments.TransactionListResponse
+	if err := json.NewDecoder(wTxns.Body).Decode(&txnList); err != nil {
+		t.Fatalf("failed to decode transactions: %v", err)
+	}
+	if txnList.Total != 2 {
+		t.Errorf("expected 2 transactions, got %d", txnList.Total)
+	}
+}
+
