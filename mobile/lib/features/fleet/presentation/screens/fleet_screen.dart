@@ -134,33 +134,48 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded, color: ZoopColors.primaryCyan),
-            tooltip: 'Pair Device',
-            onPressed: () => _showPairingSheet(context),
+          Semantics(
+            label: 'Pair new device to fleet',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, color: ZoopColors.primaryCyan),
+              tooltip: 'Pair Device',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () => _showPairingSheet(context),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: ZoopColors.textSecondary),
-            tooltip: 'Refresh',
-            onPressed: () {
-              ref.read(devicesProvider.notifier).refreshDevices();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Refreshed fleet nodes and gateways'),
-                  duration: Duration(milliseconds: 1000),
-                ),
-              );
-            },
+          Semantics(
+            label: 'Refresh fleet nodes and gateways',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.refresh, color: ZoopColors.textSecondary),
+              tooltip: 'Refresh',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () {
+                ref.read(devicesProvider.notifier).refreshDevices();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Refreshed fleet nodes and gateways'),
+                    duration: Duration(milliseconds: 1000),
+                  ),
+                );
+              },
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
+          Semantics(
+            label: 'Open network settings',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
+              tooltip: 'Settings',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () => context.push('/settings'),
+            ),
           ),
           const SizedBox(width: 6),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(46),
+          preferredSize: const Size.fromHeight(48),
           child: Container(
             decoration: const BoxDecoration(
               border: Border(
@@ -190,79 +205,88 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
               ),
               tabs: [
                 Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('My Nodes'),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${devicesState.devices.length}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: ZoopColors.primaryCyan,
+                  child: Semantics(
+                    label: 'My Nodes tab, ${devicesState.devices.length} devices enrolled',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('My Nodes'),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${devicesState.devices.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: ZoopColors.primaryCyan,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Gateways & Exits'),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: devicesState.activeExitNodeId != null
-                              ? ZoopColors.accentGreen.withValues(alpha: 0.2)
-                              : ZoopColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${devicesState.gateways.length}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                  child: Semantics(
+                    label: 'Gateways and Exits tab, ${devicesState.gateways.length} gateways configured',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Gateways & Exits'),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
                             color: devicesState.activeExitNodeId != null
-                                ? ZoopColors.accentGreen
-                                : ZoopColors.textSecondary,
+                                ? ZoopColors.accentGreen.withValues(alpha: 0.2)
+                                : ZoopColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${devicesState.gateways.length}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: devicesState.activeExitNodeId != null
+                                  ? ZoopColors.accentGreen
+                                  : ZoopColors.textSecondary,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Organizations'),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${orgsState.organizations.length}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: ZoopColors.textSecondary,
+                  child: Semantics(
+                    label: 'Organizations tab, ${orgsState.organizations.length} organizations joined',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Organizations'),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${orgsState.organizations.length}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: ZoopColors.textSecondary,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -341,15 +365,20 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => _showPairingSheet(context),
-                        icon: const Icon(Icons.qr_code, size: 14),
-                        label: const Text('Pair'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          side: const BorderSide(color: ZoopColors.primaryCyan),
-                          foregroundColor: ZoopColors.primaryCyan,
-                          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      Semantics(
+                        label: 'Pair new device to WireGuard mesh',
+                        button: true,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showPairingSheet(context),
+                          icon: const Icon(Icons.qr_code, size: 16),
+                          label: const Text('Pair'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(80, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            side: const BorderSide(color: ZoopColors.primaryCyan),
+                            foregroundColor: ZoopColors.primaryCyan,
+                            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],
@@ -374,22 +403,30 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              ref.read(devicesProvider.notifier).toggleExitNode(activeExit.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Exit node routing disconnected'),
-                                  duration: Duration(seconds: 2),
+                          Semantics(
+                            label: 'Disconnect exit route via ${activeExit.name}',
+                            button: true,
+                            child: InkWell(
+                              onTap: () {
+                                ref.read(devicesProvider.notifier).toggleExitNode(activeExit.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Exit node routing disconnected'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: Text(
+                                  'Disconnect',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: ZoopColors.accentRose,
+                                  ),
                                 ),
-                              );
-                            },
-                            child: const Text(
-                              'Disconnect',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: ZoopColors.accentRose,
                               ),
                             ),
                           ),
@@ -445,6 +482,13 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                       onPressed: () => _showPairingSheet(context),
                       icon: const Icon(Icons.qr_code_scanner),
                       label: const Text('Pair First Device'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: ZoopColors.background,
+                        minimumSize: const Size(180, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ],
                 ),
@@ -529,15 +573,20 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                         ),
                         if (activeExit != null) ...[
                           const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            onPressed: () => notifier.toggleExitNode(activeExit.id),
-                            icon: const Icon(Icons.power_settings_new, size: 14),
-                            label: const Text('Disconnect Exit Route'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: ZoopColors.accentRose,
-                              side: const BorderSide(color: ZoopColors.accentRose),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          Semantics(
+                            label: 'Disconnect exit route',
+                            button: true,
+                            child: OutlinedButton.icon(
+                              onPressed: () => notifier.toggleExitNode(activeExit.id),
+                              icon: const Icon(Icons.power_settings_new, size: 16),
+                              label: const Text('Disconnect Exit Route'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: ZoopColors.accentRose,
+                                side: const BorderSide(color: ZoopColors.accentRose),
+                                minimumSize: const Size(160, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                         ],
@@ -678,26 +727,36 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          OutlinedButton(
-                            onPressed: () => _showDeviceSheet(context, gw),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: ZoopColors.textSecondary,
-                              side: const BorderSide(color: ZoopColors.surfaceBorder),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              textStyle: const TextStyle(fontSize: 11),
+                          Semantics(
+                            label: 'View details for gateway node ${gw.name}',
+                            button: true,
+                            child: OutlinedButton(
+                              onPressed: () => _showDeviceSheet(context, gw),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: ZoopColors.textSecondary,
+                                side: const BorderSide(color: ZoopColors.surfaceBorder),
+                                minimumSize: const Size(96, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              child: const Text('Node Details'),
                             ),
-                            child: const Text('Node Details'),
                           ),
                           const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: () => notifier.toggleExitNode(gw.id),
-                            icon: Icon(isActive ? Icons.check : Icons.vpn_lock, size: 14),
-                            label: Text(isActive ? 'Active Exit Node' : 'Use as Exit Node'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isActive ? ZoopColors.accentGreen : ZoopColors.primaryCyan,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          Semantics(
+                            label: isActive ? 'Exit route is currently active through ${gw.name}. Tap to disconnect' : 'Set ${gw.name} as active exit route',
+                            button: true,
+                            child: ElevatedButton.icon(
+                              onPressed: () => notifier.toggleExitNode(gw.id),
+                              icon: Icon(isActive ? Icons.check : Icons.vpn_lock, size: 16),
+                              label: Text(isActive ? 'Active Exit Node' : 'Use as Exit Node'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isActive ? ZoopColors.accentGreen : ZoopColors.primaryCyan,
+                                foregroundColor: Colors.black,
+                                minimumSize: const Size(140, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                         ],
@@ -744,10 +803,15 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _showPairingSheet(context),
-                    icon: const Icon(Icons.chevron_right, color: ZoopColors.primaryCyan),
-                    tooltip: 'Deploy Gateway',
+                  Semantics(
+                    label: 'Deploy Linux or Docker gateway node',
+                    button: true,
+                    child: IconButton(
+                      onPressed: () => _showPairingSheet(context),
+                      icon: const Icon(Icons.chevron_right, color: ZoopColors.primaryCyan),
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      tooltip: 'Deploy Gateway',
+                    ),
                   ),
                 ],
               ),
@@ -759,135 +823,144 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
   }
 
   Widget _buildDeviceCard(BuildContext context, FleetDeviceItem dev) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ZoopColors.surfaceBorder),
-      ),
-      child: ListTile(
-        onTap: () => _showDeviceSheet(context, dev),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: dev.isOnline
-                    ? ZoopColors.primaryCyan.withValues(alpha: 0.15)
-                    : ZoopColors.surfaceElevated,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                dev.platformIcon,
-                color: dev.isOnline ? ZoopColors.primaryCyan : ZoopColors.textMuted,
-                size: 20,
-              ),
-            ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: dev.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
-                  border: Border.all(color: ZoopColors.surface, width: 1.5),
-                ),
-              ),
-            ),
-          ],
+    final statusText = dev.isOnline ? 'online' : 'standby';
+    final identityText = dev.isCurrentDevice ? ', this device' : '';
+    final exitText = dev.isExitNode ? ', exit gateway' : '';
+    final semanticsLabel = '${dev.name}$identityText, $statusText$exitText, IP ${dev.ipAddress}, platform ${dev.platform}, role ${dev.role.label}. Tap to open node details.';
+
+    return Semantics(
+      label: semanticsLabel,
+      button: true,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: ZoopColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: ZoopColors.surfaceBorder),
         ),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                dev.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (dev.isCurrentDevice) ...[
-              const SizedBox(width: 8),
+        child: ListTile(
+          onTap: () => _showDeviceSheet(context, dev),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Stack(
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: ZoopColors.accentGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  color: dev.isOnline
+                      ? ZoopColors.primaryCyan.withValues(alpha: 0.15)
+                      : ZoopColors.surfaceElevated,
+                  shape: BoxShape.circle,
                 ),
-                child: const Text(
-                  'THIS DEVICE',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen),
+                child: Icon(
+                  dev.platformIcon,
+                  color: dev.isOnline ? ZoopColors.primaryCyan : ZoopColors.textMuted,
+                  size: 20,
+                ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: dev.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                    border: Border.all(color: ZoopColors.surface, width: 1.5),
+                  ),
                 ),
               ),
             ],
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 3),
-            Text(
-              '${dev.ipAddress} • ${dev.platform} • ${dev.role.label}',
-              style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                if (dev.pingMs != null)
+          ),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  dev.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (dev.isCurrentDevice) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.accentGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'THIS DEVICE',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3),
+              Text(
+                '${dev.ipAddress} • ${dev.platform} • ${dev.role.label}',
+                style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (dev.pingMs != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('⚡ ', style: TextStyle(fontSize: 10)),
+                          Text(
+                            '${dev.pingMs} ms',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: (dev.pingMs! < 25) ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: ZoopColors.surfaceElevated,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('⚡ ', style: TextStyle(fontSize: 10)),
-                        Text(
-                          '${dev.pingMs} ms',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: (dev.pingMs! < 25) ? ZoopColors.accentGreen : ZoopColors.accentAmber,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      dev.connectionType,
+                      style: const TextStyle(fontSize: 10, color: ZoopColors.primaryCyan, fontWeight: FontWeight.w500),
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    dev.connectionType,
-                    style: const TextStyle(fontSize: 10, color: ZoopColors.primaryCyan, fontWeight: FontWeight.w500),
-                  ),
-                ),
-                if (dev.isExitNode)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: ZoopColors.accentPurple.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
+                  if (dev.isExitNode)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.accentPurple.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'Exit Gateway',
+                        style: TextStyle(fontSize: 10, color: ZoopColors.accentPurple, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    child: const Text(
-                      'Exit Gateway',
-                      style: TextStyle(fontSize: 10, color: ZoopColors.accentPurple, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
+          trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
         ),
-        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
       ),
     );
   }
@@ -919,36 +992,44 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _joinCodeController,
-                        style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: 'Paste invite token or code...',
-                          hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 12),
-                          filled: true,
-                          fillColor: ZoopColors.surfaceElevated,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                      child: Semantics(
+                        label: 'Organization invite code input',
+                        child: TextField(
+                          controller: _joinCodeController,
+                          style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Paste invite token or code...',
+                            hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 12),
+                            filled: true,
+                            fillColor: ZoopColors.surfaceElevated,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _handleJoinOrgWithCode,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.primaryCyan,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    Semantics(
+                      label: 'Join organization with invite code',
+                      button: true,
+                      child: ElevatedButton(
+                        onPressed: _handleJoinOrgWithCode,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ZoopColors.primaryCyan,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size(80, 46),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Join', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                      child: const Text('Join', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -1006,20 +1087,33 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(
-                          onPressed: () => notifier.declineInvitation(invite.id),
-                          child: const Text('Decline', style: TextStyle(color: ZoopColors.textMuted)),
+                        Semantics(
+                          label: 'Decline invitation to join ${invite.orgName}',
+                          button: true,
+                          child: TextButton(
+                            onPressed: () => notifier.declineInvitation(invite.id),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(80, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            ),
+                            child: const Text('Decline', style: TextStyle(color: ZoopColors.textMuted)),
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () => notifier.acceptInvitation(invite.id),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ZoopColors.primaryCyan,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        Semantics(
+                          label: 'Accept invitation to join ${invite.orgName}',
+                          button: true,
+                          child: ElevatedButton(
+                            onPressed: () => notifier.acceptInvitation(invite.id),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ZoopColors.primaryCyan,
+                              foregroundColor: Colors.black,
+                              minimumSize: const Size(120, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Accept & Join', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
-                          child: const Text('Accept & Join', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -1061,29 +1155,33 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
             )
           else
             ...state.organizations.map((org) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: ListTile(
-                  onTap: () => _showOrgDetails(context, org),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
+              return Semantics(
+                label: '${org.name}, ${org.deviceCount} nodes, role ${org.role.label}. Double tap to view organization details.',
+                button: true,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: ZoopColors.surfaceBorder),
+                  ),
+                  child: ListTile(
+                    onTap: () => _showOrgDetails(context, org),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.business, color: ZoopColors.primaryCyan, size: 20),
                     ),
-                    child: const Icon(Icons.business, color: ZoopColors.primaryCyan, size: 20),
+                    title: Text(org.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text(
+                      '${org.deviceCount} nodes • ${org.role.label}',
+                      style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
                   ),
-                  title: Text(org.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text(
-                    '${org.deviceCount} nodes • ${org.role.label}',
-                    style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                  ),
-                  trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
                 ),
               );
             }),
