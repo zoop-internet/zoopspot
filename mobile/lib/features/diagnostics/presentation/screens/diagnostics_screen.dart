@@ -18,9 +18,17 @@ class DiagnosticsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Semantics(
+          button: true,
+          label: 'Back',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Back',
+            ),
+          ),
         ),
         title: const Row(
           children: [
@@ -37,45 +45,60 @@ class DiagnosticsScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: ZoopColors.textSecondary),
-            tooltip: 'Share Report',
-            onPressed: () {
-              if (state.report != null) {
-                final bundle = notifier.generateShareableBundle();
-                Clipboard.setData(ClipboardData(text: bundle));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Diagnostic bundle copied to clipboard'),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Run diagnostics first'),
-                  ),
-                );
-              }
-            },
+          Semantics(
+            button: true,
+            label: 'Share diagnostic report bundle',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: IconButton(
+                icon: const Icon(Icons.share, color: ZoopColors.textSecondary),
+                tooltip: 'Share Report',
+                onPressed: () {
+                  if (state.report != null) {
+                    final bundle = notifier.generateShareableBundle();
+                    Clipboard.setData(ClipboardData(text: bundle));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Diagnostic bundle copied to clipboard'),
+                        backgroundColor: ZoopColors.accentGreen,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Run diagnostics first'),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'diagnosticsFab',
-        onPressed: state.isRunning ? null : () => notifier.runDiagnostics(),
-        icon: state.isRunning
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: ZoopColors.textPrimary,
-                ),
-              )
-            : const Icon(Icons.play_arrow),
-        label: Text(state.isRunning ? 'Running...' : 'Run Diagnostics'),
-        backgroundColor: state.isRunning ? ZoopColors.surfaceElevated : ZoopColors.primaryCyan,
-        foregroundColor: ZoopColors.textPrimary,
+      floatingActionButton: Semantics(
+        button: true,
+        label: state.isRunning ? 'Running network diagnostics' : 'Run Diagnostics',
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: FloatingActionButton.extended(
+            heroTag: 'diagnosticsFab',
+            onPressed: state.isRunning ? null : () => notifier.runDiagnostics(),
+            icon: state.isRunning
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: ZoopColors.textPrimary,
+                    ),
+                  )
+                : const Icon(Icons.play_arrow),
+            label: Text(state.isRunning ? 'Running...' : 'Run Diagnostics'),
+            backgroundColor: state.isRunning ? ZoopColors.surfaceElevated : ZoopColors.primaryCyan,
+            foregroundColor: ZoopColors.textPrimary,
+          ),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -105,29 +128,49 @@ class DiagnosticsScreen extends ConsumerWidget {
                 _buildActionButtons(context, notifier),
                 const SizedBox(height: 80), // spacing for fab
               ] else if (!state.isRunning)
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 100),
+                    padding: const EdgeInsets.only(top: 80),
                     child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.network_check,
                           size: 56,
                           color: ZoopColors.textMuted,
                         ),
-                        SizedBox(height: 16),
-                        Text(
+                        const SizedBox(height: 16),
+                        const Text(
                           'No Report Yet',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: ZoopColors.textSecondary,
+                            color: ZoopColors.textPrimary,
                           ),
                         ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Tap "Run Diagnostics" to check network health',
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Run a 9-stage probe on NAT, STUN, MTU, and DNS health.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13),
+                        ),
+                        const SizedBox(height: 24),
+                        Semantics(
+                          button: true,
+                          label: 'Start 9-stage network diagnostics run',
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 48, minWidth: 200),
+                            child: ElevatedButton.icon(
+                              onPressed: () => notifier.runDiagnostics(),
+                              icon: const Icon(Icons.play_arrow, size: 20),
+                              label: const Text('Start Diagnostics Run', style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ZoopColors.primaryCyan,
+                                foregroundColor: ZoopColors.background,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -141,48 +184,51 @@ class DiagnosticsScreen extends ConsumerWidget {
   }
 
   Widget _buildSummarySection(BuildContext context, DiagnosticsReport report) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ZoopColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ZoopColors.surfaceBorder),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(
-                  report.healthy ? Icons.check_circle : Icons.warning,
-                  color: report.healthy ? ZoopColors.accentGreen : ZoopColors.accentAmber,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    report.healthy ? 'Network Healthy' : 'Issues Detected',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+    return Semantics(
+      label: 'Network health summary: ${report.healthy ? 'Network Healthy' : 'Issues Detected'}. NAT Type: ${_getNatTypeName(report.natType)}. MTU: ${report.pathMTU ?? 'unknown'} bytes. DNS Leak: ${report.dnsLeakDetected == true ? 'Leaking' : 'Safe'}.',
+      child: Container(
+        decoration: BoxDecoration(
+          color: ZoopColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ZoopColors.surfaceBorder),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    report.healthy ? Icons.check_circle : Icons.warning,
+                    color: report.healthy ? ZoopColors.accentGreen : ZoopColors.accentAmber,
+                    size: 28,
                   ),
-                ),
-              ],
-            ),
-            const Divider(height: 32, color: ZoopColors.surfaceBorder),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatColumn('NAT Type', _getNatTypeName(report.natType), _getNatTypeColor(report.natType)),
-                _buildStatColumn('MTU', '${report.pathMTU ?? '--'} B', ZoopColors.textPrimary),
-                _buildStatColumn(
-                  'DNS Leak',
-                  report.dnsLeakDetected == true ? 'Leaking' : 'Safe',
-                  report.dnsLeakDetected == true ? ZoopColors.accentRose : ZoopColors.accentGreen,
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      report.healthy ? 'Network Healthy' : 'Issues Detected',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 32, color: ZoopColors.surfaceBorder),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatColumn('NAT Type', _getNatTypeName(report.natType), _getNatTypeColor(report.natType)),
+                  _buildStatColumn('MTU', '${report.pathMTU ?? '--'} B', ZoopColors.textPrimary),
+                  _buildStatColumn(
+                    'DNS Leak',
+                    report.dnsLeakDetected == true ? 'Leaking' : 'Safe',
+                    report.dnsLeakDetected == true ? ZoopColors.accentRose : ZoopColors.accentGreen,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -296,12 +342,17 @@ class DiagnosticsScreen extends ConsumerWidget {
                       style: const TextStyle(fontSize: 10, color: ZoopColors.textSecondary),
                     ),
                   ),
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 16, color: ZoopColors.accentAmber),
-                  tooltip: 'Retry',
-                  onPressed: () => notifier.runDiagnostics(),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  padding: const EdgeInsets.all(4),
+                Semantics(
+                  button: true,
+                  label: 'Retry ${check.name}',
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    child: IconButton(
+                      icon: const Icon(Icons.refresh, size: 18, color: ZoopColors.accentAmber),
+                      tooltip: 'Retry ${check.name}',
+                      onPressed: () => notifier.runDiagnostics(),
+                    ),
+                  ),
                 ),
               ],
             );
@@ -319,14 +370,17 @@ class DiagnosticsScreen extends ConsumerWidget {
             );
           }
 
-          return ListTile(
-            leading: leadingWidget,
-            title: Text(check.name),
-            subtitle: Text(
-              check.message,
-              style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
+          return Semantics(
+            label: '${check.name}: ${check.status.name}. ${check.message}. ${check.latency != null ? '${check.latency!.inMilliseconds} milliseconds latency.' : ''}',
+            child: ListTile(
+              leading: leadingWidget,
+              title: Text(check.name),
+              subtitle: Text(
+                check.message,
+                style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
+              ),
+              trailing: trailingWidget,
             ),
-            trailing: trailingWidget,
           );
         },
       ),
@@ -337,34 +391,58 @@ class DiagnosticsScreen extends ConsumerWidget {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              final bundle = notifier.generateShareableBundle();
-              Clipboard.setData(ClipboardData(text: bundle));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Diagnostic bundle copied to clipboard')),
-              );
-            },
-            icon: const Icon(Icons.share, size: 18),
-            label: const Text('Share Bundle'),
+          child: Semantics(
+            button: true,
+            label: 'Share diagnostic bundle to clipboard',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final bundle = notifier.generateShareableBundle();
+                  Clipboard.setData(ClipboardData(text: bundle));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Diagnostic bundle copied to clipboard')),
+                  );
+                },
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('Share Bundle'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () async {
-              final success = await notifier.submitToCloud();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? 'Report submitted successfully' : 'Failed to submit report'),
-                    backgroundColor: success ? ZoopColors.accentGreen : ZoopColors.accentRose,
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.cloud_upload, size: 18),
-            label: const Text('Submit'),
+          child: Semantics(
+            button: true,
+            label: 'Submit diagnostic report to cloud telemetry',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final success = await notifier.submitToCloud();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success ? 'Report submitted successfully' : 'Failed to submit report'),
+                        backgroundColor: success ? ZoopColors.accentGreen : ZoopColors.accentRose,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.cloud_upload, size: 18),
+                label: const Text('Submit'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ZoopColors.primaryCyan,
+                  foregroundColor: ZoopColors.background,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
           ),
         ),
       ],
