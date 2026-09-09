@@ -928,7 +928,7 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       physics: const BouncingScrollPhysics(),
       itemCount: state.pendingRequests.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final req = state.pendingRequests[index];
         return Container(
@@ -1078,7 +1078,7 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
               ),
               Switch(
                 value: true,
-                activeColor: ZoopColors.accentPurple,
+                activeThumbColor: ZoopColors.accentPurple,
                 onChanged: (_) {},
               ),
             ],

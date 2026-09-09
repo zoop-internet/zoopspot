@@ -236,7 +236,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
                     physics: const BouncingScrollPhysics(),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = filtered[index];
                       return _buildNotificationCard(item);
@@ -281,6 +281,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           item.isRead = true;
         });
+        _showNotificationDetail(item);
       },
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -408,4 +409,162 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
+
+  void _showNotificationDetail(NotificationItem item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        String actionLabel = 'Back to Notifications';
+        VoidCallback? actionHandler;
+
+        switch (item.category) {
+          case NotificationCategory.network:
+            actionLabel = 'Inspect in Fleet Hub';
+            actionHandler = () {
+              Navigator.pop(sheetContext);
+              context.go('/fleet');
+            };
+            break;
+          case NotificationCategory.rewards:
+            actionLabel = 'Open Mesh Wallet';
+            actionHandler = () {
+              Navigator.pop(sheetContext);
+              context.go('/wallet');
+            };
+            break;
+          case NotificationCategory.security:
+            actionLabel = 'Run Diagnostics';
+            actionHandler = () {
+              Navigator.pop(sheetContext);
+              context.push('/diagnostics');
+            };
+            break;
+          default:
+            actionLabel = 'Close';
+            actionHandler = () => Navigator.pop(sheetContext);
+        }
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: ZoopColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: ZoopColors.surfaceBorder, width: 1)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surfaceBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: item.iconColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: item.iconColor.withValues(alpha: 0.35)),
+                    ),
+                    child: Icon(item.icon, color: item.iconColor, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: ZoopColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${item.category.name.toUpperCase()} • ${item.time}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: item.iconColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: ZoopColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: ZoopColors.surfaceBorder),
+                ),
+                child: Text(
+                  item.message,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: ZoopColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ZoopColors.textSecondary,
+                        side: const BorderSide(color: ZoopColors.surfaceBorder),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(sheetContext),
+                      child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: actionHandler,
+                      child: Text(
+                        actionLabel,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
+

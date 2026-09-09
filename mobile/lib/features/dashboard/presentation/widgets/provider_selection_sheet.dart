@@ -161,7 +161,7 @@ class _ProviderSelectionSheetState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     itemCount: filteredPeers.length,
-                    separatorBuilder: (_, __) => const Divider(
+                    separatorBuilder: (_, _) => const Divider(
                       color: ZoopColors.surfaceBorder,
                       height: 1,
                       indent: 52,

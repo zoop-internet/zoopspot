@@ -90,7 +90,7 @@ class SettingsScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
                   ),
                   subtitle: Text(
-                    'Fleet, Vault, and Wallet are accessible from the bottom navigation bar',
+                    'Home, Share, Fleet, and Wallet are accessible from the bottom navigation bar',
                     style: TextStyle(fontSize: 11, color: ZoopColors.textMuted),
                   ),
                 ),

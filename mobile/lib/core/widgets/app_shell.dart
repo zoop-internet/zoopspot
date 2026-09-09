@@ -13,7 +13,7 @@ class AppShell extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/sharing')) return 1;
     if (location.startsWith('/fleet')) return 2;
-    if (location.startsWith('/vault')) return 3;
+    if (location.startsWith('/wallet') || location.startsWith('/vault')) return 3;
     return 0; // default /dashboard
   }
 
@@ -29,7 +29,7 @@ class AppShell extends ConsumerWidget {
         context.go('/fleet');
         break;
       case 3:
-        context.go('/vault');
+        context.go('/wallet');
         break;
     }
   }

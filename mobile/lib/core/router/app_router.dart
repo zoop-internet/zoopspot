@@ -43,8 +43,12 @@ final appRouter = GoRouter(
           builder: (context, state) => const FleetScreen(),
         ),
         GoRoute(
+          path: '/wallet',
+          builder: (context, state) => const WalletScreen(),
+        ),
+        GoRoute(
           path: '/vault',
-          builder: (context, state) => const VaultScreen(),
+          builder: (context, state) => const WalletScreen(),
         ),
       ],
     ),
@@ -73,10 +77,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/activity',
       builder: (context, state) => const ActivityScreen(),
-    ),
-    GoRoute(
-      path: '/wallet',
-      builder: (context, state) => const WalletScreen(),
     ),
     GoRoute(
       path: '/notifications',

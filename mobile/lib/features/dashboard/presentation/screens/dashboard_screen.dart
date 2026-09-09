@@ -10,11 +10,8 @@ import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../application/peers_notifier.dart';
-import '../widgets/connection_details_sheet.dart';
 import '../widgets/provider_selection_sheet.dart';
 import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
-import '../../../diagnostics/domain/diagnostic_models.dart';
-import '../../../diagnostics/application/diagnostics_notifier.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../sharing/application/sharing_notifier.dart';
 
@@ -29,7 +26,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with TickerProviderStateMixin {
   ConnectionStatus _status = ConnectionStatus.disconnected;
   final RoutingMode _routingMode = RoutingMode.fullInternet;
-  String _connectingStep = 'Connecting...';
 
   late AnimationController _rotationController;
   late AnimationController _pulseController;
@@ -130,7 +126,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
       setState(() {
         _status = ConnectionStatus.connecting;
-        _connectingStep = 'Connecting...';
       });
 
       _rotationController.repeat();
@@ -203,21 +198,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         _rotationController.stop();
         _pulseController.stop();
       }
-    }
-  }
-
-  Color get _statusColor {
-    switch (_status) {
-      case ConnectionStatus.connectedDirect:
-        return ZoopColors.directP2P;
-      case ConnectionStatus.connectedRelay:
-        return ZoopColors.relay;
-      case ConnectionStatus.connecting:
-        return ZoopColors.connecting;
-      case ConnectionStatus.roaming:
-        return ZoopColors.roaming;
-      default:
-        return ZoopColors.textMuted;
     }
   }
 
@@ -463,7 +443,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               // Ecosystem Quick Actions
               _buildQuickActions(context),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 60),
             ],
           ),
         ),
@@ -534,17 +514,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
               // 5. Right: Target Peer Node (Tappable to Select)
               GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => ProviderSelectionSheet.show(context),
-                child: _buildDeviceNode(
-                  icon: activePeer != null
-                      ? _getPlatformIcon(activePeer.platform)
-                      : Icons.laptop_mac_rounded,
-                  name: activePeer?.name ?? 'Select Node',
-                  isActive: isConnected,
-                  isTarget: true,
-                  statusColor: isConnected
-                      ? ZoopColors.accentGreen
-                      : ZoopColors.textSecondary,
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: _buildDeviceNode(
+                    icon: activePeer != null
+                        ? _getPlatformIcon(activePeer.platform)
+                        : Icons.laptop_mac_rounded,
+                    name: activePeer?.name ?? 'Select Node',
+                    isActive: isConnected,
+                    isTarget: true,
+                    statusColor: isConnected
+                        ? ZoopColors.accentGreen
+                        : ZoopColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -877,7 +862,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   // ===========================================================================
   Widget _buildZoopPointsCard(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/wallet'),
+      onTap: () => context.go('/wallet'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         decoration: BoxDecoration(
