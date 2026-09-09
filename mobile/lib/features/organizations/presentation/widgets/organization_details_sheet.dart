@@ -23,21 +23,36 @@ class OrganizationDetailsSheet extends StatelessWidget {
           style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 13),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: ZoopColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
-              onLeave();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ZoopColors.accentRose,
-              foregroundColor: Colors.white,
+          Semantics(
+            button: true,
+            label: 'Cancel leaving organization',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48, minWidth: 70),
+              child: TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel', style: TextStyle(color: ZoopColors.textSecondary)),
+              ),
             ),
-            child: const Text('Leave Organization', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          Semantics(
+            button: true,
+            label: 'Confirm leaving organization ${org.name}',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48, minWidth: 100),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
+                  onLeave();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ZoopColors.accentRose,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: const Text('Leave Organization', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
           ),
         ],
       ),
@@ -148,16 +163,23 @@ class OrganizationDetailsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _confirmLeave(context),
-                  icon: const Icon(Icons.exit_to_app, size: 18, color: ZoopColors.accentRose),
-                  label: const Text('Leave Organization', style: TextStyle(color: ZoopColors.accentRose, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: ZoopColors.accentRose),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              Semantics(
+                button: true,
+                label: 'Leave Organization ${org.name}',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmLeave(context),
+                      icon: const Icon(Icons.exit_to_app, size: 18, color: ZoopColors.accentRose),
+                      label: const Text('Leave Organization', style: TextStyle(color: ZoopColors.accentRose, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: ZoopColors.accentRose),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -39,15 +39,23 @@ class OrganizationsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/fleet');
-            }
-          },
+        leading: Semantics(
+          button: true,
+          label: 'Back',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  context.go('/fleet');
+                }
+              },
+              tooltip: 'Back',
+            ),
+          ),
         ),
         title: const Row(
           children: [
@@ -146,28 +154,42 @@ class OrganizationsScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            TextButton(
-                              onPressed: () => notifier.declineInvitation(invite.id),
-                              child: const Text('Decline', style: TextStyle(color: ZoopColors.textMuted, fontSize: 12)),
+                            Semantics(
+                              button: true,
+                              label: 'Decline invitation to ${invite.orgName}',
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minHeight: 48, minWidth: 70),
+                                child: TextButton(
+                                  onPressed: () => notifier.declineInvitation(invite.id),
+                                  child: const Text('Decline', style: TextStyle(color: ZoopColors.textMuted, fontSize: 12)),
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                notifier.acceptInvitation(invite.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Joined ${invite.orgName}'),
-                                    backgroundColor: ZoopColors.accentGreen,
+                            Semantics(
+                              button: true,
+                              label: 'Accept invitation to ${invite.orgName}',
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(minHeight: 48),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    notifier.acceptInvitation(invite.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Joined ${invite.orgName}'),
+                                        backgroundColor: ZoopColors.accentGreen,
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ZoopColors.primaryCyan,
+                                    foregroundColor: ZoopColors.background,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ZoopColors.primaryCyan,
-                                foregroundColor: ZoopColors.background,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  child: const Text('Accept Invitation', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
                               ),
-                              child: const Text('Accept Invitation', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -189,100 +211,134 @@ class OrganizationsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              ...state.organizations.map((org) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+              if (state.organizations.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
                   decoration: BoxDecoration(
                     color: ZoopColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: ZoopColors.surfaceBorder),
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+                  child: const Column(
+                    children: [
+                      Icon(Icons.corporate_fare, size: 48, color: ZoopColors.textMuted),
+                      SizedBox(height: 12),
+                      Text(
+                        'No Organizations Joined',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: ZoopColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'You are not enrolled in any organization mesh networks yet. Pending invitations will appear above when received.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: ZoopColors.textSecondary, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              ...state.organizations.map((org) {
+                return Semantics(
+                  button: true,
+                  label: '${org.name}, slug @${org.slug}, role: ${org.role.label}, ${org.memberCount} members, ${org.deviceCount} nodes. Tap to view organization details and mesh policy.',
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.surface,
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () => _showOrgDetails(context, ref, org),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: org.role.color.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: ZoopColors.surfaceBorder),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => _showOrgDetails(context, ref, org),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: org.role.color.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(Icons.corporate_fare, color: org.role.color, size: 22),
                                   ),
-                                  child: Icon(Icons.corporate_fare, color: org.role.color, size: 22),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        org.name,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: ZoopColors.textPrimary,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          org.name,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: ZoopColors.textPrimary,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '@${org.slug}',
-                                        style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: org.role.color.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    org.role.label,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: org.role.color,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '@${org.slug}',
+                                          style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              org.description,
-                              style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-                            const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.people_outline, size: 14, color: ZoopColors.textMuted),
-                                    const SizedBox(width: 4),
-                                    Text('${org.memberCount} members', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
-                                    const SizedBox(width: 12),
-                                    const Icon(Icons.devices, size: 14, color: ZoopColors.textMuted),
-                                    const SizedBox(width: 4),
-                                    Text('${org.deviceCount} nodes', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
-                                  ],
-                                ),
-                                const Icon(Icons.chevron_right, size: 18, color: ZoopColors.textMuted),
-                              ],
-                            ),
-                          ],
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: org.role.color.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      org.role.label,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: org.role.color,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                org.description,
+                                style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.people_outline, size: 14, color: ZoopColors.textMuted),
+                                      const SizedBox(width: 4),
+                                      Text('${org.memberCount} members', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
+                                      const SizedBox(width: 12),
+                                      const Icon(Icons.devices, size: 14, color: ZoopColors.textMuted),
+                                      const SizedBox(width: 4),
+                                      Text('${org.deviceCount} nodes', style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
+                                    ],
+                                  ),
+                                  const Icon(Icons.chevron_right, size: 18, color: ZoopColors.textMuted),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
