@@ -8,7 +8,6 @@ import '../../features/fleet/presentation/screens/fleet_screen.dart';
 import '../../features/vault/presentation/screens/vault_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/identity/presentation/screens/identity_screen.dart';
-import '../../features/onboarding/presentation/screens/welcome_screen.dart';
 import '../../features/diagnostics/presentation/screens/diagnostics_screen.dart';
 import '../../features/organizations/presentation/screens/organizations_screen.dart';
 import '../../features/activity/presentation/screens/activity_screen.dart';
@@ -56,7 +55,7 @@ final appRouter = GoRouter(
     // Pushed Routes (overlays on top of the shell)
     GoRoute(
       path: '/',
-      builder: (context, state) => const WelcomeScreen(),
+      redirect: (context, state) => '/dashboard',
     ),
     GoRoute(
       path: '/identity',

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../../../core/network/marzpay_api_client.dart';
 import '../../../../core/theme/zoop_colors.dart';
 
 class WithdrawSheet extends StatefulWidget {
   final double availableAmount;
-  final void Function(double amount, String destination) onConfirm;
+  final void Function({
+    required double amount,
+    required String phoneNumber,
+    required String provider,
+  }) onConfirm;
 
   const WithdrawSheet({
     super.key,
@@ -16,10 +21,13 @@ class WithdrawSheet extends StatefulWidget {
 }
 
 class _WithdrawSheetState extends State<WithdrawSheet> {
-  final TextEditingController _destController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController(text: '+256 ');
   late double _withdrawAmount;
   bool _isReviewing = false;
   int _selectedPercent = 100;
+  String _selectedProvider = 'MTN Mobile Money';
+
+  static const double _marzPayFee = 500.0; // UGX 500 standard MarzPay disbursement charge
 
   @override
   void initState() {
@@ -29,8 +37,15 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
 
   @override
   void dispose() {
-    _destController.dispose();
+    _phoneController.dispose();
     super.dispose();
+  }
+
+  String _formatUgx(double amount) {
+    return 'UGX ${amount.toInt().toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        )}';
   }
 
   void _setPercent(int percent) {
@@ -40,8 +55,19 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
     });
   }
 
+  void _onPhoneChanged(String val) {
+    final net = MarzPayApiClient.detectUgandaNetwork(val);
+    if (net == 'mtn' && !_selectedProvider.contains('MTN')) {
+      setState(() => _selectedProvider = 'MTN Mobile Money');
+    } else if (net == 'airtel' && !_selectedProvider.contains('Airtel')) {
+      setState(() => _selectedProvider = 'Airtel Money');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final netPayout = (_withdrawAmount - _marzPayFee) > 0 ? (_withdrawAmount - _marzPayFee) : 0.0;
+
     return Container(
       decoration: const BoxDecoration(
         color: ZoopColors.surface,
@@ -77,7 +103,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Available balance: \$${widget.availableAmount.toStringAsFixed(2)}',
+                  'Available balance: ${_formatUgx(widget.availableAmount)}',
                   style: const TextStyle(fontSize: 12, color: ZoopColors.accentGreen, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
@@ -122,7 +148,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 const SizedBox(height: 12),
                 Center(
                   child: Text(
-                    'Withdrawing: \$${_withdrawAmount.toStringAsFixed(2)}',
+                    'Withdrawing: ${_formatUgx(_withdrawAmount)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -132,16 +158,110 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 ),
                 const SizedBox(height: 20),
 
+                const Text(
+                  'RECEIVING MOBILE NETWORK',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                    color: ZoopColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedProvider = 'MTN Mobile Money'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedProvider.contains('MTN')
+                                ? const Color(0xFFFFCC00).withValues(alpha: 0.15)
+                                : ZoopColors.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedProvider.contains('MTN')
+                                  ? const Color(0xFFFFCC00)
+                                  : ZoopColors.surfaceBorder,
+                              width: _selectedProvider.contains('MTN') ? 1.5 : 1,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFFFFCC00)),
+                              SizedBox(width: 8),
+                              Text(
+                                'MTN Mobile Money',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedProvider = 'Airtel Money'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedProvider.contains('Airtel')
+                                ? const Color(0xFFFF2020).withValues(alpha: 0.15)
+                                : ZoopColors.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _selectedProvider.contains('Airtel')
+                                  ? const Color(0xFFFF2020)
+                                  : ZoopColors.surfaceBorder,
+                              width: _selectedProvider.contains('Airtel') ? 1.5 : 1,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFFFF2020)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Airtel Money',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                const Text(
+                  'RECIPIENT MOBILE MONEY PHONE NUMBER',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                    color: ZoopColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextField(
-                  controller: _destController,
-                  style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 13),
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
-                    labelText: 'USDC Address or Lightning Invoice',
+                    labelText: 'Uganda Phone Number',
                     labelStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 12),
-                    hintText: '0x... or lnbc...',
+                    hintText: '+256 772 000 000',
                     hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 12),
                     filled: true,
                     fillColor: ZoopColors.background,
+                    prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: ZoopColors.accentGreen, size: 20),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
@@ -151,12 +271,13 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
                     ),
                   ),
+                  onChanged: _onPhoneChanged,
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _withdrawAmount <= 0
+                    onPressed: (_withdrawAmount < 1000 || _phoneController.text.trim().length < 9)
                         ? null
                         : () {
                             setState(() => _isReviewing = true);
@@ -168,12 +289,13 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      'REVIEW WITHDRAWAL (\$${_withdrawAmount.toStringAsFixed(2)})',
+                      'REVIEW WITHDRAWAL (${_formatUgx(_withdrawAmount)})',
                       style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
                     ),
                   ),
                 ),
               ] else ...[
+                // Confirmation Step
                 Row(
                   children: [
                     IconButton(
@@ -201,20 +323,41 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   ),
                   child: Column(
                     children: [
-                      _buildSummaryRow('Withdraw Amount', '\$${_withdrawAmount.toStringAsFixed(2)}'),
+                      _buildSummaryRow('Gross Withdrawal', _formatUgx(_withdrawAmount)),
+                      const SizedBox(height: 10),
+                      _buildSummaryRow('Disbursement Rail', _selectedProvider),
                       const SizedBox(height: 10),
                       _buildSummaryRow(
-                        'Destination',
-                        _destController.text.trim().isEmpty
-                            ? 'Default Linked Payout'
-                            : (_destController.text.trim().length > 18
-                                ? '${_destController.text.trim().substring(0, 10)}...${_destController.text.trim().substring(_destController.text.trim().length - 6)}'
-                                : _destController.text.trim()),
+                        'Recipient Phone',
+                        MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim()),
                       ),
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Network Payout Fee', '\$0.00 (Zero Fee)'),
+                      _buildSummaryRow('Processor', 'MarzPay Disbursement Engine'),
+                      const SizedBox(height: 10),
+                      _buildSummaryRow('Disbursement Fee', _formatUgx(_marzPayFee)),
                       const Divider(height: 24, color: ZoopColors.surfaceBorder),
-                      _buildSummaryRow('Net Settlement', '\$${_withdrawAmount.toStringAsFixed(2)}', isTotal: true),
+                      _buildSummaryRow('Net Credited to SIM', _formatUgx(netPayout), isTotal: true),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.accentGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ZoopColors.accentGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, color: ZoopColors.accentGreen, size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Funds will be disbursed directly to your mobile money wallet. Processing typically takes less than 60 seconds.',
+                          style: TextStyle(fontSize: 11, color: ZoopColors.textPrimary),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -223,10 +366,13 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      final dest = _destController.text.trim().isEmpty
-                          ? '0xWallet...default'
-                          : _destController.text.trim();
-                      widget.onConfirm(_withdrawAmount, dest);
+                      final phone = MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim());
+                      final provider = _selectedProvider.contains('MTN') ? 'mtn' : 'airtel';
+                      widget.onConfirm(
+                        amount: _withdrawAmount,
+                        phoneNumber: phone,
+                        provider: provider,
+                      );
                       Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
@@ -236,7 +382,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      'CONFIRM & DISPATCH \$${_withdrawAmount.toStringAsFixed(2)}',
+                      'CONFIRM & DISBURSE ${_formatUgx(netPayout)}',
                       style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
                     ),
                   ),

@@ -62,14 +62,50 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => AddFundsSheet(
-        onConfirm: (amount) {
-          ref.read(walletProvider.notifier).addFunds(amount, 'USDC (Polygon)');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Added \$${amount.toStringAsFixed(2)} to balance'),
-              backgroundColor: ZoopColors.accentGreen,
-            ),
-          );
+        onConfirm: ({
+          required double amount,
+          required String method,
+          String? phoneNumber,
+        }) async {
+          final notifier = ref.read(walletProvider.notifier);
+          final formattedAmount = 'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+          try {
+            if (method.toLowerCase().contains('card')) {
+              final res = await notifier.addFundsViaCard(amount: amount);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Card checkout initiated for $formattedAmount. Reference: ${res.reference}'),
+                    backgroundColor: ZoopColors.primaryCyan,
+                  ),
+                );
+              }
+            } else {
+              final phone = phoneNumber ?? '';
+              final res = await notifier.addFundsViaMobileMoney(
+                amount: amount,
+                phoneNumber: phone,
+                provider: method.toLowerCase().contains('mtn') ? 'mtn' : 'airtel',
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Prompt sent to $phone for $formattedAmount. Approve on your phone.'),
+                    backgroundColor: ZoopColors.accentGreen,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Payment initiation failed: $e'),
+                  backgroundColor: ZoopColors.accentRose,
+                ),
+              );
+            }
+          }
         },
       ),
     );
@@ -82,14 +118,37 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => WithdrawSheet(
         availableAmount: available,
-        onConfirm: (amount, dest) {
-          ref.read(walletProvider.notifier).withdrawEarnings(amount, dest);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Withdrawal of \$${amount.toStringAsFixed(2)} initiated'),
-              backgroundColor: ZoopColors.accentGreen,
-            ),
-          );
+        onConfirm: ({
+          required double amount,
+          required String phoneNumber,
+          required String provider,
+        }) async {
+          final notifier = ref.read(walletProvider.notifier);
+          final formattedAmount = 'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+          try {
+            final res = await notifier.withdrawToMobileMoney(
+              amount: amount,
+              phoneNumber: phoneNumber,
+              provider: provider.toLowerCase().contains('mtn') ? 'mtn' : 'airtel',
+            );
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Withdrawal of $formattedAmount to $phoneNumber initiated (${res.reference})'),
+                  backgroundColor: ZoopColors.accentGreen,
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Withdrawal failed: $e'),
+                  backgroundColor: ZoopColors.accentRose,
+                ),
+              );
+            }
+          }
         },
       ),
     );
@@ -281,7 +340,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '\$${state.availableBalanceUsd.toStringAsFixed(2)}',
+                  state.formatAmount(state.availableBalance),
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: ZoopColors.textPrimary, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 16),
@@ -337,7 +396,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '\$${state.totalEarnedSharingUsd.toStringAsFixed(2)}',
+                          state.formatAmount(state.totalEarnedSharing),
                           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen),
                         ),
                         const SizedBox(height: 2),
@@ -369,13 +428,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                         const Text('Available to Withdraw', style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
                         const SizedBox(height: 2),
                         Text(
-                          '\$${state.unwithdrawnEarningsUsd.toStringAsFixed(2)}',
+                          state.formatAmount(state.unwithdrawnEarnings),
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
                         ),
                       ],
                     ),
                     ElevatedButton.icon(
-                      onPressed: () => _showWithdraw(context, state.unwithdrawnEarningsUsd),
+                      onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
                       icon: const Icon(Icons.arrow_outward, size: 16),
                       label: const Text('Withdraw', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       style: ElevatedButton.styleFrom(
@@ -403,28 +462,44 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.bolt, color: ZoopColors.accentAmber, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Supported Mesh Payment Rails',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: ZoopColors.textPrimary,
+                    const Row(
+                      children: [
+                        Icon(Icons.payments_outlined, color: ZoopColors.primaryCyan, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Supported Payment Rails',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: ZoopColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'MarzPay Uganda',
+                        style: TextStyle(fontSize: 10, color: ZoopColors.textMuted, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
-                    _buildRailBadge('Polygon (USDC)', ZoopColors.primaryCyan),
-                    const SizedBox(width: 8),
-                    _buildRailBadge('Lightning (Sats)', ZoopColors.accentAmber),
-                    const SizedBox(width: 8),
-                    _buildRailBadge('Stripe Connect', ZoopColors.accentGreen),
+                    _buildRailBadge('MTN Mobile Money', const Color(0xFFFFCC00)),
+                    _buildRailBadge('Airtel Money', const Color(0xFFFF2020)),
+                    _buildRailBadge('Visa / Mastercard', ZoopColors.primaryCyan),
                   ],
                 ),
               ],

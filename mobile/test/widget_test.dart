@@ -9,7 +9,6 @@ void main() {
         child: ZoopApp(),
       ),
     );
-    expect(find.text('ZOOP'), findsOneWidget);
-    expect(find.text('Your internet,\nyour rules.'), findsOneWidget);
+    expect(find.text('ZOOP'), findsWidgets);
   });
 }

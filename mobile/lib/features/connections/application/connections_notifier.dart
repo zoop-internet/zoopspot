@@ -134,7 +134,7 @@ class ConnectionsNotifier extends StateNotifier<ConnectionsState> {
         trustScore: 99.5,
         bandwidthCapacityMbps: 500,
         latencyMs: 22,
-        pricingType: '0.02 USDC / GB',
+        pricingType: 'UGX 75 / GB',
         routingCapabilities: ['Full Internet', 'Tor Exit Bridging'],
         location: 'Zurich, CH',
         isVerified: true,

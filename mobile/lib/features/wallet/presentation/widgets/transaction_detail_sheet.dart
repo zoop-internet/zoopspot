@@ -110,6 +110,8 @@ class TransactionDetailSheet extends StatelessWidget {
                   children: [
                     _buildRow('Category', transaction.type.label),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                    _buildRow('Payment Rail', transaction.paymentMethod.label),
+                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
                     _buildRow('Description', transaction.description),
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
                     _buildRow(
@@ -122,8 +124,16 @@ class TransactionDetailSheet extends StatelessWidget {
                       'Reference ID',
                       transaction.referenceId,
                     ),
+                    if (transaction.providerReference != null && transaction.providerReference!.isNotEmpty) ...[
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      _buildCopyableRow(
+                        context,
+                        'Provider Reference',
+                        transaction.providerReference!,
+                      ),
+                    ],
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    _buildRow('Network', 'Polygon PoS / Zoop Mesh Enclave'),
+                    _buildRow('Payment Gateway', 'MarzPay (MTN, Airtel & Card)'),
                   ],
                 ),
               ),
