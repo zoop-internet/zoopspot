@@ -14,6 +14,7 @@ import '../widgets/provider_selection_sheet.dart';
 import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../sharing/application/sharing_notifier.dart';
+import '../../../wallet/application/wallet_notifier.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -175,28 +176,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       } catch (_) {}
 
       // 3. Start tunnel
-      await vpnBridge.startTunnel(
-        peerKey: peerKey,
-        candidatesJson: candidatesJson,
-        relayUrl: relayUrl,
-        routingMode: _routingMode.wireRouteParam,
-      );
+      try {
+        await vpnBridge.startTunnel(
+          peerKey: peerKey,
+          candidatesJson: candidatesJson,
+          relayUrl: relayUrl,
+          routingMode: _routingMode.wireRouteParam,
+        );
 
-      if (mounted) {
-        setState(() {
-          _status = ConnectionStatus.connectedDirect;
-        });
-        _rotationController.stop();
-        _pulseController.repeat(reverse: true);
+        if (mounted) {
+          setState(() {
+            _status = ConnectionStatus.connectedDirect;
+          });
+          _rotationController.stop();
+          _pulseController.repeat(reverse: true);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _status = ConnectionStatus.error;
+          });
+          _rotationController.stop();
+          _pulseController.stop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Connection failed: $e'),
+              backgroundColor: ZoopColors.accentRose,
+            ),
+          );
+        }
       }
     } else {
-      await vpnBridge.stopTunnel();
-      if (mounted) {
-        setState(() {
-          _status = ConnectionStatus.disconnected;
-        });
-        _rotationController.stop();
-        _pulseController.stop();
+      try {
+        await vpnBridge.stopTunnel();
+      } catch (e) {
+        debugPrint('Error stopping tunnel: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _status = ConnectionStatus.disconnected;
+          });
+          _rotationController.stop();
+          _pulseController.stop();
+        }
       }
     }
   }
@@ -232,6 +254,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final identityState = ref.watch(identityNotifierProvider);
     final peersState = ref.watch(peersNotifierProvider);
     final sharingState = ref.watch(sharingProvider);
+    final walletState = ref.watch(walletProvider);
     final activePeer = peersState.selectedPeer ??
         (peersState.peers.isNotEmpty ? peersState.peers.first : null);
 
@@ -322,41 +345,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ),
         actions: [
           if (identityState.zoopId != null)
-            GestureDetector(
-              onTap: () => context.push('/identity'),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: ZoopColors.primaryCyan.withValues(alpha: 0.3),
+            Semantics(
+              button: true,
+              label: 'Device Identity: ${identityState.zoopId}',
+              child: GestureDetector(
+                onTap: () => context.push('/identity'),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: ZoopColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: ZoopColors.primaryCyan.withValues(alpha: 0.3),
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: ZoopColors.primaryCyan,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: ZoopColors.primaryCyan,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      identityState.zoopId!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: ZoopColors.primaryCyan,
-                        letterSpacing: 0.3,
+                      const SizedBox(width: 5),
+                      Text(
+                        identityState.zoopId!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: ZoopColors.primaryCyan,
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -367,7 +394,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 const Icon(
                   Icons.notifications_outlined,
                   color: ZoopColors.textSecondary,
-                  size: 21,
+                  size: 22,
                 ),
                 Positioned(
                   right: 0,
@@ -383,8 +410,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ),
               ],
             ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             tooltip: 'Notifications',
             onPressed: () {
               Navigator.of(context).push(
@@ -398,10 +424,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             icon: const Icon(
               Icons.settings_outlined,
               color: ZoopColors.textSecondary,
-              size: 20,
+              size: 22,
             ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
@@ -422,7 +447,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ],
 
               // Zoop Points Required to Participate Card
-              _buildZoopPointsCard(context),
+              _buildZoopPointsCard(context, walletState),
 
               const SizedBox(height: 16),
 
@@ -436,7 +461,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               // ===============================================================
               // SEPARATE DEDICATED CONNECT BUTTON
               // ===============================================================
-              _buildConnectActionButton(isConnected, isConnecting),
+              _buildConnectActionButton(isConnected, isConnecting, targetPeerName: activePeer?.name),
 
               const SizedBox(height: 24),
 
@@ -464,102 +489,111 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ? ZoopColors.accentGreen
         : (isConnecting ? ZoopColors.primaryCyan : ZoopColors.textMuted);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isConnected
-              ? ZoopColors.accentGreen.withValues(alpha: 0.35)
-              : ZoopColors.surfaceBorder,
-          width: 1.2,
+    return Semantics(
+      container: true,
+      label: 'Mesh visualizer: ${_status.label}. ${isConnected && activePeer != null ? "Linked to ${activePeer.name}" : ""}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 16.0),
+        decoration: BoxDecoration(
+          color: ZoopColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isConnected
+                ? ZoopColors.accentGreen.withValues(alpha: 0.35)
+                : ZoopColors.surfaceBorder,
+            width: 1.2,
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          // Device to Device P2P Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 1. Left: This Device
-              _buildDeviceNode(
-                icon: Icons.phone_android_rounded,
-                name: 'This Phone',
-                isActive: true,
-                statusColor: isConnected
-                    ? ZoopColors.accentGreen
-                    : ZoopColors.primaryCyan,
-              ),
-
-              // 2. Animated Left-to-Center Line
-              Expanded(
-                child: _buildConnectionBeam(
-                  isActive: isConnected || isConnecting,
-                  color: statusColor,
+        child: Column(
+          children: [
+            // Device to Device P2P Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 1. Left: This Device
+                _buildDeviceNode(
+                  icon: Icons.phone_android_rounded,
+                  name: 'This Phone',
+                  isActive: true,
+                  statusColor: isConnected
+                      ? ZoopColors.accentGreen
+                      : ZoopColors.primaryCyan,
                 ),
-              ),
 
-              // 3. Center Rotating Mesh Ring
-              _buildCenterMeshRing(statusColor, isConnected, isConnecting),
-
-              // 4. Animated Center-to-Right Line
-              Expanded(
-                child: _buildConnectionBeam(
-                  isActive: isConnected,
-                  color: isConnected ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
-                ),
-              ),
-
-              // 5. Right: Target Peer Node (Tappable to Select)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => ProviderSelectionSheet.show(context),
-                child: Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: _buildDeviceNode(
-                    icon: activePeer != null
-                        ? _getPlatformIcon(activePeer.platform)
-                        : Icons.laptop_mac_rounded,
-                    name: activePeer?.name ?? 'Select Node',
-                    isActive: isConnected,
-                    isTarget: true,
-                    statusColor: isConnected
-                        ? ZoopColors.accentGreen
-                        : ZoopColors.textSecondary,
+                // 2. Animated Left-to-Center Line
+                Expanded(
+                  child: _buildConnectionBeam(
+                    isActive: isConnected || isConnecting,
+                    color: statusColor,
                   ),
+                ),
+
+                // 3. Center Rotating Mesh Ring
+                _buildCenterMeshRing(statusColor, isConnected, isConnecting),
+
+                // 4. Animated Center-to-Right Line
+                Expanded(
+                  child: _buildConnectionBeam(
+                    isActive: isConnected,
+                    color: isConnected ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
+                  ),
+                ),
+
+                // 5. Right: Target Peer Node (Tappable to Select)
+                Semantics(
+                  button: true,
+                  label: 'Target peer node: ${activePeer?.name ?? "Select Node"}. Tap to change peer.',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => ProviderSelectionSheet.show(context),
+                    child: Container(
+                      color: Colors.transparent,
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: _buildDeviceNode(
+                        icon: activePeer != null
+                            ? _getPlatformIcon(activePeer.platform)
+                            : Icons.laptop_mac_rounded,
+                        name: activePeer?.name ?? 'Select Node',
+                        isActive: isConnected,
+                        isTarget: true,
+                        statusColor: isConnected
+                            ? ZoopColors.accentGreen
+                            : ZoopColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Simple Status Text
+            Text(
+              isConnected
+                  ? 'Connected'
+                  : (isConnecting ? 'Connecting...' : 'Not Connected'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+            if (isConnected && activePeer != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Linked to ${activePeer.name}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: ZoopColors.textSecondary,
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Simple Status Text
-          Text(
-            isConnected
-                ? 'Connected'
-                : (isConnecting ? 'Connecting...' : 'Not Connected'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: statusColor,
-              letterSpacing: 0.2,
-            ),
-          ),
-          if (isConnected && activePeer != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Linked to ${activePeer.name}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: ZoopColors.textSecondary,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -606,8 +640,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ],
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          width: 80,
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 84, minWidth: 48),
           child: Text(
             name,
             textAlign: TextAlign.center,
@@ -696,51 +730,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   // ===========================================================================
   // SEPARATE CONNECT ACTION BUTTON
   // ===========================================================================
-  Widget _buildConnectActionButton(bool isConnected, bool isConnecting) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
-        onPressed: isConnecting ? null : _toggleConnection,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isConnected
-              ? ZoopColors.surfaceElevated
-              : ZoopColors.primaryCyan,
-          foregroundColor:
-              isConnected ? ZoopColors.accentRose : Colors.black,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: isConnected
-                  ? ZoopColors.accentRose.withValues(alpha: 0.5)
-                  : Colors.transparent,
-              width: 1.2,
+  Widget _buildConnectActionButton(
+    bool isConnected,
+    bool isConnecting, {
+    String? targetPeerName,
+  }) {
+    final actionLabel = isConnected
+        ? 'Disconnect VPN tunnel'
+        : (isConnecting
+            ? 'Connecting to ${targetPeerName ?? "peer"}...'
+            : 'Connect VPN tunnel to ${targetPeerName ?? "peer"}');
+
+    return Semantics(
+      button: true,
+      enabled: !isConnecting,
+      label: actionLabel,
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: isConnecting ? null : _toggleConnection,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isConnected
+                ? ZoopColors.surfaceElevated
+                : ZoopColors.primaryCyan,
+            foregroundColor:
+                isConnected ? ZoopColors.accentRose : Colors.black,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: isConnected
+                    ? ZoopColors.accentRose.withValues(alpha: 0.5)
+                    : Colors.transparent,
+                width: 1.2,
+              ),
             ),
           ),
-        ),
-        icon: isConnecting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.black,
+          icon: isConnecting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black,
+                  ),
+                )
+              : Icon(
+                  isConnected ? Icons.power_settings_new : Icons.bolt_rounded,
+                  size: 20,
                 ),
-              )
-            : Icon(
-                isConnected ? Icons.power_settings_new : Icons.bolt_rounded,
-                size: 20,
-              ),
-        label: Text(
-          isConnected
-              ? 'Disconnect'
-              : (isConnecting ? 'Connecting...' : 'Connect'),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: isConnected ? ZoopColors.accentRose : Colors.black,
-            letterSpacing: 0.3,
+          label: Text(
+            isConnected
+                ? 'Disconnect'
+                : (isConnecting ? 'Connecting...' : 'Connect'),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: isConnected ? ZoopColors.accentRose : Colors.black,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),
@@ -801,57 +850,64 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(14.0),
-        decoration: BoxDecoration(
-          color: ZoopColors.surface,
+    return Semantics(
+      button: true,
+      label: '$title. $subtitle',
+      child: Material(
+        color: ZoopColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ZoopColors.surfaceBorder),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
+          child: Container(
+            padding: const EdgeInsets.all(14.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ZoopColors.surfaceBorder),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: ZoopColors.textPrimary,
-                    ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: ZoopColors.textSecondary,
-                    ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: ZoopColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: ZoopColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: ZoopColors.textMuted,
+                ),
+              ],
             ),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: ZoopColors.textMuted,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -860,148 +916,166 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   // ===========================================================================
   // ZOOP POINTS CARD (Wallet Presentation)
   // ===========================================================================
-  Widget _buildZoopPointsCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.go('/wallet'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF131C2D),
-              Color(0xFF0E131E),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: ZoopColors.primaryCyan.withValues(alpha: 0.22),
-            width: 1.1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+  Widget _buildZoopPointsCard(BuildContext context, WalletState walletState) {
+    final points = (walletState.availableBalance / 100).toInt();
+    final formattedPoints = points.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+    final recentTx = walletState.transactions.isNotEmpty
+        ? walletState.transactions.first
+        : null;
+    final recentGain =
+        recentTx != null ? '+${(recentTx.amount / 100).toInt()} ZP' : '+45 ZP';
+
+    return Semantics(
+      button: true,
+      label:
+          'Zoop Points: $formattedPoints ZP. Available balance: ${walletState.formatAmount(walletState.availableBalance)}. Tap to view wallet details.',
+      child: GestureDetector(
+        onTap: () => context.go('/wallet'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF131C2D),
+                Color(0xFF0E131E),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Label + Recent Points Gain
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.auto_awesome,
-                        size: 13,
-                        color: ZoopColors.primaryCyan,
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    const Text(
-                      'ZOOP POINTS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: ZoopColors.textSecondary,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.accentGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: ZoopColors.primaryCyan.withValues(alpha: 0.22),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Row: Label + Recent Points Gain
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                     children: [
-                      Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 11,
-                        color: ZoopColors.accentGreen,
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          size: 13,
+                          color: ZoopColors.primaryCyan,
+                        ),
                       ),
-                      SizedBox(width: 2),
-                      Text(
-                        '+45 ZP',
+                      const SizedBox(width: 7),
+                      const Text(
+                        'ZOOP POINTS',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: ZoopColors.accentGreen,
+                          color: ZoopColors.textSecondary,
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Middle Row: Big Points Display
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                const Text(
-                  '1,250',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: ZoopColors.textPrimary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'ZP',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: ZoopColors.primaryCyan,
-                      letterSpacing: 0.4,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 11,
+                          color: ZoopColors.accentGreen,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          recentGain,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: ZoopColors.accentGreen,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const Spacer(),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 13,
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // Middle Row: Big Points Display
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    formattedPoints,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: ZoopColors.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'ZP',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: ZoopColors.primaryCyan,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: ZoopColors.textMuted,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Bottom Micro-Info
+              Text(
+                'Available: ${walletState.formatAmount(walletState.availableBalance)} • Min. 100 ZP',
+                style: const TextStyle(
+                  fontSize: 10.5,
                   color: ZoopColors.textMuted,
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Bottom Micro-Info
-            const Text(
-              'Min. 100 ZP required to participate',
-              style: TextStyle(
-                fontSize: 10.5,
-                color: ZoopColors.textMuted,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1012,62 +1086,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     SharingState sharing,
   ) {
     final count = sharing.recipients.length;
-    return GestureDetector(
-      onTap: () => context.go('/sharing'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: ZoopColors.accentGreen.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: ZoopColors.accentGreen.withValues(alpha: 0.35),
-            width: 1.0,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: ZoopColors.accentGreen,
-              ),
+    return Semantics(
+      button: true,
+      label:
+          'Sharing active: $count ${count == 1 ? "peer" : "peers"} connected at ${sharing.currentEgressMbps.toStringAsFixed(1)} megabits per second. Tap to manage sharing.',
+      child: GestureDetector(
+        onTap: () => context.go('/sharing'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: ZoopColors.accentGreen.withValues(alpha: 0.35),
+              width: 1.0,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Row(
-                children: [
-                  const Text(
-                    'SHARING ACTIVE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: ZoopColors.accentGreen,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '• $count ${count == 1 ? 'peer' : 'peers'} (${sharing.currentEgressMbps.toStringAsFixed(1)} Mbps)',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: ZoopColors.textPrimary,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ZoopColors.accentGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Row(
+                  children: [
+                    const Text(
+                      'SHARING ACTIVE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: ZoopColors.accentGreen,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '• $count ${count == 1 ? 'peer' : 'peers'} (${sharing.currentEgressMbps.toStringAsFixed(1)} Mbps)',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: ZoopColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 12,
-              color: ZoopColors.accentGreen,
-            ),
-          ],
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: ZoopColors.accentGreen,
+              ),
+            ],
+          ),
         ),
       ),
     );
