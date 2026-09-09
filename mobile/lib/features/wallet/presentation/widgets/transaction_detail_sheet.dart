@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../domain/wallet_models.dart';
+import 'payment_brand_icon.dart';
 
 class TransactionDetailSheet extends StatelessWidget {
   final WalletTransactionItem transaction;
@@ -46,22 +47,10 @@ class TransactionDetailSheet extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Transaction Icon & Status
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: transaction.type.color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: transaction.type.color.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Icon(
-                  transaction.type.icon,
-                  color: transaction.type.color,
-                  size: 28,
-                ),
+              PaymentBrandIcon.forMethod(
+                transaction.paymentMethod,
+                size: 58,
+                borderRadius: 16,
               ),
               const SizedBox(height: 14),
 
@@ -133,7 +122,7 @@ class TransactionDetailSheet extends StatelessWidget {
                       ),
                     ],
                     const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    _buildRow('Payment Gateway', 'MarzPay (MTN, Airtel & Card)'),
+                    _buildRow('Settlement', 'Direct Instant Settlement'),
                   ],
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/network/marzpay_api_client.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import 'payment_brand_icon.dart';
 
 class WithdrawSheet extends StatefulWidget {
   final double availableAmount;
@@ -27,7 +28,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
   int _selectedPercent = 100;
   String _selectedProvider = 'MTN Mobile Money';
 
-  static const double _marzPayFee = 500.0; // UGX 500 standard MarzPay disbursement charge
+  static const double _transferFee = 500.0; // UGX 500 standard telecom transfer fee
 
   @override
   void initState() {
@@ -66,7 +67,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final netPayout = (_withdrawAmount - _marzPayFee) > 0 ? (_withdrawAmount - _marzPayFee) : 0.0;
+    final netPayout = (_withdrawAmount - _transferFee) > 0 ? (_withdrawAmount - _transferFee) : 0.0;
 
     return Container(
       decoration: const BoxDecoration(
@@ -189,12 +190,12 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                               width: _selectedProvider.contains('MTN') ? 1.5 : 1,
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFFFFCC00)),
-                              SizedBox(width: 8),
-                              Text(
+                              const PaymentBrandIcon.mtn(size: 22, borderRadius: 5),
+                              const SizedBox(width: 8),
+                              const Text(
                                 'MTN Mobile Money',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
                               ),
@@ -222,12 +223,12 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                               width: _selectedProvider.contains('Airtel') ? 1.5 : 1,
                             ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.phone_android_rounded, size: 18, color: Color(0xFFFF2020)),
-                              SizedBox(width: 8),
-                              Text(
+                              const PaymentBrandIcon.airtel(size: 22, borderRadius: 5),
+                              const SizedBox(width: 8),
+                              const Text(
                                 'Airtel Money',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.textPrimary),
                               ),
@@ -332,9 +333,9 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                         MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim()),
                       ),
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Processor', 'MarzPay Disbursement Engine'),
+                      _buildSummaryRow('Network', _selectedProvider.contains('MTN') ? 'MTN MoMo Direct' : 'Airtel Money Direct'),
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Disbursement Fee', _formatUgx(_marzPayFee)),
+                      _buildSummaryRow('Transfer Fee', _formatUgx(_transferFee)),
                       const Divider(height: 24, color: ZoopColors.surfaceBorder),
                       _buildSummaryRow('Net Credited to SIM', _formatUgx(netPayout), isTotal: true),
                     ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/network/marzpay_api_client.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../domain/wallet_models.dart';
+import 'payment_brand_icon.dart';
 
 class AddFundsSheet extends StatefulWidget {
   final void Function({
@@ -28,24 +30,24 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
   final List<Map<String, dynamic>> _methods = [
     {
       'id': 'mtn',
+      'type': PaymentMethodType.mtnMobileMoney,
       'name': 'MTN Mobile Money',
-      'icon': Icons.phone_android_rounded,
-      'color': Color(0xFFFFCC00),
+      'color': const Color(0xFFFFCC00),
       'subtitle': 'Instant USSD push prompt on your MTN SIM (+256 77/78/76)',
     },
     {
       'id': 'airtel',
+      'type': PaymentMethodType.airtelMoney,
       'name': 'Airtel Money',
-      'icon': Icons.phone_android_rounded,
-      'color': Color(0xFFFF2020),
+      'color': const Color(0xFFE40000),
       'subtitle': 'Instant USSD push prompt on your Airtel SIM (+256 70/75/74)',
     },
     {
       'id': 'card',
+      'type': PaymentMethodType.card,
       'name': 'Debit / Credit Card',
-      'icon': Icons.credit_card_rounded,
       'color': ZoopColors.primaryCyan,
-      'subtitle': 'Visa & Mastercard via secure MarzPay checkout',
+      'subtitle': 'Visa & Mastercard secure card checkout',
     },
   ];
 
@@ -112,7 +114,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Deposit funds via Card, MTN Mobile Money, or Airtel Money powered by MarzPay.',
+                  'Deposit funds instantly via Card, MTN Mobile Money, or Airtel Money.',
                   style: TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
                 ),
                 const SizedBox(height: 20),
@@ -240,13 +242,10 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                     ),
                     child: ListTile(
                       dense: true,
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: methodColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(method['icon'] as IconData, color: methodColor, size: 20),
+                      leading: PaymentBrandIcon(
+                        method: method['type'] as PaymentMethodType,
+                        size: 36,
+                        borderRadius: 8,
                       ),
                       title: Text(
                         method['name'] as String,
@@ -378,7 +377,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         ),
                       ],
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Processor', 'MarzPay Payments Gateway'),
+                      _buildSummaryRow('Channel', _isMobileMoney ? 'Direct Telecom Push' : 'Secure Card Gateway'),
                       const SizedBox(height: 10),
                       _buildSummaryRow('Processing Fee', 'UGX 0 (Free)'),
                       const Divider(height: 24, color: ZoopColors.surfaceBorder),
@@ -402,7 +401,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         child: Text(
                           _isMobileMoney
                               ? 'A mobile money prompt will be sent to your phone. Approve with your PIN to complete the deposit.'
-                              : 'You will be redirected to the secure MarzPay checkout to complete your card payment.',
+                              : 'You will be redirected to the secure checkout page to complete your card payment.',
                           style: const TextStyle(fontSize: 11, color: ZoopColors.textPrimary),
                         ),
                       ),

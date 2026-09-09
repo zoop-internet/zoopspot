@@ -14,6 +14,7 @@ import '../../application/wallet_notifier.dart';
 import '../widgets/add_funds_sheet.dart';
 import '../widgets/withdraw_sheet.dart';
 import '../widgets/transaction_detail_sheet.dart';
+import '../widgets/payment_brand_icon.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -480,26 +481,26 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: ZoopColors.surfaceElevated,
+                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        'MarzPay Uganda',
-                        style: TextStyle(fontSize: 10, color: ZoopColors.textMuted, fontWeight: FontWeight.w600),
+                        'Instant Settlement',
+                        style: TextStyle(fontSize: 10, color: ZoopColors.accentGreen, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Wrap(
+                const Wrap(
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    _buildRailBadge('MTN Mobile Money', const Color(0xFFFFCC00)),
-                    _buildRailBadge('Airtel Money', const Color(0xFFFF2020)),
-                    _buildRailBadge('Visa / Mastercard', ZoopColors.primaryCyan),
+                    PaymentBrandBadge.mtn(),
+                    PaymentBrandBadge.airtel(),
+                    PaymentBrandBadge.card(),
                   ],
                 ),
               ],
@@ -540,13 +541,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: tx.type.color.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(tx.type.icon, color: tx.type.color, size: 18),
+                          PaymentBrandIcon.forMethod(
+                            tx.paymentMethod,
+                            size: 38,
+                            borderRadius: 10,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
