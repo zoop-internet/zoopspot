@@ -107,7 +107,7 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
         endpointId: 'ZP-DEV-LNX-8833',
         publicKeyFingerprint: 'ed25519:93ba...02ef',
         isCurrentDevice: false,
-        isOnline: true,
+        isOnline: false,
         lastSeen: DateTime.now().subtract(const Duration(minutes: 8)),
         role: DeviceRole.dual,
         ipAddress: '10.88.0.15',

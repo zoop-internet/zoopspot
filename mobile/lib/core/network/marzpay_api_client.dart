@@ -201,8 +201,8 @@ class MarzPayApiClient {
       'country': country,
       'method': 'mobile_money',
       'description': description ?? 'Zoop Wallet Deposit - Mobile Money',
-      if (callbackUrl != null) 'callback_url': callbackUrl,
-      if (metadata != null) 'metadata': metadata,
+      'callback_url': ?callbackUrl,
+      'metadata': ?metadata,
     };
 
     try {
@@ -271,7 +271,7 @@ class MarzPayApiClient {
       'reference': reference,
       'country': country,
       'description': description ?? 'Zoop Wallet Deposit - Card',
-      if (callbackUrl != null) 'callback_url': callbackUrl,
+      'callback_url': ?callbackUrl,
     };
 
     try {
@@ -349,8 +349,8 @@ class MarzPayApiClient {
       'reference': reference,
       'country': country,
       'description': description ?? 'Zoop Earnings Payout',
-      if (callbackUrl != null) 'callback_url': callbackUrl,
-      if (metadata != null) 'metadata': metadata,
+      'callback_url': ?callbackUrl,
+      'metadata': ?metadata,
     };
 
     try {
@@ -426,7 +426,7 @@ class MarzPayApiClient {
   }) async {
     final queryParams = {
       'country': country,
-      if (currency != null) 'currency': currency,
+      'currency': ?currency,
     };
     final uri = Uri.parse('$apiBase/balance').replace(queryParameters: queryParams);
 

@@ -70,6 +70,8 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         },
       ),
     );
+  }
+
   void _showFilterSheet() {
     final state = ref.read(connectionsProvider);
     final notifier = ref.read(connectionsProvider.notifier);

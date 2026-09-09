@@ -384,8 +384,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                               ),
                             ),
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
                     ),
             ),
           ],

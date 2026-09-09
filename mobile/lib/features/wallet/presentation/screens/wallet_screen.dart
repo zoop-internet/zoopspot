@@ -83,7 +83,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               }
             } else {
               final phone = phoneNumber ?? '';
-              final res = await notifier.addFundsViaMobileMoney(
+              await notifier.addFundsViaMobileMoney(
                 amount: amount,
                 phoneNumber: phone,
                 provider: method.toLowerCase().contains('mtn') ? 'mtn' : 'airtel',
@@ -268,7 +268,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               dividerColor: Colors.transparent,
-              tabs: const [
+              tabs: [
                 Tab(
                   child: Semantics(
                     label: 'Balance and earnings tab',
@@ -614,25 +614,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               );
             }),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRailBadge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
       ),
     );
   }
