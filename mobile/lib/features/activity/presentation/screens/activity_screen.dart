@@ -67,9 +67,17 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Semantics(
+          button: true,
+          label: 'Back',
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+              onPressed: () => Navigator.of(context).pop(),
+              tooltip: 'Back',
+            ),
+          ),
         ),
         title: const Row(
           children: [
@@ -87,47 +95,68 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         ),
         actions: [
           // Search toggle
-          IconButton(
-            icon: Icon(
-              _showSearch ? Icons.search_off : Icons.search,
-              color: _showSearch ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
+          Semantics(
+            button: true,
+            label: _showSearch ? 'Close search' : 'Search events',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: IconButton(
+                icon: Icon(
+                  _showSearch ? Icons.search_off : Icons.search,
+                  color: _showSearch ? ZoopColors.primaryCyan : ZoopColors.textSecondary,
+                ),
+                tooltip: 'Search Events',
+                onPressed: () {
+                  setState(() {
+                    _showSearch = !_showSearch;
+                    if (!_showSearch) {
+                      _searchController.clear();
+                    }
+                  });
+                },
+              ),
             ),
-            tooltip: 'Search Events',
-            onPressed: () {
-              setState(() {
-                _showSearch = !_showSearch;
-                if (!_showSearch) {
-                  _searchController.clear();
-                }
-              });
-            },
           ),
           // Clear history
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Clear History',
-            onPressed: () {
-              notifier.clearLogs();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Activity timeline cleared'),
-                  backgroundColor: ZoopColors.surfaceElevated,
-                ),
-              );
-            },
+          Semantics(
+            button: true,
+            label: 'Clear activity history',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: IconButton(
+                icon: const Icon(Icons.delete_sweep_outlined, color: ZoopColors.textSecondary),
+                tooltip: 'Clear History',
+                onPressed: () {
+                  notifier.clearLogs();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Activity timeline cleared'),
+                      backgroundColor: ZoopColors.surfaceElevated,
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
           // Export log
-          IconButton(
-            icon: const Icon(Icons.download_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Export Log',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Activity log export coming soon'),
-                  backgroundColor: ZoopColors.surfaceElevated,
-                ),
-              );
-            },
+          Semantics(
+            button: true,
+            label: 'Export activity log',
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: IconButton(
+                icon: const Icon(Icons.download_outlined, color: ZoopColors.textSecondary),
+                tooltip: 'Export Log',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Activity log export coming soon'),
+                      backgroundColor: ZoopColors.surfaceElevated,
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -147,6 +176,19 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                     hintText: 'Search events...',
                     hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 14),
                     prefixIcon: const Icon(Icons.search, color: ZoopColors.textMuted, size: 20),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? Semantics(
+                            button: true,
+                            label: 'Clear search text',
+                            child: IconButton(
+                              icon: const Icon(Icons.clear, size: 18, color: ZoopColors.textMuted),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {});
+                              },
+                            ),
+                          )
+                        : null,
                     filled: true,
                     fillColor: ZoopColors.surfaceElevated,
                     contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -177,31 +219,36 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                   final chipColor = _categoryChipColor(cat);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
+                    child: Semantics(
+                      button: true,
+                      label: 'Filter by ${cat.label}',
                       selected: isSelected,
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            cat.icon,
-                            size: 14,
-                            color: isSelected ? ZoopColors.background : ZoopColors.textSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(cat.label),
-                        ],
+                      child: FilterChip(
+                        selected: isSelected,
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              cat.icon,
+                              size: 14,
+                              color: isSelected ? ZoopColors.background : ZoopColors.textSecondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(cat.label),
+                          ],
+                        ),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? ZoopColors.background : ZoopColors.textSecondary,
+                        ),
+                        backgroundColor: ZoopColors.surface,
+                        selectedColor: chipColor,
+                        side: BorderSide(
+                          color: isSelected ? chipColor : ZoopColors.surfaceBorder,
+                        ),
+                        onSelected: (_) => notifier.setCategory(cat),
                       ),
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? ZoopColors.background : ZoopColors.textSecondary,
-                      ),
-                      backgroundColor: ZoopColors.surface,
-                      selectedColor: chipColor,
-                      side: BorderSide(
-                        color: isSelected ? chipColor : ZoopColors.surfaceBorder,
-                      ),
-                      onSelected: (_) => notifier.setCategory(cat),
                     ),
                   );
                 }).toList(),
@@ -211,30 +258,54 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             // Event List
             Expanded(
               child: displayedEvents.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.checklist,
-                            size: 56,
-                            color: Color(0x4D6B7280), // textMuted with alpha 0.3
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No Events',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: ZoopColors.textSecondary,
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              searchQuery.isNotEmpty ? Icons.search_off : Icons.checklist,
+                              size: 56,
+                              color: const Color(0x4D6B7280),
                             ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Activity will appear here as you use Zoop.',
-                            style: TextStyle(fontSize: 12, color: ZoopColors.textMuted),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(
+                              searchQuery.isNotEmpty ? 'No Matching Events' : 'No Events',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: ZoopColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              searchQuery.isNotEmpty
+                                  ? 'No events match "$searchQuery". Try clearing your search.'
+                                  : 'Activity will appear here as you use Zoop.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
+                            ),
+                            if (searchQuery.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Semantics(
+                                button: true,
+                                label: 'Clear search filter',
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(minHeight: 48),
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                    icon: const Icon(Icons.clear, size: 16),
+                                    label: const Text('Clear Search Filter'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -242,60 +313,63 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                       itemCount: displayedEvents.length,
                       itemBuilder: (context, index) {
                         final event = displayedEvents[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: ZoopColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: ZoopColors.surfaceBorder),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
+                        return Semantics(
+                          button: true,
+                          label: '${event.title}, category: ${event.category.label}, severity: ${event.severity.name}, ${event.relativeTime}. ${event.description}. Tap to view event details.',
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: ZoopColors.surface,
                               borderRadius: BorderRadius.circular(16),
-                              onTap: () => _showEventDetail(context, event),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: event.severity.color.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: ZoopColors.surfaceBorder),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _showEventDetail(context, event),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: event.severity.color.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          event.category.icon,
+                                          color: event.severity.color,
+                                          size: 20,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        event.category.icon,
-                                        color: event.severity.color,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  event.title,
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: ZoopColors.textPrimary,
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    event.title,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: ZoopColors.textPrimary,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              Text(
-                                                event.relativeTime,
-                                                style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
+                                                Text(
+                                                  event.relativeTime,
+                                                  style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
                                           Text(
                                             event.description,
                                             style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary, height: 1.3),
