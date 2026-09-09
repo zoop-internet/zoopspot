@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/zoop_colors.dart';
+import '../../features/sharing/application/sharing_notifier.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   final Widget child;
 
   const AppShell({super.key, required this.child});
@@ -33,8 +35,11 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _calculateSelectedIndex(context);
+    final sharingState = ref.watch(sharingProvider);
+    final connectedCount =
+        sharingState.isSharingActive ? sharingState.recipients.length : 0;
 
     return Scaffold(
       backgroundColor: ZoopColors.background,
@@ -89,23 +94,49 @@ class AppShell extends StatelessWidget {
             child: NavigationBar(
               selectedIndex: currentIndex,
               onDestinationSelected: (index) => _onItemTapped(index, context),
-              destinations: const [
-                NavigationDestination(
+              destinations: [
+                const NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home_rounded),
                   label: 'Home',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.all_inclusive_rounded),
-                  selectedIcon: Icon(Icons.all_inclusive_rounded),
+                  icon: connectedCount > 0
+                      ? Badge(
+                          label: Text(
+                            '$connectedCount',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          backgroundColor: ZoopColors.accentGreen,
+                          textColor: Colors.black,
+                          child: const Icon(Icons.all_inclusive_rounded),
+                        )
+                      : const Icon(Icons.all_inclusive_rounded),
+                  selectedIcon: connectedCount > 0
+                      ? Badge(
+                          label: Text(
+                            '$connectedCount',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          backgroundColor: ZoopColors.accentGreen,
+                          textColor: Colors.black,
+                          child: const Icon(Icons.all_inclusive_rounded),
+                        )
+                      : const Icon(Icons.all_inclusive_rounded),
                   label: 'Share',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.hub_outlined),
                   selectedIcon: Icon(Icons.hub_rounded),
                   label: 'Fleet',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.wallet_outlined),
                   selectedIcon: Icon(Icons.wallet_rounded),
                   label: 'Wallet',

@@ -16,6 +16,7 @@ import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
 import '../../../diagnostics/domain/diagnostic_models.dart';
 import '../../../diagnostics/application/diagnostics_notifier.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
+import '../../../sharing/application/sharing_notifier.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -250,6 +251,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Widget build(BuildContext context) {
     final identityState = ref.watch(identityNotifierProvider);
     final peersState = ref.watch(peersNotifierProvider);
+    final sharingState = ref.watch(sharingProvider);
     final activePeer = peersState.selectedPeer ??
         (peersState.peers.isNotEmpty ? peersState.peers.first : null);
 
@@ -433,6 +435,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Active Sharing Banner if enabled
+              if (sharingState.isSharingActive) ...[
+                _buildActiveSharingBanner(context, sharingState),
+                const SizedBox(height: 14),
+              ],
+
               // Zoop Points Required to Participate Card
               _buildZoopPointsCard(context),
 
@@ -1007,6 +1015,72 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 fontSize: 10.5,
                 color: ZoopColors.textMuted,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveSharingBanner(
+    BuildContext context,
+    SharingState sharing,
+  ) {
+    final count = sharing.recipients.length;
+    return GestureDetector(
+      onTap: () => context.go('/sharing'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: ZoopColors.accentGreen.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: ZoopColors.accentGreen.withValues(alpha: 0.35),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: ZoopColors.accentGreen,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Row(
+                children: [
+                  const Text(
+                    'SHARING ACTIVE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: ZoopColors.accentGreen,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '• $count ${count == 1 ? 'peer' : 'peers'} (${sharing.currentEgressMbps.toStringAsFixed(1)} Mbps)',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: ZoopColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 12,
+              color: ZoopColors.accentGreen,
             ),
           ],
         ),
