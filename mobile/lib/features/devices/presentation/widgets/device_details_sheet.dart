@@ -179,10 +179,15 @@ class DeviceDetailsSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: ZoopColors.textSecondary),
-                    onPressed: () => _showRenameDialog(context),
-                    tooltip: 'Rename Device',
+                  Semantics(
+                    label: 'Rename device',
+                    button: true,
+                    child: IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20, color: ZoopColors.textSecondary),
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      onPressed: () => _showRenameDialog(context),
+                      tooltip: 'Rename Device',
+                    ),
                   ),
                 ],
               ),
@@ -222,17 +227,22 @@ class DeviceDetailsSheet extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               if (!device.isCurrentDevice)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _confirmRevoke(context),
-                    icon: const Icon(Icons.delete_forever, color: Colors.white, size: 18),
-                    label: const Text('REVOKE & REMOVE NODE', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.accentRose,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                Semantics(
+                  label: 'Revoke and remove node ${device.name}',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _confirmRevoke(context),
+                      icon: const Icon(Icons.delete_forever, color: Colors.white, size: 18),
+                      label: const Text('REVOKE & REMOVE NODE', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.accentRose,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
                     ),
                   ),
                 ),

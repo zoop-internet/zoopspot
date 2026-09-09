@@ -58,15 +58,20 @@ class DevicesScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: ZoopColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/fleet');
-            }
-          },
+        leading: Semantics(
+          label: 'Back',
+          button: true,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.go('/fleet');
+              }
+            },
+          ),
         ),
         title: const Row(
           children: [
@@ -83,15 +88,25 @@ class DevicesScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: ZoopColors.textSecondary),
-            tooltip: 'Refresh Nodes',
-            onPressed: notifier.refreshDevices,
+          Semantics(
+            label: 'Refresh authorized devices list',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.refresh, color: ZoopColors.textSecondary),
+              tooltip: 'Refresh Nodes',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: notifier.refreshDevices,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
+          Semantics(
+            label: 'Open network settings',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.settings_outlined, color: ZoopColors.textSecondary),
+              tooltip: 'Settings',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              onPressed: () => context.push('/settings'),
+            ),
           ),
         ],
       ),
@@ -109,85 +124,130 @@ class DevicesScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Fleet Header Card with Quick Pair
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                Semantics(
+                  label: '${state.devices.length} authorized nodes: ${state.onlineDevices.length} online, ${state.offlineDevices.length} standby',
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: ZoopColors.surfaceBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.device_hub,
+                            color: ZoopColors.primaryCyan,
+                            size: 26,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.device_hub,
-                          color: ZoopColors.primaryCyan,
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${state.devices.length} Authorized Nodes',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: ZoopColors.textPrimary,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${state.devices.length} Authorized Nodes',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: ZoopColors.textPrimary,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${state.onlineDevices.length} online, ${state.offlineDevices.length} standby',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: ZoopColors.textSecondary,
+                              const SizedBox(height: 2),
+                              Text(
+                                '${state.onlineDevices.length} online, ${state.offlineDevices.length} standby',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: ZoopColors.textSecondary,
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        Semantics(
+                          label: 'Pair new node to fleet',
+                          button: true,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showPairingSheet(context),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Pair Node', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ZoopColors.primaryCyan,
+                              foregroundColor: ZoopColors.background,
+                              minimumSize: const Size(100, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => _showPairingSheet(context),
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Pair Node', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ZoopColors.primaryCyan,
-                          foregroundColor: ZoopColors.background,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
-                // Online Devices Section
-                const Text(
-                  'ONLINE NODES',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                    color: ZoopColors.textMuted,
+                if (state.devices.isEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: ZoopColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: ZoopColors.surfaceBorder),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.devices_other, size: 40, color: ZoopColors.primaryCyan),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No Authorized Nodes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: ZoopColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Pair your other mobile devices, laptops, or servers to expand your private encrypted mesh fabric.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: ZoopColors.textSecondary),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => _showPairingSheet(context),
+                          icon: const Icon(Icons.qr_code_scanner, size: 18),
+                          label: const Text('Pair Your First Node'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ZoopColors.primaryCyan,
+                            foregroundColor: ZoopColors.background,
+                            minimumSize: const Size(180, 46),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                ...state.onlineDevices.map((device) => _buildDeviceCard(context, ref, device)),
-
-                if (state.offlineDevices.isNotEmpty) ...[
-                  const SizedBox(height: 20),
+                ] else ...[
+                  // Online Devices Section
                   const Text(
-                    'OFFLINE / STANDBY NODES',
+                    'ONLINE NODES',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -196,7 +256,43 @@ class DevicesScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  ...state.offlineDevices.map((device) => _buildDeviceCard(context, ref, device)),
+                  if (state.onlineDevices.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surface.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: ZoopColors.surfaceBorder),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 18, color: ZoopColors.textMuted),
+                          SizedBox(width: 10),
+                          Text(
+                            'No peer nodes currently online.',
+                            style: TextStyle(fontSize: 12, color: ZoopColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ...state.onlineDevices.map((device) => _buildDeviceCard(context, ref, device)),
+
+                  if (state.offlineDevices.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'OFFLINE / STANDBY NODES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                        color: ZoopColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ...state.offlineDevices.map((device) => _buildDeviceCard(context, ref, device)),
+                  ],
                 ],
               ],
             ),
@@ -207,114 +303,125 @@ class DevicesScreen extends ConsumerWidget {
   }
 
   Widget _buildDeviceCard(BuildContext context, WidgetRef ref, FleetDeviceItem device) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ZoopColors.surfaceBorder),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    final statusText = device.isOnline ? 'online' : 'standby';
+    final identityText = device.isCurrentDevice ? ', this device' : '';
+    final semanticsLabel = '${device.name}$identityText, $statusText, IP ${device.ipAddress}, role ${device.role.label}, key fingerprint ${device.publicKeyFingerprint}. Tap to manage node options.';
+
+    return Semantics(
+      label: semanticsLabel,
+      button: true,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: ZoopColors.surface,
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showDeviceSheet(context, ref, device),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
+          border: Border.all(color: ZoopColors.surfaceBorder),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _showDeviceSheet(context, ref, device),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        device.platformIcon,
-                        color: device.isOnline ? ZoopColors.primaryCyan : ZoopColors.textMuted,
-                        size: 22,
-                      ),
-                    ),
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: device.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: ZoopColors.surface, width: 2),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              device.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: ZoopColors.textPrimary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          if (device.isCurrentDevice) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'THIS DEVICE',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: ZoopColors.primaryCyan,
+                          child: Icon(
+                            device.platformIcon,
+                            color: device.isOnline ? ZoopColors.primaryCyan : ZoopColors.textMuted,
+                            size: 22,
+                          ),
+                        ),
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: device.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: ZoopColors.surface, width: 2),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  device.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: ZoopColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          ],
+                              if (device.isCurrentDevice) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'THIS DEVICE',
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: ZoopColors.primaryCyan,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${device.ipAddress} • ${device.role.label}',
+                            style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${device.ipAddress} • ${device.role.label}',
-                        style: const TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: Text(
-                    device.publicKeyFingerprint,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: ZoopColors.textMuted,
-                      fontFamily: 'monospace',
                     ),
-                  ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: ZoopColors.surfaceBorder),
+                      ),
+                      child: Text(
+                        device.publicKeyFingerprint,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: ZoopColors.textMuted,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.chevron_right, size: 18, color: ZoopColors.textMuted),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 18, color: ZoopColors.textMuted),
-              ],
+              ),
             ),
           ),
         ),
