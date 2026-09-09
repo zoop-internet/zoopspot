@@ -125,9 +125,17 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, color: ZoopColors.textMuted),
-                onPressed: () => Navigator.of(context).pop(),
+              Semantics(
+                button: true,
+                label: 'Close pairing sheet',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: ZoopColors.textMuted),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Close',
+                  ),
+                ),
               ),
             ],
           ),
@@ -229,20 +237,30 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
                   ),
                 ),
                 const SizedBox(width: 12),
-                InkWell(
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: code));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Pairing code copied to clipboard'),
-                        duration: Duration(seconds: 1),
+                Semantics(
+                  button: true,
+                  label: 'Copy pairing code $code to clipboard',
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: code));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Pairing code copied to clipboard'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: const Center(
+                        child: Icon(
+                          Icons.copy_rounded,
+                          size: 20,
+                          color: ZoopColors.textPrimary,
+                        ),
                       ),
-                    );
-                  },
-                  child: const Icon(
-                    Icons.copy_rounded,
-                    size: 18,
-                    color: ZoopColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -274,19 +292,26 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
                 ),
               ),
               const SizedBox(width: 12),
-              GestureDetector(
-                onTap: state.isGenerating
-                    ? null
-                    : () {
-                        notifier.generateToken();
-                        _startTimer();
-                      },
-                child: Text(
-                  state.isGenerating ? 'Generating...' : 'Refresh',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: ZoopColors.primaryCyan,
+              Semantics(
+                button: true,
+                label: 'Refresh pairing code',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48, minWidth: 60),
+                  child: TextButton(
+                    onPressed: state.isGenerating
+                        ? null
+                        : () {
+                            notifier.generateToken();
+                            _startTimer();
+                          },
+                    child: Text(
+                      state.isGenerating ? 'Generating...' : 'Refresh',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: ZoopColors.primaryCyan,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -358,15 +383,22 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
             filled: true,
             fillColor: ZoopColors.surfaceElevated,
             prefixIcon: const Icon(Icons.pin, color: ZoopColors.primaryCyan),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.paste, color: ZoopColors.textMuted),
-              tooltip: 'Paste from clipboard',
-              onPressed: () async {
-                final data = await Clipboard.getData('text/plain');
-                if (data?.text != null) {
-                  _codeController.text = data!.text!.trim().toUpperCase();
-                }
-              },
+            suffixIcon: Semantics(
+              button: true,
+              label: 'Paste code from clipboard',
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: IconButton(
+                  icon: const Icon(Icons.paste, color: ZoopColors.textMuted),
+                  tooltip: 'Paste from clipboard',
+                  onPressed: () async {
+                    final data = await Clipboard.getData('text/plain');
+                    if (data?.text != null) {
+                      _codeController.text = data!.text!.trim().toUpperCase();
+                    }
+                  },
+                ),
+              ),
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -433,43 +465,47 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
 
         const Spacer(),
 
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: state.isClaiming
-                ? null
-                : () async {
-                    final navigator = Navigator.of(context);
-                    final success =
-                        await notifier.claimToken(_codeController.text);
-                    if (success && mounted) {
-                      _codeController.clear();
-                      Future.delayed(const Duration(seconds: 2), () {
-                        if (mounted) navigator.pop();
-                      });
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ZoopColors.primaryCyan,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+        Semantics(
+          button: true,
+          label: 'Link and Authorize Device',
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: state.isClaiming
+                  ? null
+                  : () async {
+                      final navigator = Navigator.of(context);
+                      final success =
+                          await notifier.claimToken(_codeController.text);
+                      if (success && mounted) {
+                        _codeController.clear();
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (mounted) navigator.pop();
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ZoopColors.primaryCyan,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-            ),
-            child: state.isClaiming
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black,
+              child: state.isClaiming
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : const Text(
+                      'Link & Authorize Device',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
-                  )
-                : const Text(
-                    'Link & Authorize Device',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
+            ),
           ),
         ),
       ],

@@ -130,22 +130,29 @@ class TransactionDetailSheet extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Close Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ZoopColors.surfaceElevated,
-                    foregroundColor: ZoopColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: ZoopColors.surfaceBorder),
+              Semantics(
+                button: true,
+                label: 'Done, dismiss transaction details',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.surfaceElevated,
+                        foregroundColor: ZoopColors.textPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: ZoopColors.surfaceBorder),
+                        ),
+                      ),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
               ),
@@ -186,7 +193,7 @@ class TransactionDetailSheet extends StatelessWidget {
 
   Widget _buildCopyableRow(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -207,20 +214,26 @@ class TransactionDetailSheet extends StatelessWidget {
                   fontFamily: 'monospace',
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.copy_rounded, size: 16, color: ZoopColors.textSecondary),
-                padding: const EdgeInsets.only(left: 6),
-                constraints: const BoxConstraints(),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: value));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reference ID copied to clipboard'),
-                      backgroundColor: ZoopColors.accentGreen,
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
+              Semantics(
+                button: true,
+                label: 'Copy $label to clipboard',
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  child: IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 16, color: ZoopColors.textSecondary),
+                    tooltip: 'Copy $label',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('$label copied to clipboard'),
+                          backgroundColor: ZoopColors.accentGreen,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
