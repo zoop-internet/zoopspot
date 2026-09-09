@@ -125,25 +125,35 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/dashboard');
-            }
-          },
+        leading: Semantics(
+          label: 'Back',
+          button: true,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.go('/dashboard');
+              }
+            },
+          ),
         ),
         title: const Text('Your Identity'),
         actions: [
           if (state.hasIdentity)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Verify Cloud Trust',
-              onPressed: () => ref
-                  .read(identityNotifierProvider.notifier)
-                  .verifyCloudConnection(),
+            Semantics(
+              label: 'Verify cloud trust',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Verify Cloud Trust',
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                onPressed: () => ref
+                    .read(identityNotifierProvider.notifier)
+                    .verifyCloudConnection(),
+              ),
             ),
         ],
       ),
@@ -227,26 +237,34 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            state.zoopId!,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: ZoopColors.primaryCyan,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 2,
-                                ),
+                          Semantics(
+                            label: 'Zoop ID: ${state.zoopId!}',
+                            child: Text(
+                              state.zoopId!,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: ZoopColors.primaryCyan,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2,
+                                  ),
+                            ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.copy, size: 20, color: ZoopColors.textMuted),
-                            tooltip: 'Copy Zoop ID',
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: state.zoopId!));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Zoop ID copied to clipboard'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
+                          Semantics(
+                            label: 'Copy Zoop ID to clipboard',
+                            button: true,
+                            child: IconButton(
+                              icon: const Icon(Icons.copy, size: 20, color: ZoopColors.textMuted),
+                              tooltip: 'Copy Zoop ID',
+                              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: state.zoopId!));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Zoop ID copied to clipboard'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
@@ -371,22 +389,38 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textSecondary),
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _handleViewRecoveryPhrase,
-                          icon: const Icon(Icons.key_rounded, size: 18),
-                          label: const Text('View 24-Word Recovery Phrase'),
+                      Semantics(
+                        label: 'View 24-word cryptographic recovery phrase',
+                        button: true,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _handleViewRecoveryPhrase,
+                            icon: const Icon(Icons.key_rounded, size: 18),
+                            label: const Text('View 24-Word Recovery Phrase'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Center(
-                        child: TextButton.icon(
-                          onPressed: _handleResetIdentity,
-                          icon: const Icon(Icons.delete_outline, size: 16, color: ZoopColors.accentRose),
-                          label: const Text(
-                            'Wipe Device Identity',
-                            style: TextStyle(color: ZoopColors.accentRose, fontSize: 13),
+                        child: Semantics(
+                          label: 'Wipe cryptographic device identity permanently',
+                          button: true,
+                          child: TextButton.icon(
+                            onPressed: _handleResetIdentity,
+                            icon: const Icon(Icons.delete_outline, size: 16, color: ZoopColors.accentRose),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(180, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            ),
+                            label: const Text(
+                              'Wipe Device Identity',
+                              style: TextStyle(color: ZoopColors.accentRose, fontSize: 13),
+                            ),
                           ),
                         ),
                       ),
@@ -396,55 +430,75 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                 const SizedBox(height: 20),
 
                 // Link to Fleet Hub
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                Semantics(
+                  label: 'Personal Mesh Fleet. Tap to manage paired phones, laptops, and routers in Fleet tab.',
+                  button: true,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: ZoopColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: ZoopColors.surfaceBorder),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => context.go('/fleet'),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.device_hub, color: ZoopColors.primaryCyan, size: 20),
+                              ),
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Personal Mesh Fleet',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Manage paired phones, laptops & routers in Fleet tab',
+                                      style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 14, color: ZoopColors.textMuted),
+                            ],
+                          ),
                         ),
-                        child: const Icon(Icons.device_hub, color: ZoopColors.primaryCyan, size: 20),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Personal Mesh Fleet',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Manage paired phones, laptops & routers in Fleet tab',
-                              style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_forward_ios, size: 14, color: ZoopColors.textMuted),
-                        onPressed: () => context.go('/fleet'),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 32),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.go('/dashboard'),
-                    child: const Text('Enter Zoop Mesh'),
+                Semantics(
+                  label: 'Enter Zoop Mesh Dashboard',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/dashboard'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: ZoopColors.background,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Enter Zoop Mesh', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ),
               ] else ...[
@@ -461,16 +515,19 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                     children: [
                       Text('Device Name', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
-                      TextField(
-                        controller: _deviceNameController,
-                        enabled: !state.isLoading,
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Pixel 8, Galaxy S24, Work Android',
-                          filled: true,
-                          fillColor: ZoopColors.surfaceElevated,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                      Semantics(
+                        label: 'Device name input field',
+                        child: TextField(
+                          controller: _deviceNameController,
+                          enabled: !state.isLoading,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Pixel 8, Galaxy S24, Work Android',
+                            filled: true,
+                            fillColor: ZoopColors.surfaceElevated,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
+                            ),
                           ),
                         ),
                       ),
@@ -510,11 +567,24 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: state.isLoading ? null : _handleRegister,
-                    child: Text(state.isLoading ? 'Registering Device...' : 'Generate Identity & Register'),
+                Semantics(
+                  label: 'Generate zero-knowledge identity and register device',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: state.isLoading ? null : _handleRegister,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ZoopColors.primaryCyan,
+                        foregroundColor: ZoopColors.background,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        state.isLoading ? 'Registering Device...' : 'Generate Identity & Register',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -531,12 +601,20 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: state.isLoading ? null : () => RecoverIdentitySheet.show(context),
-                    icon: const Icon(Icons.settings_backup_restore_rounded, size: 18),
-                    label: const Text('Restore Existing Identity (24 words)'),
+                Semantics(
+                  label: 'Restore existing identity from 24-word recovery phrase',
+                  button: true,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: state.isLoading ? null : () => RecoverIdentitySheet.show(context),
+                      icon: const Icon(Icons.settings_backup_restore_rounded, size: 18),
+                      label: const Text('Restore Existing Identity (24 words)'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
                 ),
               ],

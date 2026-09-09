@@ -251,9 +251,22 @@ class _RecoverIdentitySheetState extends ConsumerState<RecoverIdentitySheet> {
               ],
 
               // Restore Action Button
-              ElevatedButton(
-                onPressed: isLoading ? null : _handleRestore,
-                child: Text(isLoading ? 'Restoring & Verifying...' : 'Restore & Enter Zoop Mesh'),
+              Semantics(
+                label: 'Restore and enter Zoop mesh with entered 24 recovery words',
+                button: true,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _handleRestore,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ZoopColors.primaryCyan,
+                    foregroundColor: ZoopColors.background,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    isLoading ? 'Restoring & Verifying...' : 'Restore & Enter Zoop Mesh',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
             ],

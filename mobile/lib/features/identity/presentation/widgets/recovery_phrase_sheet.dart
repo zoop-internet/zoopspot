@@ -236,18 +236,36 @@ class _RecoveryPhraseSheetState extends ConsumerState<RecoveryPhraseSheet> {
 
               // Copy All Button — only shown when revealed
               if (_isRevealed) ...[
-                OutlinedButton.icon(
-                  onPressed: _copyAll,
-                  icon: Icon(_copied ? Icons.check : Icons.copy, size: 18),
-                  label: Text(_copied ? 'Copied to Clipboard' : 'Copy All 24 Words'),
+                Semantics(
+                  label: _copied ? 'Copied to clipboard' : 'Copy all 24 words to clipboard',
+                  button: true,
+                  child: OutlinedButton.icon(
+                    onPressed: _copyAll,
+                    icon: Icon(_copied ? Icons.check : Icons.copy, size: 18),
+                    label: Text(_copied ? 'Copied to Clipboard' : 'Copy All 24 Words'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
 
               // Confirm Button — always shown
-              ElevatedButton(
-                onPressed: _confirmBackedUp,
-                child: const Text('I Have Safely Saved These Words'),
+              Semantics(
+                label: 'Confirm you have safely saved the recovery phrase',
+                button: true,
+                child: ElevatedButton(
+                  onPressed: _confirmBackedUp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ZoopColors.primaryCyan,
+                    foregroundColor: ZoopColors.background,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('I Have Safely Saved These Words', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
               ),
               const SizedBox(height: 16),
             ],
