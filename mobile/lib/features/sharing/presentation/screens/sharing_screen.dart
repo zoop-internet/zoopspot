@@ -256,19 +256,23 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 16, color: ZoopColors.textSecondary),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: pin));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('PIN copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                  Semantics(
+                    button: true,
+                    label: 'Copy Session PIN $pin',
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 18, color: ZoopColors.textSecondary),
+                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      tooltip: 'Copy PIN',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: pin));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('PIN copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -475,52 +479,58 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
       child: Column(
         children: [
           // The Center Tap Animated Button
-          GestureDetector(
-            onTap: _handleToggleSharing,
-            child: AnimatedBuilder(
-              animation: pulseAnimation,
-              builder: (context, child) {
-                final glowRadius = isSharing
-                    ? 18.0 + (pulseAnimation.value * 14.0)
-                    : 4.0;
-                final glowAlpha = isSharing
-                    ? (0.15 + (pulseAnimation.value * 0.25))
-                    : 0.05;
+          Semantics(
+            button: true,
+            label: isSharing
+                ? 'Sharing is active at ${state.currentEgressMbps.toStringAsFixed(1)} megabits per second with ${state.recipients.length} connected peers. Tap to stop sharing.'
+                : 'Sharing is inactive. Tap to start sharing egress bandwidth.',
+            child: GestureDetector(
+              onTap: _handleToggleSharing,
+              child: AnimatedBuilder(
+                animation: pulseAnimation,
+                builder: (context, child) {
+                  final glowRadius = isSharing
+                      ? 18.0 + (pulseAnimation.value * 14.0)
+                      : 4.0;
+                  final glowAlpha = isSharing
+                      ? (0.15 + (pulseAnimation.value * 0.25))
+                      : 0.05;
 
-                return Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: ZoopColors.surfaceElevated,
-                    border: Border.all(
-                      color: statusColor,
-                      width: isSharing ? 2.5 : 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withValues(alpha: glowAlpha),
-                        blurRadius: glowRadius,
-                        spreadRadius: isSharing ? 4 : 0,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: RotationTransition(
-                      turns: isSharing
-                          ? _rotationController
-                          : const AlwaysStoppedAnimation(0),
-                      child: Icon(
-                        isSharing
-                            ? Icons.all_inclusive_rounded
-                            : Icons.wifi_tethering_off_rounded,
+                  return Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ZoopColors.surfaceElevated,
+                      border: Border.all(
                         color: statusColor,
-                        size: 40,
+                        width: isSharing ? 2.5 : 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusColor.withValues(alpha: glowAlpha),
+                          blurRadius: glowRadius,
+                          spreadRadius: isSharing ? 4 : 0,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: RotationTransition(
+                        turns: isSharing
+                            ? _rotationController
+                            : const AlwaysStoppedAnimation(0),
+                        child: Icon(
+                          isSharing
+                              ? Icons.all_inclusive_rounded
+                              : Icons.wifi_tethering_off_rounded,
+                          color: statusColor,
+                          size: 40,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
 
@@ -586,20 +596,23 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
                           ),
                         ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.copy, size: 16, color: ZoopColors.accentGreen),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Copy PIN',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: _sessionPin!));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Session PIN copied to clipboard'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
+                      Semantics(
+                        button: true,
+                        label: 'Copy Session PIN ${_sessionPin!}',
+                        child: IconButton(
+                          icon: const Icon(Icons.copy, size: 18, color: ZoopColors.accentGreen),
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          tooltip: 'Copy PIN',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: _sessionPin!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Session PIN copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -609,17 +622,18 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () => _showQrInviteModal(context),
-                          icon: const Icon(Icons.qr_code_2_rounded, size: 16),
+                          icon: const Icon(Icons.qr_code_2_rounded, size: 18),
                           label: const Text('Show QR'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: ZoopColors.accentGreen,
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            minimumSize: const Size(0, 44),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             textStyle: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -640,17 +654,18 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
                               );
                             }
                           },
-                          icon: const Icon(Icons.link_rounded, size: 16),
+                          icon: const Icon(Icons.link_rounded, size: 18),
                           label: const Text('Copy Link'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ZoopColors.textPrimary,
                             side: const BorderSide(color: ZoopColors.surfaceBorder),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            minimumSize: const Size(0, 44),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             textStyle: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -762,112 +777,122 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
     ConnectedRecipientItem recipient,
     SharingNotifier notifier,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: ZoopColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: ZoopColors.accentGreen.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    return Semantics(
+      button: true,
+      label:
+          'Connected peer ${recipient.name}, device ${recipient.peerZoopId} on ${recipient.platform}. Relaying at ${recipient.formattedRate}, transferred ${recipient.formattedTransferred}. Tap to view session details.',
+      child: Container(
+        decoration: BoxDecoration(
+          color: ZoopColors.surface,
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showRecipientSheet(recipient),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: ZoopColors.accentGreen.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _showRecipientSheet(recipient),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: ZoopColors.accentGreen.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.devices_rounded,
+                          color: ZoopColors.accentGreen,
+                          size: 18,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.devices_rounded,
-                        color: ZoopColors.accentGreen,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            recipient.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: ZoopColors.textPrimary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recipient.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: ZoopColors.textPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${recipient.peerZoopId} • ${recipient.platform}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: ZoopColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Semantics(
+                        button: true,
+                        label: 'Disconnect ${recipient.name}',
+                        child: IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              size: 18, color: ZoopColors.textMuted),
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          tooltip: 'Disconnect',
+                          onPressed: () => notifier.revokeRecipient(recipient.id),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.speed,
+                              size: 13, color: ZoopColors.accentGreen),
+                          const SizedBox(width: 4),
                           Text(
-                            '${recipient.peerZoopId} • ${recipient.platform}',
+                            recipient.formattedRate,
                             style: const TextStyle(
                               fontSize: 11,
-                              color: ZoopColors.textMuted,
+                              color: ZoopColors.accentGreen,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Icon(Icons.data_usage,
+                              size: 13, color: ZoopColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            recipient.formattedTransferred,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: ZoopColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          size: 18, color: ZoopColors.textMuted),
-                      tooltip: 'Disconnect',
-                      onPressed: () => notifier.revokeRecipient(recipient.id),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.speed,
-                            size: 13, color: ZoopColors.accentGreen),
-                        const SizedBox(width: 4),
-                        Text(
-                          recipient.formattedRate,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: ZoopColors.accentGreen,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      Text(
+                        'Connected ${recipient.formattedDuration}',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: ZoopColors.textMuted,
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.data_usage,
-                            size: 13, color: ZoopColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          recipient.formattedTransferred,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: ZoopColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Connected ${recipient.formattedDuration}',
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        color: ZoopColors.textMuted,
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -931,90 +956,104 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final req = state.pendingRequests[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: ZoopColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: ZoopColors.primaryCyan.withValues(alpha: 0.35),
+        return Semantics(
+          container: true,
+          label: 'Connection request from ${req.name}, device ${req.requesterZoopId} on ${req.platform}.',
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: ZoopColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: ZoopColors.primaryCyan.withValues(alpha: 0.35),
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: ZoopColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.person_outline_rounded,
-                      color: ZoopColors.primaryCyan,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          req.name,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: ZoopColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${req.requesterZoopId} • ${req.platform}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: ZoopColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => notifier.rejectRequest(req.id),
-                    style: TextButton.styleFrom(
-                      foregroundColor: ZoopColors.textMuted,
-                    ),
-                    child: const Text('Decline'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => notifier.approveRequest(req.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.primaryCyan,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      textStyle: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
+                      child: const Icon(
+                        Icons.person_outline_rounded,
+                        color: ZoopColors.primaryCyan,
+                        size: 20,
                       ),
                     ),
-                    child: const Text('Grant Access'),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            req.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: ZoopColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${req.requesterZoopId} • ${req.platform}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: ZoopColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Decline request from ${req.name}',
+                      child: TextButton(
+                        onPressed: () => notifier.rejectRequest(req.id),
+                        style: TextButton.styleFrom(
+                          foregroundColor: ZoopColors.textMuted,
+                          minimumSize: const Size(80, 44),
+                        ),
+                        child: const Text('Decline'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Semantics(
+                      button: true,
+                      label: 'Grant access to ${req.name}',
+                      child: ElevatedButton(
+                        onPressed: () => notifier.approveRequest(req.id),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ZoopColors.primaryCyan,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          minimumSize: const Size(110, 44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        child: const Text('Grant Access'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1166,54 +1205,72 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
     required String subtitle,
     required int memberCount,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+    return Semantics(
+      button: true,
+      label: 'Circle: $name, $subtitle, $memberCount devices.',
+      child: Material(
         color: ZoopColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ZoopColors.surfaceBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$name circle settings'),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: ZoopColors.surfaceBorder),
             ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: ZoopColors.textPrimary,
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: ZoopColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: ZoopColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: ZoopColors.textSecondary,
-                  ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: ZoopColors.textMuted,
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 18,
-            color: ZoopColors.textMuted,
-          ),
-        ],
+        ),
       ),
     );
   }
