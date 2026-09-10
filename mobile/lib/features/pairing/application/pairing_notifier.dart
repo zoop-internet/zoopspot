@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/di/core_providers.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../identity/application/identity_notifier.dart';
 
 class PairingState {
   final String? activeCode;
@@ -67,12 +67,12 @@ final pairingNotifierProvider =
 });
 
 class PairingNotifier extends StateNotifier<PairingState> {
-  final CloudApiClient _client;
-  final SecureStorageService _storage;
+  final ICloudApiClient _client;
+  final ISecureStorageService _storage;
 
   PairingNotifier({
-    required CloudApiClient cloudApiClient,
-    required SecureStorageService storageService,
+    required ICloudApiClient cloudApiClient,
+    required ISecureStorageService storageService,
   })  : _client = cloudApiClient,
         _storage = storageService,
         super(const PairingState());

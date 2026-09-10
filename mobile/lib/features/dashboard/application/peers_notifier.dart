@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/di/core_providers.dart';
 import '../../../core/models/peer_device.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../identity/application/identity_notifier.dart';
 
 class PeersState {
   final List<PeerDevice> peers;
@@ -45,12 +45,12 @@ final peersNotifierProvider =
 });
 
 class PeersNotifier extends StateNotifier<PeersState> {
-  final CloudApiClient _client;
-  final SecureStorageService _storage;
+  final ICloudApiClient _client;
+  final ISecureStorageService _storage;
 
   PeersNotifier({
-    required CloudApiClient cloudApiClient,
-    required SecureStorageService storageService,
+    required ICloudApiClient cloudApiClient,
+    required ISecureStorageService storageService,
   })  : _client = cloudApiClient,
         _storage = storageService,
         super(const PeersState());
@@ -141,6 +141,27 @@ class PeersNotifier extends StateNotifier<PeersState> {
       return updated;
     } catch (_) {
       return peer;
+    }
+  }
+
+  /// Establishes an authenticated connection session with a target peer via the Cloud Control Plane.
+  Future<Map<String, dynamic>?> initiatePeerConnection(PeerDevice targetPeer) async {
+    try {
+      final endpointId = await _storage.getEndpointId();
+      final seed = await _storage.getEd25519SeedBytes();
+      if (endpointId == null || seed == null) return null;
+
+      final targetId = targetPeer.id.isNotEmpty
+          ? targetPeer.id
+          : targetPeer.endpointId;
+
+      return await _client.createConnection(
+        endpointId: endpointId,
+        targetDeviceId: targetId,
+        privateKeySeed: seed,
+      );
+    } catch (_) {
+      return null;
     }
   }
 }

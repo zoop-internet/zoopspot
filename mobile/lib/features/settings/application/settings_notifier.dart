@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/di/core_providers.dart';
 import '../../../../core/models/routing_mode.dart';
 import '../../../../core/storage/secure_storage_service.dart';
-import '../../identity/application/identity_notifier.dart';
 import '../domain/settings_models.dart';
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  final SecureStorageService _storage;
+  final ISecureStorageService _storage;
 
   SettingsNotifier(this._storage) : super(const AppSettings()) {
     _loadSettings();

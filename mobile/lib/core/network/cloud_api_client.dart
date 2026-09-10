@@ -3,43 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../crypto/crypto_service.dart';
 import '../models/peer_device.dart';
+import 'i_cloud_api_client.dart';
 
-class CloudApiException implements Exception {
-  final String code;
-  final String message;
-  final int statusCode;
+export 'i_cloud_api_client.dart';
 
-  CloudApiException({
-    required this.code,
-    required this.message,
-    required this.statusCode,
-  });
-
+class CloudApiClient implements ICloudApiClient {
   @override
-  String toString() => 'CloudApiException($statusCode, code: $code, message: $message)';
-}
-
-class DeviceRegistrationResponse {
-  final String id;
-  final String endpointId;
-  final String status;
-
-  DeviceRegistrationResponse({
-    required this.id,
-    required this.endpointId,
-    required this.status,
-  });
-
-  factory DeviceRegistrationResponse.fromJson(Map<String, dynamic> json) {
-    return DeviceRegistrationResponse(
-      id: json['id'] as String? ?? '',
-      endpointId: (json['endpoint_id'] ?? json['id']) as String? ?? '',
-      status: json['status'] as String? ?? 'trusted',
-    );
-  }
-}
-
-class CloudApiClient {
   final String baseUrl;
   final http.Client _client;
   final CryptoService _cryptoService;
@@ -56,6 +25,7 @@ class CloudApiClient {
         _cryptoService = cryptoService ?? CryptoService();
 
   /// Checks if the cloud control plane is healthy and reachable.
+  @override
   Future<bool> checkHealth() async {
     try {
       final uri = Uri.parse('$baseUrl/v1/health');
@@ -73,6 +43,7 @@ class CloudApiClient {
   /// Registers a new device record with the cloud control plane.
   /// This endpoint (/v1/devices) does not require Zoop-Auth headers as the device
   /// identity is being established for the first time.
+  @override
   Future<DeviceRegistrationResponse> registerDevice({
     required String name,
     required String ed25519PublicKeyB64,
@@ -104,6 +75,7 @@ class CloudApiClient {
   }
 
   /// Performs an authenticated HTTP request using the zoop-auth-v2 cryptographic protocol.
+  @override
   Future<dynamic> authenticatedRequest({
     required String method,
     required String path,
@@ -166,6 +138,7 @@ class CloudApiClient {
   }
 
   /// Fetches registered device details from the cloud.
+  @override
   Future<Map<String, dynamic>> getDevice({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -180,6 +153,7 @@ class CloudApiClient {
   }
 
   /// Lists accessible peer devices in the network mesh.
+  @override
   Future<List<PeerDevice>> listDevices({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -200,6 +174,7 @@ class CloudApiClient {
   }
 
   /// Fetches endpoint candidates and keys for a target peer device.
+  @override
   Future<Map<String, dynamic>> getDeviceEndpoints({
     required String endpointId,
     required String targetDeviceId,
@@ -215,6 +190,7 @@ class CloudApiClient {
   }
 
   /// Creates a registered connection session with the cloud control plane.
+  @override
   Future<Map<String, dynamic>> createConnection({
     required String endpointId,
     required String targetDeviceId,
@@ -234,6 +210,7 @@ class CloudApiClient {
   }
 
   /// Lists active shares for this device.
+  @override
   Future<Map<String, dynamic>> listShares({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -248,6 +225,7 @@ class CloudApiClient {
   }
 
   /// Generates an ephemeral pairing token to pair another device to this identity.
+  @override
   Future<Map<String, dynamic>> createPairingToken({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -266,6 +244,7 @@ class CloudApiClient {
   }
 
   /// Claims a pairing token to mutually link with the issuing device.
+  @override
   Future<Map<String, dynamic>> claimPairingToken({
     required String endpointId,
     required String code,
@@ -284,6 +263,7 @@ class CloudApiClient {
   }
 
   /// Lists all paired devices in the user's personal mesh fleet.
+  @override
   Future<List<Map<String, dynamic>>> getFleetDevices({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -300,6 +280,7 @@ class CloudApiClient {
     return [];
   }
 
+  @override
   Future<Map<String, dynamic>> submitDiagnosticReport(Map<String, dynamic> report) async {
     final uri = Uri.parse('$baseUrl/v1/diagnostics/report');
     final response = await _client.post(
@@ -314,6 +295,7 @@ class CloudApiClient {
     }
   }
 
+  @override
   Future<List<Map<String, dynamic>>> getDiagnosticReports(String deviceId) async {
     final uri = Uri.parse('$baseUrl/v1/diagnostics/report/$deviceId');
     final response = await _client.get(uri);
@@ -329,6 +311,7 @@ class CloudApiClient {
   }
 
   /// Fetches the user/device authoritative wallet ledger from the cloud.
+  @override
   Future<Map<String, dynamic>> getWallet({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -343,6 +326,7 @@ class CloudApiClient {
   }
 
   /// Initiates a Mobile Money deposit via the cloud server.
+  @override
   Future<Map<String, dynamic>> depositMobileMoney({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -360,13 +344,14 @@ class CloudApiClient {
         'amount': amount,
         'phone_number': phoneNumber,
         'provider': provider,
-        'description': ?description,
+        'description': description,
       },
     );
     return result is Map<String, dynamic> ? result : {};
   }
 
   /// Initiates a Card deposit via the cloud server.
+  @override
   Future<Map<String, dynamic>> depositCard({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -381,14 +366,15 @@ class CloudApiClient {
       privateKeySeed: privateKeySeed,
       body: {
         'amount': amount,
-        'callback_url': ?callbackUrl,
-        'description': ?description,
+        'callback_url': callbackUrl,
+        'description': description,
       },
     );
     return result is Map<String, dynamic> ? result : {};
   }
 
   /// Initiates a Mobile Money withdrawal via the cloud server.
+  @override
   Future<Map<String, dynamic>> withdrawMobileMoney({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -406,13 +392,14 @@ class CloudApiClient {
         'amount': amount,
         'phone_number': phoneNumber,
         'provider': provider,
-        'description': ?description,
+        'description': description,
       },
     );
     return result is Map<String, dynamic> ? result : {};
   }
 
   /// Lists wallet transactions from the cloud server.
+  @override
   Future<Map<String, dynamic>> listWalletTransactions({
     required String endpointId,
     required List<int> privateKeySeed,
@@ -429,6 +416,7 @@ class CloudApiClient {
   }
 
   /// Lists wallet earnings from the cloud server.
+  @override
   Future<Map<String, dynamic>> listWalletEarnings({
     required String endpointId,
     required List<int> privateKeySeed,

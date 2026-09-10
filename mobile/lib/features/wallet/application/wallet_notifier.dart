@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/di/core_providers.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/utils/phone_utils.dart';
-import '../../identity/application/identity_notifier.dart';
 import '../domain/wallet_models.dart';
 
 class WalletState {
@@ -73,12 +73,12 @@ class WalletState {
 }
 
 class WalletNotifier extends StateNotifier<WalletState> {
-  final CloudApiClient? _client;
-  final SecureStorageService? _storage;
+  final ICloudApiClient? _client;
+  final ISecureStorageService? _storage;
 
   WalletNotifier({
-    CloudApiClient? cloudApiClient,
-    SecureStorageService? storageService,
+    ICloudApiClient? cloudApiClient,
+    ISecureStorageService? storageService,
   })  : _client = cloudApiClient,
         _storage = storageService,
         super(const WalletState()) {

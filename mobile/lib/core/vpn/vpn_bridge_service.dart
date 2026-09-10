@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'i_vpn_bridge_service.dart';
 
-final vpnBridgeServiceProvider = Provider<VpnBridgeService>((ref) {
+export 'i_vpn_bridge_service.dart';
+
+final vpnBridgeServiceProvider = Provider<IVpnBridgeService>((ref) {
   return VpnBridgeService();
 });
 
-class VpnBridgeService {
+class VpnBridgeService implements IVpnBridgeService {
   static const MethodChannel _methodChannel =
       MethodChannel('network.zoop.app/vpn');
   static const EventChannel _eventChannel =
@@ -15,6 +18,7 @@ class VpnBridgeService {
   Stream<Map<dynamic, dynamic>>? _eventsStream;
 
   /// Requests or confirms Android VPN preparation and user permission consent.
+  @override
   Future<bool> prepareVpn() async {
     try {
       final bool? result =
@@ -29,6 +33,7 @@ class VpnBridgeService {
   }
 
   /// Starts the Android native ZoopVpnService with peer connection parameters and routing policy.
+  @override
   Future<bool> startTunnel({
     String? peerKey,
     String? candidatesJson,
@@ -52,6 +57,7 @@ class VpnBridgeService {
   }
 
   /// Disconnects and shuts down the native VPN service.
+  @override
   Future<bool> stopTunnel() async {
     try {
       final bool? result =
@@ -65,6 +71,7 @@ class VpnBridgeService {
   }
 
   /// Returns whether the native VPN service is currently active.
+  @override
   Future<bool> isTunnelRunning() async {
     try {
       final bool? result =
@@ -78,6 +85,7 @@ class VpnBridgeService {
   }
 
   /// Real-time stream of native network events (state changes, roaming, errors).
+  @override
   Stream<Map<dynamic, dynamic>> get vpnEvents {
     _eventsStream ??= _eventChannel
         .receiveBroadcastStream()

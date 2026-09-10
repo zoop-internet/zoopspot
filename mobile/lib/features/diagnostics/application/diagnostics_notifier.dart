@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/di/core_providers.dart';
 import '../../../core/network/cloud_api_client.dart';
-import '../../identity/application/identity_notifier.dart';
 import '../domain/diagnostic_models.dart';
 
 class DiagnosticsState {
@@ -43,7 +43,7 @@ final selfHealingStatusProvider = Provider<SelfHealingStatus>((ref) {
 });
 
 class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
-  final CloudApiClient client;
+  final ICloudApiClient client;
 
   DiagnosticsNotifier({required this.client})
       : super(const DiagnosticsState());

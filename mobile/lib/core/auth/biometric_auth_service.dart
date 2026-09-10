@@ -1,14 +1,18 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'i_biometric_auth_service.dart';
 
-final biometricAuthServiceProvider = Provider<BiometricAuthService>((ref) {
+export 'i_biometric_auth_service.dart';
+
+final biometricAuthServiceProvider = Provider<IBiometricAuthService>((ref) {
   return BiometricAuthService();
 });
 
-class BiometricAuthService {
+class BiometricAuthService implements IBiometricAuthService {
   static const MethodChannel _channel = MethodChannel('network.zoop.app/biometrics');
 
   /// Checks if the device has hardware biometrics or device credentials (PIN/pattern) active.
+  @override
   Future<bool> canAuthenticate() async {
     try {
       final bool? result = await _channel.invokeMethod<bool>('canAuthenticate');
@@ -22,6 +26,7 @@ class BiometricAuthService {
   }
 
   /// Prompts the user to authenticate using biometrics (fingerprint/face) or device credentials.
+  @override
   Future<bool> authenticate({
     String title = 'Zoop Key Security',
     String description = 'Authenticate to access your private recovery phrase',

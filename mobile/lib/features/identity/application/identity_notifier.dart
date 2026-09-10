@@ -1,21 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/crypto/crypto_service.dart';
 import '../../../core/crypto/mnemonic_service.dart';
+import '../../../core/di/core_providers.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../domain/identity_model.dart';
 
-final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
-  return SecureStorageService();
-});
-
-final cryptoServiceProvider = Provider<CryptoService>((ref) {
-  return CryptoService();
-});
-
-final cloudApiClientProvider = Provider<CloudApiClient>((ref) {
-  return CloudApiClient();
-});
+export '../../../core/di/core_providers.dart'
+    show
+        secureStorageServiceProvider,
+        cryptoServiceProvider,
+        cloudApiClientProvider;
 
 final identityNotifierProvider =
     StateNotifierProvider<IdentityNotifier, IdentityModel>((ref) {
@@ -32,14 +27,14 @@ final identityNotifierProvider =
 });
 
 class IdentityNotifier extends StateNotifier<IdentityModel> {
-  final SecureStorageService _storage;
+  final ISecureStorageService _storage;
   final CryptoService _crypto;
-  final CloudApiClient _client;
+  final ICloudApiClient _client;
 
   IdentityNotifier({
-    required SecureStorageService storageService,
+    required ISecureStorageService storageService,
     required CryptoService cryptoService,
-    required CloudApiClient cloudApiClient,
+    required ICloudApiClient cloudApiClient,
   })  : _storage = storageService,
         _crypto = cryptoService,
         _client = cloudApiClient,

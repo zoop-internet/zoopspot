@@ -168,21 +168,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       const relayUrl = 'wss://3.70.135.200.sslip.io/v1/relay';
 
       // 2. Control plane session
-      try {
-        final endpointId = ref.read(identityNotifierProvider).endpointId;
-        final storage = ref.read(secureStorageServiceProvider);
-        final client = ref.read(cloudApiClientProvider);
-        final seed = await storage.getEd25519SeedBytes();
-        if (endpointId != null && seed != null) {
-          await client.createConnection(
-            endpointId: endpointId,
-            targetDeviceId: targetPeer.id.isNotEmpty
-                ? targetPeer.id
-                : targetPeer.endpointId,
-            privateKeySeed: seed,
-          );
-        }
-      } catch (_) {}
+      await ref
+          .read(peersNotifierProvider.notifier)
+          .initiatePeerConnection(targetPeer);
 
       // 3. Start tunnel
       try {
