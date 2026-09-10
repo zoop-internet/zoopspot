@@ -1792,8 +1792,8 @@ export const LandingPage: React.FC<{
                 <h2 id="compare-heading">Direct beats detoured.</h2>
                 <p className="lp-subtext">Same encryption. Shorter path. You own the route.</p>
               </div>
-              <div style={{ maxWidth: 980, margin:'0 auto', background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:14, overflow:'hidden' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr 1fr 1fr', gap:0, fontSize:'0.875rem', textAlign:'left' }}>
+              <div className="lp-compare-wrap">
+                <div className="lp-compare-table">
                   <div style={{ padding:'14px 16px', fontWeight:800, color:'var(--ink)', background:'rgba(255,255,255,0.03)', borderBottom:'1px solid var(--line)' }}>Feature</div>
                   <div style={{ padding:'14px 16px', fontWeight:800, color:'#38bdf8', background:'rgba(8,242,255,0.08)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Zoop</div>
                   <div style={{ padding:'14px 16px', fontWeight:700, color:'var(--muted)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Traditional VPN</div>

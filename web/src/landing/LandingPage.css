@@ -214,6 +214,12 @@
   box-shadow: 0 14px 34px rgba(8, 242, 255, 0.35);
   filter: brightness(1.06);
 }
+.lp-btn-primary:focus-visible,
+.lp-btn-secondary:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(56,189,248,0.18);
+}
 
 .lp-btn-primary.large {
   min-height: 50px;
@@ -340,6 +346,7 @@
   line-height: 1.05;
   letter-spacing: -0.035em;
   margin: 0 0 20px;
+  text-wrap: balance;
 }
 
 .lp-grad-text {
@@ -409,6 +416,12 @@
 
 @keyframes lpPathStroke {
   to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-bent-arrow-path { animation: none; stroke-dasharray: none; }
+  .lp-mesh-ambient-glow { animation: none; }
+  .lp-chip-dot { animation: none; }
 }
 
 /* Device node badges */
@@ -613,6 +626,7 @@
   letter-spacing: -0.028em;
   line-height: 1.1;
   margin: 0 0 14px;
+  text-wrap: balance;
 }
 
 .lp-section-heading p.lp-subtext {
@@ -640,12 +654,14 @@
   gap: 16px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.01);
 }
 
 .lp-step-card:hover {
   transform: translateY(-4px);
   border-color: rgba(8, 242, 255, 0.35);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(8,242,255,0.08);
 }
 
 .lp-step-card::before {
@@ -731,8 +747,8 @@
 
 .lp-product-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(20, 240, 109, 0.35);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  border-color: rgba(8, 242, 255, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(8,242,255,0.08);
 }
 
 .lp-product-badge {
@@ -1431,8 +1447,12 @@
   .lp-device-node { padding: 8px 10px; width: min(205px, 44vw) !important; }
   .lp-node-title { font-size: 0.72rem; }
   .lp-node-subtitle { display: none; }
-  /* comparison table scroll on mobile */
-  .lp-section div[style*="gridTemplateColumns: 1.2fr"] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* comparison table — modern scroll container */
+  .lp-compare-wrap { max-width: 980px; margin: 0 auto; background: var(--surface-card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .lp-compare-table { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 0; font-size: 0.875rem; text-align: left; min-width: 640px; }
+  .lp-compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .lp-compare-wrap::-webkit-scrollbar { height: 6px; }
+  .lp-compare-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
   /* docs */
   .docs-layout { grid-template-columns: 1fr !important; }
   .docs-sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); max-height: none; }
