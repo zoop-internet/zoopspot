@@ -81,10 +81,10 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Zoop VPN Service",
+                "Zoop Internet Sharing",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Active Zoop Mesh connection status"
+                description = "Internet sharing connection status"
                 setShowBadge(false)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -120,12 +120,21 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             Notification.Builder(this)
         }
 
+        val iconRes = resources.getIdentifier("ic_notification", "drawable", packageName).let {
+            if (it != 0) it else android.R.drawable.stat_notify_sync_noanim
+        }
+
         builder
-            .setContentTitle("Zoop Mesh Network")
+            .setContentTitle("Zoop")
             .setContentText(statusText)
-            .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            .setSmallIcon(iconRes)
             .setContentIntent(openPendingIntent)
             .setOngoing(true)
+            .setColor(0xFF00D2FF.toInt())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder.setCategory(Notification.CATEGORY_SERVICE)
+        }
 
         if (isConnected) {
             val action = Notification.Action.Builder(
@@ -163,11 +172,11 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     NOTIFICATION_ID,
-                    buildNotification("Connecting to Zoop Mesh...", false),
+                    buildNotification("Connecting to peers...", false),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                 )
             } else {
-                startForeground(NOTIFICATION_ID, buildNotification("Connecting to Zoop Mesh...", false))
+                startForeground(NOTIFICATION_ID, buildNotification("Connecting to peers...", false))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
@@ -226,7 +235,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             isRunning = true
             Log.i(TAG, "VpnService established natively with FD=$fd")
             emitState("connected", "100.64.0.2", true)
-            updateNotification("Connected to Zoop Mesh (Direct P2P)", true)
+            updateNotification("Internet Sharing Active (Direct P2P)", true)
 
             // Initialize Go mobile runtime with this service as event listener
             try {
@@ -309,10 +318,10 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         Log.i(TAG, "State changed: state=$state endpoint=$endpoint isDirect=$isDirect")
         emitState(state, endpoint, isDirect)
         when (state) {
-            "connected" -> updateNotification(if (isDirect) "Connected (Direct P2P)" else "Connected (Encrypted Relay)", true)
-            "roaming" -> updateNotification("Roaming: $endpoint", true)
-            "connecting" -> updateNotification("Punching NAT...", false)
-            "paused" -> updateNotification("Connection Paused", true)
+            "connected" -> updateNotification(if (isDirect) "Internet Sharing Active (Direct P2P)" else "Internet Sharing Active (Relay)", true)
+            "roaming" -> updateNotification("Internet Sharing Active: $endpoint", true)
+            "connecting" -> updateNotification("Connecting to peers...", false)
+            "paused" -> updateNotification("Internet Sharing Paused", true)
         }
     }
 
@@ -354,7 +363,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
     companion object {
         private const val TAG = "ZoopVpnService"
         private const val NOTIFICATION_ID = 0x2009
-        private const val CHANNEL_ID = "zoop_vpn_channel"
+        private const val CHANNEL_ID = "zoop_sharing_channel"
         const val ACTION_CONNECT = "com.zoop.vpn.CONNECT"
         const val ACTION_DISCONNECT = "com.zoop.vpn.DISCONNECT"
         const val EXTRA_PEER_KEY = "com.zoop.vpn.PEER_KEY"
