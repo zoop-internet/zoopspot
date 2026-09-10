@@ -97,34 +97,38 @@ class SharingOrbHero extends StatelessWidget {
                   );
 
                   if (disableAnimations) {
-                    return buildOrb(
-                      glowRadius: isSharing ? 22.0 : 4.0,
-                      glowAlpha: isSharing ? 0.3 : 0.05,
-                      iconWidget: baseIcon,
+                    return RepaintBoundary(
+                      child: buildOrb(
+                        glowRadius: isSharing ? 22.0 : 4.0,
+                        glowAlpha: isSharing ? 0.3 : 0.05,
+                        iconWidget: baseIcon,
+                      ),
                     );
                   }
 
-                  return AnimatedBuilder(
-                    animation: pulseAnimation,
-                    builder: (context, child) {
-                      final glowRadius = isSharing
-                          ? 18.0 + (pulseAnimation.value * 14.0)
-                          : 4.0;
-                      final glowAlpha = isSharing
-                          ? (0.15 + (pulseAnimation.value * 0.25))
-                          : 0.05;
+                  return RepaintBoundary(
+                    child: AnimatedBuilder(
+                      animation: pulseAnimation,
+                      builder: (context, child) {
+                        final glowRadius = isSharing
+                            ? 18.0 + (pulseAnimation.value * 14.0)
+                            : 4.0;
+                        final glowAlpha = isSharing
+                            ? (0.15 + (pulseAnimation.value * 0.25))
+                            : 0.05;
 
-                      return buildOrb(
-                        glowRadius: glowRadius,
-                        glowAlpha: glowAlpha,
-                        iconWidget: RotationTransition(
-                          turns: isSharing
-                              ? rotationController
-                              : const AlwaysStoppedAnimation(0),
-                          child: baseIcon,
-                        ),
-                      );
-                    },
+                        return buildOrb(
+                          glowRadius: glowRadius,
+                          glowAlpha: glowAlpha,
+                          iconWidget: RotationTransition(
+                            turns: isSharing
+                                ? rotationController
+                                : const AlwaysStoppedAnimation(0),
+                            child: baseIcon,
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

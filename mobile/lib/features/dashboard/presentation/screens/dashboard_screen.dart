@@ -256,12 +256,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final identityState = ref.watch(identityNotifierProvider);
-    final peersState = ref.watch(peersNotifierProvider);
-    final sharingState = ref.watch(sharingProvider);
-    final walletState = ref.watch(walletProvider);
-    final activePeer = peersState.selectedPeer ??
-        (peersState.peers.isNotEmpty ? peersState.peers.first : null);
+    final isRegistered =
+        ref.watch(identityNotifierProvider.select((i) => i.isRegistered));
+    final cloudStatus =
+        ref.watch(identityNotifierProvider.select((i) => i.cloudStatus));
+    final zoopId =
+        ref.watch(identityNotifierProvider.select((i) => i.zoopId));
+    final isSharingActive =
+        ref.watch(sharingProvider.select((s) => s.isSharingActive));
+    final activePeer = ref.watch(peersNotifierProvider.select((p) =>
+        p.selectedPeer ?? (p.peers.isNotEmpty ? p.peers.first : null)));
 
     final isConnected = _status.isConnected;
     final isConnecting = _status == ConnectionStatus.connecting;
@@ -304,16 +308,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 letterSpacing: 0.5,
               ),
             ),
-            identityState.isRegistered
+            isRegistered
                 ? const ZoopBadge.online()
                 : const ZoopBadge.syncing(),
           ],
         ),
         actions: [
-          if (identityState.zoopId != null)
+          if (zoopId != null)
             Semantics(
               button: true,
-              label: 'Device Identity: ${identityState.zoopId}',
+              label: 'Device Identity: $zoopId',
               child: GestureDetector(
                 onTap: () => context.push('/identity'),
                 child: Container(
@@ -339,7 +343,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        identityState.zoopId!,
+                        zoopId,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -415,7 +419,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (!identityState.isRegistered || identityState.cloudStatus == 'offline') ...[
+                if (!isRegistered || cloudStatus == 'offline') ...[
                   ZoopOfflineBanner(
                     onReconnect: () => ref.read(identityNotifierProvider.notifier).verifyCloudConnection(),
                   ),
@@ -429,13 +433,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ],
 
                 // Active Sharing Banner if enabled
-                if (sharingState.isSharingActive) ...[
-                  ActiveSharingBanner(sharing: sharingState),
+                if (isSharingActive) ...[
+                  const ActiveSharingBanner(),
                   const SizedBox(height: 14),
                 ],
 
                 // Zoop Points Required to Participate Card
-                ZoopPointsCard(walletState: walletState),
+                const ZoopPointsCard(),
 
                 ZoopSpacing.gapLg,
 

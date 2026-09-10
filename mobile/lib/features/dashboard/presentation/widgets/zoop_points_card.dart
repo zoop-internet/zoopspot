@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/theme/zoop_spacing.dart';
 import '../../../wallet/application/wallet_notifier.dart';
 
 /// Zoop Points and wallet balance overview card displayed on the Dashboard.
-class ZoopPointsCard extends StatelessWidget {
-  final WalletState walletState;
+/// Implemented as a ConsumerWidget to isolate wallet balance rebuilds.
+class ZoopPointsCard extends ConsumerWidget {
+  final WalletState? walletState;
 
   const ZoopPointsCard({
     super.key,
-    required this.walletState,
+    this.walletState,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final points = (walletState.availableBalance / 100).toInt();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final WalletState state = walletState ?? ref.watch(walletProvider);
+    final points = (state.availableBalance / 100).toInt();
     final formattedPoints = points.toString().replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         );
-    final recentTx = walletState.transactions.isNotEmpty
-        ? walletState.transactions.first
+    final recentTx = state.transactions.isNotEmpty
+        ? state.transactions.first
         : null;
     final recentGain =
         recentTx != null ? '+${(recentTx.amount / 100).toInt()} ZP' : '+45 ZP';
@@ -29,7 +32,7 @@ class ZoopPointsCard extends StatelessWidget {
     return Semantics(
       button: true,
       label:
-          'Zoop Points: $formattedPoints ZP. Available balance: ${walletState.formatAmount(walletState.availableBalance)}. Tap to view wallet details.',
+          'Zoop Points: $formattedPoints ZP. Available balance: ${state.formatAmount(state.availableBalance)}. Tap to view wallet details.',
       child: GestureDetector(
         onTap: () => context.go('/wallet'),
         child: Container(
@@ -164,7 +167,7 @@ class ZoopPointsCard extends StatelessWidget {
 
               // Bottom Micro-Info
               Text(
-                'Available: ${walletState.formatAmount(walletState.availableBalance)} • Min. 100 ZP',
+                'Available: ${state.formatAmount(state.availableBalance)} • Min. 100 ZP',
                 style: const TextStyle(
                   fontSize: 10.5,
                   color: ZoopColors.textMuted,

@@ -433,6 +433,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               else
                 ...state.transactions.map((tx) {
                   return Semantics(
+                    key: ValueKey(tx.id),
                     label:
                         '${tx.type.label}, ${tx.description}, ${tx.formattedAmount}, status ${tx.status.name}. Tap to view transaction receipt.',
                     button: true,

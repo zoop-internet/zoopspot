@@ -72,8 +72,10 @@ void showQrInviteModal(
                 ),
               ],
             ),
-            child: CustomPaint(
-              painter: QrMatrixPainter(seed: pin),
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: QrMatrixPainter(seed: pin),
+              ),
             ),
           ),
 

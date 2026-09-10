@@ -376,6 +376,7 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
           const SizedBox(height: 10),
           for (final recipient in state.recipients) ...[
             SharingRecipientCard(
+              key: ValueKey(recipient.id),
               recipient: recipient,
               onTap: () => _showRecipientSheet(recipient),
               onDisconnect: () => notifier.revokeRecipient(recipient.id),

@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/theme/zoop_spacing.dart';
 import '../../../sharing/application/sharing_notifier.dart';
 
 /// Interactive banner on Dashboard indicating active hotspot sharing.
-class ActiveSharingBanner extends StatelessWidget {
-  final SharingState sharing;
+/// Uses ConsumerWidget to isolate real-time throughput repaints.
+class ActiveSharingBanner extends ConsumerWidget {
+  final SharingState? sharing;
 
   const ActiveSharingBanner({
     super.key,
-    required this.sharing,
+    this.sharing,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final count = sharing.recipients.length;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final SharingState state = sharing ?? ref.watch(sharingProvider);
+    final count = state.recipients.length;
+
     return Semantics(
       button: true,
       label:
-          'Sharing active: $count ${count == 1 ? "peer" : "peers"} connected at ${sharing.currentEgressMbps.toStringAsFixed(1)} megabits per second. Tap to manage sharing.',
+          'Sharing active: $count ${count == 1 ? "peer" : "peers"} connected at ${state.currentEgressMbps.toStringAsFixed(1)} megabits per second. Tap to manage sharing.',
       child: GestureDetector(
         onTap: () => context.go('/sharing'),
         child: Container(
@@ -58,7 +62,7 @@ class ActiveSharingBanner extends StatelessWidget {
                     ZoopSpacing.gapSm,
                     Expanded(
                       child: Text(
-                        '• $count ${count == 1 ? 'peer' : 'peers'} (${sharing.currentEgressMbps.toStringAsFixed(1)} Mbps)',
+                        '• $count ${count == 1 ? 'peer' : 'peers'} (${state.currentEgressMbps.toStringAsFixed(1)} Mbps)',
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12,

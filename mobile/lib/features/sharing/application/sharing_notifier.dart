@@ -111,7 +111,7 @@ class SharingNotifier extends StateNotifier<SharingState> {
 
   void _startThroughputSimulator() {
     _ticker = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (!mounted || !state.isSharingActive) return;
+      if (!mounted || !state.isSharingActive || state.recipients.isEmpty) return;
       final updatedRecipients = state.recipients.map((r) {
         final addedBytes = r.currentRateKbps * 250;
         return r.copyWith(

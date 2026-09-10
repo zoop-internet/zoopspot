@@ -250,21 +250,23 @@ class MeshVisualizerCard extends StatelessWidget {
 
     if (disableAnimations) {
       final staticGlow = isConnected ? 0.35 : (isConnecting ? 0.3 : 0.05);
-      return buildRing(glowAlpha: staticGlow);
+      return RepaintBoundary(child: buildRing(glowAlpha: staticGlow));
     }
 
-    return RotationTransition(
-      turns: isConnecting
-          ? rotationController
-          : const AlwaysStoppedAnimation(0),
-      child: AnimatedBuilder(
-        animation: pulseAnimation,
-        builder: (context, child) {
-          final glowAlpha = isConnected
-              ? (0.2 + (pulseAnimation.value * 0.25))
-              : (isConnecting ? 0.3 : 0.05);
-          return buildRing(glowAlpha: glowAlpha);
-        },
+    return RepaintBoundary(
+      child: RotationTransition(
+        turns: isConnecting
+            ? rotationController
+            : const AlwaysStoppedAnimation(0),
+        child: AnimatedBuilder(
+          animation: pulseAnimation,
+          builder: (context, child) {
+            final glowAlpha = isConnected
+                ? (0.2 + (pulseAnimation.value * 0.25))
+                : (isConnecting ? 0.3 : 0.05);
+            return buildRing(glowAlpha: glowAlpha);
+          },
+        ),
       ),
     );
   }
@@ -273,20 +275,22 @@ class MeshVisualizerCard extends StatelessWidget {
     required bool isActive,
     required Color color,
   }) {
-    return Container(
-      height: 2.5,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(2),
-        boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.4),
-                  blurRadius: 4,
-                ),
-              ]
-            : null,
+    return RepaintBoundary(
+      child: Container(
+        height: 2.5,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(2),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 4,
+                  ),
+                ]
+              : null,
+        ),
       ),
     );
   }

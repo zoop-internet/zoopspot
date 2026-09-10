@@ -383,6 +383,7 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
               ZoopSpacing.gapSm,
               for (final dev in onlineDevices)
                 FleetDeviceCard(
+                  key: ValueKey(dev.id),
                   dev: dev,
                   onTap: () => _showDeviceSheet(context, dev),
                 ),
@@ -395,6 +396,7 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
               ZoopSpacing.gapSm,
               for (final dev in offlineDevices)
                 FleetDeviceCard(
+                  key: ValueKey(dev.id),
                   dev: dev,
                   onTap: () => _showDeviceSheet(context, dev),
                 ),
