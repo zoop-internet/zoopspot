@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/theme/zoop_spacing.dart';
+import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../application/sharing_notifier.dart';
 import '../../domain/sharing_models.dart';
@@ -75,9 +76,10 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
     _inviteLink = 'https://zoop.link/share/$_sessionPin';
   }
 
-  void _handleToggleSharing() {
+  void _handleToggleSharing() async {
     final notifier = ref.read(sharingProvider.notifier);
     final currentlyActive = ref.read(sharingProvider).isSharingActive;
+    final recipients = ref.read(sharingProvider).recipients;
 
     if (!currentlyActive) {
       // Starting sharing -> Generate fresh credentials and start animations
@@ -95,6 +97,17 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
         ),
       );
     } else {
+      if (recipients.isNotEmpty) {
+        final confirm = await ZoopConfirmDialog.show(
+          context: context,
+          title: 'Stop Sharing Session?',
+          message: 'You have ${recipients.length} active peer(s) connected. Stopping will disconnect them immediately.',
+          confirmLabel: 'Stop Session',
+          isDestructive: true,
+          icon: Icons.power_settings_new,
+        );
+        if (!confirm) return;
+      }
       // Stopping sharing
       setState(() {
         _sessionPin = null;
@@ -103,14 +116,126 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
       _pulseController.stop();
       _rotationController.stop();
       notifier.toggleSharing();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sharing stopped'),
-          backgroundColor: ZoopColors.surfaceElevated,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sharing stopped'),
+            backgroundColor: ZoopColors.surfaceElevated,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
+  }
+
+  void _showHowSharingWorksDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ZoopColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: ZoopColors.surfaceBorder),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: ZoopColors.primaryCyan, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'How Sharing Works',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: ZoopColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildConceptRow(
+                icon: Icons.cell_tower,
+                title: 'Sharing vs Connecting',
+                body: 'When Sharing, you act as a provider node routing encrypted peer packets. When Connecting (on Connect tab), you act as a recipient routing through a provider.',
+              ),
+              const SizedBox(height: 12),
+              _buildConceptRow(
+                icon: Icons.monetization_on_outlined,
+                title: 'Earn Zoop Points & UGX',
+                body: 'You earn points for every megabyte routed. Points convert into UGX balance in your Mesh Wallet with instant mobile money payouts.',
+              ),
+              const SizedBox(height: 12),
+              _buildConceptRow(
+                icon: Icons.security,
+                title: 'Zero-Knowledge Privacy',
+                body: 'All peer data is end-to-end encrypted with WireGuard. You cannot inspect peer web traffic, and peers cannot access your phone.',
+              ),
+              const SizedBox(height: 12),
+              _buildConceptRow(
+                icon: Icons.battery_charging_full,
+                title: 'Battery & Data Protections',
+                body: 'Sharing automatically pauses when your battery falls below 20% or on cellular data. Customize these limits in Sharing Policies.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got it', style: TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConceptRow({
+    required IconData icon,
+    required String title,
+    required String body,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: ZoopColors.primaryCyan.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: ZoopColors.primaryCyan, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: ZoopColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: ZoopColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   void _showPolicySheet(SharingPolicy currentPolicy) {
@@ -196,6 +321,11 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: ZoopColors.textSecondary),
+            tooltip: 'How Sharing Works',
+            onPressed: () => _showHowSharingWorksDialog(context),
+          ),
           IconButton(
             icon: const Icon(Icons.tune, color: ZoopColors.textSecondary),
             tooltip: 'Sharing Policies',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/utils/phone_utils.dart';
 import '../../../../core/utils/zoop_feedback.dart';
+import '../../../../core/widgets/zoop_button.dart';
 import '../../domain/wallet_models.dart';
 import 'payment_brand_icon.dart';
 
@@ -360,44 +361,33 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 ],
 
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_selectedAmount < 500) {
-                        ZoopFeedback.vibrate();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Minimum deposit is UGX 500'),
-                            backgroundColor: ZoopColors.accentRose,
-                          ),
-                        );
-                        return;
-                      }
-                      if (_isMobileMoney && _phoneController.text.trim().length < 9) {
-                        ZoopFeedback.vibrate();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please enter a valid Uganda phone number'),
-                            backgroundColor: ZoopColors.accentRose,
-                          ),
-                        );
-                        return;
-                      }
-                      ZoopFeedback.medium();
-                      setState(() => _isReviewing = true);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.primaryCyan,
-                      foregroundColor: ZoopColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'REVIEW TOP-UP (${_formatUgx(_selectedAmount)})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                    ),
-                  ),
+                ZoopButton.primary(
+                  label: 'REVIEW TOP-UP (${_formatUgx(_selectedAmount)})',
+                  isFullWidth: true,
+                  onPressed: () {
+                    if (_selectedAmount < 500) {
+                      ZoopFeedback.vibrate();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Minimum deposit is UGX 500'),
+                          backgroundColor: ZoopColors.accentRose,
+                        ),
+                      );
+                      return;
+                    }
+                    if (_isMobileMoney && _phoneController.text.trim().length < 9) {
+                      ZoopFeedback.vibrate();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a valid Uganda phone number'),
+                          backgroundColor: ZoopColors.accentRose,
+                        ),
+                      );
+                      return;
+                    }
+                    ZoopFeedback.medium();
+                    setState(() => _isReviewing = true);
+                  },
                 ),
               ] else ...[
                 // Review & Confirmation Screen
@@ -446,7 +436,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                       const SizedBox(height: 10),
                       _buildSummaryRow('Channel', _isMobileMoney ? 'Direct Telecom Push' : 'Secure Card Gateway'),
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Processing Fee', 'UGX 0 (Free)'),
+                      _buildSummaryRow('Telecom Network Fee', 'UGX 0 (Covered by Zoop)'),
                       const Divider(height: 24, color: ZoopColors.surfaceBorder),
                       _buildSummaryRow('Total Due', _formatUgx(_selectedAmount), isTotal: true),
                     ],
@@ -476,32 +466,21 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ZoopFeedback.medium();
-                      final phone = _isMobileMoney
-                          ? PhoneUtils.formatUgandaPhone(_phoneController.text.trim())
-                          : null;
-                      widget.onConfirm(
-                        amount: _selectedAmount,
-                        method: _selectedMethod,
-                        phoneNumber: phone,
-                      );
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.accentGreen,
-                      foregroundColor: ZoopColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'CONFIRM & PAY ${_formatUgx(_selectedAmount)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                    ),
-                  ),
+                ZoopButton.primary(
+                  label: 'CONFIRM & PAY ${_formatUgx(_selectedAmount)}',
+                  isFullWidth: true,
+                  onPressed: () {
+                    ZoopFeedback.medium();
+                    final phone = _isMobileMoney
+                        ? PhoneUtils.formatUgandaPhone(_phoneController.text.trim())
+                        : null;
+                    widget.onConfirm(
+                      amount: _selectedAmount,
+                      method: _selectedMethod,
+                      phoneNumber: phone,
+                    );
+                    Navigator.of(context).pop();
+                  },
                 ),
                 const SizedBox(height: 8),
                 Center(

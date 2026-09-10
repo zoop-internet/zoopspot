@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/zoop_colors.dart';
+import 'zoop_button.dart';
 
 /// Zoop Canonical Empty State Component.
 /// Provides consistent, user-friendly empty state presentation across all features
@@ -88,34 +89,17 @@ class ZoopEmptyState extends StatelessWidget {
           ),
           if (primaryActionLabel != null && onPrimaryAction != null) ...[
             SizedBox(height: compact ? 16 : 22),
-            ElevatedButton.icon(
+            ZoopButton.primary(
+              label: primaryActionLabel!,
+              icon: primaryActionIcon ?? Icons.add,
               onPressed: onPrimaryAction,
-              icon: Icon(primaryActionIcon ?? Icons.add, size: 18),
-              label: Text(
-                primaryActionLabel!,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ZoopColors.primaryCyan,
-                foregroundColor: ZoopColors.background,
-                minimumSize: const Size(160, 46),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
             ),
           ],
           if (secondaryActionLabel != null && onSecondaryAction != null) ...[
             const SizedBox(height: 8),
-            TextButton(
+            ZoopButton.ghost(
+              label: secondaryActionLabel!,
               onPressed: onSecondaryAction,
-              style: TextButton.styleFrom(
-                foregroundColor: ZoopColors.textSecondary,
-                minimumSize: const Size(120, 40),
-              ),
-              child: Text(
-                secondaryActionLabel!,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
             ),
           ],
         ],

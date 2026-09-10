@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/zoop_colors.dart';
+import 'zoop_button.dart';
 
 /// Zoop Canonical Error Banner Component.
 /// Displays inline errors, network connection drops, or API failures with
@@ -79,22 +80,11 @@ class ZoopErrorBanner extends StatelessWidget {
                 ),
                 if (onRetry != null) ...[
                   const SizedBox(height: 10),
-                  ElevatedButton.icon(
+                  ZoopButton.primary(
+                    label: 'Retry',
+                    icon: Icons.refresh,
+                    height: 36,
                     onPressed: onRetry,
-                    icon: const Icon(Icons.refresh, size: 15),
-                    label: const Text(
-                      'Retry',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(80, 36),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
                   ),
                 ],
               ],

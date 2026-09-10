@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/utils/phone_utils.dart';
 import '../../../../core/utils/zoop_feedback.dart';
+import '../../../../core/widgets/zoop_button.dart';
 import 'payment_brand_icon.dart';
 
 class WithdrawSheet extends StatefulWidget {
@@ -29,7 +30,18 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
   int _selectedPercent = 100;
   String _selectedProvider = 'MTN Mobile Money';
 
-  static const double _transferFee = 500.0; // UGX 500 standard telecom transfer fee
+  /// Tiered East African telecom payout fee schedule
+  double get _transferFee {
+    if (_withdrawAmount <= 10000) {
+      return 350.0;
+    } else if (_withdrawAmount <= 50000) {
+      return 700.0;
+    } else if (_withdrawAmount <= 150000) {
+      return 1200.0;
+    } else {
+      return 2000.0;
+    }
+  }
 
   @override
   void initState() {
@@ -60,11 +72,13 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
 
   void _onPhoneChanged(String val) {
     final net = PhoneUtils.detectUgandaNetwork(val);
-    if (net == 'mtn' && !_selectedProvider.contains('MTN')) {
-      setState(() => _selectedProvider = 'MTN Mobile Money');
-    } else if (net == 'airtel' && !_selectedProvider.contains('Airtel')) {
-      setState(() => _selectedProvider = 'Airtel Money');
-    }
+    setState(() {
+      if (net == 'mtn' && !_selectedProvider.contains('MTN')) {
+        _selectedProvider = 'MTN Mobile Money';
+      } else if (net == 'airtel' && !_selectedProvider.contains('Airtel')) {
+        _selectedProvider = 'Airtel Money';
+      }
+    });
   }
 
   @override
@@ -339,26 +353,15 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   onChanged: _onPhoneChanged,
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_withdrawAmount < 1000 || _phoneController.text.trim().length < 9)
-                        ? null
-                        : () {
-                            ZoopFeedback.medium();
-                            setState(() => _isReviewing = true);
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.accentGreen,
-                      foregroundColor: ZoopColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'REVIEW WITHDRAWAL (${_formatUgx(_withdrawAmount)})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                    ),
-                  ),
+                ZoopButton.primary(
+                  label: 'REVIEW WITHDRAWAL (${_formatUgx(_withdrawAmount)})',
+                  isFullWidth: true,
+                  onPressed: (_withdrawAmount < 1000 || _phoneController.text.trim().length < 9)
+                      ? null
+                      : () {
+                          ZoopFeedback.medium();
+                          setState(() => _isReviewing = true);
+                        },
                 ),
               ] else ...[
                 // Confirmation Step
@@ -408,7 +411,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       const SizedBox(height: 10),
                       _buildSummaryRow('Network', _selectedProvider.contains('MTN') ? 'MTN MoMo Direct' : 'Airtel Money Direct'),
                       const SizedBox(height: 10),
-                      _buildSummaryRow('Transfer Fee', _formatUgx(_transferFee)),
+                      _buildSummaryRow('Telecom Transfer Fee (Tiered)', _formatUgx(_transferFee)),
                       const Divider(height: 24, color: ZoopColors.surfaceBorder),
                       _buildSummaryRow('Net Credited to SIM', _formatUgx(netPayout), isTotal: true),
                     ],
@@ -436,31 +439,20 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ZoopFeedback.medium();
-                      final phone = PhoneUtils.formatUgandaPhone(_phoneController.text.trim());
-                      final provider = _selectedProvider.contains('MTN') ? 'mtn' : 'airtel';
-                      widget.onConfirm(
-                        amount: _withdrawAmount,
-                        phoneNumber: phone,
-                        provider: provider,
-                      );
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ZoopColors.accentGreen,
-                      foregroundColor: ZoopColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      'CONFIRM & DISBURSE ${_formatUgx(netPayout)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                    ),
-                  ),
+                ZoopButton.primary(
+                  label: 'CONFIRM & DISBURSE ${_formatUgx(netPayout)}',
+                  isFullWidth: true,
+                  onPressed: () {
+                    ZoopFeedback.medium();
+                    final phone = PhoneUtils.formatUgandaPhone(_phoneController.text.trim());
+                    final provider = _selectedProvider.contains('MTN') ? 'mtn' : 'airtel';
+                    widget.onConfirm(
+                      amount: _withdrawAmount,
+                      phoneNumber: phone,
+                      provider: provider,
+                    );
+                    Navigator.of(context).pop();
+                  },
                 ),
                 const SizedBox(height: 8),
                 Center(
