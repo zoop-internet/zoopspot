@@ -260,8 +260,10 @@
 
 .lp-menu-btn {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
@@ -1435,6 +1437,7 @@
   .lp-topbar { padding: 14px 20px; }
   .lp-nav-pill { display: none; }
   .lp-menu-btn { display: flex; min-width:44px; min-height:44px; }
+  .lp-btn-primary, .lp-btn-secondary { min-height: 44px; min-width: 44px; }
   .lp-hero { padding: 40px 20px 60px; }
   .lp-hero-grid { gap: 28px; }
   .lp-bent-mesh-wrap { min-height: 320px; aspect-ratio: 1.05; }

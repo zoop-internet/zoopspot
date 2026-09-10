@@ -1389,8 +1389,10 @@ html, body, #root {
 /* ─── Mobile — hamburger + drawer ─────────────────────────────── */
 .mobile-menu-btn {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 10px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.08);
@@ -1470,7 +1472,8 @@ html, body, #root {
 
 @media (max-width: 480px) {
   .page-title, .admin-title, .admin-page-title { font-size: 1.05rem; }
-  .btn-sm { padding: 7px 10px; font-size: 0.8rem; }
+  .btn-sm { padding: 10px 14px; font-size: 0.8rem; min-height: 44px; min-width: 44px; }
+  .btn-xs { padding: 8px 12px; font-size: 0.75rem; min-height: 36px; min-width: 36px; }
   .pin-boxes { gap: 6px; }
   .pin-box { height: 44px; font-size: 1.15rem; }
   .auth-input, .field input, .field select { font-size: 16px; } /* prevent iOS zoom */
