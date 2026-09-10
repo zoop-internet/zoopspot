@@ -1628,8 +1628,21 @@ const WalletTab: React.FC<{
 /* ─── Main UserDashboard — modern nav ─────────────────────────── */
 export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
   const { user, deviceId, deviceName, allDevices, connections } = useApp();
-  const [tab, setTab] = useState<UserTab>('overview');
+  const [tab, setTab] = useState<UserTab>(() => {
+    const h = window.location.hash.replace(/^#/, '') as UserTab;
+    return (['overview','devices','connections','sharing','wallet','settings'].includes(h) ? h : 'overview') as UserTab;
+  });
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Deep-link IA: sync tab ↔ hash for direct linking (#sharing, #connections)
+  React.useEffect(() => { window.location.hash = tab; }, [tab]);
+  React.useEffect(() => {
+    const onHash = () => {
+      const h = window.location.hash.replace(/^#/, '') as UserTab;
+      if (['overview','devices','connections','sharing','wallet','settings'].includes(h)) setTab(h);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const navCounts: Record<UserTab, number | null> = {
     overview: null,

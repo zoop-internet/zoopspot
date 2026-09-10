@@ -88,7 +88,7 @@ const App: React.FC = () => {
   const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs');
   const pathnameForLanding = isValidRoute ? pathname : '/';
 
-  // Per-route title/description sync for SEO (covers S4-05) — uses normalized route
+  // Per-route title/description/canonical sync for SEO (covers S4-05 + canonical)
   useEffect(() => {
     const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
       : (['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : normalized)));
@@ -101,6 +101,11 @@ const App: React.FC = () => {
     if (ogTitle) ogTitle.content = document.title;
     const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
     if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
+    // Canonical per route — prevents duplicate content (SEO)
+    const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (canonical) canonical.href = `https://zoopinternet.online${normalized === '/' ? '/' : normalized}`;
+    const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
+    if (ogUrl) ogUrl.content = `https://zoopinternet.online${normalized === '/' ? '/' : normalized}`;
   }, [normalized, isValidRoute]);
 
   const isAuth =

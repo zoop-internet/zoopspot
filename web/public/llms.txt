@@ -2,11 +2,11 @@
 
 > Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal, and Ed25519 identities.
 
-- **Website:** https://zoop.network
+- **Website:** https://zoopinternet.online
 - **GitHub:** https://github.com/zoop-internet/zoop
-- **Docs:** https://zoop.network/how-it-works
-- **Downloads:** https://zoop.network/downloads
-- **Security:** https://zoop.network/security
+- **Docs:** https://zoopinternet.online/how-it-works
+- **Downloads:** https://zoopinternet.online/downloads
+- **Security:** https://zoopinternet.online/security
 - **API docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
 
 ## What Zoop Does
@@ -42,8 +42,8 @@ zoop status && zoop connect <peer-id>
 **Q: Is it free?** A: Yes, MIT-licensed. Self-hostable control plane.
 
 ## Full Reference
-- **Full dump for answer engines:** https://zoop.network/llms-full.txt
-- **Pricing:** https://zoop.network/pricing
+- **Full dump for answer engines:** https://zoopinternet.online/llms-full.txt
+- **Pricing:** https://zoopinternet.online/pricing
 - **Markdown alternative:** Append `.md` to any marketing route (e.g. `/how-it-works.md` returns markdown via `Accept: text/markdown` in future)
 
 ## Sections

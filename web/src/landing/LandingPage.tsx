@@ -1652,10 +1652,10 @@ export const LandingPage: React.FC<{
                       <span className="lp-grad-text">internet — directly.</span>
                     </h1>
                     <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
-                      Lend your home broadband or phone data to your laptop, family or team — <strong style={{color:'var(--ink)'}}>device-to-device, no VPN servers in the middle</strong>. Private, faster (<span style={{ color:'#34d399', fontWeight:800 }}>&lt;1ms</span> direct), and works behind strict NAT/CGNAT. <strong style={{color:'var(--ink)'}}>30-sec setup.</strong>
+                      Lend your home broadband or phone data to your laptop, family or team — <strong style={{color:'var(--ink)'}}>device-to-device, no VPN servers in the middle</strong>. Private, faster (<span style={{ color:'#34d399', fontWeight:800 }}>&lt;1ms</span> direct), and works even behind strict home or mobile carrier firewalls (<abbr title="Carrier-Grade NAT — your ISP shares one public IP with many homes" style={{ textDecoration:'underline dotted', cursor:'help' }}>CGNAT</abbr>). <strong style={{color:'var(--ink)'}}>30-sec setup.</strong>
                     </p>
                     <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:6, lineHeight:1.5, maxWidth: 520 }}>
-                      WireGuard® encrypted · End-to-end · Revoke anytime · <a onClick={()=>handleNav('/how-it-works')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer' }}>How sharing works →</a>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><Ico d={Icons.check} size={10}/> Private to you</span> · <abbr title="WireGuard — modern VPN cryptography, Noise_IK + ChaCha20-Poly1305" style={{ textDecoration:'underline dotted', cursor:'help' }}>WireGuard®</abbr> encrypted · End-to-end · Revoke anytime · <a onClick={()=>handleNav('/how-it-works')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer' }}>How sharing works →</a>
                     </p>
                     <div className="lp-hero-actions">
                       {isAuthenticated ? (
@@ -1800,12 +1800,12 @@ export const LandingPage: React.FC<{
                   <div style={{ padding:'14px 16px', fontWeight:700, color:'var(--muted)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Traditional VPN</div>
                   <div style={{ padding:'14px 16px', fontWeight:700, color:'var(--muted)', borderBottom:'1px solid var(--line)', textAlign:'center' }}>Tailscale / Mesh VPN</div>
                   {[
-                    ['Path', 'Direct device-to-device', 'Via company servers', 'Via coordination server + DERP'],
-                    ['Added latency', '~ <1ms (direct) / relay fallback', '+30–120ms', '+10–40ms (often relayed)'],
-                    ['Can decrypt traffic?', 'No — zero-knowledge relay', 'Provider can (exit node)', 'No (WireGuard)'],
-                    ['NAT/CGNAT', 'STUN + TURN + roaming', 'Needs open port/forward', 'STUN + DERP'],
+                    ['How your data travels', 'Direct device-to-device (your devices only)', 'Via company servers', 'Via coordination server + DERP relay'],
+                    ['Added lag', '~ <1ms direct / relay only if NAT blocks', '+30–120ms via provider', '+10–40ms (often relayed)'],
+                    ['Who can read your traffic?', 'No one but your devices (zero-knowledge relay)', 'Provider can (exit node)', 'No one (WireGuard)'],
+                    ['Works behind home & mobile firewall?', 'Yes — STUN discovery + TURN relay + roaming', 'Needs open port/forward', 'STUN + DERP'],
                     ['Price', 'Free personal, $8/mo teams', '$5–12/mo per user', 'Free up to 3 users, then $6+'],
-                    ['Open source', 'MIT, self-hostable', 'Usually closed', 'Partial / source-available'],
+                    ['Open source?', 'MIT, self-hostable + auditable', 'Usually closed', 'Partial / source-available'],
                   ].map(([feat, zoop, vpn, tailscale]) => (
                     <>
                       <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)', color:'var(--ink-secondary)', fontWeight:600 } }>{feat}</div>
@@ -1852,7 +1852,7 @@ export const LandingPage: React.FC<{
                   <form onSubmit={handleWaitlist} style={{ marginTop: 8, display:'flex', flexDirection:'column', gap:8 }} aria-label="Join founding waitlist">
                     <label htmlFor="waitlist-email" style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--ink-secondary)'}}>Join founding waitlist — lock $8/seat</label>
                     <div style={{ display:'flex', gap:8 }}>
-                      <input id="waitlist-email" type="email" inputMode="email" autoComplete="email" placeholder="you@company.com" value={waitlistEmail} onChange={e=>{setWaitlistEmail(e.target.value); setWaitlistStatus('idle');}} required aria-label="Email for waitlist" style={{ flex:1, padding:'9px 12px', borderRadius:8, border: `1px solid ${waitlistStatus==='error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background:'rgba(0,0,0,0.35)', color:'var(--ink)', fontSize:'0.875rem', outline:'none' }} />
+                      <input id="waitlist-email" type="email" inputMode="email" autoComplete="email" placeholder="you@email.com" value={waitlistEmail} onChange={e=>{setWaitlistEmail(e.target.value); setWaitlistStatus('idle');}} required aria-label="Email for waitlist" style={{ flex:1, padding:'9px 12px', borderRadius:8, border: `1px solid ${waitlistStatus==='error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background:'rgba(0,0,0,0.35)', color:'var(--ink)', fontSize:'0.875rem', outline:'none' }} />
                       <button type="submit" className="lp-btn-primary" style={{ whiteSpace:'nowrap', minHeight:38, padding:'0 16px' }} disabled={waitlistStatus==='loading'}>{waitlistStatus==='loading' ? 'Joining…' : 'Join →'}</button>
                     </div>
                     {waitlistStatus!=='idle' && (
