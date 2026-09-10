@@ -8,6 +8,8 @@ class DiagnosticCheck {
   final Duration? latency;
   final String message;
   final String? details;
+  final String? userExplanation;
+  final String? remedy;
 
   const DiagnosticCheck({
     required this.name,
@@ -15,6 +17,8 @@ class DiagnosticCheck {
     this.latency,
     required this.message,
     this.details,
+    this.userExplanation,
+    this.remedy,
   });
 
   DiagnosticCheck copyWith({
@@ -23,6 +27,8 @@ class DiagnosticCheck {
     Duration? latency,
     String? message,
     String? details,
+    String? userExplanation,
+    String? remedy,
   }) {
     return DiagnosticCheck(
       name: name ?? this.name,
@@ -30,6 +36,8 @@ class DiagnosticCheck {
       latency: latency ?? this.latency,
       message: message ?? this.message,
       details: details ?? this.details,
+      userExplanation: userExplanation ?? this.userExplanation,
+      remedy: remedy ?? this.remedy,
     );
   }
 }

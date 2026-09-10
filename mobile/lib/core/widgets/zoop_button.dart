@@ -15,7 +15,7 @@ enum ZoopButtonVariant {
 /// Canonical Zoop Button Component.
 /// Adheres to Fitts's Law touch target minimums (>= 48x48 dp), provides
 /// automatic tactile haptic feedback, loading state handling, and accessible semantics.
-class ZoopButton extends StatelessWidget {
+class ZoopButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
@@ -24,6 +24,7 @@ class ZoopButton extends StatelessWidget {
   final double height;
   final ZoopButtonVariant variant;
   final String? semanticsLabel;
+  final Duration debounceDuration;
 
   const ZoopButton({
     super.key,
@@ -35,6 +36,7 @@ class ZoopButton extends StatelessWidget {
     this.height = 48.0,
     this.variant = ZoopButtonVariant.primary,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   });
 
   const ZoopButton.primary({
@@ -46,6 +48,7 @@ class ZoopButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height = 48.0,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   }) : variant = ZoopButtonVariant.primary;
 
   const ZoopButton.secondary({
@@ -57,6 +60,7 @@ class ZoopButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height = 48.0,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   }) : variant = ZoopButtonVariant.secondary;
 
   const ZoopButton.outlined({
@@ -68,6 +72,7 @@ class ZoopButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height = 48.0,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   }) : variant = ZoopButtonVariant.outlined;
 
   const ZoopButton.destructive({
@@ -79,6 +84,7 @@ class ZoopButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height = 48.0,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   }) : variant = ZoopButtonVariant.destructive;
 
   const ZoopButton.ghost({
@@ -90,14 +96,27 @@ class ZoopButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height = 48.0,
     this.semanticsLabel,
+    this.debounceDuration = const Duration(milliseconds: 400),
   }) : variant = ZoopButtonVariant.ghost;
 
-  bool get _isEnabled => onPressed != null && !isLoading;
+  @override
+  State<ZoopButton> createState() => _ZoopButtonState();
+}
+
+class _ZoopButtonState extends State<ZoopButton> {
+  DateTime? _lastTapTime;
+
+  bool get _isEnabled => widget.onPressed != null && !widget.isLoading;
 
   void _handleTap() {
     if (!_isEnabled) return;
+    final now = DateTime.now();
+    if (_lastTapTime != null && now.difference(_lastTapTime!) < widget.debounceDuration) {
+      return; // Throttled: prevents rapid multi-tap double payment / actions
+    }
+    _lastTapTime = now;
     ZoopFeedback.selection();
-    onPressed!();
+    widget.onPressed!();
   }
 
   @override
@@ -106,7 +125,7 @@ class ZoopButton extends StatelessWidget {
     Color foregroundColor;
     BorderSide borderSide;
 
-    switch (variant) {
+    switch (widget.variant) {
       case ZoopButtonVariant.primary:
         backgroundColor = _isEnabled ? ZoopColors.primaryCyan : ZoopColors.surfaceElevated;
         foregroundColor = _isEnabled ? Colors.black : ZoopColors.textMuted;
@@ -141,7 +160,7 @@ class ZoopButton extends StatelessWidget {
     }
 
     Widget content;
-    if (isLoading) {
+    if (widget.isLoading) {
       content = Center(
         child: SizedBox(
           width: 20,
@@ -154,17 +173,17 @@ class ZoopButton extends StatelessWidget {
       );
     } else {
       content = Row(
-        mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisSize: widget.isFullWidth ? MainAxisSize.max : MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18, color: foregroundColor),
+          if (widget.icon != null) ...[
+            Icon(widget.icon, size: 18, color: foregroundColor),
             const SizedBox(width: 8),
           ],
           Flexible(
             child: Text(
-              label,
+              widget.label,
               style: ZoopTypography.button.copyWith(
                 color: foregroundColor,
               ),
@@ -183,7 +202,7 @@ class ZoopButton extends StatelessWidget {
         onTap: _isEnabled ? _handleTap : null,
         borderRadius: ZoopSpacing.radiusMd,
         child: Container(
-          height: height,
+          height: widget.height,
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
@@ -191,7 +210,7 @@ class ZoopButton extends StatelessWidget {
             border: borderSide != BorderSide.none ? Border.fromBorderSide(borderSide) : null,
           ),
           child: Center(
-            widthFactor: isFullWidth ? 1.0 : null,
+            widthFactor: widget.isFullWidth ? 1.0 : null,
             child: content,
           ),
         ),
@@ -201,8 +220,8 @@ class ZoopButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: _isEnabled,
-      label: semanticsLabel ?? label,
-      child: isFullWidth
+      label: widget.semanticsLabel ?? widget.label,
+      child: widget.isFullWidth
           ? SizedBox(width: double.infinity, child: buttonWidget)
           : buttonWidget,
     );

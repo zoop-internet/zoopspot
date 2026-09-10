@@ -338,15 +338,100 @@ class DiagnosticsScreen extends ConsumerWidget {
           }
 
           return Semantics(
-            label: '${check.name}: ${check.status.name}. ${check.message}. ${check.latency != null ? '${check.latency!.inMilliseconds} milliseconds latency.' : ''}',
+            label: '${check.name}: ${check.status.name}. ${check.message}. ${check.remedy != null ? "How to fix: ${check.remedy}" : ""}',
             child: ListTile(
               leading: leadingWidget,
               title: Text(check.name),
-              subtitle: Text(
-                check.message,
-                style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    check.message,
+                    style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 12),
+                  ),
+                  if (check.userExplanation != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      check.userExplanation!,
+                      style: TextStyle(
+                        color: ZoopColors.textMuted.withValues(alpha: 0.9),
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                  if (check.status == CheckStatus.failed && check.remedy != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.accentAmber.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: ZoopColors.accentAmber.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lightbulb_outline, size: 12, color: ZoopColors.accentAmber),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'How to fix: ${check.remedy}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: ZoopColors.accentAmber,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
               trailing: trailingWidget,
+              onTap: () {
+                if (check.userExplanation != null || check.remedy != null) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: ZoopColors.surfaceElevated,
+                      title: Row(
+                        children: [
+                          Icon(icon, color: color, size: 20),
+                          const SizedBox(width: 8),
+                          Text(check.name, style: const TextStyle(fontSize: 16, color: ZoopColors.textPrimary)),
+                        ],
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Status: ${check.message}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ZoopColors.textPrimary)),
+                          if (check.userExplanation != null) ...[
+                            const SizedBox(height: 10),
+                            const Text('What this means:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.primaryCyan)),
+                            const SizedBox(height: 3),
+                            Text(check.userExplanation!, style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary)),
+                          ],
+                          if (check.remedy != null) ...[
+                            const SizedBox(height: 12),
+                            const Text('Troubleshooting & Fix:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: ZoopColors.accentAmber)),
+                            const SizedBox(height: 3),
+                            Text(check.remedy!, style: const TextStyle(fontSize: 12, color: ZoopColors.textSecondary)),
+                          ],
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Got it', style: TextStyle(color: ZoopColors.primaryCyan)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
             ),
           );
         },

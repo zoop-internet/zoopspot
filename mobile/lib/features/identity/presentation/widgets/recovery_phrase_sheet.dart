@@ -35,8 +35,9 @@ class _RecoveryPhraseSheetState extends ConsumerState<RecoveryPhraseSheet> {
     setState(() => _copied = true);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('24-word recovery phrase copied to clipboard'),
-        duration: Duration(seconds: 2),
+        content: Text('24-word recovery phrase copied. Clear your clipboard history after storing securely!'),
+        backgroundColor: ZoopColors.accentAmber,
+        duration: Duration(seconds: 4),
       ),
     );
   }

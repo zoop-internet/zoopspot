@@ -32,6 +32,9 @@ class VpnBridgeService implements IVpnBridgeService {
     }
   }
 
+  bool _isTransitioning = false;
+  bool get isTransitioning => _isTransitioning;
+
   /// Starts the Android native ZoopVpnService with peer connection parameters and routing policy.
   @override
   Future<bool> startTunnel({
@@ -40,6 +43,8 @@ class VpnBridgeService implements IVpnBridgeService {
     String? relayUrl,
     String routingMode = 'full',
   }) async {
+    if (_isTransitioning) return false;
+    _isTransitioning = true;
     try {
       final bool? result =
           await _methodChannel.invokeMethod<bool>('startTunnel', {
@@ -53,12 +58,16 @@ class VpnBridgeService implements IVpnBridgeService {
       return true;
     } catch (_) {
       return false;
+    } finally {
+      _isTransitioning = false;
     }
   }
 
   /// Disconnects and shuts down the native VPN service.
   @override
   Future<bool> stopTunnel() async {
+    if (_isTransitioning) return false;
+    _isTransitioning = true;
     try {
       final bool? result =
           await _methodChannel.invokeMethod<bool>('stopTunnel');
@@ -67,6 +76,8 @@ class VpnBridgeService implements IVpnBridgeService {
       return true;
     } catch (_) {
       return false;
+    } finally {
+      _isTransitioning = false;
     }
   }
 

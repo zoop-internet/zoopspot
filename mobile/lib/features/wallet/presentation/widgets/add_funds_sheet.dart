@@ -245,11 +245,11 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   final methodColor = method['color'] as Color;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: ZoopColors.surfaceElevated,
+                    child: Material(
+                      color: ZoopColors.surfaceElevated,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
+                        side: BorderSide(
                           color: isSelected ? methodColor : ZoopColors.surfaceBorder,
                           width: isSelected ? 1.5 : 1.0,
                         ),
