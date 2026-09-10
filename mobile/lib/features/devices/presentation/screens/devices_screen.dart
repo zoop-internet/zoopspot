@@ -218,7 +218,7 @@ class DevicesScreen extends ConsumerWidget {
                   ZoopEmptyState(
                     icon: Icons.devices_other_rounded,
                     title: 'No Authorized Nodes',
-                    description: 'Pair your other mobile devices, laptops, or servers to expand your private encrypted mesh fabric.',
+                    description: 'Pair your other mobile devices, laptops, or servers to share internet across your devices.',
                     primaryActionLabel: 'Pair Your First Node',
                     primaryActionIcon: Icons.qr_code_scanner,
                     onPrimaryAction: () => _showPairingSheet(context),

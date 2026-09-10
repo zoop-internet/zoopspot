@@ -16,7 +16,7 @@ enum TransactionType {
       case TransactionType.sharingEarning:
         return 'Provider Egress Reward';
       case TransactionType.bandwidthSpend:
-        return 'Mesh Bandwidth Usage';
+        return 'Internet Usage';
     }
   }
 
@@ -89,7 +89,7 @@ enum PaymentMethodType {
       case PaymentMethodType.card:
         return 'Visa / Mastercard';
       case PaymentMethodType.meshInternal:
-        return 'Mesh Protocol';
+        return 'Zoop Protocol';
     }
   }
 

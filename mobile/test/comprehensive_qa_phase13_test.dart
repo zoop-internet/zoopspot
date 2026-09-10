@@ -180,7 +180,7 @@ void main() {
       );
 
       expect(find.byType(AddFundsSheet), findsOneWidget);
-      expect(find.text('Top-Up Mesh Wallet'), findsOneWidget);
+      expect(find.text('Top-Up Zoop Wallet'), findsOneWidget);
       expect(find.text('MTN Mobile Money'), findsOneWidget);
       expect(find.text('Airtel Money'), findsOneWidget);
     });

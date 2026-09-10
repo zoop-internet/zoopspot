@@ -107,7 +107,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
 
               if (!_isReviewing) ...[
                 const Text(
-                  'Top-Up Mesh Wallet',
+                  'Top-Up Zoop Wallet',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

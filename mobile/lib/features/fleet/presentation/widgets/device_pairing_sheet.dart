@@ -205,8 +205,8 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 170,
-                      height: 170,
+                      width: 180,
+                      height: 180,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -222,7 +222,8 @@ class _DevicePairingSheetState extends State<DevicePairingSheet>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.qr_code_2, size: 130, color: Colors.black.withValues(alpha: 0.85)),
+                          Icon(Icons.qr_code_2, size: 116, color: Colors.black.withValues(alpha: 0.85)),
+                          const SizedBox(height: 4),
                           Text(
                             widget.deviceId,
                             style: const TextStyle(

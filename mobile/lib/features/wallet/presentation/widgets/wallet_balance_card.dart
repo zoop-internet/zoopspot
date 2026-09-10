@@ -35,7 +35,7 @@ class WalletBalanceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Available Mesh Balance',
+                'Available Zoop Balance',
                 style: TextStyle(fontSize: 13, color: ZoopColors.textSecondary),
               ),
               Container(
@@ -71,7 +71,7 @@ class WalletBalanceCard extends StatelessWidget {
             icon: Icons.add_circle_outline,
             onPressed: onAddFunds,
             isFullWidth: true,
-            semanticsLabel: 'Add funds to prepaid mesh balance',
+            semanticsLabel: 'Add funds to prepaid Zoop balance',
           ),
         ],
       ),

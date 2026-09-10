@@ -47,7 +47,7 @@ class FleetMeshOverviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'WireGuard Mesh',
+                      'WireGuard Network',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -62,7 +62,7 @@ class FleetMeshOverviewCard extends StatelessWidget {
               ),
               ZoopSpacing.gapSm,
               Semantics(
-                label: 'Pair new device to WireGuard mesh',
+                label: 'Pair new device for internet sharing',
                 button: true,
                 child: OutlinedButton.icon(
                   onPressed: onPair,

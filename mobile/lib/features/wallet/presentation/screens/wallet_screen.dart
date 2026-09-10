@@ -238,7 +238,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
         ),
         actions: [
           Semantics(
-            label: 'Add funds to mesh wallet',
+            label: 'Add funds to Zoop wallet',
             button: true,
             child: IconButton(
               icon: const Icon(Icons.add_card_rounded, color: ZoopColors.primaryCyan),
@@ -425,7 +425,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                   icon: Icons.receipt_long_rounded,
                   title: 'No Transactions Recorded Yet',
                   description:
-                      'Top up your mesh balance using MTN Mobile Money, Airtel Money, or Card, or share bandwidth to start earning.',
+                      'Top up your Zoop balance using MTN Mobile Money, Airtel Money, or Card, or share internet to start earning.',
                   primaryActionLabel: 'Add Funds',
                   primaryActionIcon: Icons.add_circle_outline,
                   onPrimaryAction: () => _showAddFunds(context),

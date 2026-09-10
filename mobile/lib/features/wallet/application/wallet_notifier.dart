@@ -171,7 +171,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
           amount: amount,
           phoneNumber: phoneNumber,
           provider: netProvider,
-          description: 'Zoop Mesh Top-up',
+          description: 'Zoop Top-up',
         );
         result = PaymentInitiationResult.fromJson(res);
       } else {
@@ -228,7 +228,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
           endpointId: endpointId,
           privateKeySeed: seed,
           amount: amount,
-          description: 'Zoop Mesh Top-up - Card',
+          description: 'Zoop Top-up - Card',
         );
         result = PaymentInitiationResult.fromJson(res);
       } else {

@@ -9,7 +9,7 @@ enum RoutingMode {
       case RoutingMode.fullInternet:
         return 'Full Internet Egress';
       case RoutingMode.splitTunnel:
-        return 'Split Tunnel (Mesh Only)';
+        return 'Split Tunnel (Zoop Only)';
     }
   }
 
@@ -18,7 +18,7 @@ enum RoutingMode {
       case RoutingMode.fullInternet:
         return 'Routes all device internet traffic through provider (Exit Node)';
       case RoutingMode.splitTunnel:
-        return 'Routes only Zoop 100.64.0.0/10 mesh traffic; local internet remains direct';
+        return 'Routes only Zoop 100.64.0.0/10 sharing traffic; local internet remains direct';
     }
   }
 

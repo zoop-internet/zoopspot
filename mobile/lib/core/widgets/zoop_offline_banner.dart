@@ -49,7 +49,7 @@ class ZoopOfflineBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Local Mesh Mode',
+                  'Local Sharing Mode',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -57,7 +57,7 @@ class ZoopOfflineBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Cloud offline. Direct P2P mesh tunnels remain active.',
+                  'Cloud offline. Direct P2P internet sharing remains active.',
                   style: TextStyle(
                     fontSize: 11,
                     color: ZoopColors.textSecondary,

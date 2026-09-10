@@ -60,7 +60,7 @@ class DeviceDetailsSheet extends StatelessWidget {
     final confirmed = await ZoopConfirmDialog.show(
       context: context,
       title: 'Revoke Node Access?',
-      message: 'This will permanently disconnect "${device.name}" and revoke its WireGuard cryptographic keys from your Zoop mesh network.',
+      message: 'This will permanently disconnect "${device.name}" and revoke its WireGuard cryptographic keys from your Zoop network.',
       confirmLabel: 'Revoke Node',
       cancelLabel: 'Cancel',
       isDestructive: true,
@@ -192,7 +192,7 @@ class DeviceDetailsSheet extends StatelessWidget {
                     _buildRow('Status', device.isOnline ? 'Active & Online' : 'Offline / Inactive',
                         device.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted),
                     const Divider(color: ZoopColors.surfaceBorder, height: 16),
-                    _buildRow('Mesh Virtual IP', device.ipAddress, ZoopColors.textPrimary),
+                    _buildRow('Virtual IP', device.ipAddress, ZoopColors.textPrimary),
                     const Divider(color: ZoopColors.surfaceBorder, height: 16),
                     _buildRow('Endpoint ID', device.endpointId, ZoopColors.primaryCyan),
                     const Divider(color: ZoopColors.surfaceBorder, height: 16),

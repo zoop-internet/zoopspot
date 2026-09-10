@@ -26,7 +26,7 @@ void main() {
       );
 
       expect(find.byType(AddFundsSheet), findsOneWidget);
-      expect(find.text('Top-Up Mesh Wallet'), findsOneWidget);
+      expect(find.text('Top-Up Zoop Wallet'), findsOneWidget);
       expect(find.byType(ZoopButton), findsOneWidget);
       expect(find.textContaining('REVIEW TOP-UP'), findsOneWidget);
 

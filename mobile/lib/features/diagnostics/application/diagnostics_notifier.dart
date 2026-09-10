@@ -83,7 +83,7 @@ class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
         'Agent State',
         CheckStatus.running,
         'Checking agent state...',
-        userExplanation: 'Verifies the local WireGuard mesh daemon is running and responsive on your device.',
+        userExplanation: 'Verifies the local WireGuard engine is running and responsive on your device.',
         remedy: 'Restart the Zoop app or grant background service permissions in your phone settings.',
       );
       await Future.delayed(const Duration(milliseconds: 300));
@@ -104,7 +104,7 @@ class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
         CheckStatus.running,
         'Checking control plane reachability...',
         userExplanation: 'Checks connectivity with the Zoop Cloud coordination network.',
-        remedy: 'Verify your cellular data or Wi-Fi is active. In offline mesh mode, direct P2P remains functional.',
+        remedy: 'Verify your cellular data or Wi-Fi is active. In offline mode, direct P2P sharing remains functional.',
       );
       final startTime = DateTime.now();
       try {
@@ -176,7 +176,7 @@ class DiagnosticsNotifier extends StateNotifier<DiagnosticsState> {
         'Latency/Throughput',
         CheckStatus.running,
         'Measuring performance...',
-        userExplanation: 'Measures round-trip response time and bandwidth speed to mesh peers.',
+        userExplanation: 'Measures round-trip response time and bandwidth speed to sharing peers.',
         remedy: 'Connect to nodes with lower ping latency or move closer to your Wi-Fi router.',
       );
       await Future.delayed(const Duration(milliseconds: 400));

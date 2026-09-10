@@ -379,7 +379,7 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
 
             // Online Nodes Section
             if (onlineDevices.isNotEmpty) ...[
-              _buildSectionHeader('ACTIVE MESH NODES (${onlineDevices.length})', ZoopColors.accentGreen),
+              _buildSectionHeader('ACTIVE SHARING NODES (${onlineDevices.length})', ZoopColors.accentGreen),
               ZoopSpacing.gapSm,
               for (final dev in onlineDevices)
                 FleetDeviceCard(

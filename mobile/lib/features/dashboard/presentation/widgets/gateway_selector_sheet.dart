@@ -172,7 +172,7 @@ class _GatewaySelectorSheetState extends State<GatewaySelectorSheet> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Choose your exit relay or intranet mesh route',
+                      'Choose your internet sharing gateway or exit relay',
                       style: TextStyle(fontSize: 12, color: ZoopColors.textMuted),
                     ),
                   ],
@@ -197,7 +197,7 @@ class _GatewaySelectorSheetState extends State<GatewaySelectorSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _fullInternet ? 'Full Internet Egress' : 'Intranet Mesh Only',
+                        _fullInternet ? 'Full Internet Sharing' : 'Direct P2P Only',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -208,7 +208,7 @@ class _GatewaySelectorSheetState extends State<GatewaySelectorSheet> {
                       Text(
                         _fullInternet
                             ? 'Route all browser & app traffic via gateway'
-                            : 'Only route traffic to private mesh nodes',
+                            : 'Only route traffic to direct sharing peers',
                         style: const TextStyle(
                             fontSize: 11, color: ZoopColors.textMuted),
                       ),

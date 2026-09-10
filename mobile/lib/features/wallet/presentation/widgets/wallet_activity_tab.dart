@@ -153,7 +153,7 @@ class WalletActivityTab extends StatelessWidget {
                       title: searchQuery.isNotEmpty ? 'No Matching Events' : 'No Activity Events Yet',
                       description: searchQuery.isNotEmpty
                           ? 'No events match "${searchController.text}". Try clearing your search query or switching categories.'
-                          : 'Security, tunnel, and sharing events will record automatically as you participate in the mesh.',
+                          : 'Security, tunnel, and sharing events will record automatically as you participate in internet sharing.',
                       secondaryActionLabel: searchQuery.isNotEmpty ? 'Clear Search' : null,
                       onSecondaryAction: searchQuery.isNotEmpty ? onClearSearch : null,
                     ),

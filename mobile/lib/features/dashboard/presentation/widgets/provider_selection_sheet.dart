@@ -187,7 +187,7 @@ class _ProviderSelectionSheetState
                                 : 'No Reachable Devices Found',
                             description: _searchQuery.isNotEmpty
                                 ? 'No devices match "$_searchQuery". Try clearing your search query.'
-                                : 'Pair another phone, laptop, or gateway to expand your private encrypted mesh.',
+                                : 'Pair another phone, laptop, or gateway to share internet across your devices.',
                             primaryActionLabel: _searchQuery.isEmpty ? 'Pair a Device' : null,
                             primaryActionIcon: Icons.qr_code_scanner,
                             onPrimaryAction: _searchQuery.isEmpty

@@ -13,10 +13,16 @@ import '../../features/organizations/presentation/screens/organizations_screen.d
 import '../../features/activity/presentation/screens/activity_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/dashboard',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
+
     // Shell Route hosting the primary tabs
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),

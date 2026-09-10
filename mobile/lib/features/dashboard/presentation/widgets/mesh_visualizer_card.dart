@@ -48,7 +48,7 @@ class MeshVisualizerCard extends StatelessWidget {
     return Semantics(
       container: true,
       label:
-          'Mesh visualizer: ${status.label}. ${isConnected && activePeer != null ? "Linked to ${activePeer!.name}" : ""}',
+          'Connection visualizer: ${status.label}. ${isConnected && activePeer != null ? "Linked to ${activePeer!.name}" : ""}',
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 28.0, horizontal: 16.0),
         decoration: BoxDecoration(

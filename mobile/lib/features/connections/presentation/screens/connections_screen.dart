@@ -434,7 +434,7 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
                     child: ZoopEmptyState(
                       icon: Icons.sensors_off_rounded,
                       title: 'No Active Tunnels',
-                      description: 'Connect to a provider or peer from the Discover tab to route encrypted traffic through the mesh.',
+                      description: 'Connect to a provider or peer from the Discover tab to share and access internet.',
                       primaryActionLabel: 'Discover Providers',
                       primaryActionIcon: Icons.travel_explore,
                       onPrimaryAction: () => _tabController.animateTo(1),
