@@ -1459,13 +1459,16 @@ const WalletTab: React.FC<{
                 />
               </div>
 
-              {/* Phone number for mobile money */}
+              {/* Phone number for mobile money — modern autocomplete + inputMode */}
               {depositMethod !== 'card' && (
                 <div className="field">
-                  <label>Handset Phone Number (+256...)</label>
+                  <label htmlFor="deposit-phone">Handset Phone Number (+256...)</label>
                   <input
+                    id="deposit-phone"
                     type="tel"
                     required
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={depositPhone}
                     onChange={e => handleDepositPhoneChange(e.target.value)}
                     placeholder="+256 770 000000"

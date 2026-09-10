@@ -782,9 +782,9 @@ const BentArrowMeshIllustration: React.FC = () => {
         <line x1="300" y1="220" x2="385" y2="365" stroke="rgba(163, 230, 53, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
       </svg>
 
-      {/* Central Zoop Hub — decorative, SVG already describes mesh */}
+      {/* Central Zoop Hub — decorative, SVG already describes mesh — performance: async decode */}
       <div className="lp-node-center-hub" title="Zoop Direct Bridge" aria-hidden="true">
-        <img src="/zoopicontransparent.png" alt="" />
+        <img src="/zoopicontransparent.png" alt="" width={44} height={44} decoding="async" loading="eager" />
       </div>
 
       {/* Node 1: Home Wi-Fi & Broadband */}
