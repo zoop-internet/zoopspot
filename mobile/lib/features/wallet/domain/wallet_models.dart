@@ -213,6 +213,36 @@ class WalletTransactionItem {
       redirectUrl: json['redirect_url'] as String?,
     );
   }
+
+  WalletTransactionItem copyWith({
+    String? id,
+    TransactionType? type,
+    double? amount,
+    String? currency,
+    String? description,
+    DateTime? timestamp,
+    TransactionStatus? status,
+    String? referenceId,
+    PaymentMethodType? paymentMethod,
+    String? phoneNumber,
+    String? providerReference,
+    String? redirectUrl,
+  }) {
+    return WalletTransactionItem(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      amount: amount ?? this.amount,
+      currency: currency ?? this.currency,
+      description: description ?? this.description,
+      timestamp: timestamp ?? this.timestamp,
+      status: status ?? this.status,
+      referenceId: referenceId ?? this.referenceId,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      providerReference: providerReference ?? this.providerReference,
+      redirectUrl: redirectUrl ?? this.redirectUrl,
+    );
+  }
 }
 
 /// Result of initiating a payment (deposit or withdrawal) via the server

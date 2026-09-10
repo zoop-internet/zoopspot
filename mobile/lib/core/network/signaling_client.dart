@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import '../crypto/crypto_service.dart';
 
@@ -42,11 +43,18 @@ class SignalingClient {
   final String wsBaseUrl;
   final CryptoService _cryptoService;
   final Uuid _uuid = const Uuid();
+  final math.Random _random;
+
+  final Duration initialDelay;
+  final Duration maxDelay;
+  final double multiplier;
+  final double jitterFactor;
 
   WebSocket? _socket;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
   bool _isDisposed = false;
+  int _reconnectAttempt = 0;
 
   final _messageController = StreamController<SignalingMessage>.broadcast();
   final _connectionStateController =
@@ -57,13 +65,29 @@ class SignalingClient {
   SignalingClient({
     String? wsBaseUrl,
     CryptoService? cryptoService,
+    math.Random? random,
+    this.initialDelay = const Duration(milliseconds: 1000),
+    this.maxDelay = const Duration(seconds: 60),
+    this.multiplier = 1.5,
+    this.jitterFactor = 0.5,
   })  : wsBaseUrl = wsBaseUrl ?? 'wss://3.70.135.200.sslip.io',
-        _cryptoService = cryptoService ?? CryptoService();
+        _cryptoService = cryptoService ?? CryptoService(),
+        _random = random ?? math.Random();
 
   Stream<SignalingMessage> get messages => _messageController.stream;
   Stream<SignalingConnectionState> get connectionState =>
       _connectionStateController.stream;
   SignalingConnectionState get currentState => _state;
+  int get reconnectAttempt => _reconnectAttempt;
+
+  /// Computes exponential backoff with jitter for a given retry attempt.
+  Duration computeBackoff(int attempt, [double? randomRatio]) {
+    final rand = (randomRatio ?? _random.nextDouble()).clamp(0.0, 1.0);
+    final expMs = initialDelay.inMilliseconds * math.pow(multiplier, attempt);
+    final cappedMs = math.min(maxDelay.inMilliseconds.toDouble(), expMs);
+    final jitteredMs = cappedMs * (1.0 - jitterFactor + jitterFactor * rand);
+    return Duration(milliseconds: math.max(1, jitteredMs.round()));
+  }
 
   void _setState(SignalingConnectionState state) {
     _state = state;
@@ -115,6 +139,7 @@ class SignalingClient {
       _socket = await WebSocket.connect(wsUrl, headers: headers)
           .timeout(const Duration(seconds: 10));
 
+      _reconnectAttempt = 0;
       _setState(SignalingConnectionState.connected);
       _startHeartbeat();
 
@@ -169,8 +194,10 @@ class SignalingClient {
     _setState(SignalingConnectionState.disconnected);
 
     if (!_isDisposed) {
+      final backoff = computeBackoff(_reconnectAttempt);
+      _reconnectAttempt++;
       _reconnectTimer?.cancel();
-      _reconnectTimer = Timer(const Duration(seconds: 5), () {
+      _reconnectTimer = Timer(backoff, () {
         connect(endpointId: endpointId, privateKeySeed: privateKeySeed);
       });
     }
@@ -178,6 +205,7 @@ class SignalingClient {
 
   void disconnect() {
     _isDisposed = true;
+    _reconnectAttempt = 0;
     _heartbeatTimer?.cancel();
     _reconnectTimer?.cancel();
     _socket?.close();

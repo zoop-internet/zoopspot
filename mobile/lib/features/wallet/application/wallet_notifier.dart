@@ -203,6 +203,9 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
       );
 
+      // Trigger background status polling for telecom USSD approval
+      pollTransactionStatus(result.reference);
+
       return result;
     } catch (e) {
       state = state.copyWith(isLoading: false);
@@ -327,7 +330,69 @@ class WalletNotifier extends StateNotifier<WalletState> {
     }
   }
 
-  /// Sync balance from cloud server
+  /// Asynchronously polls cloud server for payment confirmation (e.g. USSD prompt PIN entry).
+  /// Handles USSD push timeout if user does not approve within [timeoutSeconds] (default 60s).
+  Future<String> pollTransactionStatus(
+    String referenceId, {
+    int timeoutSeconds = 60,
+    Duration initialInterval = const Duration(seconds: 2),
+  }) async {
+    final endpointId = await _storage?.getEndpointId();
+    final seed = await _storage?.getEd25519SeedBytes();
+    if (_client == null || endpointId == null || seed == null) {
+      return 'completed';
+    }
+
+    final stopwatch = Stopwatch()..start();
+    Duration currentInterval = initialInterval;
+
+    while (stopwatch.elapsed.inSeconds < timeoutSeconds) {
+      await Future.delayed(currentInterval);
+      try {
+        final statusRes = await _client.checkTransactionStatus(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+          referenceId: referenceId,
+        );
+
+        final statusStr = (statusRes['status'] as String? ?? 'pending').toLowerCase();
+
+        if (statusStr == 'completed' || statusStr == 'success') {
+          _updateTransactionStatus(referenceId, TransactionStatus.completed);
+          await refreshBalance();
+          return 'completed';
+        } else if (statusStr == 'failed' || statusStr == 'declined' || statusStr == 'cancelled') {
+          _updateTransactionStatus(referenceId, TransactionStatus.failed);
+          return 'failed';
+        }
+      } catch (_) {
+        // Continue polling on transient network error
+      }
+
+      // Progressive backoff interval up to 8s
+      if (currentInterval.inSeconds < 8) {
+        currentInterval += const Duration(seconds: 1);
+      }
+    }
+
+    // USSD prompt confirmation timed out
+    state = state.copyWith(
+      errorMessage: 'USSD prompt confirmation timed out. Check telecom SMS or retry.',
+    );
+    return 'timeout';
+  }
+
+  void _updateTransactionStatus(String referenceId, TransactionStatus newStatus) {
+    final updatedTxs = state.transactions.map((tx) {
+      if (tx.referenceId == referenceId) {
+        return tx.copyWith(status: newStatus);
+      }
+      return tx;
+    }).toList();
+    state = state.copyWith(transactions: updatedTxs);
+  }
+
+  /// Sync balance from cloud server with offline resilience
   Future<void> refreshBalance() async {
     try {
       final endpointId = await _storage?.getEndpointId();
@@ -350,15 +415,17 @@ class WalletNotifier extends StateNotifier<WalletState> {
             totalEarnedSharing: earned,
             unwithdrawnEarnings: unwithdrawn,
             currency: cur,
+            isOffline: false,
           );
+          return;
         }
       }
     } catch (_) {
-      // Keep local state on network error
+      state = state.copyWith(isOffline: true);
     }
   }
 
-  /// Sync transactions from cloud server
+  /// Sync transactions from cloud server with offline resilience
   Future<void> refreshTransactions() async {
     try {
       final endpointId = await _storage?.getEndpointId();
@@ -374,11 +441,12 @@ class WalletNotifier extends StateNotifier<WalletState> {
               .whereType<Map<String, dynamic>>()
               .map((j) => WalletTransactionItem.fromJson(j))
               .toList();
-          state = state.copyWith(transactions: serverItems);
+          state = state.copyWith(transactions: serverItems, isOffline: false);
+          return;
         }
       }
     } catch (_) {
-      // Keep local transactions on error
+      state = state.copyWith(isOffline: true);
     }
   }
 
@@ -388,7 +456,7 @@ class WalletNotifier extends StateNotifier<WalletState> {
     try {
       await refreshBalance();
       await refreshTransactions();
-      state = state.copyWith(isLoading: false, isOffline: false, clearErrorMessage: true);
+      state = state.copyWith(isLoading: false, clearErrorMessage: true);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

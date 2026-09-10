@@ -169,4 +169,11 @@ abstract class ICloudApiClient {
     int limit = 20,
     int offset = 0,
   });
+
+  /// Queries payment transaction status for asynchronous confirmation (e.g. Mobile Money USSD / Card).
+  Future<Map<String, dynamic>> checkTransactionStatus({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required String referenceId,
+  });
 }

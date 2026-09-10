@@ -306,6 +306,13 @@ class MockCloudApi implements ICloudApiClient {
     int limit = 20,
     int offset = 0,
   }) async => {'earnings': []};
+
+  @override
+  Future<Map<String, dynamic>> checkTransactionStatus({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required String referenceId,
+  }) async => {'status': 'completed', 'reference': referenceId};
 }
 
 void main() {

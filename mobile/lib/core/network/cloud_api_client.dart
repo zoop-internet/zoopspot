@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../crypto/crypto_service.dart';
@@ -13,11 +15,15 @@ class CloudApiClient implements ICloudApiClient {
   final http.Client _client;
   final CryptoService _cryptoService;
   final Uuid _uuid = const Uuid();
+  final Duration requestTimeout;
+  final int maxRetries;
 
   CloudApiClient({
     String? baseUrl,
     http.Client? client,
     CryptoService? cryptoService,
+    this.requestTimeout = const Duration(seconds: 15),
+    this.maxRetries = 3,
   })  : baseUrl = (baseUrl != null && baseUrl.isNotEmpty)
             ? baseUrl
             : 'https://3.70.135.200.sslip.io',
@@ -29,7 +35,8 @@ class CloudApiClient implements ICloudApiClient {
   Future<bool> checkHealth() async {
     try {
       final uri = Uri.parse('$baseUrl/v1/health');
-      final response = await _client.get(uri).timeout(const Duration(seconds: 5));
+      final response =
+          await _client.get(uri).timeout(requestTimeout);
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
         return data['status'] == 'ok';
@@ -60,11 +67,13 @@ class CloudApiClient implements ICloudApiClient {
       'capabilities': capabilities,
     };
 
-    final response = await _client.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(payload),
-    );
+    final response = await _client
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(payload),
+        )
+        .timeout(requestTimeout);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = json.decode(response.body) as Map<String, dynamic>;
@@ -75,6 +84,7 @@ class CloudApiClient implements ICloudApiClient {
   }
 
   /// Performs an authenticated HTTP request using the zoop-auth-v2 cryptographic protocol.
+  /// Idempotent GET requests are automatically retried with exponential backoff on transient network failures.
   @override
   Future<dynamic> authenticatedRequest({
     required String method,
@@ -84,49 +94,101 @@ class CloudApiClient implements ICloudApiClient {
     Map<String, dynamic>? body,
   }) async {
     final uri = Uri.parse('$baseUrl$path');
-    final timestampIso = DateTime.now().toUtc().toIso8601String();
-    final nonce = _uuid.v4();
-    final bodyJsonStr = body != null ? json.encode(body) : '';
+    final isIdempotent = method.toUpperCase() == 'GET';
+    final totalAttempts = isIdempotent ? maxRetries : 1;
+    http.Response? response;
+    dynamic lastError;
 
-    final canonicalPayload = _cryptoService.buildCanonicalPayload(
-      method: method,
-      path: uri.path,
-      timestampIso: timestampIso,
-      nonce: nonce,
-      body: bodyJsonStr,
-    );
+    for (int attempt = 0; attempt < totalAttempts; attempt++) {
+      final timestampIso = DateTime.now().toUtc().toIso8601String();
+      final nonce = _uuid.v4();
+      final bodyJsonStr = body != null ? json.encode(body) : '';
 
-    final signatureBytes = await _cryptoService.signPayload(
-      privateKeySeed: privateKeySeed,
-      canonicalPayload: canonicalPayload,
-    );
+      final canonicalPayload = _cryptoService.buildCanonicalPayload(
+        method: method,
+        path: uri.path,
+        timestampIso: timestampIso,
+        nonce: nonce,
+        body: bodyJsonStr,
+      );
 
-    final signatureB64 = base64.encode(signatureBytes);
+      final signatureBytes = await _cryptoService.signPayload(
+        privateKeySeed: privateKeySeed,
+        canonicalPayload: canonicalPayload,
+      );
 
-    final headers = {
-      'Content-Type': 'application/json',
-      'X-Zoop-Identity': endpointId,
-      'X-Zoop-Signature': signatureB64,
-      'X-Zoop-Timestamp': timestampIso,
-      'X-Zoop-Nonce': nonce,
-    };
+      final signatureB64 = base64.encode(signatureBytes);
 
-    http.Response response;
-    switch (method.toUpperCase()) {
-      case 'GET':
-        response = await _client.get(uri, headers: headers);
+      final headers = {
+        'Content-Type': 'application/json',
+        'X-Zoop-Identity': endpointId,
+        'X-Zoop-Signature': signatureB64,
+        'X-Zoop-Timestamp': timestampIso,
+        'X-Zoop-Nonce': nonce,
+      };
+
+      try {
+        switch (method.toUpperCase()) {
+          case 'GET':
+            response = await _client
+                .get(uri, headers: headers)
+                .timeout(requestTimeout);
+            break;
+          case 'POST':
+            response = await _client
+                .post(uri, headers: headers, body: bodyJsonStr)
+                .timeout(requestTimeout);
+            break;
+          case 'PUT':
+            response = await _client
+                .put(uri, headers: headers, body: bodyJsonStr)
+                .timeout(requestTimeout);
+            break;
+          case 'DELETE':
+            response = await _client
+                .delete(
+                  uri,
+                  headers: headers,
+                  body: bodyJsonStr.isNotEmpty ? bodyJsonStr : null,
+                )
+                .timeout(requestTimeout);
+            break;
+          default:
+            throw ArgumentError('Unsupported HTTP method: $method');
+        }
+
+        // Retry transient server gateway errors on idempotent requests
+        if (isIdempotent &&
+            (response.statusCode == 502 ||
+                response.statusCode == 503 ||
+                response.statusCode == 504)) {
+          if (attempt < totalAttempts - 1) {
+            await Future.delayed(
+              Duration(milliseconds: 300 * math.pow(2, attempt).round()),
+            );
+            continue;
+          }
+        }
         break;
-      case 'POST':
-        response = await _client.post(uri, headers: headers, body: bodyJsonStr);
-        break;
-      case 'PUT':
-        response = await _client.put(uri, headers: headers, body: bodyJsonStr);
-        break;
-      case 'DELETE':
-        response = await _client.delete(uri, headers: headers, body: bodyJsonStr.isNotEmpty ? bodyJsonStr : null);
-        break;
-      default:
-        throw ArgumentError('Unsupported HTTP method: $method');
+      } catch (e) {
+        lastError = e;
+        if (isIdempotent && attempt < totalAttempts - 1) {
+          await Future.delayed(
+            Duration(milliseconds: 300 * math.pow(2, attempt).round()),
+          );
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    if (response == null) {
+      if (lastError != null) throw lastError;
+      throw CloudApiException(
+        code: 'request_failed',
+        message: 'Request failed to execute',
+        statusCode: 0,
+      );
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -430,6 +492,46 @@ class CloudApiClient implements ICloudApiClient {
       privateKeySeed: privateKeySeed,
     );
     return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Queries payment transaction status for asynchronous confirmation (e.g. Mobile Money USSD / Card).
+  @override
+  Future<Map<String, dynamic>> checkTransactionStatus({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required String referenceId,
+  }) async {
+    try {
+      final result = await authenticatedRequest(
+        method: 'GET',
+        path: '/v1/wallet/transactions/$referenceId/status',
+        endpointId: endpointId,
+        privateKeySeed: privateKeySeed,
+      );
+      if (result is Map<String, dynamic>) {
+        return result;
+      }
+    } catch (_) {
+      // Fall back to listing transactions if dedicated status endpoint is not reachable
+      final txList = await listWalletTransactions(
+        endpointId: endpointId,
+        privateKeySeed: privateKeySeed,
+        limit: 10,
+      );
+      final rawList = txList['transactions'];
+      if (rawList is List) {
+        final matched = rawList.firstWhere(
+          (t) =>
+              (t is Map) &&
+              (t['reference_id'] == referenceId || t['id'] == referenceId),
+          orElse: () => null,
+        );
+        if (matched is Map<String, dynamic>) {
+          return matched;
+        }
+      }
+    }
+    return {'status': 'pending', 'reference': referenceId};
   }
 
   Never _throwError(http.Response response) {

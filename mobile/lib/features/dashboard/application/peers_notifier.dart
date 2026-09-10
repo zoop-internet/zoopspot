@@ -9,12 +9,14 @@ class PeersState {
   final PeerDevice? selectedPeer;
   final bool isLoading;
   final String? errorMessage;
+  final bool isOffline;
 
   const PeersState({
     this.peers = const [],
     this.selectedPeer,
     this.isLoading = false,
     this.errorMessage,
+    this.isOffline = false,
   });
 
   PeersState copyWith({
@@ -22,12 +24,14 @@ class PeersState {
     PeerDevice? selectedPeer,
     bool? isLoading,
     String? errorMessage,
+    bool? isOffline,
   }) {
     return PeersState(
       peers: peers ?? this.peers,
       selectedPeer: selectedPeer ?? this.selectedPeer,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }
@@ -93,10 +97,12 @@ class PeersNotifier extends StateNotifier<PeersState> {
         peers: peerNodes,
         selectedPeer: activeSelected,
         isLoading: false,
+        isOffline: false,
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        isOffline: true,
         errorMessage: 'Failed to discover peers: $e',
       );
     }
