@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
@@ -14,6 +15,7 @@ class DevicesScreen extends ConsumerWidget {
   const DevicesScreen({super.key});
 
   void _showPairingSheet(BuildContext context) {
+    ZoopFeedback.selection();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -23,6 +25,7 @@ class DevicesScreen extends ConsumerWidget {
   }
 
   void _showDeviceSheet(BuildContext context, WidgetRef ref, FleetDeviceItem device) {
+    ZoopFeedback.selection();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -39,6 +42,7 @@ class DevicesScreen extends ConsumerWidget {
           );
         },
         onRevoke: () {
+          ZoopFeedback.heavy();
           ref.read(devicesProvider.notifier).revokeDevice(device.id);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

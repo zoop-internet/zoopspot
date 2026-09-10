@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
+import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../domain/fleet_device_model.dart';
 
 class DeviceDetailsSheet extends StatelessWidget {
@@ -38,6 +40,7 @@ class DeviceDetailsSheet extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
+                ZoopFeedback.light();
                 onRename(controller.text.trim());
               }
               Navigator.of(ctx).pop();
@@ -53,36 +56,20 @@ class DeviceDetailsSheet extends StatelessWidget {
     );
   }
 
-  void _confirmRevoke(BuildContext context) {
-    showDialog(
+  Future<void> _confirmRevoke(BuildContext context) async {
+    final confirmed = await ZoopConfirmDialog.show(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ZoopColors.surface,
-        title: const Text('Revoke Node Access?', style: TextStyle(color: ZoopColors.accentRose)),
-        content: Text(
-          'This will permanently disconnect "${device.name}" and revoke its WireGuard cryptographic keys from your Zoop mesh network.',
-          style: const TextStyle(color: ZoopColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: ZoopColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
-              onRevoke();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ZoopColors.accentRose,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Revoke Node', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      title: 'Revoke Node Access?',
+      message: 'This will permanently disconnect "${device.name}" and revoke its WireGuard cryptographic keys from your Zoop mesh network.',
+      confirmLabel: 'Revoke Node',
+      cancelLabel: 'Cancel',
+      isDestructive: true,
+      icon: Icons.delete_forever_rounded,
     );
+    if (confirmed && context.mounted) {
+      Navigator.of(context).pop();
+      onRevoke();
+    }
   }
 
   @override

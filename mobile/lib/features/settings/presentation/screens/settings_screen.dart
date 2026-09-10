@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
+import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../application/settings_notifier.dart';
 import '../widgets/pin_change_dialog.dart';
@@ -11,11 +13,35 @@ import '../widgets/privacy_disclosure_sheet.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  Future<void> _handleKillSwitchToggle(BuildContext context, WidgetRef ref, bool currentValue) async {
+    final notifier = ref.read(settingsProvider.notifier);
+    if (!currentValue) {
+      final confirmed = await ZoopConfirmDialog.show(
+        context: context,
+        title: 'Enable Emergency Kill Switch?',
+        message: 'All device internet traffic will be blocked immediately whenever the VPN tunnel is disconnected. Only enable this if you require strict leak-proof traffic isolation.',
+        confirmLabel: 'Enable Kill Switch',
+        cancelLabel: 'Cancel',
+        isDestructive: true,
+        icon: Icons.vpn_lock_rounded,
+      );
+      if (confirmed) {
+        ZoopFeedback.heavy();
+        notifier.toggleKillSwitch();
+      }
+    } else {
+      ZoopFeedback.selection();
+      notifier.toggleKillSwitch();
+    }
+  }
+
   void _showPinDialog(BuildContext context, WidgetRef ref) {
+    ZoopFeedback.selection();
     showDialog(
       context: context,
       builder: (ctx) => PinChangeDialog(
         onPinChanged: (newPin) {
+          ZoopFeedback.light();
           ref.read(settingsProvider.notifier).setPin(newPin);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -91,15 +117,19 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: const ListTile(
-                  leading: Icon(Icons.apps, color: ZoopColors.primaryCyan, size: 22),
-                  title: Text(
-                    'App Hubs',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
-                  ),
-                  subtitle: Text(
-                    'Home, Share, Fleet, and Wallet are accessible from the bottom navigation bar',
-                    style: TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                child: const Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  child: ListTile(
+                    leading: Icon(Icons.apps, color: ZoopColors.primaryCyan, size: 22),
+                    title: Text(
+                      'App Hubs',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
+                    ),
+                    subtitle: Text(
+                      'Home, Share, Fleet, and Wallet are accessible from the bottom navigation bar',
+                      style: TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                    ),
                   ),
                 ),
               ),
@@ -114,57 +144,65 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: ZoopColors.surfaceElevated,
-                        child: Icon(Icons.fingerprint, color: ZoopColors.primaryCyan),
-                      ),
-                      title: const Text('Permanent Zoop ID', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-                      subtitle: Text(zoopId, style: const TextStyle(fontSize: 12, color: ZoopColors.primaryCyan, fontFamily: 'monospace')),
-                      trailing: Semantics(
-                        button: true,
-                        label: 'Copy Zoop ID to clipboard',
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                          child: IconButton(
-                            icon: const Icon(Icons.copy, size: 18, color: ZoopColors.textSecondary),
-                            tooltip: 'Copy Zoop ID',
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: zoopId));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Zoop ID copied to clipboard'),
-                                  backgroundColor: ZoopColors.accentGreen,
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: ZoopColors.surfaceElevated,
+                          child: Icon(Icons.fingerprint, color: ZoopColors.primaryCyan),
+                        ),
+                        title: const Text('Permanent Zoop ID', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
+                        subtitle: Text(zoopId, style: const TextStyle(fontSize: 12, color: ZoopColors.primaryCyan, fontFamily: 'monospace')),
+                        trailing: Semantics(
+                          button: true,
+                          label: 'Copy Zoop ID to clipboard',
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                            child: IconButton(
+                              icon: const Icon(Icons.copy, size: 18, color: ZoopColors.textSecondary),
+                              tooltip: 'Copy Zoop ID',
+                              onPressed: () {
+                                ZoopFeedback.light();
+                                Clipboard.setData(ClipboardData(text: zoopId));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Zoop ID copied to clipboard'),
+                                    backgroundColor: ZoopColors.accentGreen,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    const ListTile(
-                      leading: Icon(Icons.cloud_done, color: ZoopColors.accentGreen, size: 22),
-                      title: Text('Control Server', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: Text('Frankfurt Control Plane (Active)', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: Text('ONLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen)),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    Semantics(
-                      button: true,
-                      label: 'Identity & Seed Recovery. View seed phrase and cryptographic keys.',
-                      child: ListTile(
-                        leading: const Icon(Icons.key, color: ZoopColors.accentAmber, size: 22),
-                        title: const Text('Identity & Seed Recovery', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                        subtitle: const Text('View seed phrase and cryptographic keys', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                        onTap: () => context.push('/identity'),
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      const ListTile(
+                        leading: Icon(Icons.cloud_done, color: ZoopColors.accentGreen, size: 22),
+                        title: Text('Control Server', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: Text('Frankfurt Control Plane (Active)', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: Text('ONLINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen)),
                       ),
-                    ),
-                  ],
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      Semantics(
+                        button: true,
+                        label: 'Identity & Seed Recovery. View seed phrase and cryptographic keys.',
+                        child: ListTile(
+                          leading: const Icon(Icons.key, color: ZoopColors.accentAmber, size: 22),
+                          title: const Text('Identity & Seed Recovery', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                          subtitle: const Text('View seed phrase and cryptographic keys', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                          trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                          onTap: () {
+                            ZoopFeedback.selection();
+                            context.push('/identity');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -178,34 +216,41 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.lock_outline, color: ZoopColors.primaryCyan, size: 22),
-                      title: const Text('Zoop Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: Text(settings.hasPinSet ? 'PIN protection active' : 'No PIN configured', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: Semantics(
-                        button: true,
-                        label: settings.hasPinSet ? 'Change Zoop security PIN' : 'Set Zoop security PIN',
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                          child: TextButton(
-                            onPressed: () => _showPinDialog(context, ref),
-                            child: Text(settings.hasPinSet ? 'Change' : 'Set PIN', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.lock_outline, color: ZoopColors.primaryCyan, size: 22),
+                        title: const Text('Zoop Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: Text(settings.hasPinSet ? 'PIN protection active' : 'No PIN configured', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: Semantics(
+                          button: true,
+                          label: settings.hasPinSet ? 'Change Zoop security PIN' : 'Set Zoop security PIN',
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                            child: TextButton(
+                              onPressed: () => _showPinDialog(context, ref),
+                              child: Text(settings.hasPinSet ? 'Change' : 'Set PIN', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.security, color: ZoopColors.accentGreen, size: 22),
-                      title: const Text('Biometric Authentication', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Require Face Unlock / Fingerprint on launch', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      value: settings.biometricsEnabled,
-                      activeThumbColor: ZoopColors.accentGreen,
-                      onChanged: (_) => notifier.toggleBiometrics(),
-                    ),
-                  ],
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.security, color: ZoopColors.accentGreen, size: 22),
+                        title: const Text('Biometric Authentication', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Require Face Unlock / Fingerprint on launch', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        value: settings.biometricsEnabled,
+                        activeThumbColor: ZoopColors.accentGreen,
+                        onChanged: (_) {
+                          ZoopFeedback.selection();
+                          notifier.toggleBiometrics();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -219,31 +264,35 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      secondary: const Icon(Icons.vpn_lock, color: ZoopColors.accentRose, size: 22),
-                      title: const Text('Kill Switch', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Block all internet traffic if the tunnel disconnects', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      value: settings.killSwitchEnabled,
-                      activeThumbColor: ZoopColors.accentRose,
-                      onChanged: (_) => notifier.toggleKillSwitch(),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.tune, color: ZoopColors.primaryCyan, size: 22),
-                      title: const Text('MTU Clamping', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: Text('${settings.mtuClamping} bytes (optimal for carrier networks)', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text('${settings.mtuClamping}', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        secondary: const Icon(Icons.vpn_lock, color: ZoopColors.accentRose, size: 22),
+                        title: const Text('Kill Switch', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Block all internet traffic if the tunnel disconnects', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        value: settings.killSwitchEnabled,
+                        activeThumbColor: ZoopColors.accentRose,
+                        onChanged: (_) => _handleKillSwitchToggle(context, ref, settings.killSwitchEnabled),
                       ),
-                    ),
-                  ],
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.tune, color: ZoopColors.primaryCyan, size: 22),
+                        title: const Text('MTU Clamping', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: Text('${settings.mtuClamping} bytes (optimal for carrier networks)', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ZoopColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('${settings.mtuClamping}', style: const TextStyle(color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -257,29 +306,39 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: Column(
-                  children: [
-                    Semantics(
-                      button: true,
-                      label: 'Zero-Knowledge Guarantee. Inspect what Zoop handles versus what stays private.',
-                      child: ListTile(
-                        leading: const Icon(Icons.privacy_tip_outlined, color: ZoopColors.accentGreen, size: 22),
-                        title: const Text('Zero-Knowledge Guarantee', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                        subtitle: const Text('Inspect what Zoop handles vs what stays private', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                        trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                        onTap: () => _showPrivacySheet(context),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      Semantics(
+                        button: true,
+                        label: 'Zero-Knowledge Guarantee. Inspect what Zoop handles versus what stays private.',
+                        child: ListTile(
+                          leading: const Icon(Icons.privacy_tip_outlined, color: ZoopColors.accentGreen, size: 22),
+                          title: const Text('Zero-Knowledge Guarantee', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                          subtitle: const Text('Inspect what Zoop handles vs what stays private', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                          trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
+                          onTap: () {
+                            ZoopFeedback.selection();
+                            _showPrivacySheet(context);
+                          },
+                        ),
                       ),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.analytics_outlined, color: ZoopColors.textSecondary, size: 22),
-                      title: const Text('Anonymous Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Share anonymized tunnel performance metrics', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      value: settings.telemetryEnabled,
-                      activeThumbColor: ZoopColors.primaryCyan,
-                      onChanged: (_) => notifier.toggleTelemetry(),
-                    ),
-                  ],
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.analytics_outlined, color: ZoopColors.textSecondary, size: 22),
+                        title: const Text('Anonymous Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Share anonymized tunnel performance metrics', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        value: settings.telemetryEnabled,
+                        activeThumbColor: ZoopColors.primaryCyan,
+                        onChanged: (_) {
+                          ZoopFeedback.selection();
+                          notifier.toggleTelemetry();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -293,24 +352,34 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: ZoopColors.surfaceBorder),
                 ),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      title: const Text('Tunnel State Changes', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Notify when connection drops or reconnects', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      value: settings.notifyOnConnection,
-                      activeThumbColor: ZoopColors.primaryCyan,
-                      onChanged: (_) => notifier.toggleNotification('connection'),
-                    ),
-                    const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                    SwitchListTile(
-                      title: const Text('Inbound Peer Requests', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                      subtitle: const Text('Alert when a peer requests bandwidth sharing', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      value: settings.notifyOnPeerRequest,
-                      activeThumbColor: ZoopColors.primaryCyan,
-                      onChanged: (_) => notifier.toggleNotification('peerRequest'),
-                    ),
-                  ],
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Tunnel State Changes', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Notify when connection drops or reconnects', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        value: settings.notifyOnConnection,
+                        activeThumbColor: ZoopColors.primaryCyan,
+                        onChanged: (_) {
+                          ZoopFeedback.selection();
+                          notifier.toggleNotification('connection');
+                        },
+                      ),
+                      const Divider(color: ZoopColors.surfaceBorder, height: 1),
+                      SwitchListTile(
+                        title: const Text('Inbound Peer Requests', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
+                        subtitle: const Text('Alert when a peer requests bandwidth sharing', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
+                        value: settings.notifyOnPeerRequest,
+                        activeThumbColor: ZoopColors.primaryCyan,
+                        onChanged: (_) {
+                          ZoopFeedback.selection();
+                          notifier.toggleNotification('peerRequest');
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -343,7 +412,10 @@ class SettingsScreen extends ConsumerWidget {
                         title: const Text('Network Diagnostics', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
                         subtitle: const Text('9-stage probe: STUN, NAT, MTU, DNS', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
                         trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                        onTap: () => context.push('/diagnostics'),
+                        onTap: () {
+                          ZoopFeedback.selection();
+                          context.push('/diagnostics');
+                        },
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -356,6 +428,7 @@ class SettingsScreen extends ConsumerWidget {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () {
+                              ZoopFeedback.light();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Sanitized diagnostic bundle saved to logs'),

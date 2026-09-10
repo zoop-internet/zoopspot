@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/utils/phone_utils.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import 'payment_brand_icon.dart';
 
 class WithdrawSheet extends StatefulWidget {
@@ -50,6 +51,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
   }
 
   void _setPercent(int percent) {
+    ZoopFeedback.selection();
     setState(() {
       _selectedPercent = percent;
       _withdrawAmount = (widget.availableAmount * percent / 100);
@@ -177,7 +179,10 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                         label: 'MTN Mobile Money ${_selectedProvider.contains("MTN") ? ", selected" : ""}',
                         button: true,
                         child: InkWell(
-                          onTap: () => setState(() => _selectedProvider = 'MTN Mobile Money'),
+                          onTap: () {
+                            ZoopFeedback.selection();
+                            setState(() => _selectedProvider = 'MTN Mobile Money');
+                          },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             constraints: const BoxConstraints(minHeight: 48),
@@ -215,7 +220,10 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                         label: 'Airtel Money ${_selectedProvider.contains("Airtel") ? ", selected" : ""}',
                         button: true,
                         child: InkWell(
-                          onTap: () => setState(() => _selectedProvider = 'Airtel Money'),
+                          onTap: () {
+                            ZoopFeedback.selection();
+                            setState(() => _selectedProvider = 'Airtel Money');
+                          },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             constraints: const BoxConstraints(minHeight: 48),
@@ -273,6 +281,47 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                     filled: true,
                     fillColor: ZoopColors.background,
                     prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: ZoopColors.accentGreen, size: 20),
+                    suffixIcon: Builder(
+                      builder: (context) {
+                        final net = PhoneUtils.detectUgandaNetwork(_phoneController.text);
+                        if (net == 'mtn') {
+                          return Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFCC00).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle, size: 14, color: Color(0xFFFFCC00)),
+                                SizedBox(width: 4),
+                                Text('MTN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFFFCC00))),
+                              ],
+                            ),
+                          );
+                        } else if (net == 'airtel') {
+                          return Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE40000).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle, size: 14, color: Color(0xFFE40000)),
+                                SizedBox(width: 4),
+                                Text('Airtel', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFE40000))),
+                              ],
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
@@ -291,6 +340,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                     onPressed: (_withdrawAmount < 1000 || _phoneController.text.trim().length < 9)
                         ? null
                         : () {
+                            ZoopFeedback.medium();
                             setState(() => _isReviewing = true);
                           },
                     style: ElevatedButton.styleFrom(
@@ -315,7 +365,10 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back, color: ZoopColors.textPrimary, size: 20),
                         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                        onPressed: () => setState(() => _isReviewing = false),
+                        onPressed: () {
+                          ZoopFeedback.selection();
+                          setState(() => _isReviewing = false);
+                        },
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -382,6 +435,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      ZoopFeedback.medium();
                       final phone = PhoneUtils.formatUgandaPhone(_phoneController.text.trim());
                       final provider = _selectedProvider.contains('MTN') ? 'mtn' : 'airtel';
                       widget.onConfirm(
@@ -406,7 +460,10 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                 const SizedBox(height: 8),
                 Center(
                   child: TextButton(
-                    onPressed: () => setState(() => _isReviewing = false),
+                    onPressed: () {
+                      ZoopFeedback.selection();
+                      setState(() => _isReviewing = false);
+                    },
                     child: const Text('Back to Edit', style: TextStyle(color: ZoopColors.textMuted)),
                   ),
                 ),

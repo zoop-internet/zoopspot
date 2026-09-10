@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/utils/phone_utils.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import '../../domain/wallet_models.dart';
 import 'payment_brand_icon.dart';
 
@@ -154,6 +155,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         onSelected: (selected) {
                           if (selected) {
+                            ZoopFeedback.selection();
                             setState(() {
                               _isCustomAmount = false;
                               _selectedAmount = amount;
@@ -179,6 +181,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                       ),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       onSelected: (selected) {
+                        ZoopFeedback.selection();
                         setState(() => _isCustomAmount = selected);
                       },
                     ),
@@ -230,13 +233,11 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 ..._methods.map((method) {
                   final isSelected = _selectedMethod == method['name'];
                   final methodColor = method['color'] as Color;
-                  return Semantics(
-                    label: '${method['name']}, ${method['subtitle']}${isSelected ? ", selected" : ""}',
-                    button: true,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? ZoopColors.surfaceElevated : ZoopColors.background,
+                        color: ZoopColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected ? methodColor : ZoopColors.surfaceBorder,
@@ -261,7 +262,10 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         trailing: isSelected
                             ? Icon(Icons.check_circle, color: methodColor, size: 20)
                             : null,
-                        onTap: () => setState(() => _selectedMethod = method['name'] as String),
+                        onTap: () {
+                          ZoopFeedback.selection();
+                          setState(() => _selectedMethod = method['name'] as String);
+                        },
                       ),
                     ),
                   );
@@ -291,6 +295,47 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                       filled: true,
                       fillColor: ZoopColors.background,
                       prefixIcon: const Icon(Icons.phone_outlined, color: ZoopColors.primaryCyan, size: 20),
+                      suffixIcon: Builder(
+                        builder: (context) {
+                          final net = PhoneUtils.detectUgandaNetwork(_phoneController.text);
+                          if (net == 'mtn') {
+                            return Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFCC00).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle, size: 14, color: Color(0xFFFFCC00)),
+                                  SizedBox(width: 4),
+                                  Text('MTN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFFFCC00))),
+                                ],
+                              ),
+                            );
+                          } else if (net == 'airtel') {
+                            return Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE40000).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle, size: 14, color: Color(0xFFE40000)),
+                                  SizedBox(width: 4),
+                                  Text('Airtel', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFE40000))),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: ZoopColors.surfaceBorder),
@@ -310,6 +355,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_selectedAmount < 500) {
+                        ZoopFeedback.vibrate();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Minimum deposit is UGX 500'),
@@ -319,6 +365,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         return;
                       }
                       if (_isMobileMoney && _phoneController.text.trim().length < 9) {
+                        ZoopFeedback.vibrate();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Please enter a valid Uganda phone number'),
@@ -327,6 +374,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         );
                         return;
                       }
+                      ZoopFeedback.medium();
                       setState(() => _isReviewing = true);
                     },
                     style: ElevatedButton.styleFrom(
@@ -422,6 +470,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      ZoopFeedback.medium();
                       final phone = _isMobileMoney
                           ? PhoneUtils.formatUgandaPhone(_phoneController.text.trim())
                           : null;
@@ -447,7 +496,10 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                 const SizedBox(height: 8),
                 Center(
                   child: TextButton(
-                    onPressed: () => setState(() => _isReviewing = false),
+                    onPressed: () {
+                      ZoopFeedback.selection();
+                      setState(() => _isReviewing = false);
+                    },
                     child: const Text('Back to Edit', style: TextStyle(color: ZoopColors.textMuted)),
                   ),
                 ),

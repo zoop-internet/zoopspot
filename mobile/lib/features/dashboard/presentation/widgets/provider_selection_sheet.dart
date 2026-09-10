@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
@@ -230,6 +231,7 @@ class _ProviderSelectionSheetState
 
                       return InkWell(
                         onTap: () {
+                          ZoopFeedback.selection();
                           ref
                               .read(peersNotifierProvider.notifier)
                               .selectPeer(peer);

@@ -7,7 +7,9 @@ import '../../../../core/models/connection_state.dart';
 import '../../../../core/models/peer_device.dart';
 import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
+import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../../../core/widgets/zoop_offline_banner.dart';
 import '../../../identity/application/identity_notifier.dart';
@@ -123,10 +125,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           (peersState.peers.isNotEmpty ? peersState.peers.first : null);
 
       if (targetPeer == null) {
+        ZoopFeedback.selection();
         ProviderSelectionSheet.show(context);
         return;
       }
 
+      ZoopFeedback.medium();
       setState(() {
         _status = ConnectionStatus.connecting;
       });
@@ -136,6 +140,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
       final prepared = await vpnBridge.prepareVpn();
       if (!prepared) {
+        ZoopFeedback.heavy();
         if (mounted) {
           setState(() {
             _status = ConnectionStatus.disconnected;
@@ -187,6 +192,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         );
 
         if (mounted) {
+          ZoopFeedback.medium();
           setState(() {
             _status = ConnectionStatus.connectedDirect;
           });
@@ -195,6 +201,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         }
       } catch (e) {
         if (mounted) {
+          ZoopFeedback.heavy();
           setState(() {
             _status = ConnectionStatus.error;
           });
@@ -209,6 +216,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         }
       }
     } else {
+      final activePeer = peersState.selectedPeer ??
+          (peersState.peers.isNotEmpty ? peersState.peers.first : null);
+      final confirm = await ZoopConfirmDialog.show(
+        context: context,
+        title: 'Disconnect VPN Tunnel?',
+        message: 'Your active encrypted tunnel session${activePeer != null ? ' to "${activePeer.name}"' : ''} will be terminated.',
+        confirmLabel: 'Disconnect',
+        cancelLabel: 'Keep Connected',
+        isDestructive: true,
+        icon: Icons.link_off_rounded,
+      );
+      if (!confirm) return;
+
       try {
         await vpnBridge.stopTunnel();
       } catch (e) {
@@ -572,7 +592,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   label: 'Target peer node: ${activePeer?.name ?? "Select Node"}. Tap to change peer.',
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => ProviderSelectionSheet.show(context),
+                    onTap: () {
+                      ZoopFeedback.selection();
+                      ProviderSelectionSheet.show(context);
+                    },
                     child: Container(
                       color: Colors.transparent,
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),

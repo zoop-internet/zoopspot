@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/auth/biometric_auth_service.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/zoop_feedback.dart';
 import '../../../activity/application/activity_notifier.dart';
 import '../../../activity/domain/activity_models.dart';
 import '../../../activity/presentation/widgets/event_detail_sheet.dart';
@@ -52,6 +53,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        ZoopFeedback.selection();
+      }
+    });
   }
 
   @override
@@ -62,6 +68,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   }
 
   void _showAddFunds(BuildContext context) {
+    ZoopFeedback.selection();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -117,6 +124,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   }
 
   void _showWithdraw(BuildContext context, double available) {
+    ZoopFeedback.selection();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../domain/sharing_models.dart';
 
 class RecipientDetailsSheet extends StatelessWidget {
@@ -129,9 +130,20 @@ class RecipientDetailsSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        onBlock();
+                      onPressed: () async {
+                        final confirmed = await ZoopConfirmDialog.show(
+                          context: context,
+                          title: 'Block Recipient Node?',
+                          message: 'Are you sure you want to block "${recipient.name}"? They will no longer be able to route traffic through your gateway.',
+                          confirmLabel: 'Block Node',
+                          cancelLabel: 'Cancel',
+                          isDestructive: true,
+                          icon: Icons.block,
+                        );
+                        if (confirmed && context.mounted) {
+                          Navigator.of(context).pop();
+                          onBlock();
+                        }
                       },
                       icon: const Icon(Icons.block, size: 16, color: ZoopColors.accentRose),
                       label: const Text('Block Node', style: TextStyle(color: ZoopColors.accentRose, fontWeight: FontWeight.bold)),
@@ -145,9 +157,20 @@ class RecipientDetailsSheet extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        onRevoke();
+                      onPressed: () async {
+                        final confirmed = await ZoopConfirmDialog.show(
+                          context: context,
+                          title: 'Disconnect Recipient?',
+                          message: 'Disconnect the active sharing session for "${recipient.name}"?',
+                          confirmLabel: 'Disconnect',
+                          cancelLabel: 'Cancel',
+                          isDestructive: true,
+                          icon: Icons.link_off_rounded,
+                        );
+                        if (confirmed && context.mounted) {
+                          Navigator.of(context).pop();
+                          onRevoke();
+                        }
                       },
                       icon: const Icon(Icons.close, size: 16, color: Colors.white),
                       label: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.bold)),

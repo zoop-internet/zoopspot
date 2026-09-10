@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/zoop_colors.dart';
+import '../utils/zoop_feedback.dart';
 import '../../features/sharing/application/sharing_notifier.dart';
 
 class AppShell extends ConsumerWidget {
@@ -18,6 +19,7 @@ class AppShell extends ConsumerWidget {
   }
 
   void _onItemTapped(int index, BuildContext context) {
+    ZoopFeedback.selection();
     switch (index) {
       case 0:
         context.go('/dashboard');
