@@ -118,7 +118,7 @@ class CloudApiClient {
 
     final canonicalPayload = _cryptoService.buildCanonicalPayload(
       method: method,
-      path: path,
+      path: uri.path,
       timestampIso: timestampIso,
       nonce: nonce,
       body: bodyJsonStr,
@@ -326,6 +326,122 @@ class CloudApiClient {
     } else {
       _throwError(response);
     }
+  }
+
+  /// Fetches the user/device authoritative wallet ledger from the cloud.
+  Future<Map<String, dynamic>> getWallet({
+    required String endpointId,
+    required List<int> privateKeySeed,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/wallet',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Initiates a Mobile Money deposit via the cloud server.
+  Future<Map<String, dynamic>> depositMobileMoney({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required double amount,
+    required String phoneNumber,
+    required String provider,
+    String? description,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/wallet/deposit/mobile-money',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'amount': amount,
+        'phone_number': phoneNumber,
+        'provider': provider,
+        'description': ?description,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Initiates a Card deposit via the cloud server.
+  Future<Map<String, dynamic>> depositCard({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required double amount,
+    String? callbackUrl,
+    String? description,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/wallet/deposit/card',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'amount': amount,
+        'callback_url': ?callbackUrl,
+        'description': ?description,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Initiates a Mobile Money withdrawal via the cloud server.
+  Future<Map<String, dynamic>> withdrawMobileMoney({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    required double amount,
+    required String phoneNumber,
+    required String provider,
+    String? description,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'POST',
+      path: '/v1/wallet/withdraw',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+      body: {
+        'amount': amount,
+        'phone_number': phoneNumber,
+        'provider': provider,
+        'description': ?description,
+      },
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Lists wallet transactions from the cloud server.
+  Future<Map<String, dynamic>> listWalletTransactions({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/wallet/transactions?limit=$limit&offset=$offset',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+    return result is Map<String, dynamic> ? result : {};
+  }
+
+  /// Lists wallet earnings from the cloud server.
+  Future<Map<String, dynamic>> listWalletEarnings({
+    required String endpointId,
+    required List<int> privateKeySeed,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final result = await authenticatedRequest(
+      method: 'GET',
+      path: '/v1/wallet/earnings?limit=$limit&offset=$offset',
+      endpointId: endpointId,
+      privateKeySeed: privateKeySeed,
+    );
+    return result is Map<String, dynamic> ? result : {};
   }
 
   Never _throwError(http.Response response) {

@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/network/marzpay_api_client.dart';
+import '../../../core/network/cloud_api_client.dart';
+import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/utils/phone_utils.dart';
+import '../../identity/application/identity_notifier.dart';
 import '../domain/wallet_models.dart';
-
-final marzPayClientProvider = Provider<MarzPayApiClient>((ref) {
-  return MarzPayApiClient();
-});
 
 class WalletState {
   final double availableBalance;
@@ -65,10 +64,14 @@ class WalletState {
 }
 
 class WalletNotifier extends StateNotifier<WalletState> {
-  final MarzPayApiClient _marzPayClient;
+  final CloudApiClient? _client;
+  final SecureStorageService? _storage;
 
-  WalletNotifier({MarzPayApiClient? client})
-      : _marzPayClient = client ?? MarzPayApiClient(),
+  WalletNotifier({
+    CloudApiClient? cloudApiClient,
+    SecureStorageService? storageService,
+  })  : _client = cloudApiClient,
+        _storage = storageService,
         super(const WalletState()) {
     _loadInitialTransactions();
   }
@@ -136,23 +139,41 @@ class WalletNotifier extends StateNotifier<WalletState> {
     state = state.copyWith(transactions: list);
   }
 
-  /// Deposit funds via Mobile Money (MTN or Airtel) using MarzPay
-  Future<MarzPayCollectionResult> addFundsViaMobileMoney({
+  /// Deposit funds via Mobile Money (MTN or Airtel) via the cloud server
+  Future<PaymentInitiationResult> addFundsViaMobileMoney({
     required double amount,
     required String phoneNumber,
     String? provider,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
-      final res = await _marzPayClient.collectMobileMoney(
-        amount: amount,
-        phoneNumber: phoneNumber,
-        country: 'UG',
-        description: 'Zoop Mesh Top-up',
-      );
+      final detected = PhoneUtils.detectUgandaNetwork(phoneNumber);
+      final netProvider = provider ?? (detected == 'airtel' ? 'airtel' : 'mtn');
+      final isMtn = netProvider.toLowerCase().contains('mtn');
 
-      final detected = MarzPayApiClient.detectUgandaNetwork(phoneNumber);
-      final isMtn = (provider?.toLowerCase() == 'mtn') || (detected == 'mtn');
+      PaymentInitiationResult result;
+      final endpointId = await _storage?.getEndpointId();
+      final seed = await _storage?.getEd25519SeedBytes();
+
+      if (_client != null && endpointId != null && seed != null) {
+        final res = await _client.depositMobileMoney(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+          amount: amount,
+          phoneNumber: phoneNumber,
+          provider: netProvider,
+          description: 'Zoop Mesh Top-up',
+        );
+        result = PaymentInitiationResult.fromJson(res);
+      } else {
+        // Simulated local fallback
+        result = PaymentInitiationResult(
+          reference: 'MM-${DateTime.now().millisecondsSinceEpoch}',
+          status: 'pending',
+          provider: isMtn ? 'MTN' : 'Airtel',
+          providerReference: 'SIM-${DateTime.now().millisecondsSinceEpoch}',
+        );
+      }
 
       final newTx = WalletTransactionItem(
         id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
@@ -161,10 +182,10 @@ class WalletNotifier extends StateNotifier<WalletState> {
         description: 'Top-up via ${isMtn ? "MTN Mobile Money" : "Airtel Money"} ($phoneNumber)',
         timestamp: DateTime.now(),
         status: TransactionStatus.pending,
-        referenceId: res.reference,
+        referenceId: result.reference,
         paymentMethod: isMtn ? PaymentMethodType.mtnMobileMoney : PaymentMethodType.airtelMoney,
         phoneNumber: phoneNumber,
-        providerReference: res.provider,
+        providerReference: result.providerReference,
       );
 
       state = state.copyWith(
@@ -173,24 +194,39 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
       );
 
-      return res;
+      return result;
     } catch (e) {
       state = state.copyWith(isLoading: false);
       rethrow;
     }
   }
 
-  /// Deposit funds via Card using MarzPay
-  Future<MarzPayCollectionResult> addFundsViaCard({
+  /// Deposit funds via Card via the cloud server
+  Future<PaymentInitiationResult> addFundsViaCard({
     required double amount,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
-      final res = await _marzPayClient.collectCard(
-        amount: amount,
-        country: 'UG',
-        description: 'Zoop Mesh Top-up - Card',
-      );
+      PaymentInitiationResult result;
+      final endpointId = await _storage?.getEndpointId();
+      final seed = await _storage?.getEd25519SeedBytes();
+
+      if (_client != null && endpointId != null && seed != null) {
+        final res = await _client.depositCard(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+          amount: amount,
+          description: 'Zoop Mesh Top-up - Card',
+        );
+        result = PaymentInitiationResult.fromJson(res);
+      } else {
+        result = PaymentInitiationResult(
+          reference: 'CARD-${DateTime.now().millisecondsSinceEpoch}',
+          status: 'pending',
+          provider: 'Card',
+          redirectUrl: 'https://checkout.zoop.network/pay/${DateTime.now().millisecondsSinceEpoch}',
+        );
+      }
 
       final newTx = WalletTransactionItem(
         id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
@@ -199,9 +235,9 @@ class WalletNotifier extends StateNotifier<WalletState> {
         description: 'Top-up via Visa / Mastercard',
         timestamp: DateTime.now(),
         status: TransactionStatus.pending,
-        referenceId: res.reference,
+        referenceId: result.reference,
         paymentMethod: PaymentMethodType.card,
-        redirectUrl: res.redirectUrl,
+        redirectUrl: result.redirectUrl,
       );
 
       state = state.copyWith(
@@ -210,15 +246,15 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
       );
 
-      return res;
+      return result;
     } catch (e) {
       state = state.copyWith(isLoading: false);
       rethrow;
     }
   }
 
-  /// Withdraw earnings to Mobile Money (MTN or Airtel) using MarzPay
-  Future<MarzPayDisbursementResult> withdrawToMobileMoney({
+  /// Withdraw earnings to Mobile Money (MTN or Airtel) via the cloud server
+  Future<PaymentInitiationResult> withdrawToMobileMoney({
     required double amount,
     required String phoneNumber,
     String? provider,
@@ -229,15 +265,32 @@ class WalletNotifier extends StateNotifier<WalletState> {
 
     state = state.copyWith(isLoading: true);
     try {
-      final res = await _marzPayClient.sendMoney(
-        amount: amount,
-        phoneNumber: phoneNumber,
-        country: 'UG',
-        description: 'Zoop Provider Earnings Payout',
-      );
+      final detected = PhoneUtils.detectUgandaNetwork(phoneNumber);
+      final netProvider = provider ?? (detected == 'airtel' ? 'airtel' : 'mtn');
+      final isMtn = netProvider.toLowerCase().contains('mtn');
 
-      final detected = MarzPayApiClient.detectUgandaNetwork(phoneNumber);
-      final isMtn = (provider?.toLowerCase() == 'mtn') || (detected == 'mtn');
+      PaymentInitiationResult result;
+      final endpointId = await _storage?.getEndpointId();
+      final seed = await _storage?.getEd25519SeedBytes();
+
+      if (_client != null && endpointId != null && seed != null) {
+        final res = await _client.withdrawMobileMoney(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+          amount: amount,
+          phoneNumber: phoneNumber,
+          provider: netProvider,
+          description: 'Zoop Provider Earnings Payout',
+        );
+        result = PaymentInitiationResult.fromJson(res);
+      } else {
+        result = PaymentInitiationResult(
+          reference: 'WD-${DateTime.now().millisecondsSinceEpoch}',
+          status: 'completed',
+          provider: isMtn ? 'MTN' : 'Airtel',
+          providerReference: 'SIM-${DateTime.now().millisecondsSinceEpoch}',
+        );
+      }
 
       final newTx = WalletTransactionItem(
         id: 'tx-${DateTime.now().millisecondsSinceEpoch}',
@@ -246,10 +299,10 @@ class WalletNotifier extends StateNotifier<WalletState> {
         description: 'Earnings payout to ${isMtn ? "MTN Mobile Money" : "Airtel Money"} ($phoneNumber)',
         timestamp: DateTime.now(),
         status: TransactionStatus.completed,
-        referenceId: res.reference,
+        referenceId: result.reference,
         paymentMethod: isMtn ? PaymentMethodType.mtnMobileMoney : PaymentMethodType.airtelMoney,
         phoneNumber: phoneNumber,
-        providerReference: res.providerReference,
+        providerReference: result.providerReference,
       );
 
       state = state.copyWith(
@@ -258,23 +311,65 @@ class WalletNotifier extends StateNotifier<WalletState> {
         isLoading: false,
       );
 
-      return res;
+      return result;
     } catch (e) {
       state = state.copyWith(isLoading: false);
       rethrow;
     }
   }
 
-  /// Sync balance from MarzPay API
+  /// Sync balance from cloud server
   Future<void> refreshBalance() async {
     try {
-      final bal = await _marzPayClient.getBalance(country: 'UG');
-      state = state.copyWith(
-        availableBalance: bal.availableBalance.raw,
-        currency: bal.currency,
-      );
+      final endpointId = await _storage?.getEndpointId();
+      final seed = await _storage?.getEd25519SeedBytes();
+      if (_client != null && endpointId != null && seed != null) {
+        final data = await _client.getWallet(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+        );
+        if (data.isNotEmpty) {
+          final avail = (data['available_balance'] as num?)?.toDouble() ?? state.availableBalance;
+          final pending = (data['pending_balance'] as num?)?.toDouble() ?? state.pendingBalance;
+          final earned = (data['total_earned'] as num?)?.toDouble() ?? state.totalEarnedSharing;
+          final unwithdrawn = (data['unwithdrawn_earnings'] as num?)?.toDouble() ?? state.unwithdrawnEarnings;
+          final cur = (data['currency'] as String?) ?? state.currency;
+
+          state = state.copyWith(
+            availableBalance: avail,
+            pendingBalance: pending,
+            totalEarnedSharing: earned,
+            unwithdrawnEarnings: unwithdrawn,
+            currency: cur,
+          );
+        }
+      }
     } catch (_) {
-      // Keep local state on error
+      // Keep local state on network error
+    }
+  }
+
+  /// Sync transactions from cloud server
+  Future<void> refreshTransactions() async {
+    try {
+      final endpointId = await _storage?.getEndpointId();
+      final seed = await _storage?.getEd25519SeedBytes();
+      if (_client != null && endpointId != null && seed != null) {
+        final res = await _client.listWalletTransactions(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+        );
+        final rawList = res['transactions'];
+        if (rawList is List && rawList.isNotEmpty) {
+          final serverItems = rawList
+              .whereType<Map<String, dynamic>>()
+              .map((j) => WalletTransactionItem.fromJson(j))
+              .toList();
+          state = state.copyWith(transactions: serverItems);
+        }
+      }
+    } catch (_) {
+      // Keep local transactions on error
     }
   }
 
@@ -342,6 +437,15 @@ class WalletNotifier extends StateNotifier<WalletState> {
 
 final walletProvider =
     StateNotifierProvider<WalletNotifier, WalletState>((ref) {
-  final client = ref.watch(marzPayClientProvider);
-  return WalletNotifier(client: client);
+  final client = ref.watch(cloudApiClientProvider);
+  final storage = ref.watch(secureStorageServiceProvider);
+  final notifier = WalletNotifier(
+    cloudApiClient: client,
+    storageService: storage,
+  );
+  Future.microtask(() {
+    notifier.refreshBalance();
+    notifier.refreshTransactions();
+  });
+  return notifier;
 });

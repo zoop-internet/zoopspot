@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/network/marzpay_api_client.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/phone_utils.dart';
 import '../../domain/wallet_models.dart';
 import 'payment_brand_icon.dart';
 
@@ -69,7 +69,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
   }
 
   void _onPhoneChanged(String val) {
-    final net = MarzPayApiClient.detectUgandaNetwork(val);
+    final net = PhoneUtils.detectUgandaNetwork(val);
     if (net == 'mtn' && !_selectedMethod.contains('MTN')) {
       setState(() => _selectedMethod = 'MTN Mobile Money');
     } else if (net == 'airtel' && !_selectedMethod.contains('Airtel')) {
@@ -382,7 +382,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                         const SizedBox(height: 10),
                         _buildSummaryRow(
                           'Recipient Handset',
-                          MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim()),
+                          PhoneUtils.formatUgandaPhone(_phoneController.text.trim()),
                         ),
                       ],
                       const SizedBox(height: 10),
@@ -423,7 +423,7 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   child: ElevatedButton(
                     onPressed: () {
                       final phone = _isMobileMoney
-                          ? MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim())
+                          ? PhoneUtils.formatUgandaPhone(_phoneController.text.trim())
                           : null;
                       widget.onConfirm(
                         amount: _selectedAmount,

@@ -137,3 +137,46 @@ export interface RelayNodeStatus {
   pingMs: number;
   status: 'healthy' | 'degraded' | 'maintenance';
 }
+
+export interface ApiWallet {
+  id: string;
+  endpoint_id: string;
+  currency: string;
+  available_balance: number;
+  pending_balance: number;
+  total_earned: number;
+  unwithdrawn_earnings: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ApiPaymentTransaction {
+  id: string;
+  wallet_id: string;
+  type: 'deposit' | 'withdrawal' | 'earning' | 'usage';
+  amount: number;
+  currency: string;
+  fee: number;
+  payment_method: string;
+  status: 'pending' | 'completed' | 'failed' | 'reversed';
+  reference_id: string;
+  gateway_reference?: string;
+  phone_number?: string;
+  provider?: string;
+  description?: string;
+  redirect_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiEarningRecord {
+  id: string;
+  wallet_id: string;
+  peer_endpoint_id: string;
+  source: 'bandwidth_relay' | 'exit_node' | 'referral' | 'bonus';
+  bytes_served: number;
+  duration_seconds: number;
+  amount: number;
+  currency: string;
+  recorded_at: string;
+}

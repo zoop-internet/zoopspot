@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/network/marzpay_api_client.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/utils/phone_utils.dart';
 import 'payment_brand_icon.dart';
 
 class WithdrawSheet extends StatefulWidget {
@@ -57,7 +57,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
   }
 
   void _onPhoneChanged(String val) {
-    final net = MarzPayApiClient.detectUgandaNetwork(val);
+    final net = PhoneUtils.detectUgandaNetwork(val);
     if (net == 'mtn' && !_selectedProvider.contains('MTN')) {
       setState(() => _selectedProvider = 'MTN Mobile Money');
     } else if (net == 'airtel' && !_selectedProvider.contains('Airtel')) {
@@ -345,7 +345,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                       const SizedBox(height: 10),
                       _buildSummaryRow(
                         'Recipient Phone',
-                        MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim()),
+                        PhoneUtils.formatUgandaPhone(_phoneController.text.trim()),
                       ),
                       const SizedBox(height: 10),
                       _buildSummaryRow('Network', _selectedProvider.contains('MTN') ? 'MTN MoMo Direct' : 'Airtel Money Direct'),
@@ -382,7 +382,7 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      final phone = MarzPayApiClient.formatUgandaPhone(_phoneController.text.trim());
+                      final phone = PhoneUtils.formatUgandaPhone(_phoneController.text.trim());
                       final provider = _selectedProvider.contains('MTN') ? 'mtn' : 'airtel';
                       widget.onConfirm(
                         amount: _withdrawAmount,

@@ -8,6 +8,7 @@
  */
 
 import { buildSignedAuthHeaders, NotAuthenticatedError } from './identity';
+import type { ApiWallet, ApiPaymentTransaction, ApiEarningRecord } from '../types';
 
 const RAW_API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api';
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '');
@@ -539,4 +540,114 @@ export async function subscribeToEvents(
   void pump();
 
   return () => controller.abort();
+}
+
+// ─── Wallet & Payment operations ─────────────────────────────
+
+export async function getWallet(): Promise<ApiWallet | null> {
+  try {
+    const path = '/v1/wallet';
+    const authHeaders = await buildSignedAuthHeaders('GET', path);
+    return await apiFetch<ApiWallet>(path, { headers: authHeaders });
+  } catch (err) {
+    if (err instanceof NotAuthenticatedError) return null;
+    throw err;
+  }
+}
+
+export async function depositMobileMoney(
+  amount: number,
+  phoneNumber: string,
+  provider: string,
+  description?: string
+): Promise<ApiPaymentTransaction> {
+  const path = '/v1/wallet/deposit/mobile-money';
+  const body = JSON.stringify({
+    amount,
+    phone_number: phoneNumber,
+    provider,
+    description: description || 'Mesh Top-up via Mobile Money',
+  });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return await apiFetch<ApiPaymentTransaction>(path, {
+    method: 'POST',
+    headers: authHeaders,
+    body,
+  });
+}
+
+export async function depositCard(
+  amount: number,
+  callbackUrl?: string,
+  description?: string
+): Promise<ApiPaymentTransaction> {
+  const path = '/v1/wallet/deposit/card';
+  const body = JSON.stringify({
+    amount,
+    callback_url: callbackUrl,
+    description: description || 'Mesh Top-up via Card',
+  });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return await apiFetch<ApiPaymentTransaction>(path, {
+    method: 'POST',
+    headers: authHeaders,
+    body,
+  });
+}
+
+export async function withdraw(
+  amount: number,
+  phoneNumber: string,
+  provider: string,
+  description?: string
+): Promise<ApiPaymentTransaction> {
+  const path = '/v1/wallet/withdraw';
+  const body = JSON.stringify({
+    amount,
+    phone_number: phoneNumber,
+    provider,
+    description: description || 'Earnings Payout',
+  });
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return await apiFetch<ApiPaymentTransaction>(path, {
+    method: 'POST',
+    headers: authHeaders,
+    body,
+  });
+}
+
+export async function getWalletTransactions(
+  limit: number = 20,
+  offset: number = 0
+): Promise<ApiPaymentTransaction[]> {
+  try {
+    const basePath = '/v1/wallet/transactions';
+    const qs = `?limit=${limit}&offset=${offset}`;
+    const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+    const res = await apiFetch<{ transactions: ApiPaymentTransaction[] }>(`${basePath}${qs}`, {
+      headers: authHeaders,
+    });
+    return res?.transactions ?? [];
+  } catch (err) {
+    if (err instanceof NotAuthenticatedError) return [];
+    throw err;
+  }
+}
+
+export async function getWalletEarnings(
+  limit: number = 20,
+  offset: number = 0
+): Promise<ApiEarningRecord[]> {
+  try {
+    const basePath = '/v1/wallet/earnings';
+    const qs = `?limit=${limit}&offset=${offset}`;
+    const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+    const res = await apiFetch<{ earnings: ApiEarningRecord[] }>(`${basePath}${qs}`, {
+      headers: authHeaders,
+    });
+    return res?.earnings ?? [];
+  } catch (err) {
+    if (err instanceof NotAuthenticatedError) return [];
+    throw err;
+  }
 }

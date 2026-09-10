@@ -151,4 +151,82 @@ class WalletTransactionItem {
         );
     return '$prefix$currency $formattedNum';
   }
+
+  factory WalletTransactionItem.fromJson(Map<String, dynamic> json) {
+    final typeStr = (json['type'] ?? 'deposit').toString().toLowerCase();
+    final txType = typeStr == 'deposit'
+        ? TransactionType.deposit
+        : (typeStr == 'withdrawal'
+            ? TransactionType.withdrawal
+            : (typeStr == 'earning'
+                ? TransactionType.sharingEarning
+                : TransactionType.bandwidthSpend));
+
+    final statusStr = (json['status'] ?? 'pending').toString().toLowerCase();
+    final txStatus = statusStr == 'completed'
+        ? TransactionStatus.completed
+        : (statusStr == 'failed' || statusStr == 'reversed'
+            ? TransactionStatus.failed
+            : TransactionStatus.pending);
+
+    final methodStr = (json['payment_method'] ?? '').toString().toLowerCase();
+    final pm = methodStr.contains('mtn')
+        ? PaymentMethodType.mtnMobileMoney
+        : (methodStr.contains('airtel')
+            ? PaymentMethodType.airtelMoney
+            : (methodStr.contains('card')
+                ? PaymentMethodType.card
+                : PaymentMethodType.meshInternal));
+
+    DateTime parsedDate = DateTime.now();
+    final rawDate = json['created_at'] ?? json['timestamp'];
+    if (rawDate is String && rawDate.isNotEmpty) {
+      parsedDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+    }
+
+    final rawAmount = json['amount'];
+    final amountVal = (rawAmount is num) ? rawAmount.toDouble() : 0.0;
+
+    return WalletTransactionItem(
+      id: (json['id'] ?? '').toString(),
+      type: txType,
+      amount: amountVal,
+      currency: (json['currency'] ?? 'UGX').toString(),
+      description: (json['description'] ?? '').toString(),
+      timestamp: parsedDate,
+      status: txStatus,
+      referenceId: (json['reference_id'] ?? json['id'] ?? '').toString(),
+      paymentMethod: pm,
+      phoneNumber: json['phone_number'] as String?,
+      providerReference: (json['gateway_reference'] ?? json['provider_reference']) as String?,
+      redirectUrl: json['redirect_url'] as String?,
+    );
+  }
+}
+
+/// Result of initiating a payment (deposit or withdrawal) via the server
+class PaymentInitiationResult {
+  final String reference;
+  final String status;
+  final String? redirectUrl;
+  final String? provider;
+  final String? providerReference;
+
+  const PaymentInitiationResult({
+    required this.reference,
+    required this.status,
+    this.redirectUrl,
+    this.provider,
+    this.providerReference,
+  });
+
+  factory PaymentInitiationResult.fromJson(Map<String, dynamic> json) {
+    return PaymentInitiationResult(
+      reference: (json['reference_id'] ?? json['reference'] ?? json['id'] ?? '') as String,
+      status: (json['status'] ?? 'pending') as String,
+      redirectUrl: json['redirect_url'] as String?,
+      provider: json['provider'] as String?,
+      providerReference: (json['gateway_reference'] ?? json['provider_reference']) as String?,
+    );
+  }
 }
