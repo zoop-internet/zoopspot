@@ -16,6 +16,7 @@ import '../widgets/add_funds_sheet.dart';
 import '../widgets/withdraw_sheet.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/payment_brand_icon.dart';
+import '../../../../core/widgets/zoop_button.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
@@ -408,24 +409,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: ZoopColors.textPrimary, letterSpacing: -0.5),
                 ),
                 const SizedBox(height: 16),
-                Semantics(
-                  label: 'Add funds to prepaid mesh balance',
-                  button: true,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showAddFunds(context),
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Add Funds', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.primaryCyan,
-                        foregroundColor: ZoopColors.background,
-                        minimumSize: const Size.fromHeight(48),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
+                ZoopButton.primary(
+                  label: 'Add Funds',
+                  icon: Icons.add_circle_outline,
+                  onPressed: () => _showAddFunds(context),
+                  isFullWidth: true,
+                  semanticsLabel: 'Add funds to prepaid mesh balance',
                 ),
               ],
             ),
@@ -502,21 +491,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                         ),
                       ],
                     ),
-                    Semantics(
-                      label: 'Withdraw available provider earnings: ${state.formatAmount(state.unwithdrawnEarnings)}',
-                      button: true,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
-                        icon: const Icon(Icons.arrow_outward, size: 16),
-                        label: const Text('Withdraw', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ZoopColors.surfaceElevated,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(110, 44),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
+                    ZoopButton.secondary(
+                      label: 'Withdraw',
+                      icon: Icons.arrow_outward,
+                      onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
+                      semanticsLabel: 'Withdraw available provider earnings: ${state.formatAmount(state.unwithdrawnEarnings)}',
                     ),
                   ],
                 ),

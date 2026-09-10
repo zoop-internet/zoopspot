@@ -9,6 +9,8 @@ import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
+import '../../../../core/widgets/zoop_badge.dart';
+import '../../../../core/widgets/zoop_button.dart';
 import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../../../core/widgets/zoop_offline_banner.dart';
@@ -321,48 +323,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-              decoration: BoxDecoration(
-                color: identityState.isRegistered
-                    ? ZoopColors.accentGreen.withValues(alpha: 0.15)
-                    : ZoopColors.accentAmber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: identityState.isRegistered
-                      ? ZoopColors.accentGreen.withValues(alpha: 0.4)
-                      : ZoopColors.accentAmber.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: identityState.isRegistered
-                          ? ZoopColors.accentGreen
-                          : ZoopColors.accentAmber,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    identityState.isRegistered ? 'ONLINE' : 'SYNCING',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: identityState.isRegistered
-                          ? ZoopColors.accentGreen
-                          : ZoopColors.accentAmber,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            identityState.isRegistered
+                ? const ZoopBadge.online()
+                : const ZoopBadge.syncing(),
           ],
         ),
         actions: [
@@ -800,58 +763,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ? 'Connecting to ${targetPeerName ?? "peer"}...'
             : 'Connect VPN tunnel to ${targetPeerName ?? "peer"}');
 
-    return Semantics(
-      button: true,
-      enabled: !isConnecting,
-      label: actionLabel,
-      child: SizedBox(
-        width: double.infinity,
+    if (isConnected) {
+      return ZoopButton.destructive(
+        label: 'Disconnect',
+        icon: Icons.power_settings_new,
+        onPressed: _toggleConnection,
+        isFullWidth: true,
         height: 52,
-        child: ElevatedButton.icon(
-          onPressed: isConnecting ? null : _toggleConnection,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isConnected
-                ? ZoopColors.surfaceElevated
-                : ZoopColors.primaryCyan,
-            foregroundColor:
-                isConnected ? ZoopColors.accentRose : Colors.black,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: isConnected
-                    ? ZoopColors.accentRose.withValues(alpha: 0.5)
-                    : Colors.transparent,
-                width: 1.2,
-              ),
-            ),
-          ),
-          icon: isConnecting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black,
-                  ),
-                )
-              : Icon(
-                  isConnected ? Icons.power_settings_new : Icons.bolt_rounded,
-                  size: 20,
-                ),
-          label: Text(
-            isConnected
-                ? 'Disconnect'
-                : (isConnecting ? 'Connecting...' : 'Connect'),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: isConnected ? ZoopColors.accentRose : Colors.black,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
-      ),
+        semanticsLabel: actionLabel,
+      );
+    }
+
+    return ZoopButton.primary(
+      label: isConnecting ? 'Connecting...' : 'Connect',
+      icon: isConnecting ? null : Icons.bolt_rounded,
+      isLoading: isConnecting,
+      onPressed: isConnecting ? null : _toggleConnection,
+      isFullWidth: true,
+      height: 52,
+      semanticsLabel: actionLabel,
     );
   }
 
