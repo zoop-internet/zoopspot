@@ -3,25 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/auth/biometric_auth_service.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/theme/zoop_spacing.dart';
 import '../../../../core/utils/zoop_feedback.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../../core/widgets/zoop_offline_banner.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../activity/application/activity_notifier.dart';
-import '../../../activity/domain/activity_models.dart';
 import '../../../activity/presentation/widgets/event_detail_sheet.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../../identity/presentation/widgets/recovery_phrase_sheet.dart';
 import '../../../settings/application/settings_notifier.dart';
-import '../../../settings/presentation/widgets/pin_change_dialog.dart';
 import '../../application/wallet_notifier.dart';
 import '../widgets/add_funds_sheet.dart';
-import '../widgets/withdraw_sheet.dart';
-import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/payment_brand_icon.dart';
-import '../../../../core/widgets/zoop_button.dart';
-import '../../../../core/widgets/zoop_shimmer.dart';
-import '../../../../core/widgets/zoop_empty_state.dart';
-import '../../../../core/widgets/zoop_error_banner.dart';
-import '../../../../core/widgets/zoop_offline_banner.dart';
+import '../widgets/transaction_detail_sheet.dart';
+import '../widgets/wallet_activity_tab.dart';
+import '../widgets/wallet_balance_card.dart';
+import '../widgets/wallet_earnings_card.dart';
+import '../widgets/wallet_security_tab.dart';
+import '../widgets/wallet_settlement_card.dart';
+import '../widgets/withdraw_sheet.dart';
 
+/// Primary Wallet screen covering prepaid balance, sharing node earnings,
+/// activity audit trails, and crypto enclave recovery.
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
 
@@ -34,21 +39,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   late TabController _tabController;
   final TextEditingController _activitySearchController = TextEditingController();
   bool _showActivitySearch = false;
-
-  Color _categoryColor(ActivityCategory cat) {
-    switch (cat) {
-      case ActivityCategory.connections:
-        return ZoopColors.primaryCyan;
-      case ActivityCategory.security:
-        return ZoopColors.accentRose;
-      case ActivityCategory.sharing:
-        return ZoopColors.accentPurple;
-      case ActivityCategory.devices:
-        return ZoopColors.accentAmber;
-      case ActivityCategory.all:
-        return ZoopColors.primaryCyan;
-    }
-  }
 
   @override
   void initState() {
@@ -81,14 +71,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
           String? phoneNumber,
         }) async {
           final notifier = ref.read(walletProvider.notifier);
-          final formattedAmount = 'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+          final formattedAmount =
+              'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
           try {
             if (method.toLowerCase().contains('card')) {
               final res = await notifier.addFundsViaCard(amount: amount);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Card checkout initiated for $formattedAmount. Reference: ${res.reference}'),
+                    content: Text(
+                        'Card checkout initiated for $formattedAmount. Reference: ${res.reference}'),
                     backgroundColor: ZoopColors.primaryCyan,
                   ),
                 );
@@ -103,7 +95,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Prompt sent to $phone for $formattedAmount. Approve on your phone.'),
+                    content: Text(
+                        'Prompt sent to $phone for $formattedAmount. Approve on your phone.'),
                     backgroundColor: ZoopColors.accentGreen,
                   ),
                 );
@@ -138,7 +131,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
           required String provider,
         }) async {
           final notifier = ref.read(walletProvider.notifier);
-          final formattedAmount = 'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+          final formattedAmount =
+              'UGX ${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
           try {
             final res = await notifier.withdrawToMobileMoney(
               amount: amount,
@@ -148,7 +142,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Withdrawal of $formattedAmount to $phoneNumber initiated (${res.reference})'),
+                  content: Text(
+                      'Withdrawal of $formattedAmount to $phoneNumber initiated (${res.reference})'),
                   backgroundColor: ZoopColors.accentGreen,
                 ),
               );
@@ -205,6 +200,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
 
   @override
   Widget build(BuildContext context) {
+    final identityState = ref.watch(identityNotifierProvider);
+    final settings = ref.watch(settingsProvider);
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final activityState = ref.watch(activityProvider);
+    final activityNotifier = ref.read(activityProvider.notifier);
+
     return Scaffold(
       backgroundColor: ZoopColors.background,
       appBar: AppBar(
@@ -329,9 +330,33 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
           // Tab 0: Wallet & Earnings
           _buildWalletTab(context),
           // Tab 1: Activity
-          _buildActivityTab(context),
+          WalletActivityTab(
+            state: activityState,
+            notifier: activityNotifier,
+            searchController: _activitySearchController,
+            showSearch: _showActivitySearch,
+            onToggleSearch: () => setState(() => _showActivitySearch = !_showActivitySearch),
+            onClearSearch: () {
+              _activitySearchController.clear();
+              setState(() => _showActivitySearch = false);
+            },
+            onSelectEvent: (event) {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) => EventDetailSheet(event: event),
+              );
+            },
+          ),
           // Tab 2: Security & Keys
-          _buildSecurityTab(context),
+          WalletSecurityTab(
+            identityState: identityState,
+            settings: settings,
+            settingsNotifier: settingsNotifier,
+            onViewRecoveryPhrase: _handleViewRecoveryPhrase,
+            onDiagnostics: () => context.push('/diagnostics'),
+          ),
         ],
       ),
     );
@@ -365,612 +390,145 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
               ),
             if (state.isLoading && state.transactions.isEmpty) ...[
               const ZoopSkeletonCard(height: 170),
-              const SizedBox(height: 16),
+              ZoopSpacing.gapLg,
               const ZoopSkeletonCard(height: 180),
-              const SizedBox(height: 24),
+              ZoopSpacing.gapXxl,
               _buildSectionHeader('TRANSACTION HISTORY', ZoopColors.textMuted),
               const SizedBox(height: 10),
               const ZoopSkeletonListTile(height: 68),
               const ZoopSkeletonListTile(height: 68),
               const ZoopSkeletonListTile(height: 68),
             ] else ...[
-          // Available Mesh Balance Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0D2538), ZoopColors.surface],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+              // Available Mesh Balance Card
+              WalletBalanceCard(
+                state: state,
+                onAddFunds: () => _showAddFunds(context),
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Available Mesh Balance', style: TextStyle(fontSize: 13, color: ZoopColors.textSecondary)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('Prepaid', style: TextStyle(fontSize: 10, color: ZoopColors.primaryCyan, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  state.formatAmount(state.availableBalance),
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: ZoopColors.textPrimary, letterSpacing: -0.5),
-                ),
-                const SizedBox(height: 16),
-                ZoopButton.primary(
-                  label: 'Add Funds',
-                  icon: Icons.add_circle_outline,
-                  onPressed: () => _showAddFunds(context),
-                  isFullWidth: true,
-                  semanticsLabel: 'Add funds to prepaid mesh balance',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ZoopSpacing.gapLg,
 
-          // Provider Earnings Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: ZoopColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: ZoopColors.surfaceBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Provider Sharing Earnings', style: TextStyle(fontSize: 13, color: ZoopColors.textSecondary)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('Active Node', style: TextStyle(fontSize: 10, color: ZoopColors.accentGreen, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          state.formatAmount(state.totalEarnedSharing),
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: ZoopColors.accentGreen),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text('Lifetime earned', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${state.totalDataServedGb} GB',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text('Total data relayed', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: ZoopColors.surfaceBorder),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Available to Withdraw', style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary)),
-                        const SizedBox(height: 2),
-                        Text(
-                          state.formatAmount(state.unwithdrawnEarnings),
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
-                        ),
-                      ],
-                    ),
-                    ZoopButton.secondary(
-                      label: 'Withdraw',
-                      icon: Icons.arrow_outward,
-                      onPressed: () => _showWithdraw(context, state.unwithdrawnEarnings),
-                      semanticsLabel: 'Withdraw available provider earnings: ${state.formatAmount(state.unwithdrawnEarnings)}',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              // Provider Earnings Card
+              WalletEarningsCard(
+                state: state,
+                onWithdraw: () => _showWithdraw(context, state.unwithdrawnEarnings),
+              ),
+              ZoopSpacing.gapLg,
 
-          // Settlement Rails Info
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: ZoopColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ZoopColors.surfaceBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.payments_outlined, color: ZoopColors.primaryCyan, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Supported Payment Rails',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: ZoopColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: ZoopColors.accentGreen.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Instant Settlement',
-                        style: TextStyle(fontSize: 10, color: ZoopColors.accentGreen, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    PaymentBrandBadge.mtn(),
-                    PaymentBrandBadge.airtel(),
-                    PaymentBrandBadge.card(),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+              // Settlement Rails Info
+              const WalletSettlementCard(),
+              ZoopSpacing.gapXxl,
 
-          // Transaction History Header
-          _buildSectionHeader('TRANSACTION HISTORY', ZoopColors.textMuted),
-          const SizedBox(height: 10),
-          if (state.transactions.isEmpty)
-            ZoopEmptyState(
-              icon: Icons.receipt_long_rounded,
-              title: 'No Transactions Recorded Yet',
-              description: 'Top up your mesh balance using MTN Mobile Money, Airtel Money, or Card, or share bandwidth to start earning.',
-              primaryActionLabel: 'Add Funds',
-              primaryActionIcon: Icons.add_circle_outline,
-              onPrimaryAction: () => _showAddFunds(context),
-            )
-          else
-            ...state.transactions.map((tx) {
-              return Semantics(
-                label: '${tx.type.label}, ${tx.description}, ${tx.formattedAmount}, status ${tx.status.name}. Tap to view transaction receipt.',
-                button: true,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => TransactionDetailSheet.show(context, tx),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            PaymentBrandIcon.forMethod(
-                              tx.paymentMethod,
-                              size: 38,
-                              borderRadius: 10,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(tx.type.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-                                  const SizedBox(height: 2),
-                                  Text(tx.description, style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+              // Transaction History Header
+              _buildSectionHeader('TRANSACTION HISTORY', ZoopColors.textMuted),
+              const SizedBox(height: 10),
+              if (state.transactions.isEmpty)
+                ZoopEmptyState(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'No Transactions Recorded Yet',
+                  description:
+                      'Top up your mesh balance using MTN Mobile Money, Airtel Money, or Card, or share bandwidth to start earning.',
+                  primaryActionLabel: 'Add Funds',
+                  primaryActionIcon: Icons.add_circle_outline,
+                  onPrimaryAction: () => _showAddFunds(context),
+                )
+              else
+                ...state.transactions.map((tx) {
+                  return Semantics(
+                    label:
+                        '${tx.type.label}, ${tx.description}, ${tx.formattedAmount}, status ${tx.status.name}. Tap to view transaction receipt.',
+                    button: true,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: ZoopColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: ZoopColors.surfaceBorder),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => TransactionDetailSheet.show(context, tx),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
                               children: [
-                                Text(tx.formattedAmount, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tx.type.color)),
-                                const SizedBox(height: 2),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                PaymentBrandIcon.forMethod(
+                                  tx.paymentMethod,
+                                  size: 38,
+                                  borderRadius: 10,
+                                ),
+                                ZoopSpacing.gapMd,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        tx.type.label,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: ZoopColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        tx.description,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: ZoopColors.textMuted,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Icon(tx.status.icon, size: 10, color: tx.status.color),
-                                    const SizedBox(width: 3),
-                                    Text(tx.status.name.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: tx.status.color)),
+                                    Text(
+                                      tx.formattedAmount,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: tx.type.color,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(tx.status.icon, size: 10, color: tx.status.color),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          tx.status.name.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: tx.status.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ],
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  size: 16,
+                                  color: ZoopColors.textMuted,
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ],
-      ),
-    ),
-  );
-}
-
-  // ==========================================
-  // TAB 1: ACTIVITY TIMELINE
-  // ==========================================
-  Widget _buildActivityTab(BuildContext context) {
-    final state = ref.watch(activityProvider);
-    final notifier = ref.read(activityProvider.notifier);
-
-    final searchQuery = _activitySearchController.text.toLowerCase();
-    final displayedEvents = searchQuery.isEmpty
-        ? state.filteredEvents
-        : state.filteredEvents.where((e) {
-            return e.title.toLowerCase().contains(searchQuery) ||
-                e.description.toLowerCase().contains(searchQuery);
-          }).toList();
-
-    return Column(
-      children: [
-        // Filter Chips Row + Search Toggle
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: ZoopColors.background,
-          child: Column(
-            children: [
-              if (_showActivitySearch) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: TextField(
-                    controller: _activitySearchController,
-                    autofocus: true,
-                    style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Search activity events...',
-                      hintStyle: const TextStyle(color: ZoopColors.textMuted, fontSize: 12),
-                      prefixIcon: const Icon(Icons.search, size: 18, color: ZoopColors.primaryCyan),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.close, size: 16, color: ZoopColors.textMuted),
-                        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                        onPressed: () {
-                          _activitySearchController.clear();
-                          setState(() => _showActivitySearch = false);
-                        },
-                      ),
-                      filled: true,
-                      fillColor: ZoopColors.surface,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: ZoopColors.surfaceBorder)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: ZoopColors.surfaceBorder)),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: ActivityCategory.values.map((cat) {
-                          final isSelected = state.selectedCategory == cat;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: FilterChip(
-                              label: Text(cat.label, style: TextStyle(fontSize: 11, color: isSelected ? Colors.black : ZoopColors.textSecondary)),
-                              selected: isSelected,
-                              onSelected: (_) => notifier.setCategory(cat),
-                              backgroundColor: ZoopColors.surface,
-                              selectedColor: ZoopColors.primaryCyan,
-                              showCheckmark: false,
-                              side: BorderSide(color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder),
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                  Semantics(
-                    label: _showActivitySearch ? 'Close activity search' : 'Open activity search',
-                    button: true,
-                    child: IconButton(
-                      icon: Icon(_showActivitySearch ? Icons.search_off : Icons.search, size: 20, color: ZoopColors.primaryCyan),
-                      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                      onPressed: () => setState(() => _showActivitySearch = !_showActivitySearch),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        // Events List
-        Expanded(
-          child: displayedEvents.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Center(
-                    child: ZoopEmptyState(
-                      icon: searchQuery.isNotEmpty ? Icons.search_off : Icons.checklist_rounded,
-                      title: searchQuery.isNotEmpty ? 'No Matching Events' : 'No Activity Events Yet',
-                      description: searchQuery.isNotEmpty
-                          ? 'No events match "${_activitySearchController.text}". Try clearing your search query or switching categories.'
-                          : 'Security, tunnel, and sharing events will record automatically as you participate in the mesh.',
-                      secondaryActionLabel: searchQuery.isNotEmpty ? 'Clear Search' : null,
-                      onSecondaryAction: searchQuery.isNotEmpty
-                          ? () {
-                              _activitySearchController.clear();
-                              setState(() {});
-                            }
-                          : null,
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  itemCount: displayedEvents.length,
-                  itemBuilder: (context, index) {
-                    final event = displayedEvents[index];
-                    final chipColor = _categoryColor(event.category);
-                    return Semantics(
-                      label: '${event.title}, ${event.relativeTime}, ${event.description}. Tap to view event details.',
-                      button: true,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: ZoopColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: ZoopColors.surfaceBorder),
-                        ),
-                        child: ListTile(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (ctx) => EventDetailSheet(event: event),
-                            );
-                          },
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: chipColor.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(event.category.icon, color: chipColor, size: 18),
                           ),
-                          title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: Text('${event.relativeTime} • ${event.description}', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: const Icon(Icons.chevron_right, size: 16, color: ZoopColors.textMuted),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                }),
+            ],
+          ],
         ),
-      ],
-    );
-  }
-
-  // ==========================================
-  // TAB 2: SECURITY & CRYPTOGRAPHY
-  // ==========================================
-  Widget _buildSecurityTab(BuildContext context) {
-    final identityState = ref.watch(identityNotifierProvider);
-    final settings = ref.watch(settingsProvider);
-    final settingsNotifier = ref.read(settingsProvider.notifier);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Identity Summary Card
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: ZoopColors.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: ZoopColors.primaryCyan.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('CRYPTO ENCLAVE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: ZoopColors.textMuted)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (identityState.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        identityState.isBackedUp ? 'BACKED UP' : 'BACKUP NEEDED',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: identityState.isBackedUp ? ZoopColors.accentGreen : ZoopColors.accentAmber,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  identityState.zoopId ?? 'Generating Identity...',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: ZoopColors.primaryCyan,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Curve25519 root private key sealed on this hardware device',
-                  style: TextStyle(fontSize: 11, color: ZoopColors.textSecondary),
-                ),
-                const SizedBox(height: 16),
-                Semantics(
-                  label: 'View 24-word cryptographic recovery phrase',
-                  button: true,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _handleViewRecoveryPhrase,
-                      icon: const Icon(Icons.key_rounded, size: 16),
-                      label: const Text('View 24-Word Recovery Phrase'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ZoopColors.primaryCyan,
-                        side: const BorderSide(color: ZoopColors.primaryCyan),
-                        minimumSize: const Size.fromHeight(48),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Security Policies
-          _buildSectionHeader('DEVICE PROTECTION', ZoopColors.textMuted),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: ZoopColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ZoopColors.surfaceBorder),
-            ),
-            child: Column(
-              children: [
-                Semantics(
-                  label: 'Security PIN, ${settings.hasPinSet ? "PIN protection is active" : "Set a 6-digit PIN"}. Tap to configure PIN.',
-                  button: true,
-                  child: ListTile(
-                    leading: const Icon(Icons.pin, color: ZoopColors.primaryCyan, size: 22),
-                    title: const Text('Security PIN', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                    subtitle: Text(settings.hasPinSet ? 'PIN protection is active' : 'Set a 6-digit PIN', style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                    trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => PinChangeDialog(
-                          onPinChanged: (pin) {
-                            settingsNotifier.setPin(pin);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('PIN updated successfully'), backgroundColor: ZoopColors.accentGreen),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.fingerprint, color: ZoopColors.primaryCyan, size: 22),
-                  title: const Text('Biometric Authentication', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                  subtitle: const Text('Unlock with Fingerprint or Face ID', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                  value: settings.biometricsEnabled,
-                  activeThumbColor: ZoopColors.primaryCyan,
-                  onChanged: (_) => settingsNotifier.toggleBiometrics(),
-                ),
-                const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.shield_outlined, color: ZoopColors.accentRose, size: 22),
-                  title: const Text('Emergency Kill Switch', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                  subtitle: const Text('Block all traffic if VPN disconnects unexpectedly', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                  value: settings.killSwitchEnabled,
-                  activeThumbColor: ZoopColors.accentRose,
-                  onChanged: (_) => settingsNotifier.toggleKillSwitch(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Network & Probe Diagnostics
-          _buildSectionHeader('DIAGNOSTIC PROBES', ZoopColors.textMuted),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: ZoopColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: ZoopColors.surfaceBorder),
-            ),
-            child: Semantics(
-              label: 'Run network diagnostics probe. Double tap to start 9-point audit.',
-              button: true,
-              child: ListTile(
-                onTap: () => context.push('/diagnostics'),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.primaryCyan.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.network_check, color: ZoopColors.primaryCyan, size: 20),
-                ),
-                title: const Text('Network Diagnostics Probe', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-                subtitle: const Text('Run 9-point audit: STUN, NAT, MTU, WireGuard handshake', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                trailing: const Icon(Icons.chevron_right, color: ZoopColors.textMuted),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
