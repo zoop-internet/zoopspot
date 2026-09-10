@@ -278,6 +278,18 @@ class ConnectionsNotifier extends StateNotifier<ConnectionsState> {
       activeConnections: [newConn, ...state.activeConnections],
     );
   }
+
+  /// Refreshes active connections and scans for available mesh providers
+  Future<void> refreshConnections() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      _loadInitialData();
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to refresh connections: $e');
+    }
+  }
 }
 
 final connectionsProvider =

@@ -8,6 +8,8 @@ import '../../../../core/models/peer_device.dart';
 import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/vpn/vpn_bridge_service.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../../core/widgets/zoop_offline_banner.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../application/peers_notifier.dart';
 import '../widgets/provider_selection_sheet.dart';
@@ -434,42 +436,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Active Sharing Banner if enabled
-              if (sharingState.isSharingActive) ...[
-                _buildActiveSharingBanner(context, sharingState),
-                const SizedBox(height: 14),
+        child: RefreshIndicator(
+          color: ZoopColors.primaryCyan,
+          backgroundColor: ZoopColors.surface,
+          onRefresh: () async {
+            await Future.wait([
+              ref.read(peersNotifierProvider.notifier).loadPeers(),
+              ref.read(walletProvider.notifier).refreshAll(),
+              ref.read(identityNotifierProvider.notifier).verifyCloudConnection(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!identityState.isRegistered || identityState.cloudStatus == 'offline') ...[
+                  ZoopOfflineBanner(
+                    onReconnect: () => ref.read(identityNotifierProvider.notifier).verifyCloudConnection(),
+                  ),
+                ],
+                if (_status == ConnectionStatus.error) ...[
+                  ZoopErrorBanner(
+                    title: 'Tunnel Connection Error',
+                    message: 'WireGuard tunnel session failed to establish or timed out. Check peer reachability and retry.',
+                    onRetry: _toggleConnection,
+                  ),
+                ],
+
+                // Active Sharing Banner if enabled
+                if (sharingState.isSharingActive) ...[
+                  _buildActiveSharingBanner(context, sharingState),
+                  const SizedBox(height: 14),
+                ],
+
+                // Zoop Points Required to Participate Card
+                _buildZoopPointsCard(context, walletState),
+
+                const SizedBox(height: 16),
+
+                // ===============================================================
+                // CARD 1: DEVICE-TO-DEVICE CONNECTION VISUALIZER
+                // ===============================================================
+                _buildDeviceMeshCard(context, activePeer, isConnected, isConnecting),
+
+                const SizedBox(height: 16),
+
+                // ===============================================================
+                // SEPARATE DEDICATED CONNECT BUTTON
+                // ===============================================================
+                _buildConnectActionButton(isConnected, isConnecting, targetPeerName: activePeer?.name),
+
+                const SizedBox(height: 24),
+
+                // Ecosystem Quick Actions
+                _buildQuickActions(context),
+
+                const SizedBox(height: 60),
               ],
-
-              // Zoop Points Required to Participate Card
-              _buildZoopPointsCard(context, walletState),
-
-              const SizedBox(height: 16),
-
-              // ===============================================================
-              // CARD 1: DEVICE-TO-DEVICE CONNECTION VISUALIZER
-              // ===============================================================
-              _buildDeviceMeshCard(context, activePeer, isConnected, isConnecting),
-
-              const SizedBox(height: 16),
-
-              // ===============================================================
-              // SEPARATE DEDICATED CONNECT BUTTON
-              // ===============================================================
-              _buildConnectActionButton(isConnected, isConnecting, targetPeerName: activePeer?.name),
-
-              const SizedBox(height: 24),
-
-              // Ecosystem Quick Actions
-              _buildQuickActions(context),
-
-              const SizedBox(height: 60),
-            ],
+            ),
           ),
         ),
       ),

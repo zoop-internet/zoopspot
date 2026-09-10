@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../application/devices_notifier.dart';
 import '../../domain/fleet_device_model.dart';
@@ -192,57 +195,29 @@ class DevicesScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                if (state.errorMessage != null)
+                  ZoopErrorBanner(
+                    title: 'Fleet Synchronization Error',
+                    message: state.errorMessage!,
+                    onRetry: notifier.refreshDevices,
+                  ),
 
-                if (state.devices.isEmpty) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-                    decoration: BoxDecoration(
-                      color: ZoopColors.surface,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: ZoopColors.surfaceBorder),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: ZoopColors.primaryCyan.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.devices_other, size: 40, color: ZoopColors.primaryCyan),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No Authorized Nodes',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: ZoopColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Pair your other mobile devices, laptops, or servers to expand your private encrypted mesh fabric.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: ZoopColors.textSecondary),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: () => _showPairingSheet(context),
-                          icon: const Icon(Icons.qr_code_scanner, size: 18),
-                          label: const Text('Pair Your First Node'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ZoopColors.primaryCyan,
-                            foregroundColor: ZoopColors.background,
-                            minimumSize: const Size(180, 46),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 16),
+
+                if (state.isLoading && state.devices.isEmpty) ...[
+                  const ZoopSkeletonCard(height: 90, padding: EdgeInsets.all(14)),
+                  const SizedBox(height: 10),
+                  const ZoopSkeletonCard(height: 90, padding: EdgeInsets.all(14)),
+                  const SizedBox(height: 10),
+                  const ZoopSkeletonCard(height: 90, padding: EdgeInsets.all(14)),
+                ] else if (state.devices.isEmpty) ...[
+                  ZoopEmptyState(
+                    icon: Icons.devices_other_rounded,
+                    title: 'No Authorized Nodes',
+                    description: 'Pair your other mobile devices, laptops, or servers to expand your private encrypted mesh fabric.',
+                    primaryActionLabel: 'Pair Your First Node',
+                    primaryActionIcon: Icons.qr_code_scanner,
+                    onPrimaryAction: () => _showPairingSheet(context),
                   ),
                 ] else ...[
                   // Online Devices Section

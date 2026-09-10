@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../application/connections_notifier.dart';
 import '../../domain/connection_models.dart';
 import '../widgets/connection_session_sheet.dart';
@@ -387,12 +390,22 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
             ),
           ),
 
+          if (state.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: ZoopErrorBanner(
+                title: 'Network Notice',
+                message: state.errorMessage!,
+                onRetry: notifier.refreshConnections,
+              ),
+            ),
+
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildActiveConnectionsTab(state.filteredActiveConnections),
-                _buildDiscoverProvidersTab(state.filteredDiscoveredProviders),
+                _buildActiveConnectionsTab(state.filteredActiveConnections, state.isLoading),
+                _buildDiscoverProvidersTab(state.filteredDiscoveredProviders, state.isLoading),
               ],
             ),
           ),
@@ -401,52 +414,34 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
     );
   }
 
-  Widget _buildActiveConnectionsTab(List<ActiveConnectionItem> connections) {
-    if (connections.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.sensors_off, size: 64, color: ZoopColors.surfaceBorder),
-              const SizedBox(height: 16),
-              const Text(
-                'No Active Tunnels',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: ZoopColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Connect to a provider from the Network tab below',
-                style: TextStyle(fontSize: 13, color: ZoopColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => _tabController.animateTo(1),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ZoopColors.primaryCyan,
-                  foregroundColor: ZoopColors.background,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.travel_explore, size: 18),
-                label: const Text(
-                  'Discover Providers',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
+  Widget _buildActiveConnectionsTab(List<ActiveConnectionItem> connections, bool isLoading) {
+    return RefreshIndicator(
+      color: ZoopColors.primaryCyan,
+      backgroundColor: ZoopColors.surface,
+      onRefresh: ref.read(connectionsProvider.notifier).refreshConnections,
+      child: isLoading && connections.isEmpty
+          ? ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: 3,
+              itemBuilder: (_, _) => const ZoopSkeletonCard(height: 110, padding: EdgeInsets.all(16)),
+            )
+          : connections.isEmpty
+              ? SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: ZoopEmptyState(
+                      icon: Icons.sensors_off_rounded,
+                      title: 'No Active Tunnels',
+                      description: 'Connect to a provider or peer from the Discover tab to route encrypted traffic through the mesh.',
+                      primaryActionLabel: 'Discover Providers',
+                      primaryActionIcon: Icons.travel_explore,
+                      onPrimaryAction: () => _tabController.animateTo(1),
+                    ),
+                  ),
+                )
+              : ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: connections.length,
       itemBuilder: (context, index) {
@@ -567,44 +562,43 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
         ),
       );
     },
+    ),
     );
   }
 
-  Widget _buildDiscoverProvidersTab(List<DiscoveredProvider> providers) {
-    if (providers.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.travel_explore,
-                size: 64,
-                color: ZoopColors.textMuted.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No Providers Found',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: ZoopColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'No providers matching search filter',
-                style: TextStyle(fontSize: 13, color: ZoopColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
+  Widget _buildDiscoverProvidersTab(List<DiscoveredProvider> providers, bool isLoading) {
+    return RefreshIndicator(
+      color: ZoopColors.primaryCyan,
+      backgroundColor: ZoopColors.surface,
+      onRefresh: ref.read(connectionsProvider.notifier).refreshConnections,
+      child: isLoading && providers.isEmpty
+          ? ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: 3,
+              itemBuilder: (_, _) => const ZoopSkeletonCard(height: 120, padding: EdgeInsets.all(16)),
+            )
+          : providers.isEmpty
+              ? SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: ZoopEmptyState(
+                      icon: Icons.travel_explore_rounded,
+                      title: 'No Providers Found',
+                      description: 'No network providers match your current filter or search criteria. Reset filters or scan again.',
+                      secondaryActionLabel: 'Reset Filters',
+                      onSecondaryAction: () {
+                        _searchController.clear();
+                        final notifier = ref.read(connectionsProvider.notifier);
+                        notifier.setSearchQuery('');
+                        notifier.setFilter('all');
+                        notifier.refreshConnections();
+                      },
+                    ),
+                  ),
+                )
+              : ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: providers.length,
       itemBuilder: (context, index) {
@@ -762,8 +756,9 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+      );
+    },
+    ),
+  );
+}
 }

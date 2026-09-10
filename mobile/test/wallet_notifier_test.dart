@@ -52,5 +52,23 @@ void main() {
       expect(notifier.state.unwithdrawnEarnings, equals(initialEarnings));
       expect(notifier.state.transactions.length, equals(initialTxCount));
     });
+
+    test('refreshAll completes and sets loading to false', () async {
+      await notifier.refreshAll();
+      expect(notifier.state.isLoading, isFalse);
+      expect(notifier.state.errorMessage, isNull);
+    });
+
+    test('WalletState supports offline and error message properties', () {
+      final state = const WalletState().copyWith(
+        isOffline: true,
+        errorMessage: 'Network error',
+      );
+      expect(state.isOffline, isTrue);
+      expect(state.errorMessage, equals('Network error'));
+
+      final cleared = state.copyWith(clearErrorMessage: true);
+      expect(cleared.errorMessage, isNull);
+    });
   });
 }

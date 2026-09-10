@@ -15,6 +15,10 @@ import '../widgets/add_funds_sheet.dart';
 import '../widgets/withdraw_sheet.dart';
 import '../widgets/transaction_detail_sheet.dart';
 import '../widgets/payment_brand_icon.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../../core/widgets/zoop_offline_banner.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
   const WalletScreen({super.key});
@@ -330,11 +334,37 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
   Widget _buildWalletTab(BuildContext context) {
     final state = ref.watch(walletProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return RefreshIndicator(
+      color: ZoopColors.primaryCyan,
+      backgroundColor: ZoopColors.surface,
+      onRefresh: () => ref.read(walletProvider.notifier).refreshAll(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (state.errorMessage != null)
+              ZoopErrorBanner(
+                title: 'Wallet Sync Notice',
+                message: state.errorMessage!,
+                onRetry: () => ref.read(walletProvider.notifier).refreshAll(),
+              ),
+            if (state.isOffline)
+              ZoopOfflineBanner(
+                onReconnect: () => ref.read(walletProvider.notifier).refreshAll(),
+              ),
+            if (state.isLoading && state.transactions.isEmpty) ...[
+              const ZoopSkeletonCard(height: 170),
+              const SizedBox(height: 16),
+              const ZoopSkeletonCard(height: 180),
+              const SizedBox(height: 24),
+              _buildSectionHeader('TRANSACTION HISTORY', ZoopColors.textMuted),
+              const SizedBox(height: 10),
+              const ZoopSkeletonListTile(height: 68),
+              const ZoopSkeletonListTile(height: 68),
+              const ZoopSkeletonListTile(height: 68),
+            ] else ...[
           // Available Mesh Balance Card
           Container(
             padding: const EdgeInsets.all(20),
@@ -547,16 +577,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
           _buildSectionHeader('TRANSACTION HISTORY', ZoopColors.textMuted),
           const SizedBox(height: 10),
           if (state.transactions.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: ZoopColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: ZoopColors.surfaceBorder),
-              ),
-              child: const Center(
-                child: Text('No transactions recorded yet', style: TextStyle(fontSize: 12, color: ZoopColors.textMuted)),
-              ),
+            ZoopEmptyState(
+              icon: Icons.receipt_long_rounded,
+              title: 'No Transactions Recorded Yet',
+              description: 'Top up your mesh balance using MTN Mobile Money, Airtel Money, or Card, or share bandwidth to start earning.',
+              primaryActionLabel: 'Add Funds',
+              primaryActionIcon: Icons.add_circle_outline,
+              onPrimaryAction: () => _showAddFunds(context),
             )
           else
             ...state.transactions.map((tx) {
@@ -613,10 +640,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                 ),
               );
             }),
+          ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ==========================================
   // TAB 1: ACTIVITY TIMELINE
@@ -713,16 +742,23 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
         // Events List
         Expanded(
           child: displayedEvents.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.checklist, size: 56, color: ZoopColors.textMuted.withValues(alpha: 0.5)),
-                      const SizedBox(height: 12),
-                      const Text('No Activity Events', style: TextStyle(fontWeight: FontWeight.bold, color: ZoopColors.textPrimary)),
-                      const SizedBox(height: 4),
-                      const Text('Events will record automatically as you use Zoop mesh', style: TextStyle(fontSize: 12, color: ZoopColors.textSecondary)),
-                    ],
+              ? Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(
+                    child: ZoopEmptyState(
+                      icon: searchQuery.isNotEmpty ? Icons.search_off : Icons.checklist_rounded,
+                      title: searchQuery.isNotEmpty ? 'No Matching Events' : 'No Activity Events Yet',
+                      description: searchQuery.isNotEmpty
+                          ? 'No events match "${_activitySearchController.text}". Try clearing your search query or switching categories.'
+                          : 'Security, tunnel, and sharing events will record automatically as you participate in the mesh.',
+                      secondaryActionLabel: searchQuery.isNotEmpty ? 'Clear Search' : null,
+                      onSecondaryAction: searchQuery.isNotEmpty
+                          ? () {
+                              _activitySearchController.clear();
+                              setState(() {});
+                            }
+                          : null,
+                    ),
                   ),
                 )
               : ListView.builder(

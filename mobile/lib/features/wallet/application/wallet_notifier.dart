@@ -14,6 +14,8 @@ class WalletState {
   final String currency;
   final List<WalletTransactionItem> transactions;
   final bool isLoading;
+  final String? errorMessage;
+  final bool isOffline;
 
   const WalletState({
     this.availableBalance = 85000.0,
@@ -24,6 +26,8 @@ class WalletState {
     this.currency = 'UGX',
     this.transactions = const [],
     this.isLoading = false,
+    this.errorMessage,
+    this.isOffline = false,
   });
 
   // Backward compatibility getters
@@ -49,6 +53,9 @@ class WalletState {
     String? currency,
     List<WalletTransactionItem>? transactions,
     bool? isLoading,
+    String? errorMessage,
+    bool clearErrorMessage = false,
+    bool? isOffline,
   }) {
     return WalletState(
       availableBalance: availableBalance ?? this.availableBalance,
@@ -59,6 +66,8 @@ class WalletState {
       currency: currency ?? this.currency,
       transactions: transactions ?? this.transactions,
       isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }
@@ -370,6 +379,22 @@ class WalletNotifier extends StateNotifier<WalletState> {
       }
     } catch (_) {
       // Keep local transactions on error
+    }
+  }
+
+  /// Refresh all wallet data including balance and transactions from server
+  Future<void> refreshAll() async {
+    state = state.copyWith(isLoading: true, clearErrorMessage: true);
+    try {
+      await refreshBalance();
+      await refreshTransactions();
+      state = state.copyWith(isLoading: false, isOffline: false, clearErrorMessage: true);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        isOffline: true,
+        errorMessage: 'Unable to sync wallet with server: $e',
+      );
     }
   }
 

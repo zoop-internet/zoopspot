@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../../devices/application/devices_notifier.dart';
 import '../../../devices/domain/fleet_device_model.dart';
 import '../../../devices/presentation/widgets/device_details_sheet.dart';
@@ -325,6 +328,13 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (state.errorMessage != null)
+              ZoopErrorBanner(
+                title: 'Fleet Synchronization Error',
+                message: state.errorMessage!,
+                onRetry: () => ref.read(devicesProvider.notifier).refreshDevices(),
+              ),
+
             // Mesh Fabric Overview Card
             Container(
               padding: const EdgeInsets.all(16),
@@ -454,44 +464,18 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
               ...offlineDevices.map((dev) => _buildDeviceCard(context, dev)),
             ],
 
-            if (state.devices.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.devices_other, size: 56, color: ZoopColors.textMuted),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'No Enrolled Devices',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ZoopColors.textPrimary),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Pair your phone, laptop, or home edge router using secure QR or terminal exchange.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: ZoopColors.textSecondary),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: () => _showPairingSheet(context),
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Pair First Device'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ZoopColors.primaryCyan,
-                        foregroundColor: ZoopColors.background,
-                        minimumSize: const Size(180, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ],
-                ),
+            if (state.isLoading && state.devices.isEmpty) ...[
+              const ZoopSkeletonCard(height: 90, padding: EdgeInsets.all(14)),
+              const SizedBox(height: 10),
+              const ZoopSkeletonCard(height: 90, padding: EdgeInsets.all(14)),
+            ] else if (state.devices.isEmpty)
+              ZoopEmptyState(
+                icon: Icons.devices_other_rounded,
+                title: 'No Enrolled Devices',
+                description: 'Pair your phone, laptop, or home edge router using secure QR or terminal exchange.',
+                primaryActionLabel: 'Pair First Device',
+                primaryActionIcon: Icons.qr_code_scanner,
+                onPrimaryAction: () => _showPairingSheet(context),
               ),
           ],
         ),

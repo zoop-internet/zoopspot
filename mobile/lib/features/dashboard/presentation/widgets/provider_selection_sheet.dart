@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
+import '../../../identity/application/identity_notifier.dart';
 import '../../application/peers_notifier.dart';
 
 class ProviderSelectionSheet extends ConsumerStatefulWidget {
@@ -113,51 +118,100 @@ class _ProviderSelectionSheetState
                 fontSize: 14,
               ),
               cursorColor: ZoopColors.primaryCyan,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Search devices...',
-                hintStyle: TextStyle(
+                hintStyle: const TextStyle(
                   color: ZoopColors.textMuted,
                   fontSize: 14,
                 ),
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.search,
                   color: ZoopColors.textMuted,
                   size: 20,
                 ),
-                enabledBorder: UnderlineInputBorder(
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18, color: ZoopColors.textMuted),
+                        onPressed: () => setState(() => _searchQuery = ''),
+                      )
+                    : null,
+                enabledBorder: const UnderlineInputBorder(
                   borderSide: BorderSide(
                     color: ZoopColors.surfaceBorder,
                     width: 1.5,
                   ),
                 ),
-                focusedBorder: UnderlineInputBorder(
+                focusedBorder: const UnderlineInputBorder(
                   borderSide: BorderSide(
                     color: ZoopColors.primaryCyan,
                     width: 1.5,
                   ),
                 ),
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
 
+          if (peersState.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+              child: ZoopErrorBanner(
+                title: 'Peer Discovery Error',
+                message: peersState.errorMessage!,
+                onRetry: () => ref.read(peersNotifierProvider.notifier).loadPeers(),
+              ),
+            ),
+
           const SizedBox(height: 8),
 
-          // Device List (Calm, non-highlighted items)
+          // Device List
           Expanded(
-            child: filteredPeers.isEmpty
-                ? Center(
-                    child: Text(
-                      peersState.isLoading
-                          ? 'Loading nodes...'
-                          : 'No devices found',
-                      style: const TextStyle(
-                        color: ZoopColors.textMuted,
-                        fontSize: 13,
-                      ),
-                    ),
+            child: peersState.isLoading && peersState.peers.isEmpty
+                ? ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    itemCount: 4,
+                    itemBuilder: (_, _) => const ZoopSkeletonListTile(height: 64),
                   )
-                : ListView.separated(
+                : filteredPeers.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Center(
+                          child: ZoopEmptyState(
+                            compact: true,
+                            icon: _searchQuery.isNotEmpty
+                                ? Icons.search_off_rounded
+                                : Icons.devices_other_rounded,
+                            title: _searchQuery.isNotEmpty
+                                ? 'No Matching Devices'
+                                : 'No Reachable Devices Found',
+                            description: _searchQuery.isNotEmpty
+                                ? 'No devices match "$_searchQuery". Try clearing your search query.'
+                                : 'Pair another phone, laptop, or gateway to expand your private encrypted mesh.',
+                            primaryActionLabel: _searchQuery.isEmpty ? 'Pair a Device' : null,
+                            primaryActionIcon: Icons.qr_code_scanner,
+                            onPrimaryAction: _searchQuery.isEmpty
+                                ? () {
+                                    Navigator.pop(context);
+                                    final identity = ref.read(identityNotifierProvider);
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (ctx) => DevicePairingSheet(
+                                        deviceName: 'Android Device (${identity.zoopId ?? "ZP-Node"})',
+                                        deviceId: identity.endpointId ?? 'ep-local-device',
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            secondaryActionLabel: _searchQuery.isNotEmpty ? 'Clear Search' : null,
+                            onSecondaryAction: _searchQuery.isNotEmpty
+                                ? () => setState(() => _searchQuery = '')
+                                : null,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
                     itemCount: filteredPeers.length,

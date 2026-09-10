@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../application/sharing_notifier.dart';
 import '../../domain/sharing_models.dart';
 import '../widgets/recipient_details_sheet.dart';
@@ -702,42 +703,13 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
         if (state.recipients.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: ZoopColors.surface,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: ZoopColors.surfaceBorder),
-                  ),
-                  child: const Icon(
-                    Icons.sensors_off_rounded,
-                    color: ZoopColors.textMuted,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'No Peers Connected',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: ZoopColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Friends who connect via your PIN or QR code will appear here live.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: ZoopColors.textSecondary,
-                  ),
-                ),
-              ],
+            child: ZoopEmptyState(
+              icon: Icons.sensors_off_rounded,
+              title: 'No Peers Connected',
+              description: 'Friends who connect via your PIN or QR code will appear here live.',
+              primaryActionLabel: isSharing ? 'Show QR Code' : 'Start Sharing',
+              primaryActionIcon: isSharing ? Icons.qr_code_2_rounded : Icons.wifi_tethering,
+              onPrimaryAction: isSharing ? () => _showQrInviteModal(context) : _handleToggleSharing,
             ),
           )
         else ...[
@@ -905,45 +877,13 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
   // ===========================================================================
   Widget _buildInboundRequestsTab(SharingState state, SharingNotifier notifier) {
     if (state.pendingRequests.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: ZoopColors.surfaceBorder),
-                ),
-                child: const Icon(
-                  Icons.mark_email_read_outlined,
-                  color: ZoopColors.textMuted,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'No Pending Requests',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: ZoopColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'When friends scan your QR or enter your PIN, their connection requests will wait here for your approval.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: ZoopColors.textSecondary,
-                ),
-              ),
-            ],
+          padding: EdgeInsets.all(24.0),
+          child: ZoopEmptyState(
+            icon: Icons.mark_email_read_outlined,
+            title: 'No Pending Requests',
+            description: 'When friends scan your QR or enter your PIN, their connection requests will wait here for your approval.',
           ),
         ),
       );

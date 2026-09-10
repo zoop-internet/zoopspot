@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
+import '../../../../core/widgets/zoop_shimmer.dart';
+import '../../../../core/widgets/zoop_empty_state.dart';
+import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../application/diagnostics_notifier.dart';
 import '../../domain/diagnostic_models.dart';
 
@@ -107,18 +110,10 @@ class DiagnosticsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (state.error != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: ZoopColors.accentRose.withValues(alpha: 0.1),
-                    border: Border.all(color: ZoopColors.accentRose),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    state.error!,
-                    style: const TextStyle(color: ZoopColors.accentRose),
-                  ),
+                ZoopErrorBanner(
+                  title: 'Diagnostics Error',
+                  message: state.error!,
+                  onRetry: () => notifier.runDiagnostics(),
                 ),
               if (state.report != null) ...[
                 _buildSummarySection(context, state.report!),
@@ -127,52 +122,24 @@ class DiagnosticsScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _buildActionButtons(context, notifier),
                 const SizedBox(height: 80), // spacing for fab
-              ] else if (!state.isRunning)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 80),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.network_check,
-                          size: 56,
-                          color: ZoopColors.textMuted,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No Report Yet',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: ZoopColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Run a 9-stage probe on NAT, STUN, MTU, and DNS health.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: ZoopColors.textSecondary, fontSize: 13),
-                        ),
-                        const SizedBox(height: 24),
-                        Semantics(
-                          button: true,
-                          label: 'Start 9-stage network diagnostics run',
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 48, minWidth: 200),
-                            child: ElevatedButton.icon(
-                              onPressed: () => notifier.runDiagnostics(),
-                              icon: const Icon(Icons.play_arrow, size: 20),
-                              label: const Text('Start Diagnostics Run', style: TextStyle(fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: ZoopColors.primaryCyan,
-                                foregroundColor: ZoopColors.background,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+              ] else if (state.isRunning) ...[
+                const ZoopSkeletonCard(height: 130),
+                const SizedBox(height: 16),
+                const ZoopSkeletonListTile(height: 64),
+                const ZoopSkeletonListTile(height: 64),
+                const ZoopSkeletonListTile(height: 64),
+                const ZoopSkeletonListTile(height: 64),
+              ] else
+                Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Center(
+                    child: ZoopEmptyState(
+                      icon: Icons.network_check_rounded,
+                      title: 'No Report Yet',
+                      description: 'Run an automated 9-point probe on NAT traversal, STUN reachability, MTU packet sizing, WireGuard handshake, and DNS leaks.',
+                      primaryActionLabel: 'Start Diagnostics Run',
+                      primaryActionIcon: Icons.play_arrow_rounded,
+                      onPrimaryAction: () => notifier.runDiagnostics(),
                     ),
                   ),
                 ),
