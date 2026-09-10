@@ -195,9 +195,9 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, borderTop: '1px solid var(--border)', background: 'rgba(255,255,255,0.015)' }}>
           {[
-            { n: '01', t: 'Register', d: 'Creates your Ed25519 identity + WireGuard keys locally.' },
-            { n: '02', t: 'Share', d: 'Authorize trusted peers — family, team or your other devices.' },
-            { n: '03', t: 'Connect', d: 'Direct tunnel in one tap. Roaming between Wi-Fi ↔ 5G is automatic.' },
+            { n: '01', t: 'Register', d: 'Creates your Ed25519 identity + WireGuard keys. This device only.' },
+            { n: '02', t: 'Share (you provide)', d: 'Authorize who may borrow your internet — go to Sharing.' },
+            { n: '03', t: 'Connect (you borrow)', d: 'Borrow internet from a provider that authorized you — go to Connections.' },
           ].map(s => (
             <div key={s.n} style={{ padding: '16px 18px', borderRight: '1px solid var(--border-subtle)' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>{s.n}</div>
@@ -218,6 +218,24 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
   return (
     <>
       <DaemonStatusCard onToast={onToast} />
+
+      {/* Share vs Connect — 5-sec comprehension aid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <div style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.18)', borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#34d399' }}><Ico d={I.share} size={14} /></span>
+          <div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#34d399' }}>Sharing — you PROVIDE</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Authorize a device to borrow <strong style={{ color: 'var(--text-secondary)' }}>your</strong> internet. Go to <strong>Sharing</strong> → Authorize.</div>
+          </div>
+        </div>
+        <div style={{ background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.18)', borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(56,189,248,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#38bdf8' }}><Ico d={I.zap} size={14} /></span>
+          <div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#38bdf8' }}>Connections — you BORROW</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Connect via a provider that authorized you. Go to <strong>Connections</strong> → Connect.</div>
+          </div>
+        </div>
+      </div>
 
       <div className="section">
         <div className="section-header">
@@ -542,16 +560,24 @@ const ConnectionsTab: React.FC<{
         </div>
       )}
 
-      {/* Initiate connection */}
+      {/* Initiate connection — you are RECIPIENT borrowing provider's internet */}
       <div className="section">
-        <div className="section-header"><span className="section-title">Initiate connection</span></div>
+        <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+          <span className="section-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Ico d={I.zap} size={14} /> Initiate connection
+            <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>You are recipient</span>
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            Borrow internet from a trusted provider. Your traffic exits via the provider's device — <strong style={{ color: 'var(--text-secondary)' }}>you connect → they approve</strong>.
+          </span>
+        </div>
         {providers.length > 0 ? (
           <>
             <form onSubmit={handleConnect} className="conn-form">
               <div className="field">
-                <label htmlFor="conn-provider-id">Provider device</label>
+                <label htmlFor="conn-provider-id">Provider device <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(provides internet to you)</span></label>
                 <select id="conn-provider-id" value={providerId} onChange={e => setProviderId(e.target.value)} required>
-                  <option value="" disabled>Select a provider device…</option>
+                  <option value="" disabled>Select a provider that authorized you…</option>
                   {providers.map(d => (
                     <option key={d.id.toString()} value={d.id.toString()}>
                       {d.name || 'Unnamed device'} — {d.id.toString().slice(0, 8)}…
@@ -560,22 +586,26 @@ const ConnectionsTab: React.FC<{
                 </select>
               </div>
               <button type="submit" className="btn btn-primary btn-sm" id="connect-btn" disabled={connecting || !providerId}>
-                {connecting ? <><Spin />Connecting…</> : <><Ico d={I.zap} />Connect</>}
+                {connecting ? <><Spin />Connecting…</> : <><Ico d={I.zap} />Connect via provider</>}
               </button>
             </form>
-            <div className="conn-hint">
-              Only devices that have authorized you as a recipient are listed here.
+            <div className="conn-hint" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', padding: '3px 8px', borderRadius: 999 }}><Ico d={I.link} size={10} /> Direct WireGuard</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Only devices that already authorized you appear. Ask provider to <strong style={{ color: 'var(--text-secondary)' }}>Sharing → Authorize recipient</strong> with your Device ID.</span>
             </div>
           </>
         ) : (
           <div className="conn-empty-providers">
             <div className="empty-icon" style={{ width: 40, height: 40, flexShrink: 0 }}><Ico d={I.share} size={18} /></div>
             <div>
-              <h3>No providers available</h3>
-              <p>To connect through a device, it must first authorize you as a recipient.</p>
-              <button className="btn btn-secondary btn-sm" onClick={onGoToSharing}>
-                <Ico d={I.share} />Go to Sharing
-              </button>
+              <h3>No providers authorized you yet</h3>
+              <p>No device has shared to this device. A provider must open <strong>Sharing</strong> and authorize your Device ID before you can connect.</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={onGoToSharing}>
+                  <Ico d={I.share} />Go to Sharing (see how)
+                </button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Tip: copy your Device ID from Devices → Current</span>
+              </div>
             </div>
           </div>
         )}
@@ -751,13 +781,21 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
       {shareError && <div className="error-banner"><Ico d={I.alert} />{shareError}</div>}
 
       <div className="section">
-        <div className="section-header"><span className="section-title">Authorize recipient</span></div>
+        <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+          <span className="section-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Ico d={I.share} size={14} /> Authorize recipient
+            <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>You are provider</span>
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            Share <strong style={{ color: 'var(--text-secondary)' }}>your</strong> internet with a trusted device. You provide → they route via you. Recipient must later go to <strong style={{ color: '#38bdf8' }}>Connections → Connect</strong>.
+          </span>
+        </div>
         <form onSubmit={handleShare} style={{ padding: '18px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div className="field" style={{ flex: 1, minWidth: 200 }}>
-            <label>Recipient device</label>
+            <label htmlFor="share-recipient-id">Recipient device <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(gets your internet)</span></label>
             {candidates.length > 0 ? (
               <select id="share-recipient-id" value={recipientId} onChange={e => setRecipientId(e.target.value)} required>
-                <option value="" disabled>Select a registered device…</option>
+                <option value="" disabled>Select who can use your internet…</option>
                 {candidates.map(d => (
                   <option key={d.id.toString()} value={d.id.toString()}>
                     {d.name || 'Unnamed device'} — {d.id.toString().slice(0, 8)}…
@@ -771,11 +809,12 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
           </div>
           <button type="submit" className="btn btn-primary btn-sm" id="share-create-btn" disabled={sharing}>
             {sharing ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
-            Authorize
+            Authorize sharing
           </button>
         </form>
-        <div className="conn-hint">
-          Sharing lets this device act as a provider — the recipient can route traffic through it.
+        <div className="conn-hint" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.18)', padding: '3px 8px', borderRadius: 999 }}><Ico d={I.shield} size={10} /> You control</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Revoke anytime in Active shares below. After you authorize, recipient sees you in <strong style={{ color: 'var(--text-secondary)' }}>Connections</strong>.</span>
         </div>
       </div>
 
@@ -1626,6 +1665,14 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
     wallet:      'Wallet & Earnings',
     settings:    'Settings',
   };
+  const TAB_SUBS: Record<UserTab, string> = {
+    overview:    'Your device mesh at a glance',
+    devices:     'Fleet inventory — click ID to copy',
+    connections: 'Borrow internet — you are recipient → provider approves',
+    sharing:     'Lend internet — you are provider → authorize recipients',
+    wallet:      'Mobile Money + bandwidth earnings (UGX)',
+    settings:    'Identity, device credential, sign out',
+  };
 
   const handleRegisterDirect = () => {
     onSwitch('auth');
@@ -1653,6 +1700,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           <div className="nav-section-label">Personal</div>
           {NAV.map(item => (
             <button key={item.id} id={`nav-${item.id}`}
+              title={TAB_SUBS[item.id]}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
               onClick={() => { setTab(item.id); setSidebarOpen(false); }}
               aria-current={tab === item.id ? 'page' : undefined}>
@@ -1687,12 +1735,15 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
 
       <div className="portal-content">
         <header className="page-header" role="banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <button className="mobile-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={sidebarOpen}>
               <Ico d={sidebarOpen ? I.close : I.menu} size={18} />
             </button>
-            <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em' }} className="hide-mobile">{deviceName ? `· ${deviceName}` : ''}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <h1 className="page-title"><span className="page-title-dot" aria-hidden />{TAB_TITLES[tab]}</h1>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TAB_SUBS[tab]}</span>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em', alignSelf: 'center' }} className="hide-mobile">{deviceName ? `· ${deviceName}` : ''}</span>
           </div>
           <div className="page-header-actions">
             {!deviceId ? (

@@ -1643,15 +1643,18 @@ export const LandingPage: React.FC<{
                 <div className="lp-hero-grid">
                   <div>
                     <div style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 12px', borderRadius:999, background:'rgba(8,242,255,0.10)', border:'1px solid rgba(8,242,255,0.28)', fontSize:'0.72rem', fontWeight:700, color:'#38bdf8', marginBottom:16 }}>
-                      <span style={{ width:7, height:7, borderRadius:'50%', background:'#34d399', boxShadow:'0 0 8px #34d399'}} aria-hidden /> Open Source MIT · No tracking · WireGuard®
+                      <span style={{ width:7, height:7, borderRadius:'50%', background:'#34d399', boxShadow:'0 0 8px #34d399'}} aria-hidden /> Open Source · No tracking · Direct mesh
                     </div>
                     <h1>
-                      Use your home internet
+                      Share your home or phone
                       <br />
-                      <span className="lp-grad-text">anywhere — directly.</span>
+                      <span className="lp-grad-text">internet — directly.</span>
                     </h1>
-                    <p className="lp-hero-desc">
-                      Mirror your home or phone connection to your laptop on the road. Direct WireGuard tunnels, not VPN servers — faster, private, and working behind CGNAT. <strong style={{color:'var(--ink)'}}>Setup in 30 seconds.</strong>
+                    <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
+                      Lend your home broadband or phone data to your laptop, family or team — <strong style={{color:'var(--ink)'}}>device-to-device, no VPN servers in the middle</strong>. Private, faster (<span style={{ color:'#34d399', fontWeight:800 }}>&lt;1ms</span> direct), and works behind strict NAT/CGNAT. <strong style={{color:'var(--ink)'}}>30-sec setup.</strong>
+                    </p>
+                    <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:6, lineHeight:1.5, maxWidth: 520 }}>
+                      WireGuard® encrypted · End-to-end · Revoke anytime · <a onClick={()=>handleNav('/how-it-works')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer' }}>How sharing works →</a>
                     </p>
                     <div className="lp-hero-actions">
                       {isAuthenticated ? (
@@ -1686,6 +1689,19 @@ export const LandingPage: React.FC<{
                     </div>
                     <div style={{ marginTop:10, fontSize:'0.72rem', color:'var(--muted)'}}>
                       <code style={{ background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', padding:'2px 6px', borderRadius:6, fontFamily:'var(--font-mono)', color:'var(--cyan)'}}>curl -fsSL https://get.zoop.dev | sh</code> <span style={{ marginLeft:6 }}>or</span> <a onClick={()=>handleNav('/downloads')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer'}}>download matrix →</a>
+                    </div>
+                    {/* Journey stepper — reduces cognitive load, guides 3 steps */}
+                    <div style={{ display:'flex', gap:8, marginTop:14, flexWrap:'wrap' }} aria-label="3-step journey">
+                      {[
+                        { n:'1', t:'Create Zoop ID', d:'ZP-… + PIN' },
+                        { n:'2', t:'Authorize', d:'Sharing → recipient' },
+                        { n:'3', t:'Connect', d:'Direct tunnel' },
+                      ].map(s=>(
+                        <span key={s.n} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', background:'rgba(255,255,255,0.03)', border:'1px solid var(--line)', padding:'5px 9px', borderRadius:999, color:'var(--text-secondary)' }}>
+                          <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(56,189,248,0.12)', color:'#38bdf8', display:'inline-flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:'0.65rem' }}>{s.n}</span>
+                          <strong style={{ color:'var(--ink)' }}>{s.t}</strong> <span style={{ color:'var(--muted)' }}>· {s.d}</span>
+                        </span>
+                      ))}
                     </div>
                   </div>
 

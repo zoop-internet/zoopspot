@@ -274,13 +274,30 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       </header>
 
       <main id="main-content" className="auth-main" tabIndex={-1}>
+        {/* Funnel progress — where this step sits in 1→3 journey */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:14, flexWrap:'wrap' }} aria-label="Progress: step 2 of 3 — authentication">
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:700, color:'var(--text-muted)' }}>
+            <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(52,211,153,0.18)', color:'#34d399', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>✓</span> Visit landing
+          </span>
+          <span aria-hidden style={{ color:'var(--text-muted)' }}>→</span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:800, color:'#38bdf8', background:'rgba(56,189,248,0.10)', border:'1px solid rgba(56,189,248,0.22)', padding:'3px 8px', borderRadius:999 }}>
+            <span style={{ width:18, height:18, borderRadius:'50%', background:'#38bdf8', color:'#020904', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>2</span> {tab==='signup' ? 'Create Zoop ID' : 'Sign in'}
+          </span>
+          <span aria-hidden style={{ color:'var(--text-muted)' }}>→</span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:600, color:'var(--text-muted)', opacity:0.8 }}>
+            <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>3</span> Use console (/app)
+          </span>
+        </div>
         <div key={shakeKey} className={`auth-card ${Object.keys(fieldErrors).length || errorMsg ? 'auth-shake' : ''}`}>
           <div className="auth-header">
             <h1>{tab === 'signin' ? 'Sign in to Zoop' : 'Create your Zoop identity'}</h1>
             <p>
               {tab === 'signin'
-                ? 'Your Zoop ID and PIN unlock this device.'
-                : 'Pick a username and PIN — your permanent Zoop ID is generated instantly.'}
+                ? 'Your Zoop ID (ZP-… or @username) + 6-digit PIN unlocks this device → then → Personal console.'
+                : 'Pick a username + 6-digit PIN — your permanent Zoop ID (ZP-…) is generated instantly, then you land in /app.'}
+            </p>
+            <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginTop:6, lineHeight:1.5, background:'rgba(56,189,248,0.06)', border:'1px solid rgba(56,189,248,0.12)', padding:'6px 10px', borderRadius:8 }}>
+              <strong style={{ color:'#38bdf8' }}>No email needed.</strong> Next: Devices are auto-registered from this browser · <a onClick={()=>onNavigate('/docs')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer' }}>Docs →</a>
             </p>
           </div>
 
