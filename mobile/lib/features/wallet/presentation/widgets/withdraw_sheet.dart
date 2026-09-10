@@ -118,27 +118,32 @@ class _WithdrawSheetState extends State<WithdrawSheet> {
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: InkWell(
-                          onTap: () => _setPercent(pct),
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? ZoopColors.accentGreen.withValues(alpha: 0.15)
-                                  : ZoopColors.background,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSelected ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
+                        child: Semantics(
+                          selected: isSelected,
+                          button: true,
+                          label: pct == 100 ? 'Withdraw maximum balance' : 'Withdraw $pct percent of balance',
+                          child: InkWell(
+                            onTap: () => _setPercent(pct),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? ZoopColors.accentGreen.withValues(alpha: 0.15)
+                                    : ZoopColors.background,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
+                                ),
                               ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                pct == 100 ? 'MAX' : '$pct%',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected ? ZoopColors.accentGreen : ZoopColors.textPrimary,
+                              child: Center(
+                                child: Text(
+                                  pct == 100 ? 'MAX' : '$pct%',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? ZoopColors.accentGreen : ZoopColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ),

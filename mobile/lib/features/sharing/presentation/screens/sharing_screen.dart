@@ -487,48 +487,75 @@ class _SharingScreenState extends ConsumerState<SharingScreen>
                 : 'Sharing is inactive. Tap to start sharing egress bandwidth.',
             child: GestureDetector(
               onTap: _handleToggleSharing,
-              child: AnimatedBuilder(
-                animation: pulseAnimation,
-                builder: (context, child) {
-                  final glowRadius = isSharing
-                      ? 18.0 + (pulseAnimation.value * 14.0)
-                      : 4.0;
-                  final glowAlpha = isSharing
-                      ? (0.15 + (pulseAnimation.value * 0.25))
-                      : 0.05;
+              child: Builder(
+                builder: (context) {
+                  final disableAnimations =
+                      MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
-                  return Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: ZoopColors.surfaceElevated,
-                      border: Border.all(
-                        color: statusColor,
-                        width: isSharing ? 2.5 : 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusColor.withValues(alpha: glowAlpha),
-                          blurRadius: glowRadius,
-                          spreadRadius: isSharing ? 4 : 0,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: RotationTransition(
-                        turns: isSharing
-                            ? _rotationController
-                            : const AlwaysStoppedAnimation(0),
-                        child: Icon(
-                          isSharing
-                              ? Icons.all_inclusive_rounded
-                              : Icons.wifi_tethering_off_rounded,
+                  Widget buildOrb({
+                    required double glowRadius,
+                    required double glowAlpha,
+                    required Widget iconWidget,
+                  }) {
+                    return Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ZoopColors.surfaceElevated,
+                        border: Border.all(
                           color: statusColor,
-                          size: 40,
+                          width: isSharing ? 2.5 : 1.5,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withValues(alpha: glowAlpha),
+                            blurRadius: glowRadius,
+                            spreadRadius: isSharing ? 4 : 0,
+                          ),
+                        ],
                       ),
-                    ),
+                      child: Center(child: iconWidget),
+                    );
+                  }
+
+                  final baseIcon = Icon(
+                    isSharing
+                        ? Icons.all_inclusive_rounded
+                        : Icons.wifi_tethering_off_rounded,
+                    color: statusColor,
+                    size: 40,
+                  );
+
+                  if (disableAnimations) {
+                    return buildOrb(
+                      glowRadius: isSharing ? 22.0 : 4.0,
+                      glowAlpha: isSharing ? 0.3 : 0.05,
+                      iconWidget: baseIcon,
+                    );
+                  }
+
+                  return AnimatedBuilder(
+                    animation: pulseAnimation,
+                    builder: (context, child) {
+                      final glowRadius = isSharing
+                          ? 18.0 + (pulseAnimation.value * 14.0)
+                          : 4.0;
+                      final glowAlpha = isSharing
+                          ? (0.15 + (pulseAnimation.value * 0.25))
+                          : 0.05;
+
+                      return buildOrb(
+                        glowRadius: glowRadius,
+                        glowAlpha: glowAlpha,
+                        iconWidget: RotationTransition(
+                          turns: isSharing
+                              ? _rotationController
+                              : const AlwaysStoppedAnimation(0),
+                          child: baseIcon,
+                        ),
+                      );
+                    },
                   );
                 },
               ),

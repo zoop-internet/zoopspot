@@ -51,6 +51,17 @@ enum TransactionStatus {
   pending,
   failed;
 
+  IconData get icon {
+    switch (this) {
+      case TransactionStatus.completed:
+        return Icons.check_circle_outline;
+      case TransactionStatus.pending:
+        return Icons.schedule;
+      case TransactionStatus.failed:
+        return Icons.error_outline;
+    }
+  }
+
   Color get color {
     switch (this) {
       case TransactionStatus.completed:

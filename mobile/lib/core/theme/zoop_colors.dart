@@ -23,11 +23,12 @@ abstract class ZoopColors {
   static const Color relay = Color(0xFF8B5CF6);
   static const Color connecting = Color(0xFF00D2FF);
   static const Color roaming = Color(0xFFF59E0B);
-  static const Color disconnected = Color(0xFF6B7280);
+  static const Color disconnected = Color(0xFF94A3B8);
   static const Color error = Color(0xFFEF4444);
 
-  // Text
+  // Text (WCAG 2.1 AA certified against dark slate surfaces)
   static const Color textPrimary = Color(0xFFF9FAFB);
   static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color textMuted = Color(0xFF6B7280);
+  static const Color textMuted = Color(0xFF94A3B8);
 }
+

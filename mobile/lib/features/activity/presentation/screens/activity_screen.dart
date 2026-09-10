@@ -363,12 +363,23 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                                Text(
-                                                  event.relativeTime,
-                                                  style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
-                                                ),
-                                              ],
-                                            ),
+                                                 Row(
+                                                   mainAxisSize: MainAxisSize.min,
+                                                   children: [
+                                                     Icon(
+                                                       event.severity.icon,
+                                                       size: 13,
+                                                       color: event.severity.color,
+                                                     ),
+                                                     const SizedBox(width: 4),
+                                                     Text(
+                                                       event.relativeTime,
+                                                       style: const TextStyle(fontSize: 11, color: ZoopColors.textMuted),
+                                                     ),
+                                                   ],
+                                                 ),
+                                               ],
+                                             ),
                                             const SizedBox(height: 4),
                                           Text(
                                             event.description,

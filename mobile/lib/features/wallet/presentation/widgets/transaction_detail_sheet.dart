@@ -74,14 +74,21 @@ class TransactionDetailSheet extends StatelessWidget {
                     color: transaction.status.color.withValues(alpha: 0.4),
                   ),
                 ),
-                child: Text(
-                  transaction.status.name.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: transaction.status.color,
-                    letterSpacing: 0.5,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(transaction.status.icon, size: 12, color: transaction.status.color),
+                    const SizedBox(width: 5),
+                    Text(
+                      transaction.status.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: transaction.status.color,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

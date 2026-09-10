@@ -323,12 +323,19 @@ class DevicesScreen extends ConsumerWidget {
                           ),
                         ),
                         Container(
-                          width: 10,
-                          height: 10,
+                          width: 14,
+                          height: 14,
                           decoration: BoxDecoration(
-                            color: device.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                            color: device.isOnline ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
                             shape: BoxShape.circle,
                             border: Border.all(color: ZoopColors.surface, width: 2),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              device.isOnline ? Icons.check : Icons.remove,
+                              size: 8,
+                              color: device.isOnline ? Colors.black : ZoopColors.textMuted,
+                            ),
                           ),
                         ),
                       ],

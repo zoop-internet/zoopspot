@@ -137,53 +137,63 @@ class _AddFundsSheetState extends State<AddFundsSheet> {
                   children: [
                     ..._presets.map((amount) {
                       final isSelected = !_isCustomAmount && _selectedAmount == amount;
-                      return ChoiceChip(
+                      return Semantics(
+                        selected: isSelected,
+                        button: true,
+                        label: 'Preset top-up amount ${_formatUgx(amount)}',
+                        child: ChoiceChip(
+                          label: Text(
+                            _formatUgx(amount),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.black : ZoopColors.textPrimary,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: ZoopColors.primaryCyan,
+                          backgroundColor: ZoopColors.background,
+                          side: BorderSide(
+                            color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          onSelected: (selected) {
+                            if (selected) {
+                              ZoopFeedback.selection();
+                              setState(() {
+                                _isCustomAmount = false;
+                                _selectedAmount = amount;
+                              });
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                    Semantics(
+                      selected: _isCustomAmount,
+                      button: true,
+                      label: 'Custom deposit amount',
+                      child: ChoiceChip(
                         label: Text(
-                          _formatUgx(amount),
+                          'Custom',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.black : ZoopColors.textPrimary,
+                            color: _isCustomAmount ? Colors.black : ZoopColors.textPrimary,
                           ),
                         ),
-                        selected: isSelected,
+                        selected: _isCustomAmount,
                         selectedColor: ZoopColors.primaryCyan,
                         backgroundColor: ZoopColors.background,
                         side: BorderSide(
-                          color: isSelected ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
+                          color: _isCustomAmount ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
                         ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         onSelected: (selected) {
-                          if (selected) {
-                            ZoopFeedback.selection();
-                            setState(() {
-                              _isCustomAmount = false;
-                              _selectedAmount = amount;
-                            });
-                          }
+                          ZoopFeedback.selection();
+                          setState(() => _isCustomAmount = selected);
                         },
-                      );
-                    }),
-                    ChoiceChip(
-                      label: Text(
-                        'Custom',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: _isCustomAmount ? Colors.black : ZoopColors.textPrimary,
-                        ),
                       ),
-                      selected: _isCustomAmount,
-                      selectedColor: ZoopColors.primaryCyan,
-                      backgroundColor: ZoopColors.background,
-                      side: BorderSide(
-                        color: _isCustomAmount ? ZoopColors.primaryCyan : ZoopColors.surfaceBorder,
-                      ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      onSelected: (selected) {
-                        ZoopFeedback.selection();
-                        setState(() => _isCustomAmount = selected);
-                      },
                     ),
                   ],
                 ),

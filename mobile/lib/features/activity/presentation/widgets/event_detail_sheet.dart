@@ -57,12 +57,43 @@ class EventDetailSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${event.category.label} • ${event.relativeTime}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: ZoopColors.textSecondary,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: event.severity.color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: event.severity.color.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(event.severity.icon, size: 11, color: event.severity.color),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    event.severity.label.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: event.severity.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${event.category.label} • ${event.relativeTime}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: ZoopColors.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -635,7 +635,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen>
                               children: [
                                 Text(tx.formattedAmount, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: tx.type.color)),
                                 const SizedBox(height: 2),
-                                Text(tx.status.name.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: tx.status.color)),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(tx.status.icon, size: 10, color: tx.status.color),
+                                    const SizedBox(width: 3),
+                                    Text(tx.status.name.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: tx.status.color)),
+                                  ],
+                                ),
                               ],
                             ),
                             const SizedBox(width: 6),

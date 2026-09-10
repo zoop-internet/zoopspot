@@ -33,6 +33,16 @@ class ZoopTheme {
         fontWeight: FontWeight.normal,
         color: ZoopColors.textSecondary,
       ),
+      bodySmall: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.normal,
+        color: ZoopColors.textMuted,
+      ),
+      labelMedium: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: ZoopColors.textSecondary,
+      ),
       labelSmall: GoogleFonts.jetBrainsMono(
         fontSize: 11,
         fontWeight: FontWeight.w500,

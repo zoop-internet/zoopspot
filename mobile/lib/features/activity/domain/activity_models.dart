@@ -45,6 +45,32 @@ enum ActivitySeverity {
   warning,
   error;
 
+  String get label {
+    switch (this) {
+      case ActivitySeverity.info:
+        return 'Info';
+      case ActivitySeverity.success:
+        return 'Success';
+      case ActivitySeverity.warning:
+        return 'Warning';
+      case ActivitySeverity.error:
+        return 'Critical';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ActivitySeverity.info:
+        return Icons.info_outline;
+      case ActivitySeverity.success:
+        return Icons.check_circle_outline;
+      case ActivitySeverity.warning:
+        return Icons.warning_amber_rounded;
+      case ActivitySeverity.error:
+        return Icons.error_outline_rounded;
+    }
+  }
+
   Color get color {
     switch (this) {
       case ActivitySeverity.info:

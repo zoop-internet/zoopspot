@@ -712,6 +712,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     bool isConnected,
     bool isConnecting,
   ) {
+    final disableAnimations = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+    Widget buildRing({double glowAlpha = 0.25}) {
+      return Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: ZoopColors.surfaceElevated,
+          border: Border.all(
+            color: statusColor,
+            width: 2.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withValues(alpha: glowAlpha),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Icon(
+          isConnected
+              ? Icons.check_circle_rounded
+              : (isConnecting ? Icons.sync : Icons.sensors),
+          size: 22,
+          color: statusColor,
+        ),
+      );
+    }
+
+    if (disableAnimations) {
+      final staticGlow = isConnected ? 0.35 : (isConnecting ? 0.3 : 0.05);
+      return buildRing(glowAlpha: staticGlow);
+    }
+
     return RotationTransition(
       turns: isConnecting
           ? _rotationController
@@ -722,33 +758,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           final glowAlpha = isConnected
               ? (0.2 + (pulseAnimation.value * 0.25))
               : (isConnecting ? 0.3 : 0.05);
-
-          return Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: ZoopColors.surfaceElevated,
-              border: Border.all(
-                color: statusColor,
-                width: 2.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: glowAlpha),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Icon(
-              isConnected
-                  ? Icons.check_circle_rounded
-                  : (isConnecting ? Icons.sync : Icons.sensors),
-              size: 22,
-              color: statusColor,
-            ),
-          );
+          return buildRing(glowAlpha: glowAlpha);
         },
       ),
     );

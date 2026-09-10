@@ -845,12 +845,19 @@ class _FleetScreenState extends ConsumerState<FleetScreen>
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  width: 10,
-                  height: 10,
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: dev.isOnline ? ZoopColors.accentGreen : ZoopColors.textMuted,
+                    color: dev.isOnline ? ZoopColors.accentGreen : ZoopColors.surfaceBorder,
                     border: Border.all(color: ZoopColors.surface, width: 1.5),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      dev.isOnline ? Icons.check : Icons.remove,
+                      size: 8,
+                      color: dev.isOnline ? Colors.black : ZoopColors.textMuted,
+                    ),
                   ),
                 ),
               ),

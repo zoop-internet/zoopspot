@@ -101,6 +101,7 @@ class AppShell extends ConsumerWidget {
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home_rounded),
                   label: 'Home',
+                  tooltip: 'Home — Tunnel dashboard and quick actions',
                 ),
                 NavigationDestination(
                   icon: connectedCount > 0
@@ -132,16 +133,21 @@ class AppShell extends ConsumerWidget {
                         )
                       : const Icon(Icons.all_inclusive_rounded),
                   label: 'Share',
+                  tooltip: connectedCount > 0
+                      ? 'Share — $connectedCount connected peer${connectedCount == 1 ? "" : "s"}'
+                      : 'Share — Egress bandwidth sharing and peers',
                 ),
                 const NavigationDestination(
                   icon: Icon(Icons.hub_outlined),
                   selectedIcon: Icon(Icons.hub_rounded),
                   label: 'Fleet',
+                  tooltip: 'Fleet — Device topology and pairing',
                 ),
                 const NavigationDestination(
                   icon: Icon(Icons.wallet_outlined),
                   selectedIcon: Icon(Icons.wallet_rounded),
                   label: 'Wallet',
+                  tooltip: 'Wallet — Balances, earnings, and deposits',
                 ),
               ],
             ),
