@@ -778,7 +778,7 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
 
   return (
     <>
-      {shareError && <div className="error-banner"><Ico d={I.alert} />{shareError}</div>}
+      {shareError && <div className="error-banner" role="alert" aria-live="assertive"><Ico d={I.alert} />{shareError}</div>}
 
       <div className="section">
         <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>

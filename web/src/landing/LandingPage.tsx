@@ -782,9 +782,9 @@ const BentArrowMeshIllustration: React.FC = () => {
         <line x1="300" y1="220" x2="385" y2="365" stroke="rgba(163, 230, 53, 0.25)" strokeWidth="1.5" strokeDasharray="3,4" />
       </svg>
 
-      {/* Central Zoop Hub */}
-      <div className="lp-node-center-hub" title="Zoop Direct Bridge">
-        <img src="/zoopicontransparent.png" alt="Zoop Core" />
+      {/* Central Zoop Hub — decorative, SVG already describes mesh */}
+      <div className="lp-node-center-hub" title="Zoop Direct Bridge" aria-hidden="true">
+        <img src="/zoopicontransparent.png" alt="" />
       </div>
 
       {/* Node 1: Home Wi-Fi & Broadband */}
@@ -1005,6 +1005,7 @@ export const LandingPage: React.FC<{
 
   return (
     <div className="landing-shell">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {/* ─── YouTube/GitHub-style Top Progress Loading Bar ──────────── */}
       {loadingVisible && (
         <div
