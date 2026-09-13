@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // StateCallback defines the interface for delivering real-time connection

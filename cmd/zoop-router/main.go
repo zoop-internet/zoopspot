@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	"github.com/zoop-internet/zoop/packages/router"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	"github.com/allannuwamanya/zoop/packages/router"
 )
 
 func main() {

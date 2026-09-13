@@ -130,4 +130,4 @@ If you have any questions, legal notices, or feedback regarding these Terms, ple
 * **Legal Notices:** [legal@zoopinternet.online](mailto:legal@zoopinternet.online)
 * **General Support:** [support@zoopinternet.online](mailto:support@zoopinternet.online)
 * **Website:** [https://zoopinternet.online](https://zoopinternet.online)
-* **GitHub Issues:** [https://github.com/zoop-internet/zoop/issues](https://github.com/zoop-internet/zoop/issues)
+* **GitHub Issues:** [https://github.com/allannuwamanya/zoop/issues](https://github.com/allannuwamanya/zoop/issues)

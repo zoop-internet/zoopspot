@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func setupTestService(t *testing.T) (*PaymentService, *MockGateway, *store.InMemoryStore) {

@@ -14,11 +14,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/types"
-	androidbridge "github.com/zoop-internet/zoop/packages/platform/android"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/types"
+	androidbridge "github.com/allannuwamanya/zoop/packages/platform/android"
 )
 
 type DaemonCommand struct {

@@ -256,7 +256,7 @@ const QUICKSTART_MD = `# Quick Start — self-host in 2 minutes
 
 ## 2. Build
 \`\`\`bash
-git clone https://github.com/zoop-internet/zoop.git && cd zoop
+git clone https://github.com/allannuwamanya/zoop.git && cd zoop
 make build   # bin/zoop, bin/zoopd, bin/zoop-cloud, bin/zoop-router
 \`\`\`
 
@@ -309,7 +309,7 @@ sudo ./bin/zoopd service status
 
 ## macOS (launchd, utun)
 \`\`\`bash
-brew install zoop-internet/tap/zoop
+brew install allannuwamanya/tap/zoop
 # or download Zoop-macOS-universal.pkg
 sudo zoopd -tun zoop0   # foreground test
 \`\`\`
@@ -483,7 +483,7 @@ Checks TUN, privs, cloud reachability, DNS, STUN/NAT. Run first.
 - Netlink events require daemon running. \`zoopd service status\` must be active.
 
 ## Still stuck
-Open issue with \`zoop doctor\` output: https://github.com/zoop-internet/zoop/issues
+Open issue with \`zoop doctor\` output: https://github.com/allannuwamanya/zoop/issues
 `,
   "security-architecture": `# Security & Cryptographic Architecture
 
@@ -581,7 +581,7 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
           ))}
         </nav>
         <div className="docs-sidebar-foot">
-          <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub →</a>
+          <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub →</a>
           <span>·</span>
           <a href="/llms.txt">llms.txt</a>
           <span>·</span>
@@ -610,22 +610,22 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
         <div className="docs-toolbar">
           <h1>{active?.title}</h1>
           <div className="docs-toolbar-actions">
-            <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" className="docs-gh-link">Edit on GitHub</a>
+            <a href={`https://github.com/allannuwamanya/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" className="docs-gh-link">Edit on GitHub</a>
             <button className="docs-copy-page" onClick={()=>{ navigator.clipboard.writeText(window.location.href); setCopied('link'); setTimeout(()=>setCopied(null),1200); }}>{copied==='link' ? 'Copied!' : 'Copy link'}</button>
           </div>
         </div>
-        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>source</a> · <a href="/llms.txt" style={{color:'#0284c7'}}>llms.txt</a></p>
+        <p className="docs-desc">{active?.desc} — <a href={`https://github.com/allannuwamanya/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>source</a> · <a href="/llms.txt" style={{color:'#0284c7'}}>llms.txt</a></p>
         <div className="docs-meta-bar">
           <span>Last updated Aug 28, 2026</span>
           <span>·</span>
           <a onClick={()=>{ navigator.clipboard.writeText(md); setCopied('md'); setTimeout(()=>setCopied(null),1200); }} style={{cursor:'pointer'}}>{copied==='md' ? 'Copied!' : 'Copy as Markdown'}</a>
           <span>·</span>
-          <a href={active?.file==='README' ? 'https://github.com/zoop-internet/zoop#quick-start' : `/docs/${active?.file}.md`} target="_blank" rel="noreferrer">View as Markdown</a>
+          <a href={active?.file==='README' ? 'https://github.com/allannuwamanya/zoop#quick-start' : `/docs/${active?.file}.md`} target="_blank" rel="noreferrer">View as Markdown</a>
           <span>·</span>
           <a href="https://developers.cloudflare.com/agent-setup/" target="_blank" rel="noreferrer">Agent setup</a>
         </div>
         {loading && <div className="docs-loading"><span className="spinner" style={{width:16,height:16,display:'inline-block'}}/> Loading {active?.file}.md…</div>}
-        {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
+        {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/allannuwamanya/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
         {!loading && !err && (
           <div className="docs-prose-wrap">
             <article className="docs-article" dangerouslySetInnerHTML={{__html: mdToHtml(md)}} />
@@ -635,9 +635,9 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
                 <a key={h.id} href={`#${h.id}`} className={`docs-toc-item lvl-${h.level}`} onClick={e=>{ e.preventDefault(); document.getElementById(h.id)?.scrollIntoView({behavior:'smooth', block:'start'}); history.replaceState({},'', `#${h.id}`); }}>{h.title}</a>
               ))}
               <div className="docs-toc-foot">
-                <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Edit this page</a>
+                <a href={`https://github.com/allannuwamanya/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Edit this page</a>
                 <span>·</span>
-                <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Ask AI</a>
+                <a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer">Ask AI</a>
               </div>
             </aside>
           </div>
@@ -648,7 +648,7 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
             <button className={copied==='yes' ? 'active' : ''} onClick={()=>{ setCopied('yes'); setTimeout(()=>setCopied(null),2000); }}>Yes</button>
             <button className={copied==='no' ? 'active' : ''} onClick={()=>{ setCopied('no'); setTimeout(()=>setCopied(null),4000); }}>No</button>
             {copied==='yes' && <span style={{color:'#0284c7'}}>Thanks!</span>}
-            {copied==='no' && <span>Thanks — <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>open issue</a></span>}
+            {copied==='no' && <span>Thanks — <a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer" style={{color:'#0284c7'}}>open issue</a></span>}
           </div>
         )}
         <div className="docs-footer-nav">
@@ -860,7 +860,7 @@ const DOWNLOAD_DATA: DownloadItem[] = [
       { label: 'Apple Silicon .dmg', file: 'Zoop-macOS-arm64.dmg' },
       { label: 'Intel .dmg', file: 'Zoop-macOS-x64.dmg' },
     ],
-    installCommand: 'brew install zoop-internet/tap/zoop',
+    installCommand: 'brew install allannuwamanya/tap/zoop',
   },
   {
     id: 'windows',
@@ -872,7 +872,7 @@ const DOWNLOAD_DATA: DownloadItem[] = [
       { label: 'Standalone .zip', file: 'zoop_windows_x64.zip' },
       { label: 'ARM64 Installer', file: 'Zoop-Windows-arm64.msi' },
     ],
-    installCommand: 'winget install zoop-internet.zoop',
+    installCommand: 'winget install allannuwamanya.zoop',
   },
   {
     id: 'mobile',
@@ -1231,8 +1231,8 @@ export const LandingPage: React.FC<{
             </div>
 
             <div style={{ marginTop: 28, background:'var(--surface-card)', border:'1px solid var(--line)', borderRadius:12, padding:16, display:'flex', flexWrap:'wrap', gap:12, alignItems:'center', justifyContent:'space-between' }}>
-              <div style={{ fontSize:'0.8125rem', color:'var(--ink-secondary)'}}><strong style={{ color:'var(--ink)'}}>Verify downloads:</strong> All binaries are signed; checksums at <a href="https://github.com/zoop-internet/zoop/releases" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>GitHub Releases</a> · <code style={{ background:'rgba(0,0,0,0.35)', border:'1px solid var(--line)', padding:'1px 6px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:'0.75rem'}}>sha256sum -c zoop*.sha256</code></div>
-              <div style={{ fontSize:'0.72rem', color:'var(--muted)'}}>Need help? <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Open an issue →</a></div>
+              <div style={{ fontSize:'0.8125rem', color:'var(--ink-secondary)'}}><strong style={{ color:'var(--ink)'}}>Verify downloads:</strong> All binaries are signed; checksums at <a href="https://github.com/allannuwamanya/zoop/releases" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>GitHub Releases</a> · <code style={{ background:'rgba(0,0,0,0.35)', border:'1px solid var(--line)', padding:'1px 6px', borderRadius:6, fontFamily:'var(--font-mono)', fontSize:'0.75rem'}}>sha256sum -c zoop*.sha256</code></div>
+              <div style={{ fontSize:'0.72rem', color:'var(--muted)'}}>Need help? <a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Open an issue →</a></div>
             </div>
 
             <div style={{ marginTop: 32, textAlign: 'center' }}>
@@ -1499,7 +1499,7 @@ export const LandingPage: React.FC<{
 
               <h2>7. Security Safeguards &amp; Open Source</h2>
               <p>
-                Zoop Internet is fully open-source and MIT-licensed. All source code, cryptographic implementations, and infrastructure recipes are publicly auditable at <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">github.com/zoop-internet/zoop</a>.
+                Zoop Internet is fully open-source and MIT-licensed. All source code, cryptographic implementations, and infrastructure recipes are publicly auditable at <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">github.com/allannuwamanya/zoop</a>.
               </p>
 
               <h2>8. Contact &amp; Inquiries</h2>
@@ -1872,7 +1872,7 @@ export const LandingPage: React.FC<{
               <div className="lp-section-heading centered">
                 <p className="lp-eyebrow">Built in the open — trusted by early users</p>
                 <h2>What early testers say.</h2>
-                <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:6 }}>Early access feedback · <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Verify on GitHub →</a></p>
+                <p style={{ fontSize:'0.75rem', color:'var(--muted)', marginTop:6 }}>Early access feedback · <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8', textDecoration:'underline'}}>Verify on GitHub →</a></p>
               </div>
 
               <div className="lp-testimonials-grid">
@@ -1888,7 +1888,7 @@ export const LandingPage: React.FC<{
                   <div className="lp-test-author">
                     <div className="lp-test-avatar" style={{ background:'#38bdf8', color:'#020904'}}>G</div>
                     <div>
-                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>GitHub Contributor</a> · Early access</div>
+                      <div className="lp-test-name"><a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>GitHub Contributor</a> · Early access</div>
                       <div className="lp-test-role">Self-hosted · Ubiquiti + Linux</div>
                     </div>
                   </div>
@@ -1906,7 +1906,7 @@ export const LandingPage: React.FC<{
                   <div className="lp-test-author">
                     <div className="lp-test-avatar" style={{ background:'#34d399', color:'#020904'}}>G</div>
                     <div>
-                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>Community Tester</a> · Nairobi</div>
+                      <div className="lp-test-name"><a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>Community Tester</a> · Nairobi</div>
                       <div className="lp-test-role">Android + macOS mesh</div>
                     </div>
                   </div>
@@ -1924,7 +1924,7 @@ export const LandingPage: React.FC<{
                   <div className="lp-test-author">
                     <div className="lp-test-avatar" style={{ background:'#a3e635', color:'#0a0e14'}}>G</div>
                     <div>
-                      <div className="lp-test-name"><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>OpenWrt Pilot</a> · Lagos</div>
+                      <div className="lp-test-name"><a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ color:'inherit', textDecoration:'underline dotted'}}>OpenWrt Pilot</a> · Lagos</div>
                       <div className="lp-test-role">OpenWrt · Family sharing</div>
                     </div>
                   </div>
@@ -2023,7 +2023,7 @@ export const LandingPage: React.FC<{
                 Direct device-to-device mesh — WireGuard® encrypted, NAT-traversal, open-source. Your traffic, your route.
               </p>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
-                <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ fontSize:'0.75rem', padding:'4px 10px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', color:'var(--ink-secondary)', textDecoration:'none'}}>★ GitHub — MIT</a>
+                <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ fontSize:'0.75rem', padding:'4px 10px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', color:'var(--ink-secondary)', textDecoration:'none'}}>★ GitHub — MIT</a>
                 <span style={{ fontSize:'0.75rem', padding:'4px 10px', borderRadius:999, background:'rgba(8,242,255,0.08)', border:'1px solid rgba(8,242,255,0.22)', color:'#38bdf8'}}>No tracking · No logs</span>
               </div>
             </div>
@@ -2063,10 +2063,10 @@ export const LandingPage: React.FC<{
             <div className="lp-footer-col">
               <h4>Community &amp; Support</h4>
               <ul>
-                <li><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
+                <li><a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
                 <li><a onClick={() => handleNav('/docs')}>Documentation Hub</a></li>
                 <li><a href="mailto:support@zoopinternet.online">Support: support@zoopinternet.online</a></li>
-                <li><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
+                <li><a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
                 <li><a onClick={() => handleNav('/security')}>Security Policy</a></li>
               </ul>
             </div>
@@ -2079,7 +2079,7 @@ export const LandingPage: React.FC<{
               <a onClick={() => handleNav('/terms')}>Terms of Service</a>
               <a onClick={() => handleNav('/security')}>Security</a>
               <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a>
-              <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub</a>
             </div>
           </div>
         </div>

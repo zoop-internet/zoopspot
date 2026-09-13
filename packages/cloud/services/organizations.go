@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)

@@ -126,7 +126,7 @@ We implement defense-in-depth technical safeguards to protect all system compone
 * **WireGuard Noise_IK**: State-of-the-art key exchange with forward secrecy.
 * **Cryptographic Signatures**: All API requests require Ed25519 signatures with bounded nonces (preventing replay attacks).
 * **Automated TLS**: Strict HTTPS / WSS communication via Caddy with Let's Encrypt certificates.
-* **Open Source Auditability**: All client and daemon code is publicly auditable on GitHub at [github.com/zoop-internet/zoop](https://github.com/zoop-internet/zoop).
+* **Open Source Auditability**: All client and daemon code is publicly auditable on GitHub at [github.com/allannuwamanya/zoop](https://github.com/allannuwamanya/zoop).
 
 ---
 
@@ -143,4 +143,4 @@ For questions, privacy inquiries, or data requests:
 * **Email:** [support@zoopinternet.online](mailto:support@zoopinternet.online)
 * **Security Team:** [security@zoopinternet.online](mailto:security@zoopinternet.online)
 * **Website:** [https://zoopinternet.online](https://zoopinternet.online)
-* **GitHub Issues:** [https://github.com/zoop-internet/zoop/issues](https://github.com/zoop-internet/zoop/issues)
+* **GitHub Issues:** [https://github.com/allannuwamanya/zoop/issues](https://github.com/allannuwamanya/zoop/issues)

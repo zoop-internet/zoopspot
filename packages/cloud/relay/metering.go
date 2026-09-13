@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // SessionStats tracks real-time traffic statistics for a single active relay session.

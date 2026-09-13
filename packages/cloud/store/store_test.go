@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestInMemoryStore_Device(t *testing.T) {

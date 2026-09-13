@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // FrameHandler receives inbound frames from the relay client.

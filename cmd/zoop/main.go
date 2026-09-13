@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/agent/health"
-	"github.com/zoop-internet/zoop/packages/agent/state"
-	"github.com/zoop-internet/zoop/packages/core/config"
+	"github.com/allannuwamanya/zoop/packages/agent/health"
+	"github.com/allannuwamanya/zoop/packages/agent/state"
+	"github.com/allannuwamanya/zoop/packages/core/config"
 )
 
 const socketPath = "/var/run/zoopd.sock"

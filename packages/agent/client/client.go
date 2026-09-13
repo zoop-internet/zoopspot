@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // APIClient is the Agent's HTTP client for communicating with the Zoop Cloud.

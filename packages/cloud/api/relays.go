@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/cloud/relay"
 )
 
 // RelaySelectRequest is the payload for POST /v1/relays/select

@@ -530,7 +530,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <span>·</span>
             <a href="#downloads" onClick={(e) => { e.preventDefault(); onNavigate('/downloads'); }}>Downloads</a>
             <span>·</span>
-            <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub</a>
           </div>
         </footer>
       </main>

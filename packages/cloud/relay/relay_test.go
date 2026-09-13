@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestRelayServer_Forwarding(t *testing.T) {

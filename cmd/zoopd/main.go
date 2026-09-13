@@ -24,14 +24,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/zoop-internet/zoop/packages/agent/client"
-	"github.com/zoop-internet/zoop/packages/agent/health"
-	"github.com/zoop-internet/zoop/packages/agent/identity"
-	"github.com/zoop-internet/zoop/packages/agent/state"
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	"github.com/zoop-internet/zoop/packages/core/config"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/client"
+	"github.com/allannuwamanya/zoop/packages/agent/health"
+	"github.com/allannuwamanya/zoop/packages/agent/identity"
+	"github.com/allannuwamanya/zoop/packages/agent/state"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	"github.com/allannuwamanya/zoop/packages/core/config"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 const defaultSocketPath = "/var/run/zoopd.sock"

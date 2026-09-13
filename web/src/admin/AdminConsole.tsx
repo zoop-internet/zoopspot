@@ -1204,7 +1204,7 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
               <div style={{ display:'flex', gap:6, marginTop:4 }}>
                 <button className="btn btn-secondary btn-xs" onClick={()=> toast(`Run checks for ${card.title} — GET /v1/admin/services`,'info')}>Run checks</button>
                 <button className="btn btn-primary btn-xs" onClick={()=> card.title.startsWith('STUN') ? runScaleCoturn() : card.title.startsWith('DB') ? runRestartStore() : runFlushRedis()}>Mitigate</button>
-                <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/runbooks/${card.file}`} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-xs" style={{ textDecoration:'none' }}>Runbook</a>
+                <a href={`https://github.com/allannuwamanya/zoop/blob/main/docs/runbooks/${card.file}`} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-xs" style={{ textDecoration:'none' }}>Runbook</a>
               </div>
             </div>
           ))}

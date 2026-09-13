@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	agentrelay "github.com/zoop-internet/zoop/packages/agent/relay"
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func main() {

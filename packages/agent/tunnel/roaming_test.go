@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestRoamingManagerLifecycle(t *testing.T) {

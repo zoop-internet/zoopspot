@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/pion/stun/v3"
-	"github.com/zoop-internet/zoop/packages/agent/tunnel/muxbind"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel/muxbind"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 	"golang.zx2c4.com/wireguard/conn"
 )
 

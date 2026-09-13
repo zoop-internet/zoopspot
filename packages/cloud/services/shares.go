@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 type ShareService struct {

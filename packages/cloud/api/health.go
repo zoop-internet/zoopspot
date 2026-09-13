@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/core"
+	"github.com/allannuwamanya/zoop/packages/core"
 )
 
 // SubsystemStatus represents the health status of a specific cloud subsystem.

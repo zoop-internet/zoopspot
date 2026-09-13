@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/pion/stun/v3"
-	"github.com/zoop-internet/zoop/packages/agent/state"
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
-	"github.com/zoop-internet/zoop/packages/core"
+	"github.com/allannuwamanya/zoop/packages/agent/state"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/core"
 )
 
 // NATType classifies the NAT behavior observed via STUN probing.

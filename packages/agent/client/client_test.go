@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestAPIClient_RegisterDevice(t *testing.T) {

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	agentrelay "github.com/zoop-internet/zoop/packages/agent/relay"
-	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
+	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestRelayClient_Integration(t *testing.T) {

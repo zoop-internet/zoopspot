@@ -3,7 +3,7 @@ package telemetry_test
 import (
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
 )
 
 func TestTracker_RecordAndRetrieve(t *testing.T) {

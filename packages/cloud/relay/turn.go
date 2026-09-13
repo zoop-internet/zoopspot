@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // TURNCredentials encapsulates time-limited ephemeral TURN/STUN server allocation credentials (RFC 5389).

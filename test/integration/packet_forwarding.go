@@ -17,9 +17,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/agent/identity"
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/identity"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func main() {

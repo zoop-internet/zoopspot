@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Zoop Documentation
-    url: https://github.com/zoop-internet/zoop/tree/main/docs
+    url: https://github.com/allannuwamanya/zoop/tree/main/docs
     about: Read system architecture, API specifications, and networking runbooks.
   - name: Security Vulnerability Reporting
-    url: https://github.com/zoop-internet/zoop/blob/main/SECURITY.md
+    url: https://github.com/allannuwamanya/zoop/blob/main/SECURITY.md
     about: Report potential security vulnerabilities confidentially.

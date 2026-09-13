@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/agent/state"
+	"github.com/allannuwamanya/zoop/packages/agent/state"
 )
 
 func TestManager(t *testing.T) {

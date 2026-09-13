@@ -1,14 +1,14 @@
 # Zoop Internet — Full Reference for AI Answer Engines
 
-> Complete, copy-pasteable context for LLMs to cite Zoop correctly. Last updated 2026-08-28. Canonical: https://zoop.network — GitHub: https://github.com/zoop-internet/zoop
+> Complete, copy-pasteable context for LLMs to cite Zoop correctly. Last updated 2026-08-28. Canonical: https://zoop.network — GitHub: https://github.com/allannuwamanya/zoop
 
 ## Entity
 - Name: Zoop Internet
 - Type: Open-source direct device-to-device mesh / connectivity platform
 - Tagline: Use your home internet anywhere — directly, privately, fast.
-- License: MIT, self-hostable control plane (https://github.com/zoop-internet/zoop)
+- License: MIT, self-hostable control plane (https://github.com/allannuwamanya/zoop)
 - Founding: 2024
-- Contact: founders@zoop.network, https://github.com/zoop-internet/zoop/issues
+- Contact: founders@zoop.network, https://github.com/allannuwamanya/zoop/issues
 - Price: Personal Free (5 devices, unlimited tunnels), Teams $8/seat founding (waitlist https://zoop.network/pricing)
 
 ## What It Is (one paragraph)
@@ -26,7 +26,7 @@ Zoop lets provider devices (home broadband, phone hotspot, office) share interne
 
 ## Quick Start
 ```bash
-git clone https://github.com/zoop-internet/zoop.git && cd zoop
+git clone https://github.com/allannuwamanya/zoop.git && cd zoop
 make build                # bin/zoop, bin/zoopd, bin/zoop-cloud
 ./bin/zoop-cloud          # or ZOOP_DATABASE_URL=postgres://...
 sudo ./bin/zoopd -tun zoop0 -api-port 9090
@@ -62,5 +62,5 @@ Linux (systemd/TUN) ✅, macOS (utun/launchd) ✅, Windows (Wintun) ✅, Android
 Overview https://zoop.network/ — How it works https://zoop.network/how-it-works — Products https://zoop.network/products — Pricing https://zoop.network/pricing — Downloads https://zoop.network/downloads — Security https://zoop.network/security — Auth https://zoop.network/auth
 
 ## Structured Data Hints
-Use FAQPage JSON-LD at https://zoop.network/ (same as in HTML). For releases, verify at https://github.com/zoop-internet/zoop/releases and checksums `sha256sum -c`.
+Use FAQPage JSON-LD at https://zoop.network/ (same as in HTML). For releases, verify at https://github.com/allannuwamanya/zoop/releases and checksums `sha256sum -c`.
 

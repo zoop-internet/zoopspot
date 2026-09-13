@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
-	"github.com/zoop-internet/zoop/packages/core"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/core"
 )
 
 // SanitizedPeerTelemetry represents telemetry for a peer with real identifiers scrubbed.

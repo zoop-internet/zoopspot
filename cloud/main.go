@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/zoop-internet/zoop/packages/cloud/payments"
-	"github.com/zoop-internet/zoop/packages/cloud/server"
-	"github.com/zoop-internet/zoop/packages/cloud/services"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core"
-	"github.com/zoop-internet/zoop/packages/core/config"
+	"github.com/allannuwamanya/zoop/packages/cloud/payments"
+	"github.com/allannuwamanya/zoop/packages/cloud/server"
+	"github.com/allannuwamanya/zoop/packages/cloud/services"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core"
+	"github.com/allannuwamanya/zoop/packages/core/config"
 )
 
 func main() {

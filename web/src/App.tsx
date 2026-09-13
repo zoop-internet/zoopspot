@@ -147,7 +147,7 @@ const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({
       <button className="lp-btn-primary" onClick={() => onNavigate('/')} style={{ padding:'10px 18px', borderRadius: 10, background: '#38bdf8', color:'#020617', border:0, fontWeight:700, cursor:'pointer' }}>Go to homepage</button>
       <button className="lp-btn-secondary" onClick={() => window.history.back()} style={{ padding:'10px 18px', borderRadius:10, background:'rgba(255,255,255,0.06)', color:'#f1f5f9', border:'1px solid rgba(255,255,255,0.08)', fontWeight:600, cursor:'pointer' }}>Go back</button>
     </div>
-    <div style={{ marginTop:24, fontSize:'0.75rem', color:'#64748b' }}><a href="/docs" onClick={e=>{e.preventDefault(); onNavigate('/docs');}} style={{ color:'#38bdf8' }}>Docs</a> · <a href="/downloads" onClick={e=>{e.preventDefault(); onNavigate('/downloads');}} style={{ color:'#38bdf8' }}>Downloads</a> · <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8' }}>GitHub</a></div>
+    <div style={{ marginTop:24, fontSize:'0.75rem', color:'#64748b' }}><a href="/docs" onClick={e=>{e.preventDefault(); onNavigate('/docs');}} style={{ color:'#38bdf8' }}>Docs</a> · <a href="/downloads" onClick={e=>{e.preventDefault(); onNavigate('/downloads');}} style={{ color:'#38bdf8' }}>Downloads</a> · <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8' }}>GitHub</a></div>
   </div>
 );
 

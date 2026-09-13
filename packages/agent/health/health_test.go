@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/agent/health"
-	"github.com/zoop-internet/zoop/packages/agent/state"
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/agent/health"
+	"github.com/allannuwamanya/zoop/packages/agent/state"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
 )
 
 func TestChecker_IsHealthy(t *testing.T) {

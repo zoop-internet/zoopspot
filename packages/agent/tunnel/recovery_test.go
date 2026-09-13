@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func TestConnectionRecoveryManager(t *testing.T) {

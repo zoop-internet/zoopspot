@@ -14,15 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoop-internet/zoop/packages/agent/identity"
-	agentrelay "github.com/zoop-internet/zoop/packages/agent/relay"
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	cloudrelay "github.com/zoop-internet/zoop/packages/cloud/relay"
-	"github.com/zoop-internet/zoop/packages/cloud/server"
-	"github.com/zoop-internet/zoop/packages/cloud/services"
-	"github.com/zoop-internet/zoop/packages/cloud/store"
-	"github.com/zoop-internet/zoop/packages/core/config"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/identity"
+	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
+	"github.com/allannuwamanya/zoop/packages/cloud/server"
+	"github.com/allannuwamanya/zoop/packages/cloud/services"
+	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core/config"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 func loadIdentity(path string) (types.Identity, ed25519.PrivateKey, error) {

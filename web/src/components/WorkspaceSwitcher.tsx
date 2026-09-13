@@ -173,7 +173,7 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
               </div>
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Need help?</span>
-                <button onClick={() => { setOpen(false); window.open('https://github.com/zoop-internet/zoop', '_blank'); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <button onClick={() => { setOpen(false); window.open('https://github.com/allannuwamanya/zoop', '_blank'); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   Docs <Ico d={I.arrowUpRight} size={12} />
                 </button>
               </div>

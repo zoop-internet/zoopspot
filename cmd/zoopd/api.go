@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zoop-internet/zoop/packages/agent/client"
-	"github.com/zoop-internet/zoop/packages/agent/telemetry"
-	"github.com/zoop-internet/zoop/packages/agent/tunnel"
-	"github.com/zoop-internet/zoop/packages/cloud/api"
-	"github.com/zoop-internet/zoop/packages/core/types"
+	"github.com/allannuwamanya/zoop/packages/agent/client"
+	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 // daemonAPI exposes a localhost-only HTTP API for the Zoop web UI. It is the

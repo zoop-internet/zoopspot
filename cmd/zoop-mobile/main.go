@@ -7,7 +7,7 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/zoop-internet/zoop/packages/platform/mobile"
+	"github.com/allannuwamanya/zoop/packages/platform/mobile"
 )
 
 //export ZoopInitMobile

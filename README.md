@@ -4,7 +4,7 @@
 
 **High-Performance Direct Device-to-Device Mesh & Connectivity Platform**
 
-[![CI](https://github.com/zoop-internet/zoop/actions/workflows/ci.yml/badge.svg)](https://github.com/zoop-internet/zoop/actions/workflows/ci.yml)
+[![CI](https://github.com/allannuwamanya/zoop/actions/workflows/ci.yml/badge.svg)](https://github.com/allannuwamanya/zoop/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![Version](https://img.shields.io/badge/Version-0.1.0--alpha-orange.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -100,7 +100,7 @@ See [**DEPLOYMENT.md**](DEPLOYMENT.md) for full architectural specs, systemd ser
 Clone the repository and build the core binaries using the `Makefile`:
 
 ```bash
-git clone https://github.com/zoop-internet/zoop.git
+git clone https://github.com/allannuwamanya/zoop.git
 cd zoop
 
 # Compile all binaries into bin/

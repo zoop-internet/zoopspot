@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/zoop-internet/zoop/packages/core"
-	"github.com/zoop-internet/zoop/packages/router"
+	"github.com/allannuwamanya/zoop/packages/core"
+	"github.com/allannuwamanya/zoop/packages/router"
 )
 
 func main() {

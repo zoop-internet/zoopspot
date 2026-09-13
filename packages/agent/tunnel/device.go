@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zoop-internet/zoop/packages/agent/tunnel/muxbind"
+	"github.com/allannuwamanya/zoop/packages/agent/tunnel/muxbind"
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
