@@ -32,7 +32,7 @@ type Config struct {
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
 func LoadConfig() Config {
 	cfg := Config{
-		ControlPlaneURL:  "http://localhost:8080",
+		ControlPlaneURL:  "https://3.70.135.200.sslip.io",
 		AgentListenAddr:  "127.0.0.1:8080",
 		LogLevel:         "info",
 		IdentityPath:     "",
