@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pion/stun/v3"
@@ -19,6 +20,18 @@ var stunServers = []string{
 	"stun1.l.google.com:19302",
 	"stun2.l.google.com:19302",
 	"stun.cloudflare.com:3478",
+}
+
+// getSTUNServers returns the prioritized STUN servers, with ZOOP_STUN_SERVER placed first if set.
+func getSTUNServers() []string {
+	if s := os.Getenv("ZOOP_STUN_SERVER"); s != "" {
+		s = strings.TrimSpace(s)
+		if !strings.Contains(s, ":") {
+			s = s + ":3478"
+		}
+		return append([]string{s}, stunServers...)
+	}
+	return stunServers
 }
 
 // DiscoverPublicEndpoint connects to a STUN server to discover the public Server-Reflexive IP and port.
@@ -38,7 +51,7 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 	}
 
 	var lastErr error
-	for _, server := range stunServers {
+	for _, server := range getSTUNServers() {
 		ip, port, err := discoverViaSTUN(server, localPort)
 		if err == nil {
 			return ip, port, nil
@@ -140,49 +153,77 @@ func DiscoverPublicEndpointMux(mb *muxbind.MuxBind) (string, int, error) {
 		return "", 0, fmt.Errorf("muxbind is nil")
 	}
 
-	stunAddr, err := net.ResolveUDPAddr("udp", "stun.l.google.com:19302")
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to resolve stun server: %w", err)
-	}
+	servers := getSTUNServers()
+	for _, server := range servers {
+		stunAddr, err := net.ResolveUDPAddr("udp", server)
+		if err != nil {
+			continue
+		}
 
-	message := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
+		message := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
 
-	type resStruct struct {
-		ip   string
-		port int
-		err  error
-	}
-	resChan := make(chan resStruct, 1)
+		type resStruct struct {
+			ip   string
+			port int
+			err  error
+		}
+		resChan := make(chan resStruct, 1)
 
-	stunHandler := func(pkt []byte, ep conn.Endpoint) bool {
-		if muxbind.IsSTUN(pkt) {
-			m := &stun.Message{Raw: pkt}
-			if err := m.Decode(); err == nil && m.TransactionID == message.TransactionID {
-				var xorAddr stun.XORMappedAddress
-				if getErr := xorAddr.GetFrom(m); getErr == nil {
-					select {
-					case resChan <- resStruct{ip: xorAddr.IP.String(), port: xorAddr.Port, err: nil}:
-					default:
+		stunHandler := func(pkt []byte, ep conn.Endpoint) bool {
+			if muxbind.IsSTUN(pkt) {
+				m := &stun.Message{Raw: pkt}
+				if err := m.Decode(); err == nil && m.TransactionID == message.TransactionID {
+					var xorAddr stun.XORMappedAddress
+					if getErr := xorAddr.GetFrom(m); getErr == nil {
+						select {
+						case resChan <- resStruct{ip: xorAddr.IP.String(), port: xorAddr.Port, err: nil}:
+						default:
+						}
+						return true
 					}
-					return true
 				}
 			}
+			return false
 		}
-		return false
-	}
-	mb.AddHandler(stunHandler)
-	defer mb.RemoveHandler(stunHandler)
+		mb.AddHandler(stunHandler)
 
-	if err := mb.SendToAddr(message.Raw, stunAddr.String()); err != nil {
-		return "", 0, fmt.Errorf("failed to send STUN request: %w", err)
+		if err := mb.SendToAddr(message.Raw, stunAddr.String()); err != nil {
+			mb.RemoveHandler(stunHandler)
+			continue
+		}
+
+		select {
+		case res := <-resChan:
+			mb.RemoveHandler(stunHandler)
+			if res.err == nil && res.ip != "" {
+				return res.ip, res.port, nil
+			}
+		case <-time.After(2 * time.Second):
+			mb.RemoveHandler(stunHandler)
+		}
 	}
 
-	select {
-	case res := <-resChan:
-		return res.ip, res.port, res.err
-	case <-time.After(3 * time.Second):
-		return "", 0, fmt.Errorf("stun discovery via muxbind timed out")
+	return "", 0, fmt.Errorf("stun discovery via muxbind timed out for all servers")
+}
+
+func isOverlayOrVirtual(iface net.Interface, ip net.IP) bool {
+	if iface.Flags&net.FlagPointToPoint != 0 {
+		return true
 	}
+	name := strings.ToLower(iface.Name)
+	for _, prefix := range []string{"zoop", "tun", "tap", "wg", "utun", "docker", "veth", "br-"} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	ip4 := ip.To4()
+	if ip4 != nil {
+		// Filter out 100.64.0.0/10 CGNAT / RFC 6598 overlay range used by Zoop
+		if ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
+			return true
+		}
+	}
+	return false
 }
 
 // DiscoverLocalAddresses enumerates active, non-loopback local network interface IPv4 addresses.
@@ -213,6 +254,10 @@ func DiscoverLocalAddresses() ([]string, error) {
 			}
 
 			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			if isOverlayOrVirtual(iface, ip) {
 				continue
 			}
 

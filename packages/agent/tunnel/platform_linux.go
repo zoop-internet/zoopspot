@@ -170,7 +170,7 @@ func platformAddEndpointRoute(endpointIP string) error {
 
 	routes, err := netlink.RouteGet(ip)
 	if err != nil || len(routes) == 0 {
-		return nil
+		return execAddEndpointRoute(endpointIP)
 	}
 
 	hostDst := &net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}
@@ -181,8 +181,13 @@ func platformAddEndpointRoute(endpointIP string) error {
 	}
 
 	if err := netlink.RouteAdd(route); err != nil && !isExistError(err) {
-		return fmt.Errorf("failed to add host route for endpoint %s: %w", endpointIP, err)
+		return execAddEndpointRoute(endpointIP)
 	}
+	return nil
+}
+
+func execAddEndpointRoute(endpointIP string) error {
+	_ = exec.Command("sh", "-c", fmt.Sprintf("GW=$(ip route get %s 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"via\") print $(i+1)}'); DEV=$(ip route get %s 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"dev\") print $(i+1)}'); if [ -n \"$GW\" ] && [ -n \"$DEV\" ]; then ip route add %s/32 via $GW dev $DEV 2>/dev/null || true; elif [ -n \"$DEV\" ]; then ip route add %s/32 dev $DEV 2>/dev/null || true; fi", endpointIP, endpointIP, endpointIP, endpointIP)).Run()
 	return nil
 }
 

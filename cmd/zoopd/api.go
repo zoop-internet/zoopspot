@@ -97,6 +97,7 @@ func (a *daemonAPI) routes() http.Handler {
 	mux.HandleFunc("GET /api/telemetry", a.handleTelemetry)
 	mux.HandleFunc("GET /api/connections", a.handleConnections)
 	mux.HandleFunc("GET /api/shares", a.handleShares)
+	mux.HandleFunc("POST /api/shares", a.handleCreateShare)
 	mux.HandleFunc("POST /api/connect", a.handleConnect)
 	mux.HandleFunc("POST /api/disconnect", a.handleDisconnect)
 	mux.HandleFunc("GET /api/diagnostics", a.handleDiagnostics)
@@ -262,6 +263,34 @@ func (a *daemonAPI) handleShares(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, shares)
 }
 
+type createShareRequest struct {
+	ProviderID string `json:"provider_id"`
+}
+
+func (a *daemonAPI) handleCreateShare(w http.ResponseWriter, r *http.Request) {
+	var req createShareRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "invalid json body")
+		return
+	}
+
+	providerUUID, err := uuid.Parse(req.ProviderID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "provider_id must be a valid UUID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	share, err := a.apiClient.CreateShare(ctx, types.ID(providerUUID), a.apiClient.Identity.EndpointID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "cloud_error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, share)
+}
+
 type connectRequest struct {
 	PeerID string `json:"peer_id"`
 }
@@ -301,6 +330,14 @@ func (a *daemonAPI) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := a.apiClient.RequestConnectionWithEndpoints(ctx, types.ID(peerUUID), wgPubKey, endpointIP, listenPort, candidates)
+	if err != nil {
+		// If authorization is denied because no share exists yet, automatically create the share and retry
+		if strings.Contains(err.Error(), "authorization_denied") || strings.Contains(err.Error(), "authorization denied") {
+			if _, shareErr := a.apiClient.CreateShare(ctx, types.ID(peerUUID), a.apiClient.Identity.EndpointID); shareErr == nil {
+				conn, err = a.apiClient.RequestConnectionWithEndpoints(ctx, types.ID(peerUUID), wgPubKey, endpointIP, listenPort, candidates)
+			}
+		}
+	}
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "cloud_error", err.Error())
 		return

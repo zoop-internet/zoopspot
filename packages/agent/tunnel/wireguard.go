@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/url"
+	"os"
 	"strings"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -77,6 +79,10 @@ func (m *DeviceManager) AddPeerWithKeepalive(peerPubKey wgtypes.Key, endpointIP 
 			if endpointIP != "" {
 				_ = platformAddEndpointRoute(endpointIP)
 			}
+			// Protect control plane, relay, and STUN infrastructure so WebSocket and signaling
+			// connections do not get captured by the tunnel's default routes.
+			protectCriticalInfrastructure()
+
 			// Use split default routes (0.0.0.0/1 and 128.0.0.0/1) instead of clobbering 0.0.0.0/0.
 			_ = platformAddRoute(m.ifName, "0.0.0.0/1")
 			_ = platformAddRoute(m.ifName, "128.0.0.0/1")
@@ -88,6 +94,45 @@ func (m *DeviceManager) AddPeerWithKeepalive(peerPubKey wgtypes.Key, endpointIP 
 	}
 
 	return nil
+}
+
+func protectHostOrURL(target string) {
+	if target == "" {
+		return
+	}
+	target = strings.TrimSpace(target)
+	if strings.Contains(target, "://") {
+		if u, err := url.Parse(target); err == nil {
+			target = u.Host
+		}
+	}
+	host, _, err := net.SplitHostPort(target)
+	if err != nil {
+		host = target
+	}
+	ip := net.ParseIP(host)
+	if ip != nil {
+		_ = platformAddEndpointRoute(ip.String())
+		return
+	}
+	ips, err := net.LookupIP(host)
+	if err == nil {
+		for _, resolved := range ips {
+			_ = platformAddEndpointRoute(resolved.String())
+		}
+	}
+}
+
+func protectCriticalInfrastructure() {
+	if cp := os.Getenv("ZOOP_CONTROL_PLANE_URL"); cp != "" {
+		protectHostOrURL(cp)
+	}
+	if stun := os.Getenv("ZOOP_STUN_SERVER"); stun != "" {
+		protectHostOrURL(stun)
+	}
+	if relay := os.Getenv("ZOOP_RELAY_SERVER"); relay != "" {
+		protectHostOrURL(relay)
+	}
 }
 
 // RemovePeer removes a remote peer from the WireGuard configuration.

@@ -1,0 +1,12 @@
+.git
+.github
+.wrangler
+mobile
+web
+android
+ios
+bin
+.agents
+.vscode
+test-data
+test-config

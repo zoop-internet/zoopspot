@@ -35,9 +35,10 @@ services:
         ipv4_address: 10.250.0.10
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zoop -d zoop_db"]
-      interval: 5s
+      interval: 3s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 5s
 
   coturn:
     image: coturn/coturn:4.6-alpine
@@ -123,6 +124,7 @@ services:
       /bin/sh -c "ip route del default && ip route add default via 10.251.0.254 && /bin/zoopd -api-port 9090 -tun zoopa"
     environment:
       - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080
+      - ZOOP_STUN_SERVER=10.250.0.11:3478
 
   agent-b:
     build:
@@ -144,3 +146,4 @@ services:
       /bin/sh -c "ip route del default && ip route add default via 10.252.0.254 && /bin/zoopd -api-port 9090 -tun zoopb"
     environment:
       - ZOOP_CONTROL_PLANE_URL=http://10.250.0.12:8080
+      - ZOOP_STUN_SERVER=10.250.0.11:3478

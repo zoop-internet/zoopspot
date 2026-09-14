@@ -57,15 +57,18 @@ func NewPostgresStore(databaseURL string) (*PostgresStore, error) {
 	db.SetMaxIdleConns(10)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer pingCancel()
 
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(pingCtx); err != nil {
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
 	}
 
 	store := &PostgresStore{db: db}
-	if err := store.Migrate(ctx); err != nil {
+	migrateCtx, migrateCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer migrateCancel()
+
+	if err := store.Migrate(migrateCtx); err != nil {
 		return nil, fmt.Errorf("failed to run database migrations: %w", err)
 	}
 

@@ -21,8 +21,8 @@ var (
 // validTransitions defines the allowed state machine transitions for a Connection.
 // Any transition not present here is rejected.
 var validTransitions = map[types.ConnectionState][]types.ConnectionState{
-	types.ConnectionStateRequested:    {types.ConnectionStateAuthorized, types.ConnectionStateConnecting, types.ConnectionStateDisconnected},
-	types.ConnectionStateAuthorized:   {types.ConnectionStateConnecting, types.ConnectionStateDisconnected},
+	types.ConnectionStateRequested:    {types.ConnectionStateAuthorized, types.ConnectionStateConnecting, types.ConnectionStateConnected, types.ConnectionStateDisconnected},
+	types.ConnectionStateAuthorized:   {types.ConnectionStateConnecting, types.ConnectionStateConnected, types.ConnectionStateDisconnected},
 	types.ConnectionStateConnecting:   {types.ConnectionStateConnected, types.ConnectionStateDisconnected},
 	types.ConnectionStateConnected:    {types.ConnectionStateDisconnected},
 	types.ConnectionStateDisconnected: {types.ConnectionStateRequested}, // allow reconnect attempts
@@ -30,6 +30,9 @@ var validTransitions = map[types.ConnectionState][]types.ConnectionState{
 
 // isValidTransition returns true if transitioning from → to is permitted.
 func isValidTransition(from, to types.ConnectionState) bool {
+	if from == to {
+		return true // Idempotent updates are always allowed
+	}
 	allowed, ok := validTransitions[from]
 	if !ok {
 		return false

@@ -181,6 +181,17 @@ func (c *APIClient) ListConnections(ctx context.Context) ([]api.ConnectionRespon
 	return resp, err
 }
 
+// CreateShare establishes a sharing relationship with another device.
+func (c *APIClient) CreateShare(ctx context.Context, providerID, recipientID types.ID) (*api.ShareResponse, error) {
+	req := api.CreateShareRequest{
+		ProviderID:  providerID,
+		RecipientID: recipientID,
+	}
+	var resp api.ShareResponse
+	err := c.do(ctx, http.MethodPost, "/v1/shares", req, &resp)
+	return &resp, err
+}
+
 // ListShares fetches all sharing relationships for the current device.
 func (c *APIClient) ListShares(ctx context.Context) ([]api.ShareResponse, error) {
 	var resp []api.ShareResponse

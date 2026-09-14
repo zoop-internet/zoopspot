@@ -12,10 +12,12 @@ import (
 )
 
 type peerForwarder struct {
-	peerID  types.ID
-	peerKey wgtypes.Key
-	conn    *net.UDPConn
-	port    int
+	peerID     types.ID
+	peerKey    wgtypes.Key
+	conn       *net.UDPConn
+	port       int
+	mu         sync.Mutex
+	lastWgAddr net.Addr
 }
 
 // RelayBridge bridges WireGuard UDP packets across the Zoop Relay WebSocket client
@@ -116,13 +118,17 @@ func (rb *RelayBridge) readOutboundLoop(f *peerForwarder) {
 		default:
 		}
 
-		n, _, err := f.conn.ReadFrom(buf)
+		n, raddr, err := f.conn.ReadFrom(buf)
 		if err != nil {
 			return
 		}
 		if n == 0 {
 			continue
 		}
+
+		f.mu.Lock()
+		f.lastWgAddr = raddr
+		f.mu.Unlock()
 
 		if rb.relayClient != nil && rb.relayClient.IsConnected() {
 			if err := rb.relayClient.Send(f.peerID, buf[:n]); err != nil {
@@ -142,12 +148,18 @@ func (rb *RelayBridge) handleInboundFrame(senderID types.ID, payload []byte) {
 		return
 	}
 
-	targetAddr := &net.UDPAddr{
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: rb.targetWgPort,
+	f.mu.Lock()
+	targetAddr := f.lastWgAddr
+	f.mu.Unlock()
+
+	if targetAddr == nil {
+		targetAddr = &net.UDPAddr{
+			IP:   net.IPv4(127, 0, 0, 1),
+			Port: rb.targetWgPort,
+		}
 	}
 
-	_, _ = f.conn.WriteToUDP(payload, targetAddr)
+	_, _ = f.conn.WriteTo(payload, targetAddr)
 }
 
 // Close tears down all forwarders and closes the bridge.
