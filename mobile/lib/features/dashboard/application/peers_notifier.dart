@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/di/core_providers.dart';
 import '../../../core/models/peer_device.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
@@ -61,7 +60,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
         _storage = storageService,
         super(const PeersState());
 
-  /// Queries the Cloud Control Plane for accessible mesh nodes.
+  /// Queries the Cloud Control Plane for authorized mesh nodes (Friend Shares & Personal Fleet).
   Future<void> loadPeers() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -74,29 +73,126 @@ class PeersNotifier extends StateNotifier<PeersState> {
         return;
       }
 
+      // 1. Fetch all registered devices to resolve names, platforms, and public keys
       final allDevices = await _client.listDevices(
         endpointId: endpointId,
         privateKeySeed: seed,
       );
+      final deviceMap = <String, PeerDevice>{};
+      for (final d in allDevices) {
+        if (d.endpointId.isNotEmpty) deviceMap[d.endpointId] = d;
+        if (d.id.isNotEmpty) deviceMap[d.id] = d;
+      }
 
-      // Filter out self so the user only connects to remote providers
-      final peerNodes = allDevices
-          .where((d) =>
-              d.endpointId.isNotEmpty &&
-              d.endpointId != endpointId &&
-              d.id != endpointId)
-          .toList();
+      final authorizedPeers = <String, PeerDevice>{};
+
+      // 2. Fetch Active Shares (/v1/shares) - Sharing relationships with friends / providers
+      try {
+        final sharesResult = await _client.authenticatedRequest(
+          method: 'GET',
+          path: '/v1/shares',
+          endpointId: endpointId,
+          privateKeySeed: seed,
+        );
+
+        List<dynamic> sharesList = [];
+        if (sharesResult is List) {
+          sharesList = sharesResult;
+        } else if (sharesResult is Map<String, dynamic> && sharesResult['shares'] is List) {
+          sharesList = sharesResult['shares'] as List;
+        }
+
+        for (final item in sharesList) {
+          if (item is Map<String, dynamic>) {
+            final providerId = (item['provider_id'] as String? ?? '').trim();
+            final shareId = item['id'] as String?;
+            final isActive = item['is_active'] as bool? ?? true;
+
+            if (providerId.isNotEmpty && providerId != endpointId && isActive) {
+              final dev = deviceMap[providerId];
+              if (dev != null) {
+                authorizedPeers[providerId] = dev.copyWith(
+                  source: 'Friend Share',
+                  shareId: shareId,
+                  isAuthorized: true,
+                );
+              } else {
+                final shortId = providerId.length > 8 ? providerId.substring(0, 8) : providerId;
+                authorizedPeers[providerId] = PeerDevice(
+                  id: providerId,
+                  endpointId: providerId,
+                  name: 'Shared Node ($shortId)',
+                  platform: 'linux',
+                  status: 'active',
+                  source: 'Friend Share',
+                  shareId: shareId,
+                  isAuthorized: true,
+                );
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // Continue to fleet even if shares fetch has no entries
+      }
+
+      // 3. Fetch Paired Personal Fleet Devices (/v1/devices/{endpointId}/fleet)
+      try {
+        final fleet = await _client.getFleetDevices(
+          endpointId: endpointId,
+          privateKeySeed: seed,
+        );
+
+        for (final item in fleet) {
+          final devId = (item['id'] as String? ?? item['endpoint_id'] as String? ?? '').trim();
+          if (devId.isNotEmpty && devId != endpointId) {
+            final existing = deviceMap[devId];
+            final name = item['name'] as String? ?? existing?.name ?? 'Fleet Node';
+            final platform = (item['platform'] ?? item['os']) as String? ?? existing?.platform ?? 'linux';
+
+            authorizedPeers[devId] = (existing ?? PeerDevice(
+              id: devId,
+              endpointId: devId,
+              name: name,
+              platform: platform,
+            )).copyWith(
+              name: name,
+              platform: platform,
+              source: 'My Fleet',
+              isAuthorized: true,
+            );
+          }
+        }
+      } catch (_) {
+        // Continue without fleet
+      }
+
+      // If authorized peers were found, present them. Otherwise if discovery has devices that are not self,
+      // present them with an explicit "Available Node" status so users can connect or pair.
+      final peerNodes = authorizedPeers.isNotEmpty
+          ? authorizedPeers.values.toList()
+          : allDevices
+              .where((d) =>
+                  d.endpointId.isNotEmpty &&
+                  d.endpointId != endpointId &&
+                  d.id != endpointId)
+              .map((d) => d.copyWith(
+                    source: 'Available Node',
+                    isAuthorized: false,
+                  ))
+              .toList();
 
       PeerDevice? activeSelected = state.selectedPeer;
       if (activeSelected == null && peerNodes.isNotEmpty) {
         activeSelected = peerNodes.first;
       } else if (activeSelected != null) {
-        // Keep selected if still present, else update
         final exists = peerNodes.any((d) =>
             (d.endpointId.isNotEmpty && d.endpointId == activeSelected?.endpointId) ||
             (d.id.isNotEmpty && d.id == activeSelected?.id));
         if (!exists && peerNodes.isNotEmpty) {
           activeSelected = peerNodes.first;
+        } else if (!exists && peerNodes.isEmpty) {
+          activeSelected = null;
         }
       }
 
@@ -112,7 +208,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
       state = state.copyWith(
         isLoading: false,
         isOffline: true,
-        errorMessage: 'Failed to discover peers: $e',
+        errorMessage: 'Failed to discover authorized peers: $e',
       );
     }
   }

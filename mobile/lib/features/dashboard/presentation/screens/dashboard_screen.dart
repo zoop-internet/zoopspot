@@ -194,12 +194,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       final clientIp = (conn?['recipient_ip'] as String?)?.isNotEmpty == true
           ? conn!['recipient_ip'] as String
           : '100.64.0.2';
-      const relayUrl = 'ws://10.250.0.12:8080/v1/relay';
 
       // 3. Start tunnel
       try {
         final storage = ref.read(secureStorageServiceProvider);
         final privKey = await storage.getWireGuardPrivateKeyBase64();
+        final rawCloudUrl = await storage.getCloudUrl();
+        final relayUrl = rawCloudUrl.startsWith('https://')
+            ? '${rawCloudUrl.replaceFirst('https://', 'wss://')}/v1/relay'
+            : '${rawCloudUrl.replaceFirst('http://', 'ws://')}/v1/relay';
 
         await vpnBridge.startTunnel(
           peerKey: peerKey,

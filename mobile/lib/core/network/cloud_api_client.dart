@@ -26,7 +26,7 @@ class CloudApiClient implements ICloudApiClient {
     this.maxRetries = 3,
   })  : baseUrl = (baseUrl != null && baseUrl.isNotEmpty)
             ? baseUrl
-            : 'http://10.250.0.12:8080',
+            : 'https://3.70.135.200.sslip.io',
         _client = client ?? http.Client(),
         _cryptoService = cryptoService ?? CryptoService();
 

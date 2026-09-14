@@ -33,6 +33,7 @@ class MockVpnBridge implements IVpnBridgeService {
     String? candidatesJson,
     String? relayUrl,
     String routingMode = 'full',
+    String? clientIp,
   }) async {
     isTunnelActive = true;
     lastStartedPeerKey = peerKey;

@@ -45,6 +45,7 @@ class FleetDeviceItem {
   final bool isExitNode;
   final String connectionType; // 'Direct P2P' or 'Relayed DERP'
   final String? subnetRoute;
+  final String? source; // 'My Fleet', 'Friend Share', 'Organization'
 
   const FleetDeviceItem({
     required this.id,
@@ -62,6 +63,7 @@ class FleetDeviceItem {
     this.isExitNode = false,
     this.connectionType = 'Direct P2P',
     this.subnetRoute,
+    this.source,
   });
 
   IconData get platformIcon {
@@ -91,6 +93,7 @@ class FleetDeviceItem {
     bool? isExitNode,
     String? connectionType,
     String? subnetRoute,
+    String? source,
   }) {
     return FleetDeviceItem(
       id: id ?? this.id,
@@ -108,6 +111,7 @@ class FleetDeviceItem {
       isExitNode: isExitNode ?? this.isExitNode,
       connectionType: connectionType ?? this.connectionType,
       subnetRoute: subnetRoute ?? this.subnetRoute,
+      source: source ?? this.source,
     );
   }
 }

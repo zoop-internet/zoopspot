@@ -31,7 +31,7 @@ class SecureStorageService implements ISecureStorageService {
   static const _keyIsRegistered = 'zoop_is_registered';
   static const _keyIsBackedUp = 'zoop_is_backed_up';
 
-  static const String defaultCloudUrl = 'http://10.250.0.12:8080';
+  static const String defaultCloudUrl = 'https://3.70.135.200.sslip.io';
 
   /// Persists full cryptographic identity bundle locally.
   @override

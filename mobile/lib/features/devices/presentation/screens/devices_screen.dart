@@ -6,6 +6,8 @@ import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../../core/models/peer_device.dart';
+import '../../../dashboard/application/peers_notifier.dart';
 import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../application/devices_notifier.dart';
 import '../../domain/fleet_device_model.dart';
@@ -16,12 +18,7 @@ class DevicesScreen extends ConsumerWidget {
 
   void _showPairingSheet(BuildContext context) {
     ZoopFeedback.selection();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const PairingSheet(),
-    );
+    PairingSheet.show(context, initialTabIndex: 1);
   }
 
   void _showDeviceSheet(BuildContext context, WidgetRef ref, FleetDeviceItem device) {
@@ -32,6 +29,21 @@ class DevicesScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => DeviceDetailsSheet(
         device: device,
+        onConnect: () {
+          ref.read(peersNotifierProvider.notifier).selectPeer(PeerDevice(
+            id: device.id,
+            endpointId: device.endpointId,
+            name: device.name,
+            platform: device.platform,
+            status: device.isOnline ? 'active' : 'offline',
+            source: device.source ?? 'My Fleet',
+          ));
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.go('/dashboard');
+          }
+        },
         onRename: (newName) {
           ref.read(devicesProvider.notifier).renameDevice(device.id, newName);
           ScaffoldMessenger.of(context).showSnackBar(

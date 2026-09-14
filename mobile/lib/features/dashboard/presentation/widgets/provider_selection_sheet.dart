@@ -5,8 +5,7 @@ import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
-import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
-import '../../../identity/application/identity_notifier.dart';
+import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../application/peers_notifier.dart';
 
 class ProviderSelectionSheet extends ConsumerStatefulWidget {
@@ -81,29 +80,55 @@ class _ProviderSelectionSheetState
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Select Device',
+                  'Authorized Nodes',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: ZoopColors.textPrimary,
                   ),
                 ),
-                IconButton(
-                  icon: peersState.isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: ZoopColors.primaryCyan,
-                          ),
-                        )
-                      : const Icon(Icons.refresh,
-                          size: 20, color: ZoopColors.textSecondary),
-                  onPressed: peersState.isLoading
-                      ? null
-                      : () =>
-                          ref.read(peersNotifierProvider.notifier).loadPeers(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        PairingSheet.show(context, initialTabIndex: 1);
+                      },
+                      icon: const Icon(Icons.pin, size: 16, color: ZoopColors.primaryCyan),
+                      label: const Text(
+                        'Pair PIN',
+                        style: TextStyle(
+                          color: ZoopColors.primaryCyan,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: peersState.isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: ZoopColors.primaryCyan,
+                              ),
+                            )
+                          : const Icon(Icons.refresh,
+                              size: 20, color: ZoopColors.textSecondary),
+                      onPressed: peersState.isLoading
+                          ? null
+                          : () =>
+                              ref.read(peersNotifierProvider.notifier).loadPeers(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -184,31 +209,29 @@ class _ProviderSelectionSheetState
                                 : Icons.devices_other_rounded,
                             title: _searchQuery.isNotEmpty
                                 ? 'No Matching Devices'
-                                : 'No Reachable Devices Found',
+                                : 'No Authorized Devices Yet',
                             description: _searchQuery.isNotEmpty
                                 ? 'No devices match "$_searchQuery". Try clearing your search query.'
-                                : 'Pair another phone, laptop, or gateway to share internet across your devices.',
-                            primaryActionLabel: _searchQuery.isEmpty ? 'Pair a Device' : null,
-                            primaryActionIcon: Icons.qr_code_scanner,
+                                : 'Link your computer, home router, or friend\'s connection using a 6-digit PIN code or QR scan.',
+                            primaryActionLabel: _searchQuery.isEmpty ? 'Enter 6-digit PIN' : null,
+                            primaryActionIcon: Icons.pin,
                             onPrimaryAction: _searchQuery.isEmpty
                                 ? () {
                                     Navigator.pop(context);
-                                    final identity = ref.read(identityNotifierProvider);
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (ctx) => DevicePairingSheet(
-                                        deviceName: 'Android Device (${identity.zoopId ?? "ZP-Node"})',
-                                        deviceId: identity.endpointId ?? 'ep-local-device',
-                                      ),
-                                    );
+                                    PairingSheet.show(context, initialTabIndex: 1);
                                   }
                                 : null,
-                            secondaryActionLabel: _searchQuery.isNotEmpty ? 'Clear Search' : null,
-                            onSecondaryAction: _searchQuery.isNotEmpty
-                                ? () => setState(() => _searchQuery = '')
-                                : null,
+                            secondaryActionLabel: _searchQuery.isNotEmpty
+                                ? 'Clear Search'
+                                : 'Share My Node (QR)',
+                            onSecondaryAction: () {
+                              if (_searchQuery.isNotEmpty) {
+                                setState(() => _searchQuery = '');
+                              } else {
+                                Navigator.pop(context);
+                                PairingSheet.show(context, initialTabIndex: 0);
+                              }
+                            },
                           ),
                         ),
                       )
@@ -262,26 +285,76 @@ class _ProviderSelectionSheetState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      peer.name,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: isSelected
-                                            ? ZoopColors.primaryCyan
-                                            : ZoopColors.textPrimary,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            peer.name,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: isSelected
+                                                  ? ZoopColors.primaryCyan
+                                                  : ZoopColors.textPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                        if (peer.source.isNotEmpty) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: (peer.source == 'Friend Share'
+                                                      ? ZoopColors.accentPurple
+                                                      : ZoopColors.primaryCyan)
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: (peer.source == 'Friend Share'
+                                                        ? ZoopColors.accentPurple
+                                                        : ZoopColors.primaryCyan)
+                                                    .withValues(alpha: 0.3),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              peer.source,
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: peer.source == 'Friend Share'
+                                                    ? ZoopColors.accentPurple
+                                                    : ZoopColors.primaryCyan,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      peer.platform.toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 10.5,
-                                        color: ZoopColors.textMuted,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          peer.platform.toUpperCase(),
+                                          style: const TextStyle(
+                                            fontSize: 10.5,
+                                            color: ZoopColors.textMuted,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '•  Direct P2P Ready',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            color: ZoopColors.accentGreen,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -299,6 +372,27 @@ class _ProviderSelectionSheetState
                     },
                   ),
           ),
+          if (filteredPeers.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  PairingSheet.show(context, initialTabIndex: 1);
+                },
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text(
+                  'Pair Another Node with PIN / QR',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: ZoopColors.primaryCyan,
+                  side: BorderSide(color: ZoopColors.primaryCyan.withValues(alpha: 0.4)),
+                  minimumSize: const Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
         ],
       ),
     );

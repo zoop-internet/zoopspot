@@ -6,9 +6,11 @@ import '../../../../core/theme/zoop_colors.dart';
 import '../../application/pairing_notifier.dart';
 
 class PairingSheet extends ConsumerStatefulWidget {
-  const PairingSheet({super.key});
+  final int initialTabIndex;
 
-  static Future<void> show(BuildContext context) {
+  const PairingSheet({super.key, this.initialTabIndex = 0});
+
+  static Future<void> show(BuildContext context, {int initialTabIndex = 0}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -16,7 +18,7 @@ class PairingSheet extends ConsumerStatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => const PairingSheet(),
+      builder: (context) => PairingSheet(initialTabIndex: initialTabIndex),
     );
   }
 
@@ -34,7 +36,11 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = ref.read(pairingNotifierProvider);

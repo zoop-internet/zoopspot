@@ -13,7 +13,20 @@ import (
 	"github.com/allannuwamanya/zoop/packages/core/config"
 )
 
-const socketPath = "/var/run/zoopd.sock"
+var defaultSocketPath = "/var/run/zoopd.sock"
+
+func getSocketPath() string {
+	if p := os.Getenv("ZOOP_SOCKET"); p != "" {
+		return p
+	}
+	if _, err := os.Stat("/var/run/zoopd.sock"); err == nil {
+		return "/var/run/zoopd.sock"
+	}
+	if _, err := os.Stat("/tmp/zoopd.sock"); err == nil {
+		return "/tmp/zoopd.sock"
+	}
+	return defaultSocketPath
+}
 
 type DaemonCommand struct {
 	Action string `json:"action"`
@@ -32,6 +45,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	socketPath := getSocketPath()
 	action := os.Args[1]
 
 	// Map user-friendly aliases to daemon actions
@@ -39,13 +53,14 @@ func main() {
 	switch action {
 	case "peers":
 		daemonAction = "get_peers"
+	case "pin", "token":
+		daemonAction = "create_pairing_token"
 	case "pair":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: zoop pair <CODE>")
-			fmt.Println("Example: zoop pair ZP-9X4K2P")
-			os.Exit(1)
+			daemonAction = "create_pairing_token"
+		} else {
+			daemonAction = "pair_device"
 		}
-		daemonAction = "pair_device"
 	case "telemetry":
 		daemonAction = "get_telemetry"
 	case "diagnose", "doctor":

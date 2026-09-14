@@ -172,6 +172,12 @@ func main() {
 			logger.Error("failed to register device with cloud", "error", err)
 		} else {
 			logger.Info("device successfully registered")
+			tokenResp, err := apiClient.CreatePairingToken(regCtx, 3600)
+			if err != nil {
+				logger.Warn("could not generate initial pairing token", "error", err)
+			} else {
+				logger.Info("Zoop Mobile Pairing PIN ready", "pairing_code", tokenResp.Code, "zoop_id", tokenResp.ZoopID, "valid_for", "60m")
+			}
 		}
 	}
 
@@ -400,6 +406,18 @@ func handleIPC(
 			Success: true,
 			Message: fmt.Sprintf("Successfully paired with %s (ID: %s)", claimResp.PairedDeviceName, claimResp.PairedDeviceID),
 			Data:    claimResp,
+		}
+
+	case "create_pairing_token", "token", "pin":
+		tokenResp, err := apiClient.CreatePairingToken(ctx, 3600)
+		if err != nil {
+			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("failed to generate pairing token: %v", err)}
+			break
+		}
+		resp = DaemonResponse{
+			Success: true,
+			Message: fmt.Sprintf("Pairing PIN generated: %s (ZoopID: %s, valid for 60m)", tokenResp.Code, tokenResp.ZoopID),
+			Data:    tokenResp,
 		}
 
 	case "run_diagnostics":

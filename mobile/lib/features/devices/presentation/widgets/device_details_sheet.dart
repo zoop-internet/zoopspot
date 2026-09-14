@@ -8,12 +8,14 @@ class DeviceDetailsSheet extends StatelessWidget {
   final FleetDeviceItem device;
   final ValueChanged<String> onRename;
   final VoidCallback onRevoke;
+  final VoidCallback? onConnect;
 
   const DeviceDetailsSheet({
     super.key,
     required this.device,
     required this.onRename,
     required this.onRevoke,
+    this.onConnect,
   });
 
   void _showRenameDialog(BuildContext context) {
@@ -213,7 +215,32 @@ class DeviceDetailsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              if (!device.isCurrentDevice)
+              if (!device.isCurrentDevice) ...[
+                if (onConnect != null) ...[
+                  Semantics(
+                    label: 'Connect to node ${device.name}',
+                    button: true,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onConnect!();
+                        },
+                        icon: const Icon(Icons.bolt_rounded, color: Colors.black, size: 20),
+                        label: const Text('CONNECT TO THIS NODE', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ZoopColors.primaryCyan,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size.fromHeight(48),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Semantics(
                   label: 'Revoke and remove node ${device.name}',
                   button: true,
@@ -233,6 +260,7 @@ class DeviceDetailsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         ),

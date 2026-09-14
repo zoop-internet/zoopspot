@@ -1,0 +1,68 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'mobile/**'
+      - 'cmd/zoop-mobile/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Multi-Arch Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build Native Go WireGuard Engine (libzoop.so)
+        run: |
+          NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* | sort -V | tail -n 1)
+          echo "Using Android NDK: $NDK_PATH"
+          CLANG_BIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          mkdir -p mobile/android/app/src/main/jniLibs/arm64-v8a mobile/android/app/src/main/jniLibs/x86_64
+          CC="$CLANG_BIN/aarch64-linux-android24-clang" CGO_ENABLED=1 GOOS=android GOARCH=arm64 go build -buildmode=c-shared -ldflags="-checklinkname=0" -o mobile/android/app/src/main/jniLibs/arm64-v8a/libzoop.so ./cmd/zoop-mobile
+          CC="$CLANG_BIN/x86_64-linux-android24-clang" CGO_ENABLED=1 GOOS=android GOARCH=amd64 go build -buildmode=c-shared -ldflags="-checklinkname=0" -o mobile/android/app/src/main/jniLibs/x86_64/libzoop.so ./cmd/zoop-mobile
+          ls -la mobile/android/app/src/main/jniLibs/arm64-v8a/libzoop.so
+          ls -la mobile/android/app/src/main/jniLibs/x86_64/libzoop.so
+
+      - name: Build Android Release APK
+        working-directory: mobile
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zoop-app-release
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
