@@ -933,3 +933,44 @@ Its fundamental boundary is:
 The Control Plane should enable Provider and Recipient endpoints to establish secure, authorized, preferably direct connectivity without becoming the normal path for their Internet traffic.
 
 This definition provides the foundation for the next stages of Zoop networking design.
+
+---
+
+# 31. Cloud Implementation & Modular Structure
+
+The Zoop Cloud Control Plane is implemented in Go under `packages/cloud/server/` and organized into dedicated, domain-specific modules rather than a monolithic handler:
+
+```text
+packages/cloud/server/
+├── server.go          # Core server lifecycle, mux router, global middleware, base struct
+├── devices.go         # Device registration, authentication, status, heartbeat (/v1/devices)
+├── users.go           # User management, profile settings, API keys (/v1/users)
+├── shares.go          # Bandwidth sharing rules, invite links, quotas (/v1/shares)
+├── organizations.go   # Multi-tenant organization boundaries and RBAC (/v1/organizations)
+├── connections.go     # Connection coordination, candidate signaling, IPAM (/v1/connections)
+├── signaling.go       # Real-time WebSocket signaling hub (/v1/signaling)
+├── admin.go           # Administrative overview, metrics scrapers, health probes (/v1/admin, /v1/health)
+├── relays.go          # Relay cluster discovery, region topology, credentials (/v1/relays)
+├── pairing.go         # One-time pairing codes and mutual key exchange (/v1/pairing)
+└── payments.go        # Bandwidth metering, token settlement records (/v1/payments)
+```
+
+Each module exposes clean HTTP/JSON handlers registered onto the central `http.ServeMux`, backed by persistent PostgreSQL storage (`packages/cloud/store/`) and domain services (`packages/cloud/services/`).
+
+---
+
+# 32. Connection Coordination & Session Idempotency
+
+Connection establishment via `POST /v1/connections` coordinates between the Recipient and the Provider. In distributed mobile and unreliable network conditions, requests can be retried or sent concurrently. The Control Plane enforces **idempotent connection coordination**:
+
+### 1. Active Session Reuse
+When a client requests a connection (`POST /v1/connections`) for an active share:
+- The Control Plane checks for an existing active session between the Recipient and Provider for that share.
+- Rather than returning `409 Conflict`, the server reuses the active session.
+- Client candidate endpoints and public keys are updated with fresh network state.
+- The full existing connection session—including the assigned Carrier-Grade NAT (CGNAT) IPs (`100.64.0.0/10`), Provider endpoint candidates, and signaling status—is returned immediately.
+
+### 2. State Transition Idempotency
+- **No-op Self-Transitions (`from == to`)**: Redundant state notifications (e.g., reporting `connected` when already in `connected` state) are treated as successful no-ops rather than illegal state errors.
+- **Direct Progression**: When an asynchronous WireGuard handshake completes before intermediary discovery states finish reporting, the state machine permits direct progression to `connected`.
+- **Dynamic Candidate Refresh**: As mobile clients roam between Wi-Fi, cellular, or VPN states, updated reflexive ICE/STUN candidates can be posted to `/v1/connections/{id}/candidates` and dispatched over the signaling channel without resetting the tunnel session.

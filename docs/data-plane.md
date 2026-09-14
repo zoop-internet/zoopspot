@@ -1455,3 +1455,79 @@ The central objective is:
 The cloud coordinates the connection.
 
 The endpoints carry the traffic.
+
+---
+
+# 48. Routing Deadlock Prevention & Critical Infrastructure Protection
+
+When configuring full-tunnel routing (e.g., split-default `0.0.0.0/1` and `128.0.0.0/1` on desktop, or `0.0.0.0/0, ::/0` on mobile), if critical management traffic enters the newly instantiated WireGuard tunnel, an immediate deadlock occurs. The tunnel cannot negotiate handshakes or maintain keepalives because the control and discovery sockets attempt to route recursively through an unestablished tunnel.
+
+```text
+               Full Tunnel Enabled (0.0.0.0/0)
+                             │
+            ┌────────────────┴────────────────┐
+            ▼                                 ▼
+      Data Packets                   Management Packets
+   (Browse, Stream, Ping)       (Control Plane, STUN, Relay)
+            │                                 │
+            ▼                                 ▼
+      tun0 (WireGuard)                PHYSICAL INTERFACE
+            │                           (Host Routes /
+            ▼                        VpnService.protect)
+      Provider Node                           │
+            │                                 ▼
+            ▼                           Zoop Cloud /
+        Internet                         STUN Server
+```
+
+The Zoop Data Plane prevents routing loops through two platform-native mechanisms:
+
+### 1. Host Route Isolation (Linux / Desktop / Router)
+Prior to installing default overlay routes, the agent detects the active physical default gateway and interface via Netlink or routing tables. It installs explicit `/32` host routes:
+- Control Plane API endpoint (`ZOOP_CONTROL_PLANE_URL`)
+- Reflexive STUN discovery server (`ZOOP_STUN_SERVER`)
+- Active Relay fallback node IPs
+
+These host routes take precedence over `/1` or `/0` routes, ensuring management traffic reaches physical gateways directly.
+
+### 2. Socket Protection via Kernel Bypass (Android)
+On Android, `VpnService` controls system routing. When `0.0.0.0/0` is added to `tun0`, all user-space sockets default to the VPN tunnel. 
+- Calling `m.wgDev.Up()` invokes `MuxBind.Open()`, opening the WireGuard UDP sockets (`IPv4` and `IPv6`).
+- File descriptors (`fd`) are captured and passed through the JNI bridge (`cmd/zoop-mobile`) to Java's `VpnService.protect(fd)`.
+- The Android kernel marks these file descriptors so their outbound WireGuard UDP encapsulation packets bypass the VPN interface and transmit directly onto physical Wi-Fi or cellular interfaces.
+
+---
+
+# 49. WireGuard AllowedIPs for Bandwidth Sharing
+
+WireGuard cryptokey routing maps destination IP addresses directly to peer public keys. For internet bandwidth sharing, the `AllowedIPs` configuration must match the forwarding intent:
+
+| Node Role | Target Route | AllowedIPs Configuration | Rationale |
+|---|---|---|---|
+| **Mesh Peer** | Internal CGNAT only | `100.64.0.0/10` or `<peer>/32` | Restricts traffic to internal overlay network. |
+| **Recipient** | Full Internet Egress | `0.0.0.0/0, ::/0` | Enables transit for any public internet destination (`8.8.8.8`, `1.1.1.1`) through the provider. Restricting to `/32` causes WireGuard's packet scheduler to discard all internet traffic. |
+| **Provider** | Recipient Interface | `100.64.0.X/32` | Authorizes the assigned CGNAT IP of the recipient to inject traffic into the provider's forwarding stack. |
+
+On the Provider node, decrypted WireGuard traffic is forwarded to the WAN interface via:
+1. Enabling kernel IPv4 forwarding: `sysctl -w net.ipv4.ip_forward=1`.
+2. Enabling NAT masquerading: `iptables -t nat -A POSTROUTING -o <wan_interface> -j MASQUERADE`.
+
+---
+
+# 50. Relay Bridge Dynamic Return Port Learning
+
+When direct UDP hole-punching fails due to symmetric or carrier-grade NATs, traffic falls back to the Zoop Relay cluster (`packages/agent/relay/relay_bridge.go`):
+
+```text
+Recipient (behind Symmetric NAT)
+    │   (Src Port dynamically remapped: e.g. :54821)
+    ▼
+Zoop Relay Node
+    │   Learns active return address from authenticated header
+    ▼
+Provider Node
+```
+
+- In mobile networks, cellular gateways frequently remap UDP ports dynamically during an active session.
+- The relay bridge inspects incoming authenticated frames from each peer token and dynamically updates its cached remote `net.UDPAddr` return endpoint.
+- This ensures downlink frames from the provider seamlessly reach the recipient even after mobile carrier NAT rebinding.

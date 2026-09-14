@@ -1764,3 +1764,91 @@ Recipient
 The central networking principle is:
 
 > **Zoop Cloud coordinates connectivity; Zoop endpoints carry the traffic. Direct endpoint-to-endpoint connectivity is preferred, while relay infrastructure exists only as a fallback for networks where direct connectivity cannot be established.**
+
+---
+
+# 60. Candidate Gathering & Virtual Interface Sanitization
+
+When endpoints discover candidate IP endpoints (`packages/agent/discovery/`), they query physical interfaces and reflexive STUN servers.
+
+### 1. Interface Sanitization Filter (`isOverlayOrVirtual`)
+To prevent poisoning ICE candidate exchange with unroutable addresses, the candidate discovery engine actively filters out:
+- Virtual tunnel adapters: `zoop*`, `tun*`, `tap*`, `wg*`
+- Container and bridge adapters: `docker*`, `veth*`, `br-*`, `cni*`
+- Carrier-Grade NAT overlay space: RFC 6598 `100.64.0.0/10` (used exclusively for internal Zoop overlay routing)
+- Loopback: `127.0.0.0/8`, `::1`
+- Link-local: `169.254.0.0/16`, `fe80::/10`
+
+Only routable physical Wi-Fi, Ethernet, and cellular addresses are advertised as `host` candidates.
+
+### 2. STUN Server Resolution Priority
+Server-reflexive (`srflx`) candidates are discovered via STUN:
+1. Environment configuration: `ZOOP_STUN_SERVER` (highest precedence for custom testbeds or enterprise deployments).
+2. Cloud-provisioned STUN infrastructure.
+3. Public fallback STUN pools (e.g. `stun.l.google.com:19302`).
+
+---
+
+# 61. Socket Protection & Anti-Loop Architecture
+
+When an endpoint routes all traffic through WireGuard (`0.0.0.0/0`), the underlying UDP encapsulation packets must not be routed back into the tunnel interface.
+
+```text
+                  System Sockets (0.0.0.0/0)
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                             ▼
+         tun0 (WireGuard)           Protected WireGuard Sockets
+         [Payload Traffic]             [Encapsulated UDP:51820]
+               │                             │
+               │ (Encrypts payload into UDP) │
+               └────────────────────────────►│
+                                             ▼
+                                     PHYSICAL INTERFACE
+                                     (Bypasses VPN TUN)
+                                             │
+                                             ▼
+                                     Provider Endpoint
+```
+
+### Desktop / Linux: Split Routes & Critical Host Exceptions
+- Installs `/32` host routes to the physical default gateway for the Control Plane URL and STUN/Relay IPs.
+- Installs pair of `/1` routes (`0.0.0.0/1` and `128.0.0.0/1`) pointing to `zoop0` rather than replacing `0.0.0.0/0`.
+
+### Android: JNI Socket Protection
+- In `packages/agent/tunnel/wireguard.go`, `m.wgDev.Up()` triggers `MuxBind.Open()`.
+- The native file descriptors for the bound UDP sockets (`fd=172`, `fd=173`) are intercepted by `cmd/zoop-mobile/jni.c`.
+- Sockets are registered with `android.net.VpnService.protect(fd)` so the Android kernel explicitly excludes them from VPN TUN routing.
+
+---
+
+# 62. Bandwidth Forwarding & NAT Masquerading Pipeline
+
+For internet sharing, the Provider acts as an egress gateway:
+
+```text
+Recipient Phone                   Provider Node                     Internet
+┌──────────────┐                 ┌─────────────┐                 ┌─────────────┐
+│  tun0 / VPN  │   Encrypted     │    zoopa    │                 │             │
+│ 100.64.0.17  ├────────────────►│ 100.64.0.1  │                 │  8.8.8.8    │
+└──────────────┘   UDP:51820     └──────┬──────┘                 └──────▲──────┘
+                                        │                               │
+                                        │ Decrypted                     │
+                                        ▼                               │
+                                 ┌─────────────┐                        │
+                                 │   Kernel    │                        │
+                                 │ Forwarding  │                        │
+                                 │ ip_forward=1│                        │
+                                 └──────┬──────┘                        │
+                                        │                               │
+                                        ▼                               │
+                                 ┌─────────────┐   NAT Masquerade       │
+                                 │  iptables   ├────────────────────────┘
+                                 │  POSTROUTING│   Source IP: Provider WAN
+                                 └─────────────┘
+```
+
+1. **Decryption**: Inbound packets on `zoopa` addressed to external targets (e.g. `8.8.8.8`) are decrypted.
+2. **Forwarding Validation**: Kernel verifies `net.ipv4.ip_forward=1` and routing table rules.
+3. **SNAT / Masquerade**: `iptables -t nat -A POSTROUTING -o <wan_dev> -j MASQUERADE` replaces the source `100.64.0.17` with the provider's WAN IP.
+4. **Return Path**: The Linux connection tracking engine (`conntrack`) matches reply packets, demasquerades the destination to `100.64.0.17`, and routes them back into `zoopa` for WireGuard encryption to the Recipient.

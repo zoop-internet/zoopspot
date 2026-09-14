@@ -84,122 +84,126 @@ Zoop currently consists conceptually of:
 Android is one of the primary Zoop endpoint platforms.
 
 ```text
-Android Device
-      │
-      ├── Zoop App
-      │
-      ├── Zoop Agent
-      │
-      └── VPN / Network Integration
-              │
-              ▼
-          Zoop Tunnel
+┌───────────────────────────────────────────────────────────────┐
+│                    Flutter Application UI                     │
+│          (Identity, Dashboard, Sharing, Diagnostics)          │
+└───────────────────────────────┬───────────────────────────────┘
+                                │ (MethodChannel / Events)
+┌───────────────────────────────▼───────────────────────────────┐
+│              ZoopVpnService (Kotlin Background FGS)           │
+│        (VpnService.Builder, tun0 allocation, protect())       │
+└───────────────────────────────┬───────────────────────────────┘
+                                │ (JNI via ZoopMobileBridge)
+┌───────────────────────────────▼───────────────────────────────┐
+│               libzoop.so (Go C-Shared Native Core)            │
+│  - MuxBind (UDP Socket Multiplexer & STUN Hole Punching)      │
+│  - wireguard-go Device (Tun Adapter attached to native FD)    │
+│  - ConnectionRecoveryManager (Candidate Probing & DPD)        │
+│  - WebSocket Relay Bridge Client (DERP Fallback)              │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 Android can serve as:
 
-* Provider
-* Recipient
-* normal Zoop endpoint
-* mobile Internet source
-* mobile Internet consumer
+* **Recipient (Consumer)**: Routes device applications through an authorized Provider via encrypted WireGuard tunnel (`tun0`).
+* **Provider (Sharer)**: Shares cellular or Wi-Fi internet connectivity with trusted endpoints.
+* **Normal Zoop endpoint**: Participates in mutual identity discovery and control plane signaling.
 
 ---
 
-# 5. Android Responsibilities
+# 5. Android Native Implementation & Socket Protection
 
-The Android platform layer is responsible for integrating Zoop with Android networking.
+The Android platform layer integrates the Go WireGuard core with the Android OS networking model:
 
-It may handle:
+### 5.1 Native JNI Bridge (`cmd/zoop-mobile`)
+* The Go core is compiled as a C-shared library (`libzoop.so`) using the Android NDK (`clang` targeting `x86_64`, `arm64-v8a`, `armeabi-v7a`).
+* JNI exports (`cmd/zoop-mobile/jni.c`) provide native bridge functions:
+  - `initMobile(configJSON, callback)`: Initializes the device configuration and registers the JNI callback object.
+  - `startTunnel(fd, ifName)`: Attaches the native `wireguard-go` TUN device directly to the OS-allocated file descriptor (`ParcelFileDescriptor.detachFd()`).
+  - `connectPeer(peerPubKey, candidatesJSON, relayURL)`: Configures the remote peer, initiates UDP candidate probing, and sets up recovery managers.
+  - `notifyNetworkChange(networkType)`: Signals network interface switches (Wi-Fi $\leftrightarrow$ Cellular) for zero-drop roaming.
+  - `protect(fd)`: Callback invoking `VpnService.protect(int fd)` on all underlying UDP sockets.
 
-* VPN interface integration
-* network changes
-* Wi-Fi state
-* cellular state
-* application lifecycle
-* background execution
-* permissions
-* notifications
-* battery constraints
-* secure local storage
+### 5.2 Critical UDP Socket Protection (`VpnService.protect`)
+When an Android application configures `VpnService` with default routing (`0.0.0.0/0`), the OS kernel routes all system UDP and TCP sockets into `tun0`.
+* If the WireGuard UDP socket itself is captured by `tun0`, an **infinite routing loop** occurs, deadlocking the device and stalling all network traffic.
+* **Requirement**: WireGuard's underlying UDP sockets must be explicitly protected by calling `VpnService.protect(fd)`.
+* **Activation Lifecycle**: The WireGuard device manager must explicitly invoke `wgDev.Up()` during device configuration. Calling `Up()` triggers `MuxBind.Open()`, creates the listening UDP sockets, retrieves their file descriptors (`fd4` and `fd6`), and passes them through the native JNI callback into `VpnService.protect()`.
 
-The Zoop networking core should remain as platform-independent as practical.
+### 5.3 AllowedIPs Routing for Internet Sharing
+When an Android device connects as a Recipient to a Provider for internet sharing:
+* The peer configuration on WireGuard MUST set `AllowedIPs = 0.0.0.0/0, ::/0` (not restricted to a single `/32` overlay IP).
+* Restricting AllowedIPs to `100.64.0.2/32` causes WireGuard cryptokey routing to drop all public internet packets (`8.8.8.8`) and provider overlay traffic (`100.64.0.17`).
+* Setting `0.0.0.0/0, ::/0` allows both direct overlay node-to-node communication and routed public internet egress.
+
+### 5.4 Flexible Public Key Parsing
+The mobile bridge supports WireGuard public keys encoded in both standard **Base64** (44 characters, ending with `=`) and **Hex** (64 characters), preventing crashes from format mismatches during signaling.
 
 ---
 
-# 6. Android Network Changes
+# 6. Android Network Changes & Dead Peer Detection (DPD)
 
-Android devices frequently switch networks.
-
-Example:
+Android devices frequently switch networks:
 
 ```text
-Wi-Fi
-  │
-  ▼
-Cellular
-  │
-  ▼
-Wi-Fi
+Wi-Fi (Home / Work)
+       │
+       ▼
+Cellular (4G / 5G)
+       │
+       ▼
+Wi-Fi (Public / Roaming)
 ```
 
-Zoop should detect these transitions and allow the networking layer to reassess the connection path.
-
-The user should not have to manually reconnect whenever possible.
+1. **Active Network Monitoring**: `ZoopVpnService` registers an Android `ConnectivityManager.NetworkCallback` that monitors `onAvailable` and `onLost` events.
+2. **Instant Roaming Trigger**: When a network switch occurs, `notifyNetworkChange()` notifies the native runtime without tearing down `tun0` or terminating active user connections.
+3. **Candidate Re-Probing**: `ConnectionRecoveryManager` uses `ProbeCandidatesMux` to probe known host and reflexive STUN candidates concurrently.
+4. **Dead Peer Detection (DPD)**: If a direct peer fails to respond to keepalive packets within a threshold (e.g. 15s), DPD marks the peer dead and transparently fails over to the WebSocket relay cluster (`ws://.../v1/relay`). When direct candidates recover, the session automatically upgrades back to direct P2P.
 
 ---
 
 # 7. Android Provider
 
-An Android device may act as a Provider.
+An Android device may act as a Provider, sharing its active internet connection:
 
 ```text
-Android Phone
-      │
-      │ Internet connection
-      ▼
-    Zoop
-      │
-      ▼
-Recipient
-```
-
-Example:
-
-```text
-Cellular Internet
+Cellular Internet (4G/5G)
        │
        ▼
-Android Phone
+Android Phone (Provider)
        │
-       │ Zoop tunnel
+       │ Encrypted WireGuard P2P Tunnel
        ▼
-Laptop
+Laptop / Tablet (Recipient)
        │
        ▼
 Internet
 ```
 
-The exact Android capabilities and restrictions must be validated during implementation planning.
+* **Battery & Thermals**: Provider mode monitors battery percentage (`BatteryManager`) and pauses sharing when unmetered power is disconnected or battery falls below threshold.
+* **Carrier Metering**: Distinguishes between metered cellular data and unmetered Wi-Fi connections.
 
 ---
 
 # 8. Android Recipient
 
-An Android device may also consume another endpoint's connectivity.
+An Android device acting as a Recipient consumes another endpoint's shared connectivity:
 
 ```text
-Provider
-    │
-    ▼
-Zoop Tunnel
-    │
-    ▼
-Android Phone
-    │
-    ▼
-Applications
+Provider (Home Router / Server / Laptop)
+       │
+       ▼
+Encrypted WireGuard P2P Tunnel (AllowedIPs 0.0.0.0/0)
+       │
+       ▼
+Android Phone (tun0 @ 100.64.0.18)
+       │
+       ▼
+All Installed Applications (Zero DNS Leaks)
 ```
+
+* All device applications seamlessly access the internet via the Provider.
+* DNS queries are sent to secure upstream resolvers (`1.1.1.1`, `8.8.8.8`) inside the tunnel, completely eliminating local ISP eavesdropping and DNS leaks.
 
 ---
 

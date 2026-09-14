@@ -425,63 +425,102 @@ The signaling channel does not carry ordinary Internet traffic.
 
 A connection represents an authorized Provider ↔ Recipient relationship being established or maintained.
 
-Conceptual endpoints:
+Endpoints:
 
 ```text
-POST /v1/connections
-GET  /v1/connections
-GET  /v1/connections/{connection_id}
-DELETE /v1/connections/{connection_id}
+POST   /v1/connections
+GET    /v1/connections
+GET    /v1/connections/{id}
+PUT    /v1/connections/{id}/state
+DELETE /v1/connections/{id}
+GET    /v1/devices/{id}/pending-connections
 ```
 
-A connection contains information such as:
+### Connection Creation (`POST /v1/connections`)
 
-```text
-Connection ID
-Provider
-Recipient
-State
-Path
-Created time
-Updated time
+Initiated by the Recipient to establish connectivity with an authorized Provider.
+
+**Request Schema:**
+
+```json
+{
+  "provider_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "recipient_id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+  "wireguard_public_key": "xGZ94a73+bK...",
+  "endpoint_ip": "192.168.1.50",
+  "endpoint_port": 51820,
+  "candidates": [
+    {"type": "host", "ip": "192.168.1.50", "port": 51820, "priority": 100},
+    {"type": "srflx", "ip": "203.0.113.10", "port": 43210, "priority": 80}
+  ]
+}
 ```
+
+**Response Schema (`201 Created` or `200 OK`):**
+
+```json
+{
+  "id": "7fa85f64-5717-4562-b3fc-2c963f66afa8",
+  "provider_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "recipient_id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+  "state": "pending",
+  "provider_ip": "100.64.0.1",
+  "recipient_ip": "100.64.0.2",
+  "wireguard_public_key": "pWG82b99+cM...",
+  "endpoint_ip": "192.168.1.100",
+  "endpoint_port": 51820,
+  "candidates": [
+    {"type": "host", "ip": "192.168.1.100", "port": 51820, "priority": 100},
+    {"type": "srflx", "ip": "198.51.100.22", "port": 51820, "priority": 80}
+  ]
+}
+```
+
+**Session Reconnection & Idempotency:**
+- If an active connection session already exists for the authorized share, the Control Plane reuses the session, updates the client candidate list and WireGuard public key, and returns the active connection details rather than rejecting with `409 Conflict`.
+- Carrier-Grade NAT (CGNAT `100.64.0.0/10`) tunnel addresses (`provider_ip`, `recipient_ip`) are allocated by IPAM and preserved across reconnects.
 
 ---
 
-# 18. Connection States
+# 18. Connection States & Transitions
 
-The Control Plane recognizes the following lifecycle:
-
-```text
-DISCOVERING
-     ↓
-AUTHENTICATING
-     ↓
-AUTHORIZING
-     ↓
-CONNECTING
-     ↓
-CONNECTED
-     │
-     ├── DIRECT
-     │
-     └── RELAYED
-     │
-     ↓
-DEGRADED
-     ↓
-RECONNECTING
-     ↓
-DISCONNECTED
-```
-
-A connection may also become:
+The Control Plane recognizes the following connection lifecycle:
 
 ```text
-REVOKED
+       PENDING (Requested)
+           │
+           ▼
+       CONNECTING (Signaling & ICE)
+           │
+           ▼
+       CONNECTED (WireGuard Tunnel Active)
+           ├── DIRECT
+           └── RELAYED
+           │
+     ┌─────┴───────────────┐
+     ▼                     ▼
+  DEGRADED / RECONNECTING  DISCONNECTED
+     │                     ▲
+     └─────────────────────┘
 ```
 
-when authorization is removed.
+A connection may also transition to `REVOKED` if access is revoked by the Provider or administrator.
+
+### State Update (`PUT /v1/connections/{id}/state`)
+
+**Request Schema:**
+
+```json
+{
+  "state": "connected"
+}
+```
+
+**Transition Rules:**
+1. **Self-Transition Idempotency**: State updates where `from == to` (e.g. reporting `connected` when the session is already marked `connected`) succeed as safe no-ops.
+2. **Direct Progression**: When an endpoint establishes a direct WireGuard handshake asynchronously, it is permitted to transition directly to `connected`.
+3. **Audit & Signaling Broadcast**: Every state change publishes an event across the real-time WebSocket signaling channel to both endpoints and appends an entry to the audit log.
+
 
 ---
 
