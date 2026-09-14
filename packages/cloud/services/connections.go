@@ -5,6 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/allannuwamanya/zoop/packages/cloud/api"
@@ -46,8 +50,11 @@ func isValidTransition(from, to types.ConnectionState) bool {
 }
 
 type ConnectionService struct {
-	store     store.Store
-	signaling *SignalingHub
+	store            store.Store
+	signaling        *SignalingHub
+	acceptedPayloads sync.Map // types.ID -> types.ConnectionPayload
+	waiters          sync.Map // types.ID -> chan types.ConnectionPayload
+	latestCandidates sync.Map // types.ID -> []string
 }
 
 func NewConnectionService(s store.Store, sh *SignalingHub) *ConnectionService {
@@ -55,6 +62,39 @@ func NewConnectionService(s store.Store, sh *SignalingHub) *ConnectionService {
 		store:     s,
 		signaling: sh,
 	}
+}
+
+func (s *ConnectionService) RecordAcceptedPayload(connID types.ID, payload types.ConnectionPayload, providerID types.ID) {
+	s.acceptedPayloads.Store(connID, payload)
+	if len(payload.Candidates) > 0 {
+		var candStrs []string
+		for _, c := range payload.Candidates {
+			candStrs = append(candStrs, fmt.Sprintf("%s:%d", c.IP, c.Port))
+		}
+		s.latestCandidates.Store(providerID, candStrs)
+	}
+	if chRaw, ok := s.waiters.Load(connID); ok {
+		ch := chRaw.(chan types.ConnectionPayload)
+		select {
+		case ch <- payload:
+		default:
+		}
+	}
+}
+
+func (s *ConnectionService) GetAcceptedPayload(connID types.ID) (*types.ConnectionPayload, bool) {
+	if val, ok := s.acceptedPayloads.Load(connID); ok {
+		p := val.(types.ConnectionPayload)
+		return &p, true
+	}
+	return nil, false
+}
+
+func (s *ConnectionService) GetDeviceEndpoints(deviceID types.ID) []string {
+	if val, ok := s.latestCandidates.Load(deviceID); ok {
+		return val.([]string)
+	}
+	return nil
 }
 
 // CreateConnection verifies authorization then creates and signals a new connection.
@@ -74,35 +114,56 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		return nil, err
 	}
 
-	// Prevent duplicate active connection (REQUESTED/AUTHORIZED/CONNECTING/CONNECTED) for same pair.
+	var conn *types.Connection
+	// Check if active connection exists for this pair
 	if existing, err := s.store.ListConnections(ctx, req.RecipientID); err == nil {
 		for _, c := range existing {
 			if c.ProviderID == req.ProviderID && c.RecipientID == req.RecipientID && c.State != types.ConnectionStateDisconnected {
-				return nil, ErrConflict
+				// If we already have accepted candidates in memory, return immediately!
+				if p, ok := s.GetAcceptedPayload(c.ID); ok && len(p.Candidates) > 0 {
+					resp := &api.ConnectionResponse{
+						ID:                 c.ID,
+						ProviderID:         c.ProviderID,
+						RecipientID:        c.RecipientID,
+						State:              c.State,
+						ProviderIP:         c.ProviderIP,
+						RecipientIP:        c.RecipientIP,
+						WireGuardPublicKey: p.WireGuardPublicKey,
+						Candidates:         p.Candidates,
+						EndpointIP:         p.EndpointIP,
+						EndpointPort:       p.EndpointPort,
+					}
+					return resp, nil
+				}
+				// Otherwise, reuse this existing connection and signal the provider to refresh candidates!
+				conn = c
+				break
 			}
 		}
 	}
 
-	// Allocate unique IPs from the CGNAT pool instead of using hardcoded addresses.
-	providerIP, recipientIP, err := s.store.AllocateConnectionIPs(ctx)
-	if err != nil {
-		return nil, err
-	}
+	if conn == nil {
+		// Allocate unique IPs from the CGNAT pool instead of using hardcoded addresses.
+		providerIP, recipientIP, err := s.store.AllocateConnectionIPs(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	now := time.Now().UTC()
-	conn := &types.Connection{
-		ID:          types.NewID(),
-		ProviderID:  req.ProviderID,
-		RecipientID: req.RecipientID,
-		State:       types.ConnectionStateRequested,
-		ProviderIP:  providerIP,
-		RecipientIP: recipientIP,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
+		now := time.Now().UTC()
+		conn = &types.Connection{
+			ID:          types.NewID(),
+			ProviderID:  req.ProviderID,
+			RecipientID: req.RecipientID,
+			State:       types.ConnectionStateRequested,
+			ProviderIP:  providerIP,
+			RecipientIP: recipientIP,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
 
-	if err := s.store.SaveConnection(ctx, conn); err != nil {
-		return nil, err
+		if err := s.store.SaveConnection(ctx, conn); err != nil {
+			return nil, err
+		}
 	}
 
 	recipientIdent, _ := s.store.GetIdentity(ctx, req.RecipientID)
@@ -123,6 +184,11 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		Candidates:         req.Candidates,
 	})
 
+	// Register waiter channel before sending signaling to catch fast provider acceptance
+	waitCh := make(chan types.ConnectionPayload, 1)
+	s.waiters.Store(conn.ID, waitCh)
+	defer s.waiters.Delete(conn.ID)
+
 	sigMsg := types.SignalingMessage{
 		Type:        types.SignalingTypeConnectionRequest,
 		SenderID:    req.RecipientID,
@@ -132,14 +198,59 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 	// Best-effort: provider may not be connected to signaling yet (resync will catch it).
 	_ = s.signaling.SendTo(req.ProviderID, sigMsg)
 
-	return &api.ConnectionResponse{
+	resp := &api.ConnectionResponse{
 		ID:          conn.ID,
 		ProviderID:  conn.ProviderID,
 		RecipientID: conn.RecipientID,
 		State:       conn.State,
 		ProviderIP:  conn.ProviderIP,
 		RecipientIP: conn.RecipientIP,
-	}, nil
+	}
+
+	// Wait up to 4s for provider acceptance over signaling
+	select {
+	case p := <-waitCh:
+		resp.State = types.ConnectionStateAuthorized
+		resp.WireGuardPublicKey = p.WireGuardPublicKey
+		resp.Candidates = p.Candidates
+		resp.EndpointIP = p.EndpointIP
+		resp.EndpointPort = p.EndpointPort
+	case <-time.After(4000 * time.Millisecond):
+		if p, ok := s.GetAcceptedPayload(conn.ID); ok {
+			resp.State = types.ConnectionStateAuthorized
+			resp.WireGuardPublicKey = p.WireGuardPublicKey
+			resp.Candidates = p.Candidates
+			resp.EndpointIP = p.EndpointIP
+			resp.EndpointPort = p.EndpointPort
+		}
+	}
+
+	// Fallback to known endpoints and WireGuard key if provider response was slow
+	if len(resp.Candidates) == 0 {
+		cands := s.GetDeviceEndpoints(req.ProviderID)
+		for _, cStr := range cands {
+			host, portStr, err := net.SplitHostPort(cStr)
+			if err == nil {
+				p, _ := strconv.Atoi(portStr)
+				resp.Candidates = append(resp.Candidates, types.EndpointCandidate{
+					IP:   host,
+					Port: p,
+					Type: types.CandidateTypeHost,
+				})
+			}
+		}
+		if len(resp.Candidates) > 0 {
+			resp.EndpointIP = resp.Candidates[0].IP
+			resp.EndpointPort = resp.Candidates[0].Port
+		}
+	}
+	if resp.WireGuardPublicKey == "" {
+		if ident, err := s.store.GetIdentity(ctx, req.ProviderID); err == nil && len(ident.WireGuardPublicKey) > 0 {
+			resp.WireGuardPublicKey = base64.StdEncoding.EncodeToString(ident.WireGuardPublicKey)
+		}
+	}
+
+	return resp, nil
 }
 
 func (s *ConnectionService) GetConnection(ctx context.Context, id types.ID, callerIdentity types.ID) (*api.ConnectionResponse, error) {
@@ -153,14 +264,26 @@ func (s *ConnectionService) GetConnection(ctx context.Context, id types.ID, call
 		return nil, ErrUnauthorized
 	}
 
-	return &api.ConnectionResponse{
+	resp := &api.ConnectionResponse{
 		ID:          conn.ID,
 		ProviderID:  conn.ProviderID,
 		RecipientID: conn.RecipientID,
 		State:       conn.State,
 		ProviderIP:  conn.ProviderIP,
 		RecipientIP: conn.RecipientIP,
-	}, nil
+	}
+
+	if p, ok := s.GetAcceptedPayload(conn.ID); ok {
+		if resp.State == types.ConnectionStateRequested {
+			resp.State = types.ConnectionStateAuthorized
+		}
+		resp.WireGuardPublicKey = p.WireGuardPublicKey
+		resp.Candidates = p.Candidates
+		resp.EndpointIP = p.EndpointIP
+		resp.EndpointPort = p.EndpointPort
+	}
+
+	return resp, nil
 }
 
 // ListConnections returns all connections where the caller is either the

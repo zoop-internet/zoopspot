@@ -23,6 +23,7 @@ import network.zoop.app.MainActivity
 interface ZoopStateCallback {
     fun onStateChange(state: String, endpoint: String, isDirect: Boolean)
     fun onError(errorCode: String, message: String)
+    fun onProtectSocket(fd: Int): Boolean
 }
 
 /**
@@ -187,9 +188,10 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             val killSwitch = intent?.getBooleanExtra(EXTRA_KILL_SWITCH, false) ?: false
             Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch")
 
+            val clientIp = intent?.getStringExtra(EXTRA_CLIENT_IP)?.takeIf { it.isNotEmpty() } ?: "100.64.0.2"
             val builder = Builder()
                 .setSession("ZoopVPN")
-                .addAddress("100.64.0.2", 32)
+                .addAddress(clientIp, 32)
                 .setMtu(1420)
                 .setBlocking(true)
 
@@ -233,24 +235,34 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             }
 
             isRunning = true
-            Log.i(TAG, "VpnService established natively with FD=$fd")
-            emitState("connected", "100.64.0.2", true)
+            Log.i(TAG, "VpnService established natively with FD=$fd (IP=$clientIp)")
+            emitState("connected", clientIp, true)
             updateNotification("Internet Sharing Active (Direct P2P)", true)
 
             // Initialize Go mobile runtime with this service as event listener
             try {
-                ZoopMobileBridge.initMobile(
-                    """{"device_id":"android-device","cloud_url":"http://localhost:8080"}""",
-                    this
-                )
+                val wgPrivKey = intent?.getStringExtra(EXTRA_WG_PRIV_KEY) ?: ""
+                val configJson = org.json.JSONObject().apply {
+                    put("device_id", "android-device")
+                    put("cloud_url", "http://10.250.0.12:8080")
+                    if (wgPrivKey.isNotEmpty()) {
+                        put("wireguard_private_key", wgPrivKey)
+                    }
+                }.toString()
+
+                ZoopMobileBridge.initMobile(configJson, this)
                 ZoopMobileBridge.startTunnel(fd, "zoop0")
 
                 val peerPubKey = intent?.getStringExtra(EXTRA_PEER_KEY)
                 val candidatesJson = intent?.getStringExtra(EXTRA_CANDIDATES) ?: "[]"
                 val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
 
+                Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl")
                 if (!peerPubKey.isNullOrEmpty()) {
+                    Log.i(TAG, "Calling ZoopMobileBridge.connectPeer")
                     ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl)
+                } else {
+                    Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")
                 }
             } catch (e: UnsatisfiedLinkError) {
                 Log.w(TAG, "Native bridge call bypassed (development test mode)")
@@ -314,6 +326,12 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         stopSelf()
     }
 
+    override fun onProtectSocket(fd: Int): Boolean {
+        val res = protect(fd)
+        Log.i(TAG, "Protected WireGuard UDP socket fd=$fd result=$res")
+        return res
+    }
+
     override fun onStateChange(state: String, endpoint: String, isDirect: Boolean) {
         Log.i(TAG, "State changed: state=$state endpoint=$endpoint isDirect=$isDirect")
         emitState(state, endpoint, isDirect)
@@ -367,10 +385,12 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         const val ACTION_CONNECT = "com.zoop.vpn.CONNECT"
         const val ACTION_DISCONNECT = "com.zoop.vpn.DISCONNECT"
         const val EXTRA_PEER_KEY = "com.zoop.vpn.PEER_KEY"
+        const val EXTRA_WG_PRIV_KEY = "com.zoop.vpn.WG_PRIV_KEY"
         const val EXTRA_CANDIDATES = "com.zoop.vpn.CANDIDATES"
         const val EXTRA_RELAY_URL = "com.zoop.vpn.RELAY_URL"
         const val EXTRA_ROUTING_MODE = "com.zoop.vpn.ROUTING_MODE"
         const val EXTRA_KILL_SWITCH = "com.zoop.vpn.KILL_SWITCH"
+        const val EXTRA_CLIENT_IP = "com.zoop.vpn.CLIENT_IP"
 
         var isRunning: Boolean = false
         var eventListener: ((Map<String, Any>) -> Unit)? = null

@@ -2,13 +2,18 @@ package mobile
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
 	"github.com/allannuwamanya/zoop/packages/core/types"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // StateCallback defines the interface for delivering real-time connection
@@ -16,13 +21,15 @@ import (
 type StateCallback interface {
 	OnStateChange(state string, endpoint string, isDirect bool)
 	OnError(errorCode string, message string)
+	OnProtectSocket(fd int) bool
 }
 
 // MobileConfig holds configuration passed from the mobile app during startup.
 type MobileConfig struct {
-	DeviceID string `json:"device_id"`
-	CloudURL string `json:"cloud_url"`
-	LogLevel string `json:"log_level,omitempty"`
+	DeviceID         string `json:"device_id"`
+	CloudURL         string `json:"cloud_url"`
+	LogLevel         string `json:"log_level,omitempty"`
+	WireGuardPrivKey string `json:"wireguard_private_key,omitempty"`
 }
 
 // ConnectionStatusDTO encapsulates the current connection state for polling.
@@ -43,6 +50,7 @@ var (
 	cancelFn       context.CancelFunc
 	activeCtx      context.Context
 	activeCallback StateCallback
+	activeConfig   MobileConfig
 	currentStatus  ConnectionStatusDTO
 )
 
@@ -62,6 +70,7 @@ func InitMobile(configJSON string, callback StateCallback) error {
 			return fmt.Errorf("invalid config json: %w", err)
 		}
 	}
+	activeConfig = cfg
 
 	ctx, cancel := context.WithCancel(context.Background())
 	activeCtx = ctx
@@ -105,6 +114,37 @@ func StartTunnel(fd int, ifName string) error {
 		return fmt.Errorf("failed to create DeviceManager from FD: %w", err)
 	}
 
+	// Register socket protector callback with DeviceManager's MuxBind so any opened UDP socket is protected from the VPN
+	if activeCallback != nil {
+		dm.SetSocketProtector(func(sockFd int) {
+			slog.Info("Protecting mobile UDP socket via callback", "fd", sockFd)
+			activeCallback.OnProtectSocket(sockFd)
+		})
+	}
+
+	// Configure WireGuard device with private key
+	var privKey wgtypes.Key
+	if activeConfig.WireGuardPrivKey != "" {
+		if k, err := wgtypes.ParseKey(activeConfig.WireGuardPrivKey); err == nil {
+			privKey = k
+		} else if b, err := hex.DecodeString(activeConfig.WireGuardPrivKey); err == nil && len(b) == 32 {
+			copy(privKey[:], b)
+		}
+	}
+	if privKey == (wgtypes.Key{}) {
+		privKey, err = wgtypes.GeneratePrivateKey()
+		if err != nil {
+			return fmt.Errorf("failed to generate wireguard private key: %w", err)
+		}
+	}
+
+	if err := dm.ConfigureDevice(privKey, 0); err != nil {
+		if activeCallback != nil {
+			activeCallback.OnError("DEVICE_CONFIG_ERROR", fmt.Sprintf("failed to configure device: %v", err))
+		}
+		return fmt.Errorf("failed to configure wireguard device: %w", err)
+	}
+
 	devMgr = dm
 	currentStatus.HasTunnel = true
 	currentStatus.State = "tunnel_ready"
@@ -113,7 +153,7 @@ func StartTunnel(fd int, ifName string) error {
 		activeCallback.OnStateChange("tunnel_ready", "", false)
 	}
 
-	slog.Info("Mobile WireGuard data plane attached to native FD", "fd", fd, "interface", ifName)
+	slog.Info("Mobile WireGuard data plane attached to native FD", "fd", fd, "interface", ifName, "public_key", privKey.PublicKey().String())
 	return nil
 }
 
@@ -121,6 +161,8 @@ func StartTunnel(fd int, ifName string) error {
 func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) error {
 	mu.Lock()
 	defer mu.Unlock()
+
+	slog.Info("ConnectPeer called", "peerKey", peerPubKeyHex, "candidatesJSON", candidatesJSON, "relayURL", relayURL)
 
 	if devMgr == nil {
 		err := fmt.Errorf("tunnel not started: call StartTunnel first")
@@ -141,14 +183,58 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 	var candidates []types.EndpointCandidate
 	if candidatesJSON != "" {
 		if err := json.Unmarshal([]byte(candidatesJSON), &candidates); err != nil {
-			if activeCallback != nil {
-				activeCallback.OnError("CANDIDATES_ERROR", fmt.Sprintf("invalid candidates json: %v", err))
+			// Fallback: try parsing as []string e.g. ["10.250.0.10:51820", ...]
+			var strCandidates []string
+			if errStr := json.Unmarshal([]byte(candidatesJSON), &strCandidates); errStr == nil {
+				for _, s := range strCandidates {
+					host, portStr, splitErr := net.SplitHostPort(s)
+					if splitErr == nil {
+						p, _ := strconv.Atoi(portStr)
+						candidates = append(candidates, types.EndpointCandidate{
+							IP:   host,
+							Port: p,
+							Type: types.CandidateTypeHost,
+						})
+					}
+				}
+			} else {
+				slog.Warn("failed to parse candidates json", "err", err)
 			}
-			return fmt.Errorf("invalid candidates json: %w", err)
 		}
 	}
 
 	port, _ := devMgr.GetListenPort()
+	slog.Info("ConnectPeer state", "listenPort", port, "candidateCount", len(candidates))
+
+	// Initial peer connection: pick best candidate or fallback to first candidate
+	targetIP := ""
+	targetPort := 0
+	if len(candidates) > 0 {
+		probeCtx, probeCancel := context.WithTimeout(activeCtx, 1500*time.Millisecond)
+		bestCand, err := tunnel.ProbeCandidatesMux(probeCtx, devMgr.GetMuxBind(), candidates, "mobile-conn", port)
+		probeCancel()
+		if err == nil && bestCand != nil {
+			targetIP = bestCand.IP
+			targetPort = bestCand.Port
+			slog.Info("ProbeCandidatesMux selected optimal candidate", "ip", targetIP, "port", targetPort)
+		} else {
+			targetIP = candidates[0].IP
+			targetPort = candidates[0].Port
+			slog.Info("ProbeCandidatesMux fallback to candidate[0]", "ip", targetIP, "port", targetPort, "err", err)
+		}
+	}
+
+	if targetIP != "" && targetPort != 0 {
+		allowedIPs := []string{"0.0.0.0/0", "::/0"}
+		if err := devMgr.AddPeer(peerKey, targetIP, targetPort, allowedIPs); err != nil {
+			slog.Warn("failed to configure initial peer", "error", err)
+		} else {
+			slog.Info("initial peer configured on wireguard", "ip", targetIP, "port", targetPort)
+		}
+	} else {
+		slog.Warn("ConnectPeer: no direct candidate available yet, waiting for recovery manager", "relayURL", relayURL)
+	}
+
 	recMgr = tunnel.NewConnectionRecoveryManager(
 		devMgr.GetMuxBind(),
 		peerKey,
@@ -176,7 +262,11 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 	recMgr.Start(activeCtx)
 	currentStatus.State = "connecting"
 	if activeCallback != nil {
-		activeCallback.OnStateChange("connecting", "", false)
+		endpointStr := ""
+		if targetIP != "" && targetPort != 0 {
+			endpointStr = fmt.Sprintf("%s:%d", targetIP, targetPort)
+		}
+		activeCallback.OnStateChange("connecting", endpointStr, true)
 	}
 
 	return nil

@@ -88,10 +88,16 @@ func (s *Server) handleGetEndpoints() http.HandlerFunc {
 			wgPubKeyStr = base64.StdEncoding.EncodeToString(ident.WireGuardPublicKey)
 		}
 
+		endpoints := s.connections.GetDeviceEndpoints(ident.EndpointID)
+		if endpoints == nil {
+			endpoints = []string{}
+		}
+
 		resp := api.EndpointsResponse{
 			DeviceID:           ident.EndpointID,
 			PublicKey:          base64.StdEncoding.EncodeToString(ident.PublicKey),
 			WireGuardPublicKey: wgPubKeyStr,
+			Endpoints:          endpoints,
 		}
 
 		api.WriteJSON(w, http.StatusOK, resp)

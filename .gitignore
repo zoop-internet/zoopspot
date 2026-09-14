@@ -5,6 +5,7 @@ bin/
 *.so
 *.dylib
 android/app/libs/*.aar
+mobile/android/app/src/main/jniLibs/
 ios/Frameworks/*.xcframework
 
 # Go test & coverage artifacts

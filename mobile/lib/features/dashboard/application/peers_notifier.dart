@@ -3,6 +3,7 @@ import '../../../core/di/core_providers.dart';
 import '../../../core/models/peer_device.dart';
 import '../../../core/network/cloud_api_client.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../identity/application/identity_notifier.dart';
 
 class PeersState {
   final List<PeerDevice> peers;
@@ -40,6 +41,7 @@ final peersNotifierProvider =
     StateNotifierProvider<PeersNotifier, PeersState>((ref) {
   final client = ref.watch(cloudApiClientProvider);
   final storage = ref.watch(secureStorageServiceProvider);
+  ref.watch(identityNotifierProvider);
   final notifier = PeersNotifier(
     cloudApiClient: client,
     storageService: storage,
@@ -79,7 +81,10 @@ class PeersNotifier extends StateNotifier<PeersState> {
 
       // Filter out self so the user only connects to remote providers
       final peerNodes = allDevices
-          .where((d) => d.endpointId.isNotEmpty && d.endpointId != endpointId)
+          .where((d) =>
+              d.endpointId.isNotEmpty &&
+              d.endpointId != endpointId &&
+              d.id != endpointId)
           .toList();
 
       PeerDevice? activeSelected = state.selectedPeer;
@@ -87,12 +92,15 @@ class PeersNotifier extends StateNotifier<PeersState> {
         activeSelected = peerNodes.first;
       } else if (activeSelected != null) {
         // Keep selected if still present, else update
-        final exists = peerNodes.any((d) => d.endpointId == activeSelected?.endpointId);
+        final exists = peerNodes.any((d) =>
+            (d.endpointId.isNotEmpty && d.endpointId == activeSelected?.endpointId) ||
+            (d.id.isNotEmpty && d.id == activeSelected?.id));
         if (!exists && peerNodes.isNotEmpty) {
           activeSelected = peerNodes.first;
         }
       }
 
+      if (!mounted) return;
       state = state.copyWith(
         peers: peerNodes,
         selectedPeer: activeSelected,
@@ -100,6 +108,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
         isOffline: false,
       );
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         isOffline: true,
@@ -155,6 +164,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
     try {
       final endpointId = await _storage.getEndpointId();
       final seed = await _storage.getEd25519SeedBytes();
+      final wgPubKey = await _storage.getWireGuardPublicKeyBase64();
       if (endpointId == null || seed == null) return null;
 
       final targetId = targetPeer.id.isNotEmpty
@@ -165,6 +175,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
         endpointId: endpointId,
         targetDeviceId: targetId,
         privateKeySeed: seed,
+        wireguardPublicKey: wgPubKey,
       );
     } catch (_) {
       return null;

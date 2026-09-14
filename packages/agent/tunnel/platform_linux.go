@@ -14,6 +14,10 @@ import (
 )
 
 func platformCreateTUNFromFD(fd int, ifName string) (tun.Device, error) {
+	dev, _, err := tun.CreateUnmonitoredTUNFromFD(fd)
+	if err == nil {
+		return dev, nil
+	}
 	file := os.NewFile(uintptr(fd), ifName)
 	return tun.CreateTUNFromFile(file, device.DefaultMTU)
 }

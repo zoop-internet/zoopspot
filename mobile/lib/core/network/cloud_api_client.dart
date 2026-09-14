@@ -26,7 +26,7 @@ class CloudApiClient implements ICloudApiClient {
     this.maxRetries = 3,
   })  : baseUrl = (baseUrl != null && baseUrl.isNotEmpty)
             ? baseUrl
-            : 'https://3.70.135.200.sslip.io',
+            : 'http://10.250.0.12:8080',
         _client = client ?? http.Client(),
         _cryptoService = cryptoService ?? CryptoService();
 
@@ -257,16 +257,22 @@ class CloudApiClient implements ICloudApiClient {
     required String endpointId,
     required String targetDeviceId,
     required List<int> privateKeySeed,
+    String? wireguardPublicKey,
   }) async {
+    final body = <String, dynamic>{
+      'recipient_id': endpointId,
+      'provider_id': targetDeviceId,
+    };
+    if (wireguardPublicKey != null && wireguardPublicKey.isNotEmpty) {
+      body['wireguard_public_key'] = wireguardPublicKey;
+    }
+
     final result = await authenticatedRequest(
       method: 'POST',
       path: '/v1/connections',
       endpointId: endpointId,
       privateKeySeed: privateKeySeed,
-      body: {
-        'requester_device_id': endpointId,
-        'target_device_id': targetDeviceId,
-      },
+      body: body,
     );
     return result is Map<String, dynamic> ? result : {};
   }

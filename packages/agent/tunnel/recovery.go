@@ -152,7 +152,7 @@ func (crm *ConnectionRecoveryManager) OnNetworkRoam(ctx context.Context, newCand
 	bestCand, err := ProbeCandidatesMux(probeCtx, crm.mux, candidates, crm.connID, crm.listenPort)
 	if err == nil && bestCand != nil {
 		endpoint := fmt.Sprintf("%s:%d", bestCand.IP, bestCand.Port)
-		allowedIPs := []string{"100.64.0.2/32"}
+		allowedIPs := []string{"0.0.0.0/0", "::/0"}
 		_ = crm.deviceMgr.AddPeer(crm.peerPubKey, bestCand.IP, bestCand.Port, allowedIPs)
 
 		crm.mu.Lock()
@@ -236,7 +236,7 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 					)
 
 					endpoint := fmt.Sprintf("%s:%d", bestCand.IP, bestCand.Port)
-					allowedIPs := []string{"100.64.0.2/32"}
+					allowedIPs := []string{"0.0.0.0/0", "::/0"}
 
 					if err := crm.deviceMgr.AddPeer(crm.peerPubKey, bestCand.IP, bestCand.Port, allowedIPs); err != nil {
 						crm.logger.Warn("add peer during recovery returned error (unprivileged env)", "error", err)

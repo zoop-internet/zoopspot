@@ -47,7 +47,7 @@ class IdentityNotifier extends StateNotifier<IdentityModel> {
     try {
       final hasIdentity = await _storage.hasIdentity();
       if (!hasIdentity) {
-        state = state.copyWith(isLoading: false);
+        await createAndRegister(deviceName: 'Android Device');
         return;
       }
 

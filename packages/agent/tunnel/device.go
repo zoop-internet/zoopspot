@@ -87,11 +87,27 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
-		ifName:  ifName,
-		tunDev:  tunDev,
-		wgDev:   wgDev,
-		muxBind: mb,
+		ifName:   ifName,
+		tunDev:   tunDev,
+		wgDev:    wgDev,
+		muxBind:  mb,
+		mockMode: true, // Operating over external TUN file descriptor (e.g. Android VpnService); skip host netlink calls
 	}, nil
+}
+
+// SetSocketProtector configures a socket protection callback (e.g. VpnService.protect).
+func (m *DeviceManager) SetSocketProtector(fn func(fd int)) {
+	if m != nil && m.muxBind != nil {
+		m.muxBind.SetSocketProtector(fn)
+	}
+}
+
+// GetSocketFDs returns the underlying socket file descriptors.
+func (m *DeviceManager) GetSocketFDs() []int {
+	if m != nil && m.muxBind != nil {
+		return m.muxBind.GetSocketFDs()
+	}
+	return nil
 }
 
 // GetMuxBind returns the underlying MuxBind multiplexer.
@@ -160,6 +176,22 @@ func (m *DeviceManager) DisableForwarding() error {
 		return nil
 	}
 	return platformDisableForwarding(m.ifName)
+}
+
+// Up brings up the WireGuard device and activates its network bind.
+func (m *DeviceManager) Up() error {
+	if m.wgDev != nil {
+		return m.wgDev.Up()
+	}
+	return nil
+}
+
+// Down brings down the WireGuard device and deactivates its network bind.
+func (m *DeviceManager) Down() error {
+	if m.wgDev != nil {
+		return m.wgDev.Down()
+	}
+	return nil
 }
 
 // Close tears down the WireGuard device and the underlying TUN interface.

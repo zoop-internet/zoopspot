@@ -20,9 +20,13 @@ class PeerDevice {
   });
 
   factory PeerDevice.fromJson(Map<String, dynamic> json) {
+    String epId = (json['endpoint_id'] as String? ?? '').trim();
+    if (epId.isEmpty || epId == '00000000-0000-0000-0000-000000000000') {
+      epId = (json['id'] as String? ?? '').trim();
+    }
     return PeerDevice(
       id: json['id'] as String? ?? '',
-      endpointId: (json['endpoint_id'] ?? json['id']) as String? ?? '',
+      endpointId: epId,
       name: json['name'] as String? ?? 'Unnamed Node',
       platform: (json['os'] ?? json['platform']) as String? ?? 'linux',
       status: json['status'] as String? ?? 'trusted',

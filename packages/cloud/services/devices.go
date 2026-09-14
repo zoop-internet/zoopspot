@@ -100,8 +100,11 @@ func (s *DeviceService) GetDevice(ctx context.Context, id types.ID) (*api.Device
 	}
 
 	return &api.DeviceResponse{
-		ID:     device.ID,
-		Status: string(device.State),
+		ID:         device.ID,
+		EndpointID: device.ID,
+		Name:       device.Name,
+		OS:         device.OS,
+		Status:     string(device.State),
 	}, nil
 }
 
@@ -114,10 +117,11 @@ func (s *DeviceService) ListDevices(ctx context.Context) ([]api.DeviceResponse, 
 	var resp []api.DeviceResponse
 	for _, d := range devices {
 		resp = append(resp, api.DeviceResponse{
-			ID:     d.ID,
-			Name:   d.Name,
-			OS:     d.OS,
-			Status: string(d.State),
+			ID:         d.ID,
+			EndpointID: d.ID,
+			Name:       d.Name,
+			OS:         d.OS,
+			Status:     string(d.State),
 		})
 	}
 	if resp == nil {

@@ -82,3 +82,35 @@ func TestMuxBind_Intercept(t *testing.T) {
 func tAddr(port uint16) string {
 	return fmt.Sprintf("127.0.0.1:%d", port)
 }
+
+func TestMuxBind_SocketProtectionBeforeOpen(t *testing.T) {
+	mb := muxbind.New(conn.NewDefaultBind())
+
+	// Calling SetSocketProtector before Open must NOT panic even if the inner bind has nil sockets
+	protectedFDs := []int{}
+	mb.SetSocketProtector(func(fd int) {
+		protectedFDs = append(protectedFDs, fd)
+	})
+
+	// GetSocketFDs should return nil and not panic
+	fds := mb.GetSocketFDs()
+	if len(fds) != 0 {
+		t.Fatalf("expected 0 fds before open, got %d", len(fds))
+	}
+
+	// Now open the bind
+	_, port, err := mb.Open(0)
+	if err != nil {
+		t.Fatalf("failed to open bind: %v", err)
+	}
+	defer mb.Close()
+
+	if port == 0 {
+		t.Fatalf("expected non-zero port")
+	}
+
+	// After open, socket protector callback should have fired or GetSocketFDs should be accessible
+	openFDs := mb.GetSocketFDs()
+	t.Logf("Open sockets discovered: %v (protected count: %d)", openFDs, len(protectedFDs))
+}
+

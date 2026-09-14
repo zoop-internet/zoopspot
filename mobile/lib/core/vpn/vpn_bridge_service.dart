@@ -39,9 +39,11 @@ class VpnBridgeService implements IVpnBridgeService {
   @override
   Future<bool> startTunnel({
     String? peerKey,
+    String? privateKey,
     String? candidatesJson,
     String? relayUrl,
     String routingMode = 'full',
+    String? clientIp,
   }) async {
     if (_isTransitioning) return false;
     _isTransitioning = true;
@@ -49,9 +51,11 @@ class VpnBridgeService implements IVpnBridgeService {
       final bool? result =
           await _methodChannel.invokeMethod<bool>('startTunnel', {
         'peerKey': peerKey ?? '',
+        'privateKey': privateKey ?? '',
         'candidates': candidatesJson ?? '[]',
         'relayUrl': relayUrl ?? '',
         'routingMode': routingMode,
+        'clientIp': clientIp ?? '100.64.0.2',
       });
       return result ?? false;
     } on MissingPluginException {

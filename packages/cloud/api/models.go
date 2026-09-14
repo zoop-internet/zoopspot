@@ -96,12 +96,16 @@ type CreateConnectionRequest struct {
 
 // ConnectionResponse is returned for connection lookups and creations.
 type ConnectionResponse struct {
-	ID          types.ID              `json:"id"`
-	ProviderID  types.ID              `json:"provider_id"`
-	RecipientID types.ID              `json:"recipient_id"`
-	State       types.ConnectionState `json:"state"`
-	ProviderIP  string                `json:"provider_ip"`
-	RecipientIP string                `json:"recipient_ip"`
+	ID                 types.ID                  `json:"id"`
+	ProviderID         types.ID                  `json:"provider_id"`
+	RecipientID        types.ID                  `json:"recipient_id"`
+	State              types.ConnectionState     `json:"state"`
+	ProviderIP         string                    `json:"provider_ip"`
+	RecipientIP        string                    `json:"recipient_ip"`
+	WireGuardPublicKey string                    `json:"wireguard_public_key,omitempty"`
+	EndpointIP         string                    `json:"endpoint_ip,omitempty"`
+	EndpointPort       int                       `json:"endpoint_port,omitempty"`
+	Candidates         []types.EndpointCandidate `json:"candidates,omitempty"`
 }
 
 // EndpointsResponse is returned for GET /v1/devices/{id}/endpoints
@@ -109,7 +113,7 @@ type EndpointsResponse struct {
 	DeviceID           types.ID `json:"device_id"`
 	PublicKey          string   `json:"public_key"`
 	WireGuardPublicKey string   `json:"wireguard_public_key,omitempty"`
-	// In the future this will hold STUN/TURN candidates, LAN addresses, etc.
+	Endpoints          []string `json:"endpoints,omitempty"`
 }
 
 // UpdateConnectionStateRequest is the payload for PUT /v1/connections/{id}/state

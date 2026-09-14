@@ -29,6 +29,7 @@ class MockVpnBridge implements IVpnBridgeService {
   @override
   Future<bool> startTunnel({
     String? peerKey,
+    String? privateKey,
     String? candidatesJson,
     String? relayUrl,
     String routingMode = 'full',
@@ -214,6 +215,7 @@ class MockCloudApi implements ICloudApiClient {
     required String endpointId,
     required String targetDeviceId,
     required List<int> privateKeySeed,
+    String? wireguardPublicKey,
   }) async {
     connectionCreated = true;
     lastConnectedTargetId = targetDeviceId;

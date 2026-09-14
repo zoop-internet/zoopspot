@@ -70,13 +70,17 @@ class MainActivity : FlutterActivity() {
                     val candidates = call.argument<String>("candidates")
                     val relayUrl = call.argument<String>("relayUrl")
                     val routingMode = call.argument<String>("routingMode") ?: "full"
+                    val privateKey = call.argument<String>("privateKey") ?: ""
+                    val clientIp = call.argument<String>("clientIp") ?: "100.64.0.2"
 
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
                         action = ZoopVpnService.ACTION_CONNECT
                         putExtra(ZoopVpnService.EXTRA_PEER_KEY, peerKey)
+                        putExtra(ZoopVpnService.EXTRA_WG_PRIV_KEY, privateKey)
                         putExtra(ZoopVpnService.EXTRA_CANDIDATES, candidates)
                         putExtra(ZoopVpnService.EXTRA_RELAY_URL, relayUrl)
                         putExtra(ZoopVpnService.EXTRA_ROUTING_MODE, routingMode)
+                        putExtra(ZoopVpnService.EXTRA_CLIENT_IP, clientIp)
                     }
                     startService(intent)
                     result.success(true)

@@ -47,10 +47,11 @@ func (s *Server) handleAdminDevices() http.HandlerFunc {
 		resp := make([]api.DeviceResponse, 0, len(devices))
 		for _, d := range devices {
 			resp = append(resp, api.DeviceResponse{
-				ID:     d.ID,
-				Name:   d.Name,
-				OS:     d.OS,
-				Status: string(d.State),
+				ID:         d.ID,
+				EndpointID: d.ID,
+				Name:       d.Name,
+				OS:         d.OS,
+				Status:     string(d.State),
 			})
 		}
 		api.WriteJSON(w, http.StatusOK, resp)

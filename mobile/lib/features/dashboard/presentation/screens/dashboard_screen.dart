@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/di/core_providers.dart';
 import '../../../../core/models/connection_state.dart';
 import '../../../../core/models/routing_mode.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/theme/zoop_spacing.dart';
 import '../../../../core/utils/zoop_feedback.dart';
-import '../../../../core/vpn/vpn_bridge_service.dart';
 import '../../../../core/widgets/zoop_badge.dart';
 import '../../../../core/widgets/zoop_button.dart';
 import '../../../../core/widgets/zoop_confirm_dialog.dart';
@@ -169,22 +169,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       final resolved = await ref
           .read(peersNotifierProvider.notifier)
           .resolvePeerDetails(targetPeer);
-      final peerKey = resolved?.wireguardPublicKey ?? '';
-      final candidatesJson = json.encode(resolved?.endpoints ?? []);
-      const relayUrl = 'wss://3.70.135.200.sslip.io/v1/relay';
 
       // 2. Control plane session
-      await ref
+      final conn = await ref
           .read(peersNotifierProvider.notifier)
           .initiatePeerConnection(targetPeer);
 
+      final peerKey = (conn?['wireguard_public_key'] as String?)?.isNotEmpty == true
+          ? conn!['wireguard_public_key'] as String
+          : (resolved?.wireguardPublicKey ?? '');
+
+      List<dynamic> candidatesList = [];
+      if (conn?['candidates'] is List && (conn!['candidates'] as List).isNotEmpty) {
+        candidatesList = conn['candidates'] as List;
+      } else if (conn?['endpoint_ip'] != null && conn?['endpoint_port'] != null) {
+        candidatesList = ['${conn!['endpoint_ip']}:${conn['endpoint_port']}'];
+      } else if (resolved?.endpoints.isNotEmpty == true) {
+        candidatesList = resolved!.endpoints;
+      } else if (targetPeer.endpoints.isNotEmpty) {
+        candidatesList = targetPeer.endpoints;
+      }
+      final candidatesJson = json.encode(candidatesList);
+
+      final clientIp = (conn?['recipient_ip'] as String?)?.isNotEmpty == true
+          ? conn!['recipient_ip'] as String
+          : '100.64.0.2';
+      const relayUrl = 'ws://10.250.0.12:8080/v1/relay';
+
       // 3. Start tunnel
       try {
+        final storage = ref.read(secureStorageServiceProvider);
+        final privKey = await storage.getWireGuardPrivateKeyBase64();
+
         await vpnBridge.startTunnel(
           peerKey: peerKey,
+          privateKey: privKey,
           candidatesJson: candidatesJson,
           relayUrl: relayUrl,
           routingMode: _routingMode.wireRouteParam,
+          clientIp: clientIp,
         );
 
         if (mounted) {

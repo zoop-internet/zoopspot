@@ -210,7 +210,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 		authorized := false
 		connResp, err := s.apiClient.GetConnection(ctx, payload.ConnectionID)
 		if err == nil && connResp != nil {
-			if connResp.RecipientID == msg.SenderID && connResp.State == types.ConnectionStateRequested {
+			if connResp.RecipientID == msg.SenderID && (connResp.State == types.ConnectionStateRequested || connResp.State == types.ConnectionStateAuthorized || connResp.State == types.ConnectionStateConnected) {
 				authorized = true
 			}
 		}

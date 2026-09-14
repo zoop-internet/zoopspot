@@ -30,6 +30,10 @@ func (m *mockCallback) OnError(errorCode string, message string) {
 	m.lastError = errorCode + ": " + message
 }
 
+func (m *mockCallback) OnProtectSocket(fd int) bool {
+	return true
+}
+
 func TestMobileLifecycle(t *testing.T) {
 	cb := &mockCallback{}
 

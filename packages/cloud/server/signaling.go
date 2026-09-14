@@ -44,6 +44,16 @@ func (s *Server) handleSignaling() http.HandlerFunc {
 			// Overwrite sender ID to ensure it is the authenticated caller
 			msg.SenderID = callerID
 
+			// Intercept connection acceptance from provider
+			if msg.Type == types.SignalingTypeConnectionAccepted {
+				var payload types.ConnectionPayload
+				if err := json.Unmarshal(msg.Payload, &payload); err == nil {
+					s.logger.Info("connection accepted by provider via signaling", "conn_id", payload.ConnectionID, "provider_id", callerID)
+					_ = s.connections.UpdateConnectionState(r.Context(), payload.ConnectionID, callerID, types.ConnectionStateAuthorized)
+					s.connections.RecordAcceptedPayload(payload.ConnectionID, payload, callerID)
+				}
+			}
+
 			// Route to the intended recipient
 			if err := s.signaling.SendTo(msg.RecipientID, msg); err != nil {
 				s.logger.Warn("failed to route signaling message", "recipient", msg.RecipientID, "error", err)

@@ -225,8 +225,7 @@ class _ProviderSelectionSheetState
                       final peer = filteredPeers[index];
                       final isSelected = (selectedPeer != null &&
                               ((selectedPeer.id.isNotEmpty && selectedPeer.id == peer.id) ||
-                               (selectedPeer.endpointId.isNotEmpty && selectedPeer.endpointId == peer.endpointId) ||
-                               selectedPeer.name == peer.name)) ||
+                               (selectedPeer.endpointId.isNotEmpty && selectedPeer.endpointId == peer.endpointId))) ||
                           (selectedPeer == null && index == 0);
 
                       return InkWell(

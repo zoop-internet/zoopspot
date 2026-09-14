@@ -3,6 +3,7 @@ package muxbind
 import (
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -15,10 +16,12 @@ type PacketHandler func(packet []byte, ep conn.Endpoint) bool
 
 // MuxBind implements conn.Bind to multiplex STUN, probing, and WireGuard traffic over a single socket.
 type MuxBind struct {
-	inner      conn.Bind
-	actualPort uint16
-	mu         sync.RWMutex
-	handlers   []PacketHandler
+	inner           conn.Bind
+	actualPort      uint16
+	isOpen          bool
+	mu              sync.RWMutex
+	handlers        []PacketHandler
+	socketProtector func(fd int)
 }
 
 // New creates a new MuxBind wrapping an underlying conn.Bind.
@@ -84,8 +87,19 @@ func (m *MuxBind) Open(port uint16) ([]conn.ReceiveFunc, uint16, error) {
 	}
 
 	m.mu.Lock()
+	m.isOpen = true
 	m.actualPort = actualPort
+	sp := m.socketProtector
 	m.mu.Unlock()
+
+	slog.Info("MuxBind.Open completed", "port", port, "actualPort", actualPort, "hasProtector", sp != nil)
+	if sp != nil {
+		fds := m.GetSocketFDs()
+		slog.Info("MuxBind.Open invoking protector", "fdCount", len(fds))
+		for _, fd := range fds {
+			sp(fd)
+		}
+	}
 
 	wrappedFns := make([]conn.ReceiveFunc, len(fns))
 	for i, fn := range fns {
@@ -93,6 +107,95 @@ func (m *MuxBind) Open(port uint16) ([]conn.ReceiveFunc, uint16, error) {
 	}
 
 	return wrappedFns, actualPort, nil
+}
+
+// SetSocketProtector registers a callback to protect sockets created by the bind (e.g. Android VpnService.protect).
+func (m *MuxBind) SetSocketProtector(sp func(fd int)) {
+	m.mu.Lock()
+	m.socketProtector = sp
+	isOpen := m.isOpen
+	m.mu.Unlock()
+
+	slog.Info("MuxBind.SetSocketProtector called", "isOpen", isOpen, "hasProtector", sp != nil)
+	if sp != nil && isOpen {
+		fds := m.GetSocketFDs()
+		slog.Info("MuxBind.SetSocketProtector invoking protector", "fdCount", len(fds))
+		for _, fd := range fds {
+			sp(fd)
+		}
+	}
+}
+
+// GetSocketFDs returns underlying open socket file descriptors.
+func (m *MuxBind) GetSocketFDs() []int {
+	m.mu.RLock()
+	isOpen := m.isOpen
+	m.mu.RUnlock()
+	if !isOpen {
+		slog.Warn("MuxBind.GetSocketFDs called but bind is not open")
+		return nil
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("MuxBind.GetSocketFDs recovered panic", "recover", r)
+		}
+	}()
+
+	var fds []int
+	peeker, ok := m.inner.(conn.PeekLookAtSocketFd)
+	slog.Info("MuxBind.GetSocketFDs check peeker", "ok", ok, "innerType", fmt.Sprintf("%T", m.inner))
+	if ok {
+		if fd4, err := peeker.PeekLookAtSocketFd4(); err == nil && fd4 >= 0 {
+			slog.Info("MuxBind.GetSocketFDs got fd4", "fd", fd4)
+			fds = append(fds, fd4)
+		} else {
+			slog.Warn("MuxBind.GetSocketFDs fd4 error", "err", err, "fd", fd4)
+		}
+		if fd6, err := peeker.PeekLookAtSocketFd6(); err == nil && fd6 >= 0 {
+			slog.Info("MuxBind.GetSocketFDs got fd6", "fd", fd6)
+			fds = append(fds, fd6)
+		} else {
+			slog.Warn("MuxBind.GetSocketFDs fd6 error", "err", err, "fd", fd6)
+		}
+	}
+	return fds
+}
+
+func (m *MuxBind) PeekLookAtSocketFd4() (int, error) {
+	m.mu.RLock()
+	isOpen := m.isOpen
+	m.mu.RUnlock()
+	if !isOpen {
+		return -1, fmt.Errorf("bind is not open")
+	}
+
+	defer func() {
+		_ = recover()
+	}()
+
+	if peeker, ok := m.inner.(conn.PeekLookAtSocketFd); ok {
+		return peeker.PeekLookAtSocketFd4()
+	}
+	return -1, fmt.Errorf("underlying bind does not support PeekLookAtSocketFd")
+}
+
+func (m *MuxBind) PeekLookAtSocketFd6() (int, error) {
+	m.mu.RLock()
+	isOpen := m.isOpen
+	m.mu.RUnlock()
+	if !isOpen {
+		return -1, fmt.Errorf("bind is not open")
+	}
+
+	defer func() {
+		_ = recover()
+	}()
+
+	if peeker, ok := m.inner.(conn.PeekLookAtSocketFd); ok {
+		return peeker.PeekLookAtSocketFd6()
+	}
+	return -1, fmt.Errorf("underlying bind does not support PeekLookAtSocketFd")
 }
 
 // Port returns the actual listening UDP port of the multiplexer.
@@ -104,6 +207,10 @@ func (m *MuxBind) Port() int {
 
 // Close closes the underlying bind.
 func (m *MuxBind) Close() error {
+	m.mu.Lock()
+	m.isOpen = false
+	m.actualPort = 0
+	m.mu.Unlock()
 	return m.inner.Close()
 }
 
