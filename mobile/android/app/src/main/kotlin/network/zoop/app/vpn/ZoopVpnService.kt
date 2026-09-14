@@ -236,8 +236,8 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
 
             isRunning = true
             Log.i(TAG, "VpnService established natively with FD=$fd (IP=$clientIp)")
-            emitState("connected", clientIp, true)
-            updateNotification("Internet Sharing Active (Direct P2P)", true)
+            emitState("connecting", clientIp, false)
+            updateNotification("Connecting to peers...", false)
 
             // Initialize Go mobile runtime with this service as event listener
             try {
@@ -334,12 +334,23 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
 
     override fun onStateChange(state: String, endpoint: String, isDirect: Boolean) {
         Log.i(TAG, "State changed: state=$state endpoint=$endpoint isDirect=$isDirect")
-        emitState(state, endpoint, isDirect)
-        when (state) {
-            "connected" -> updateNotification(if (isDirect) "Internet Sharing Active (Direct P2P)" else "Internet Sharing Active (Relay)", true)
+        val normalizedState = when (state) {
+            "direct", "recovered", "connected" -> "connected"
+            "relayed" -> "connected"
+            "connecting" -> "connecting"
+            "roaming", "degraded" -> "roaming"
+            "paused" -> "paused"
+            "disconnected" -> "disconnected"
+            else -> state
+        }
+        val directMode = if (state == "relayed") false else isDirect
+        emitState(normalizedState, endpoint, directMode)
+        when (normalizedState) {
+            "connected" -> updateNotification(if (directMode) "Internet Sharing Active (Direct P2P)" else "Internet Sharing Active (Relay)", true)
             "roaming" -> updateNotification("Internet Sharing Active: $endpoint", true)
             "connecting" -> updateNotification("Connecting to peers...", false)
             "paused" -> updateNotification("Internet Sharing Paused", true)
+            "disconnected" -> updateNotification("Disconnected", false)
         }
     }
 

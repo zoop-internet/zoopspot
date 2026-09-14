@@ -104,6 +104,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 : ConnectionStatus.connectedRelay;
             _rotationController.stop();
             _pulseController.repeat(reverse: true);
+          } else if (state == 'connecting') {
+            _status = ConnectionStatus.connecting;
+            _rotationController.repeat();
+            _pulseController.stop();
           } else if (state == 'disconnected') {
             _status = ConnectionStatus.disconnected;
             _rotationController.stop();
@@ -213,14 +217,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           clientIp: clientIp,
         );
 
-        if (mounted) {
-          ZoopFeedback.medium();
-          setState(() {
-            _status = ConnectionStatus.connectedDirect;
-          });
-          _rotationController.stop();
-          _pulseController.repeat(reverse: true);
-        }
+        // Tunnel service launched. The native VpnService event stream will
+        // transition the status to connectedDirect or connectedRelay as soon as
+        // the WireGuard handshake or relay connection is confirmed.
       } catch (e) {
         if (mounted) {
           ZoopFeedback.heavy();

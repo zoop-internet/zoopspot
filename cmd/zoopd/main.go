@@ -95,6 +95,7 @@ func main() {
 	socketFlag := flag.String("socket", defaultSocketPath, "UNIX domain socket path")
 	doctorFlag := flag.Bool("doctor", false, "Run comprehensive diagnostics probe and exit")
 	mockTunFlag := flag.Bool("mock-tun", false, "Use an in-memory WireGuard device (no root required, for development/testing)")
+	nameFlag := flag.String("name", "Allan's PC (Airtel Ethernet)", "Custom display name for this node")
 	flag.Parse()
 
 	cfg := config.LoadConfig()
@@ -160,15 +161,21 @@ func main() {
 			logger.Error("failed to configure wireguard device", "error", err)
 		}
 
-		hostname, _ := os.Hostname()
-		if hostname == "" {
-			hostname = "zoop-desktop"
+		deviceName := *nameFlag
+		if envName := os.Getenv("ZOOP_DEVICE_NAME"); envName != "" {
+			deviceName = envName
+		}
+		if deviceName == "" {
+			deviceName, _ = os.Hostname()
+			if deviceName == "" {
+				deviceName = "Zoop Host"
+			}
 		}
 
 		regCtx, regCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer regCancel()
 
-		if _, err := apiClient.RegisterDevice(regCtx, hostname, wgKeys.EncodePublicKey()); err != nil {
+		if _, err := apiClient.RegisterDevice(regCtx, deviceName, wgKeys.EncodePublicKey()); err != nil {
 			logger.Error("failed to register device with cloud", "error", err)
 		} else {
 			logger.Info("device successfully registered")

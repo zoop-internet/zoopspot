@@ -4,8 +4,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"net"
+	"reflect"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"golang.zx2c4.com/wireguard/conn"
 )
@@ -126,6 +129,69 @@ func (m *MuxBind) SetSocketProtector(sp func(fd int)) {
 	}
 }
 
+// extractFDsFromBind extracts socket file descriptors from a conn.Bind implementation.
+// It first attempts the conn.PeekLookAtSocketFd interface, and if unsupported (such as
+// on standard Linux/Android *conn.StdNetBind), inspects the private ipv4 and ipv6 UDPConn
+// fields using reflection to extract the raw syscall socket descriptors.
+func extractFDsFromBind(b conn.Bind) (fd4 int, fd6 int) {
+	fd4 = -1
+	fd6 = -1
+	if b == nil {
+		return -1, -1
+	}
+
+	// 1. Check if underlying bind implements PeekLookAtSocketFd
+	if peeker, ok := b.(conn.PeekLookAtSocketFd); ok {
+		if f4, err := peeker.PeekLookAtSocketFd4(); err == nil && f4 >= 0 {
+			fd4 = f4
+		}
+		if f6, err := peeker.PeekLookAtSocketFd6(); err == nil && f6 >= 0 {
+			fd6 = f6
+		}
+		if fd4 >= 0 || fd6 >= 0 {
+			return fd4, fd6
+		}
+	}
+
+	// 2. Reflection fallback for *conn.StdNetBind
+	defer func() {
+		_ = recover()
+	}()
+
+	val := reflect.ValueOf(b)
+	if val.Kind() == reflect.Pointer {
+		val = val.Elem()
+	}
+	if val.Kind() == reflect.Struct {
+		f4 := val.FieldByName("ipv4")
+		if f4.IsValid() && !f4.IsNil() {
+			p := unsafe.Pointer(f4.UnsafeAddr())
+			actualConn := *(**net.UDPConn)(p)
+			if actualConn != nil {
+				if sc, err := actualConn.SyscallConn(); err == nil {
+					_ = sc.Control(func(fd uintptr) {
+						fd4 = int(fd)
+					})
+				}
+			}
+		}
+		f6 := val.FieldByName("ipv6")
+		if f6.IsValid() && !f6.IsNil() {
+			p := unsafe.Pointer(f6.UnsafeAddr())
+			actualConn := *(**net.UDPConn)(p)
+			if actualConn != nil {
+				if sc, err := actualConn.SyscallConn(); err == nil {
+					_ = sc.Control(func(fd uintptr) {
+						fd6 = int(fd)
+					})
+				}
+			}
+		}
+	}
+
+	return fd4, fd6
+}
+
 // GetSocketFDs returns underlying open socket file descriptors.
 func (m *MuxBind) GetSocketFDs() []int {
 	m.mu.RLock()
@@ -143,22 +209,16 @@ func (m *MuxBind) GetSocketFDs() []int {
 	}()
 
 	var fds []int
-	peeker, ok := m.inner.(conn.PeekLookAtSocketFd)
-	slog.Info("MuxBind.GetSocketFDs check peeker", "ok", ok, "innerType", fmt.Sprintf("%T", m.inner))
-	if ok {
-		if fd4, err := peeker.PeekLookAtSocketFd4(); err == nil && fd4 >= 0 {
-			slog.Info("MuxBind.GetSocketFDs got fd4", "fd", fd4)
-			fds = append(fds, fd4)
-		} else {
-			slog.Warn("MuxBind.GetSocketFDs fd4 error", "err", err, "fd", fd4)
-		}
-		if fd6, err := peeker.PeekLookAtSocketFd6(); err == nil && fd6 >= 0 {
-			slog.Info("MuxBind.GetSocketFDs got fd6", "fd", fd6)
-			fds = append(fds, fd6)
-		} else {
-			slog.Warn("MuxBind.GetSocketFDs fd6 error", "err", err, "fd", fd6)
-		}
+	fd4, fd6 := extractFDsFromBind(m.inner)
+	if fd4 >= 0 {
+		slog.Info("MuxBind.GetSocketFDs got fd4", "fd", fd4)
+		fds = append(fds, fd4)
 	}
+	if fd6 >= 0 {
+		slog.Info("MuxBind.GetSocketFDs got fd6", "fd", fd6)
+		fds = append(fds, fd6)
+	}
+	slog.Info("MuxBind.GetSocketFDs completed", "fds", fds, "innerType", fmt.Sprintf("%T", m.inner))
 	return fds
 }
 
@@ -174,10 +234,11 @@ func (m *MuxBind) PeekLookAtSocketFd4() (int, error) {
 		_ = recover()
 	}()
 
-	if peeker, ok := m.inner.(conn.PeekLookAtSocketFd); ok {
-		return peeker.PeekLookAtSocketFd4()
+	fd4, _ := extractFDsFromBind(m.inner)
+	if fd4 >= 0 {
+		return fd4, nil
 	}
-	return -1, fmt.Errorf("underlying bind does not support PeekLookAtSocketFd")
+	return -1, fmt.Errorf("underlying bind does not have an active IPv4 socket")
 }
 
 func (m *MuxBind) PeekLookAtSocketFd6() (int, error) {
@@ -192,10 +253,11 @@ func (m *MuxBind) PeekLookAtSocketFd6() (int, error) {
 		_ = recover()
 	}()
 
-	if peeker, ok := m.inner.(conn.PeekLookAtSocketFd); ok {
-		return peeker.PeekLookAtSocketFd6()
+	_, fd6 := extractFDsFromBind(m.inner)
+	if fd6 >= 0 {
+		return fd6, nil
 	}
-	return -1, fmt.Errorf("underlying bind does not support PeekLookAtSocketFd")
+	return -1, fmt.Errorf("underlying bind does not have an active IPv6 socket")
 }
 
 // Port returns the actual listening UDP port of the multiplexer.

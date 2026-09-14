@@ -112,5 +112,11 @@ func TestMuxBind_SocketProtectionBeforeOpen(t *testing.T) {
 	// After open, socket protector callback should have fired or GetSocketFDs should be accessible
 	openFDs := mb.GetSocketFDs()
 	t.Logf("Open sockets discovered: %v (protected count: %d)", openFDs, len(protectedFDs))
+	if len(openFDs) == 0 {
+		t.Fatalf("expected at least 1 open socket FD from StdNetBind")
+	}
+	if len(protectedFDs) == 0 {
+		t.Fatalf("expected socket protector to be invoked with at least 1 FD")
+	}
 }
 

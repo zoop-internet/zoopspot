@@ -41,12 +41,13 @@ type ConnectionRecoveryManager struct {
 	onStateChange RecoveryCallback
 	logger        *slog.Logger
 
-	mu              sync.Mutex
-	currentState    ConnectionRecoveryState
-	currentEndpoint string
-	isDirect        bool
-	cancelFunc      context.CancelFunc
-	lastUpgradeTime time.Time
+	mu                   sync.Mutex
+	currentState         ConnectionRecoveryState
+	currentEndpoint      string
+	isDirect             bool
+	hasNotifiedConnected bool
+	cancelFunc           context.CancelFunc
+	lastUpgradeTime      time.Time
 }
 
 // NewConnectionRecoveryManager creates a recovery manager instance with a single relay URL.
@@ -88,21 +89,28 @@ func NewMultiRelayRecoveryManager(
 		primaryRelay = relayURLs[0]
 	}
 
+	currentEndpoint := ""
+	if len(initialCandidates) > 0 {
+		currentEndpoint = fmt.Sprintf("%s:%d", initialCandidates[0].IP, initialCandidates[0].Port)
+	}
+
 	crm := &ConnectionRecoveryManager{
-		mux:           mux,
-		peerPubKey:    peerPubKey,
-		candidates:    initialCandidates,
-		connID:        connID,
-		listenPort:    listenPort,
-		deviceMgr:     deviceMgr,
-		relayURL:      primaryRelay,
-		relayURLs:     relayURLs,
-		relayIdx:      0,
-		monitor:       NewPathMonitor(deviceMgr, logger),
-		onStateChange: onStateChange,
-		logger:        logger,
-		currentState:  StateDirect,
-		isDirect:      true,
+		mux:                  mux,
+		peerPubKey:           peerPubKey,
+		candidates:           initialCandidates,
+		connID:               connID,
+		listenPort:           listenPort,
+		deviceMgr:            deviceMgr,
+		relayURL:             primaryRelay,
+		relayURLs:            relayURLs,
+		relayIdx:             0,
+		monitor:              NewPathMonitor(deviceMgr, logger),
+		onStateChange:        onStateChange,
+		logger:               logger,
+		currentState:         StateDirect,
+		currentEndpoint:      currentEndpoint,
+		isDirect:             true,
+		hasNotifiedConnected: false,
 	}
 
 	crm.dpd = NewDeadPeerDetector(
@@ -121,6 +129,19 @@ func NewMultiRelayRecoveryManager(
 		},
 		func() {
 			crm.logger.Info("DPD confirmed peer alive")
+			crm.mu.Lock()
+			notified := crm.hasNotifiedConnected
+			if !notified {
+				crm.hasNotifiedConnected = true
+			}
+			endpoint := crm.currentEndpoint
+			isDirect := crm.isDirect
+			cb := crm.onStateChange
+			crm.mu.Unlock()
+
+			if !notified && cb != nil {
+				cb(StateDirect, endpoint, isDirect)
+			}
 		},
 		logger,
 	)
@@ -219,6 +240,25 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 			}
 
 			if state == StateDirect {
+				if !pathState.LastHandshake.IsZero() && time.Since(pathState.LastHandshake) < 60*time.Second {
+					crm.mu.Lock()
+					notified := crm.hasNotifiedConnected
+					if !notified {
+						crm.hasNotifiedConnected = true
+					}
+					endpoint := crm.currentEndpoint
+					if endpoint == "" && pathState.ActiveEndpoint != "" {
+						crm.currentEndpoint = pathState.ActiveEndpoint
+						endpoint = pathState.ActiveEndpoint
+					}
+					cb := crm.onStateChange
+					crm.mu.Unlock()
+
+					if !notified && cb != nil {
+						crm.logger.Info("WireGuard handshake confirmed, notifying connected state", "endpoint", endpoint)
+						cb(StateDirect, endpoint, true)
+					}
+				}
 				if timeSinceUpgrade > 5*time.Second && crm.dpd != nil {
 					crm.dpd.RecordHandshake(pathState.LastHandshake)
 				}

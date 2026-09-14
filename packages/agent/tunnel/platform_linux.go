@@ -162,15 +162,19 @@ func platformEnableForwarding(ifName string) error {
 		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
 	}
 
-	// 3. Allow forwarding from TUN to WAN
+	// 3. Allow forwarding from TUN to WAN (insert at top to precede container drop rules)
 	if err := exec.Command("iptables", "-C", "FORWARD", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-A", "FORWARD", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "FORWARD", "1", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run()
 	}
 
 	// 4. Allow established return traffic from WAN to TUN
 	if err := exec.Command("iptables", "-C", "FORWARD", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-A", "FORWARD", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "FORWARD", "2", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	}
+
+	// 5. Prepend to DOCKER-USER if Docker daemon exists
+	_ = exec.Command("iptables", "-I", "DOCKER-USER", "1", "-i", ifName, "-j", "ACCEPT").Run()
+	_ = exec.Command("iptables", "-I", "DOCKER-USER", "2", "-o", ifName, "-j", "ACCEPT").Run()
 
 	return nil
 }
