@@ -6,6 +6,10 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
+# Flutter Play Core / Deferred Components
+-dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+
 # Preserve Zoop Native JNI Bridge and Callbacks
 -keep class network.zoop.app.vpn.ZoopMobileBridge { *; }
 -keep interface network.zoop.app.vpn.ZoopStateCallback { *; }
