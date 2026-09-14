@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 	"golang.zx2c4.com/wireguard/device"
@@ -111,6 +112,32 @@ func containsStr(s, sub string) bool {
 	return false
 }
 
+func getDefaultWANInterface() string {
+	if wanIf := os.Getenv("ZOOP_WAN_IF"); wanIf != "" {
+		return wanIf
+	}
+
+	// 1. Query kernel route to 8.8.8.8 via netlink
+	routes, err := netlink.RouteGet(net.ParseIP("8.8.8.8"))
+	if err == nil && len(routes) > 0 {
+		link, err := netlink.LinkByIndex(routes[0].LinkIndex)
+		if err == nil && link != nil && link.Attrs().Name != "" {
+			return link.Attrs().Name
+		}
+	}
+
+	// 2. Query via 'ip route get 8.8.8.8' fallback
+	out, err := exec.Command("sh", "-c", "ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"dev\") print $(i+1)}'").Output()
+	if err == nil {
+		dev := strings.TrimSpace(string(out))
+		if dev != "" {
+			return dev
+		}
+	}
+
+	return "eth0"
+}
+
 func platformEnableForwarding(ifName string) error {
 	// Enable IP forwarding and disable reverse path filtering
 	_ = exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run()
@@ -119,10 +146,7 @@ func platformEnableForwarding(ifName string) error {
 	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.default.rp_filter=0").Run()
 	_ = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.rp_filter=0", ifName)).Run()
 
-	wanIf := os.Getenv("ZOOP_WAN_IF")
-	if wanIf == "" {
-		wanIf = "eth0"
-	}
+	wanIf := getDefaultWANInterface()
 	_ = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.rp_filter=0", wanIf)).Run()
 
 	// Set default FORWARD policy to ACCEPT
@@ -152,10 +176,7 @@ func platformEnableForwarding(ifName string) error {
 }
 
 func platformDisableForwarding(ifName string) error {
-	wanIf := os.Getenv("ZOOP_WAN_IF")
-	if wanIf == "" {
-		wanIf = "eth0"
-	}
+	wanIf := getDefaultWANInterface()
 
 	// Clean up iptables rules gracefully on shutdown
 	_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
