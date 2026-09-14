@@ -33,7 +33,7 @@ mobile-test:
 
 mobile-cshared:
 	@mkdir -p $(BIN_DIR)
-	CGO_ENABLED=1 $(GO) build -v -buildmode=c-shared -o $(BIN_DIR)/libzoop.so ./cmd/zoop-mobile
+	GOOS=android CGO_ENABLED=1 $(GO) build -v -buildmode=c-shared -ldflags="-checklinkname=0" -o $(BIN_DIR)/libzoop.so ./cmd/zoop-mobile
 
 build-android-core:
 	@mkdir -p android/app/libs
