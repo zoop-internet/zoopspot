@@ -86,8 +86,12 @@ type ShareResponse struct {
 
 // CreateConnectionRequest is the payload for POST /v1/connections
 type CreateConnectionRequest struct {
-	ProviderID  types.ID `json:"provider_id"`
-	RecipientID types.ID `json:"recipient_id"`
+	ProviderID         types.ID                  `json:"provider_id"`
+	RecipientID        types.ID                  `json:"recipient_id"`
+	WireGuardPublicKey string                    `json:"wireguard_public_key,omitempty"`
+	EndpointIP         string                    `json:"endpoint_ip,omitempty"`
+	EndpointPort       int                       `json:"endpoint_port,omitempty"`
+	Candidates         []types.EndpointCandidate `json:"candidates,omitempty"`
 }
 
 // ConnectionResponse is returned for connection lookups and creations.

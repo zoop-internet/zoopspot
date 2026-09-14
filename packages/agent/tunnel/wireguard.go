@@ -59,11 +59,29 @@ func (m *DeviceManager) AddPeerWithKeepalive(peerPubKey wgtypes.Key, endpointIP 
 		return fmt.Errorf("failed to add peer to wireguard device: %w", err)
 	}
 
+	if m.peerEndpoints == nil {
+		m.peerEndpoints = make(map[wgtypes.Key]string)
+	}
+	if endpointIP != "" {
+		m.peerEndpoints[peerPubKey] = endpointIP
+	}
+
 	// Add routes for the allowed IPs to the OS routing table using the platform-appropriate method.
 	if m.mockMode {
 		return nil
 	}
 	for _, aip := range allowedIPs {
+		if aip == "0.0.0.0/0" || aip == "default" {
+			// Protect WireGuard UDP encapsulation packets by adding an explicit host route for
+			// the peer endpoint via the physical default gateway.
+			if endpointIP != "" {
+				_ = platformAddEndpointRoute(endpointIP)
+			}
+			// Use split default routes (0.0.0.0/1 and 128.0.0.0/1) instead of clobbering 0.0.0.0/0.
+			_ = platformAddRoute(m.ifName, "0.0.0.0/1")
+			_ = platformAddRoute(m.ifName, "128.0.0.0/1")
+			continue
+		}
 		if err := platformAddRoute(m.ifName, aip); err != nil {
 			return fmt.Errorf("failed to add route for %s: %w", aip, err)
 		}
@@ -79,6 +97,15 @@ func (m *DeviceManager) RemovePeer(peerPubKey wgtypes.Key) error {
 
 	if err := m.wgDev.IpcSet(uapi); err != nil {
 		return fmt.Errorf("failed to remove peer from wireguard device: %w", err)
+	}
+
+	if !m.mockMode {
+		if ep, ok := m.peerEndpoints[peerPubKey]; ok && ep != "" {
+			_ = platformRemoveEndpointRoute(ep)
+			delete(m.peerEndpoints, peerPubKey)
+		}
+		_ = platformRemoveRoute(m.ifName, "0.0.0.0/1")
+		_ = platformRemoveRoute(m.ifName, "128.0.0.0/1")
 	}
 	return nil
 }

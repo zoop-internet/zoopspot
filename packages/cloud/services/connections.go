@@ -104,7 +104,9 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 
 	recipientIdent, _ := s.store.GetIdentity(ctx, req.RecipientID)
 	var wgPubKeyStr string
-	if recipientIdent != nil && len(recipientIdent.WireGuardPublicKey) > 0 {
+	if req.WireGuardPublicKey != "" {
+		wgPubKeyStr = req.WireGuardPublicKey
+	} else if recipientIdent != nil && len(recipientIdent.WireGuardPublicKey) > 0 {
 		wgPubKeyStr = base64.StdEncoding.EncodeToString(recipientIdent.WireGuardPublicKey)
 	}
 
@@ -113,6 +115,9 @@ func (s *ConnectionService) CreateConnection(ctx context.Context, req api.Create
 		ProviderIP:         conn.ProviderIP,
 		RecipientIP:        conn.RecipientIP,
 		WireGuardPublicKey: wgPubKeyStr,
+		EndpointIP:         req.EndpointIP,
+		EndpointPort:       req.EndpointPort,
+		Candidates:         req.Candidates,
 	})
 
 	sigMsg := types.SignalingMessage{

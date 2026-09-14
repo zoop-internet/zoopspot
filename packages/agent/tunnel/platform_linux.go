@@ -161,3 +161,60 @@ func platformDisableForwarding(ifName string) error {
 
 	return nil
 }
+
+func platformAddEndpointRoute(endpointIP string) error {
+	ip := net.ParseIP(endpointIP)
+	if ip == nil || ip.IsLoopback() {
+		return nil
+	}
+
+	routes, err := netlink.RouteGet(ip)
+	if err != nil || len(routes) == 0 {
+		return nil
+	}
+
+	hostDst := &net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}
+	route := &netlink.Route{
+		LinkIndex: routes[0].LinkIndex,
+		Dst:       hostDst,
+		Gw:        routes[0].Gw,
+	}
+
+	if err := netlink.RouteAdd(route); err != nil && !isExistError(err) {
+		return fmt.Errorf("failed to add host route for endpoint %s: %w", endpointIP, err)
+	}
+	return nil
+}
+
+func platformRemoveEndpointRoute(endpointIP string) error {
+	ip := net.ParseIP(endpointIP)
+	if ip == nil || ip.IsLoopback() {
+		return nil
+	}
+	hostDst := &net.IPNet{IP: ip, Mask: net.CIDRMask(32, 32)}
+	route := &netlink.Route{
+		Dst: hostDst,
+	}
+	_ = netlink.RouteDel(route)
+	return nil
+}
+
+func platformRemoveRoute(ifName, cidr string) error {
+	link, err := netlink.LinkByName(ifName)
+	if err != nil {
+		_ = exec.Command("ip", "route", "del", cidr, "dev", ifName).Run()
+		return nil
+	}
+
+	_, dst, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil
+	}
+
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+	}
+	_ = netlink.RouteDel(route)
+	return nil
+}

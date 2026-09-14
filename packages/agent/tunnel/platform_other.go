@@ -28,3 +28,15 @@ func platformDisableForwarding(ifName string) error {
 func platformAddRoute(ifName, cidr string) error {
 	return fmt.Errorf("route management not implemented on %s", runtime.GOOS)
 }
+
+func platformAddEndpointRoute(endpointIP string) error {
+	return nil
+}
+
+func platformRemoveEndpointRoute(endpointIP string) error {
+	return nil
+}
+
+func platformRemoveRoute(ifName, cidr string) error {
+	return nil
+}

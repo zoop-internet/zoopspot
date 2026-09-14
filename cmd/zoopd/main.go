@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/allannuwamanya/zoop/packages/agent/client"
 	"github.com/allannuwamanya/zoop/packages/agent/health"
 	"github.com/allannuwamanya/zoop/packages/agent/identity"
+	"github.com/allannuwamanya/zoop/packages/agent/relay"
 	"github.com/allannuwamanya/zoop/packages/agent/state"
 	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
 	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
@@ -173,7 +175,26 @@ func main() {
 		}
 	}
 
+	// Initialize Relay Client and Relay Bridge for zero-decryption DERP fallback
+	relayWS := strings.Replace(cfg.ControlPlaneURL, "http://", "ws://", 1)
+	relayWS = strings.Replace(relayWS, "https://", "wss://", 1)
+	relayURL := relayWS + "/v1/relay"
+
+	var relayBridge *tunnel.RelayBridge
+	if devMgr != nil {
+		listenPort, _ := devMgr.GetListenPort()
+		relayClient := relay.NewClient(relayURL, ident, privKey, logger)
+		go relayClient.Start(ctx)
+		defer relayClient.Close()
+
+		relayBridge = tunnel.NewRelayBridge(relayClient, listenPort, logger)
+		defer relayBridge.Close()
+	}
+
 	sigClient := client.NewSignalingClient(apiClient, devMgr, logger)
+	if relayBridge != nil {
+		sigClient.SetRelayBridge(relayBridge)
+	}
 	go sigClient.Connect(ctx)
 
 	// Initialize Roaming Manager for automatic Wi-Fi <-> Ethernet <-> Cellular recovery
@@ -320,8 +341,24 @@ func handleIPC(
 			break
 		}
 		providerID := types.ID(parsedUUID)
+		var candidates []types.EndpointCandidate
+		var wgPubKey string
+		var listenPort int
+		if devMgr != nil {
+			wgPubKey = devMgr.PublicKey().String()
+			if p, err := devMgr.GetListenPort(); err == nil {
+				listenPort = p
+				if cands, err := tunnel.GatherCandidatesMux(devMgr.GetMuxBind(), listenPort); err == nil {
+					candidates = cands
+				}
+			}
+		}
+		var endpointIP string
+		if len(candidates) > 0 {
+			endpointIP = candidates[0].IP
+		}
 
-		connResp, err := apiClient.RequestConnection(ctx, providerID)
+		connResp, err := apiClient.RequestConnectionWithEndpoints(ctx, providerID, wgPubKey, endpointIP, listenPort, candidates)
 		if err != nil {
 			resp = DaemonResponse{Success: false, Message: fmt.Sprintf("failed to request connection: %v", err)}
 			break

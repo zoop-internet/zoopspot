@@ -85,3 +85,15 @@ func platformAddRoute(ifName, cidr string) error {
 
 	return nil
 }
+
+func platformAddEndpointRoute(endpointIP string) error {
+	return nil
+}
+
+func platformRemoveEndpointRoute(endpointIP string) error {
+	return nil
+}
+
+func platformRemoveRoute(ifName, cidr string) error {
+	return nil
+}

@@ -31,6 +31,8 @@ type SignalingClient struct {
 	// disconnect can tear down the right WireGuard peer.
 	activeMu    sync.Mutex
 	activeConns map[types.ID]wgtypes.Key
+	connPeers   map[types.ID]types.ID
+	relayBridge *tunnel.RelayBridge
 }
 
 // NewSignalingClient creates a new WebSocket client.
@@ -40,7 +42,13 @@ func NewSignalingClient(apiClient *APIClient, tunnelManager *tunnel.DeviceManage
 		tunnelManager: tunnelManager,
 		Logger:        logger,
 		activeConns:   make(map[types.ID]wgtypes.Key),
+		connPeers:     make(map[types.ID]types.ID),
 	}
+}
+
+// SetRelayBridge assigns the local relay fallback bridge for transparent DERP failover.
+func (s *SignalingClient) SetRelayBridge(rb *tunnel.RelayBridge) {
+	s.relayBridge = rb
 }
 
 // Connect attempts to establish and maintain the WebSocket connection.
@@ -274,7 +282,22 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 								targetIP = bestCand.IP
 								targetPort = bestCand.Port
 							} else {
-								s.Logger.Warn("candidate probing yielded no direct response, using default endpoint", "error", err)
+								s.Logger.Warn("candidate probing yielded no direct response, checking relay bridge fallback", "error", err)
+								if s.relayBridge != nil {
+									if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
+										targetIP = "127.0.0.1"
+										targetPort = rPort
+										s.Logger.Info("falling back to relay bridge on provider", "relay_port", rPort)
+									}
+								}
+							}
+						} else if targetIP == "" || targetPort == 0 {
+							if s.relayBridge != nil {
+								if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
+									targetIP = "127.0.0.1"
+									targetPort = rPort
+									s.Logger.Info("no direct candidates available, routed via relay bridge on provider", "relay_port", rPort)
+								}
 							}
 						}
 
@@ -283,7 +306,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 							s.Logger.Error("failed to configure wireguard peer", "error", err)
 						} else {
 							s.Logger.Info("wireguard peer configured successfully on provider", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
-							s.trackActive(payload.ConnectionID, peerKey)
+							s.trackActive(payload.ConnectionID, peerKey, msg.SenderID)
 						}
 					}
 				}
@@ -355,7 +378,22 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					targetIP = bestCand.IP
 					targetPort = bestCand.Port
 				} else {
-					s.Logger.Warn("candidate probing yielded no direct response, using default endpoint", "error", err)
+					s.Logger.Warn("candidate probing yielded no direct response, checking relay bridge fallback", "error", err)
+					if s.relayBridge != nil {
+						if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
+							targetIP = "127.0.0.1"
+							targetPort = rPort
+							s.Logger.Info("falling back to relay bridge on recipient", "relay_port", rPort)
+						}
+					}
+				}
+			} else if targetIP == "" || targetPort == 0 {
+				if s.relayBridge != nil {
+					if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
+						targetIP = "127.0.0.1"
+						targetPort = rPort
+						s.Logger.Info("no direct candidates available, routed via relay bridge on recipient", "relay_port", rPort)
+					}
 				}
 			}
 
@@ -364,7 +402,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				s.Logger.Error("failed to configure wireguard peer", "error", err)
 			} else {
 				s.Logger.Info("wireguard peer configured successfully on recipient", "endpoint", fmt.Sprintf("%s:%d", targetIP, targetPort))
-				s.trackActive(connIDFromPayload(payload), peerKey)
+				s.trackActive(connIDFromPayload(payload), peerKey, msg.SenderID)
 
 				// Report the truthful connection state to the cloud so the UI and
 				// both sides see CONNECTED once the tunnel is actually up.
@@ -415,15 +453,18 @@ func (s *SignalingClient) DisconnectConnection(ctx context.Context, connID types
 	return nil
 }
 
-// trackActive records the WireGuard peer key associated with a connection so a
-// later disconnect can remove exactly that peer.
-func (s *SignalingClient) trackActive(connID types.ID, peerKey wgtypes.Key) {
+// trackActive records the WireGuard peer key and remote peer ID associated with a connection so a
+// later disconnect can remove exactly that peer and tear down any relay forwarders.
+func (s *SignalingClient) trackActive(connID types.ID, peerKey wgtypes.Key, peerIDs ...types.ID) {
 	if connID.String() == "" {
 		return
 	}
 	s.activeMu.Lock()
 	defer s.activeMu.Unlock()
 	s.activeConns[connID] = peerKey
+	if len(peerIDs) > 0 && peerIDs[0].String() != "" {
+		s.connPeers[connID] = peerIDs[0]
+	}
 }
 
 // ActiveConnectionInfo describes an established tunnel on this device.
@@ -453,11 +494,17 @@ func (s *SignalingClient) teardownConnection(ctx context.Context, connID types.I
 	s.activeMu.Lock()
 	peerKey, ok := s.activeConns[connID]
 	delete(s.activeConns, connID)
+	peerID := s.connPeers[connID]
+	delete(s.connPeers, connID)
 	s.activeMu.Unlock()
 
 	if !ok {
 		s.Logger.Warn("no active tunnel tracked for connection, nothing to tear down", "connection_id", connID)
 		return
+	}
+
+	if s.relayBridge != nil && peerID.String() != "" {
+		s.relayBridge.UnregisterPeer(peerID)
 	}
 
 	if s.tunnelManager != nil {

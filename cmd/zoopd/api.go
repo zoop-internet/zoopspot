@@ -282,7 +282,25 @@ func (a *daemonAPI) handleConnect(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	conn, err := a.apiClient.RequestConnection(ctx, types.ID(peerUUID))
+	var candidates []types.EndpointCandidate
+	var wgPubKey string
+	var listenPort int
+	if a.devMgr != nil {
+		wgPubKey = a.devMgr.PublicKey().String()
+		if p, err := a.devMgr.GetListenPort(); err == nil {
+			listenPort = p
+			if cands, err := tunnel.GatherCandidatesMux(a.devMgr.GetMuxBind(), listenPort); err == nil {
+				candidates = cands
+			}
+		}
+	}
+
+	var endpointIP string
+	if len(candidates) > 0 {
+		endpointIP = candidates[0].IP
+	}
+
+	conn, err := a.apiClient.RequestConnectionWithEndpoints(ctx, types.ID(peerUUID), wgPubKey, endpointIP, listenPort, candidates)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "cloud_error", err.Error())
 		return

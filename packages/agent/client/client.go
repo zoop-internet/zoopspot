@@ -122,9 +122,25 @@ func (c *APIClient) DiscoverEndpoints(ctx context.Context, deviceID types.ID) (*
 
 // RequestConnection asks the Cloud to establish a connection with a Provider.
 func (c *APIClient) RequestConnection(ctx context.Context, providerID types.ID) (*api.ConnectionResponse, error) {
+	return c.RequestConnectionWithEndpoints(ctx, providerID, "", "", 0, nil)
+}
+
+// RequestConnectionWithEndpoints asks the Cloud to establish a connection including local WireGuard candidates.
+func (c *APIClient) RequestConnectionWithEndpoints(
+	ctx context.Context,
+	providerID types.ID,
+	wgPubKey string,
+	endpointIP string,
+	endpointPort int,
+	candidates []types.EndpointCandidate,
+) (*api.ConnectionResponse, error) {
 	req := api.CreateConnectionRequest{
-		ProviderID:  providerID,
-		RecipientID: c.Identity.EndpointID,
+		ProviderID:         providerID,
+		RecipientID:        c.Identity.EndpointID,
+		WireGuardPublicKey: wgPubKey,
+		EndpointIP:         endpointIP,
+		EndpointPort:       endpointPort,
+		Candidates:         candidates,
 	}
 
 	var resp api.ConnectionResponse

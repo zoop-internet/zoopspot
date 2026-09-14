@@ -20,6 +20,8 @@ type DeviceManager struct {
 	wgPubKey wgtypes.Key
 	muxBind  *muxbind.MuxBind
 
+	peerEndpoints map[wgtypes.Key]string
+
 	// mockMode skips OS-level platform operations (ip addr/route, iptables) so
 	// the manager can be exercised in unprivileged test environments.
 	mockMode bool
@@ -163,6 +165,13 @@ func (m *DeviceManager) DisableForwarding() error {
 // Close tears down the WireGuard device and the underlying TUN interface.
 func (m *DeviceManager) Close() {
 	_ = platformDisableForwarding(m.ifName)
+	if !m.mockMode && m.peerEndpoints != nil {
+		for _, ep := range m.peerEndpoints {
+			_ = platformRemoveEndpointRoute(ep)
+		}
+		_ = platformRemoveRoute(m.ifName, "0.0.0.0/1")
+		_ = platformRemoveRoute(m.ifName, "128.0.0.0/1")
+	}
 	if m.wgDev != nil {
 		m.wgDev.Close()
 	}

@@ -104,3 +104,50 @@ func platformAddRoute(ifName, cidr string) error {
 	}
 	return nil
 }
+
+func getDefaultGatewayDarwin() string {
+	out, err := exec.Command("route", "-n", "get", "default").Output()
+	if err == nil {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "gateway:") {
+				parts := strings.Fields(line)
+				if len(parts) >= 2 {
+					return parts[1]
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func platformAddEndpointRoute(endpointIP string) error {
+	ip := net.ParseIP(endpointIP)
+	if ip == nil || ip.IsLoopback() {
+		return nil
+	}
+	gw := getDefaultGatewayDarwin()
+	if gw == "" {
+		return nil
+	}
+	_ = exec.Command("route", "-q", "add", "-host", endpointIP, gw).Run()
+	return nil
+}
+
+func platformRemoveEndpointRoute(endpointIP string) error {
+	ip := net.ParseIP(endpointIP)
+	if ip == nil || ip.IsLoopback() {
+		return nil
+	}
+	_ = exec.Command("route", "-q", "delete", "-host", endpointIP).Run()
+	return nil
+}
+
+func platformRemoveRoute(ifName, cidr string) error {
+	if cidr == "0.0.0.0/0" || cidr == "default" {
+		_ = exec.Command("route", "-q", "delete", "default", "-interface", ifName).Run()
+	} else {
+		_ = exec.Command("route", "-q", "delete", "-net", cidr, "-interface", ifName).Run()
+	}
+	return nil
+}
