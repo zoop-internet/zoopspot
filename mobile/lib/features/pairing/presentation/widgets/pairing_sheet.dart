@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../application/pairing_notifier.dart';
+import '../../dashboard/application/peers_notifier.dart';
 
 class PairingSheet extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -486,6 +487,7 @@ class _PairingSheetState extends ConsumerState<PairingSheet>
                           await notifier.claimToken(_codeController.text);
                       if (success && mounted) {
                         _codeController.clear();
+                        ref.read(peersNotifierProvider.notifier).loadPeers();
                         Future.delayed(const Duration(seconds: 2), () {
                           if (mounted) navigator.pop();
                         });

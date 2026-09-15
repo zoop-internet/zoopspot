@@ -14,7 +14,7 @@ import '../../../../core/widgets/zoop_button.dart';
 import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
 import '../../../../core/widgets/zoop_offline_banner.dart';
-import '../../../fleet/presentation/widgets/device_pairing_sheet.dart';
+import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../sharing/application/sharing_notifier.dart';
@@ -271,16 +271,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   void _showPairDeviceModal() {
-    final identity = ref.read(identityNotifierProvider);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DevicePairingSheet(
-        deviceName: 'Android Device (${identity.zoopId ?? "ZP-Node"})',
-        deviceId: identity.endpointId ?? 'ep-local-device',
-      ),
-    );
+    PairingSheet.show(context, initialTabIndex: 1);
   }
 
   @override

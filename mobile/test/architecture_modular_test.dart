@@ -231,7 +231,11 @@ class MockCloudApi implements ICloudApiClient {
   Future<Map<String, dynamic>> listShares({
     required String endpointId,
     required List<int> privateKeySeed,
-  }) async => {};
+  }) async => {
+        'shares': [
+          {'id': 'share-1', 'provider_id': 'ep-remote-gateway', 'is_active': true},
+        ],
+      };
 
   @override
   Future<Map<String, dynamic>> createPairingToken({

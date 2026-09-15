@@ -167,20 +167,9 @@ class PeersNotifier extends StateNotifier<PeersState> {
         // Continue without fleet
       }
 
-      // If authorized peers were found, present them. Otherwise if discovery has devices that are not self,
-      // present them with an explicit "Available Node" status so users can connect or pair.
-      final peerNodes = authorizedPeers.isNotEmpty
-          ? authorizedPeers.values.toList()
-          : allDevices
-              .where((d) =>
-                  d.endpointId.isNotEmpty &&
-                  d.endpointId != endpointId &&
-                  d.id != endpointId)
-              .map((d) => d.copyWith(
-                    source: 'Available Node',
-                    isAuthorized: false,
-                  ))
-              .toList();
+      // Only authorized peers (shared nodes or personal fleet devices) should be presented as accessible.
+      // Unpaired/unauthorized cloud registry devices must not clutter the user's peer list on fresh install.
+      final peerNodes = authorizedPeers.values.toList();
 
       PeerDevice? activeSelected = state.selectedPeer;
       if (activeSelected == null && peerNodes.isNotEmpty) {

@@ -77,6 +77,18 @@ void main() {
             headers: {'Content-Type': 'application/json'},
           );
         }
+        if (request.url.path == '/v1/shares' && request.method == 'GET') {
+          return http.Response(
+            json.encode({
+              'shares': [
+                {'id': 'share-1', 'provider_id': remotePeerId1, 'is_active': true},
+                {'id': 'share-2', 'provider_id': remotePeerId2, 'is_active': true},
+              ]
+            }),
+            200,
+            headers: {'Content-Type': 'application/json'},
+          );
+        }
         return http.Response('Not Found', 404);
       });
 
@@ -106,6 +118,43 @@ void main() {
       expect(state.selectedPeer, isNotNull);
       expect(state.selectedPeer!.endpointId, remotePeerId1);
       expect(state.selectedPeer!.name, 'Berlin Gateway');
+    });
+
+    test('loadPeers on clean fresh install with no authorized shares returns empty list', () async {
+      final mockDevicesJson = [
+        {
+          'id': remotePeerId1,
+          'endpoint_id': remotePeerId1,
+          'name': 'Public Cloud Node',
+          'platform': 'linux',
+        },
+      ];
+
+      final mockClient = MockClient((request) async {
+        if (request.url.path == '/v1/devices' && request.method == 'GET') {
+          return http.Response(json.encode(mockDevicesJson), 200, headers: {'Content-Type': 'application/json'});
+        }
+        if (request.url.path == '/v1/shares' && request.method == 'GET') {
+          return http.Response(json.encode({'shares': []}), 200, headers: {'Content-Type': 'application/json'});
+        }
+        return http.Response('[]', 200, headers: {'Content-Type': 'application/json'});
+      });
+
+      final apiClient = CloudApiClient(
+        baseUrl: 'https://test.zoop.network',
+        client: mockClient,
+        cryptoService: cryptoService,
+      );
+
+      final notifier = PeersNotifier(
+        cloudApiClient: apiClient,
+        storageService: storageService,
+      );
+
+      await notifier.loadPeers();
+
+      expect(notifier.state.peers, isEmpty);
+      expect(notifier.state.selectedPeer, isNull);
     });
 
     test('selectPeer updates selectedPeer', () async {

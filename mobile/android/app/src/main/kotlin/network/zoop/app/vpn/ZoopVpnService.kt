@@ -195,6 +195,14 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                 .setMtu(1420)
                 .setBlocking(true)
 
+            // Exclude Zoop app from its own VPN tunnel so control plane HTTPS,
+            // signaling WebSockets, and health checks are never blackholed.
+            try {
+                builder.addDisallowedApplication(packageName)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not exclude package from VPN tunnel: ${e.message}")
+            }
+
             if (routingMode == "full") {
                 // Full Internet Egress: Route all IPv4 & IPv6 traffic through Zoop exit node
                 builder.addRoute("0.0.0.0", 0)
@@ -244,7 +252,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                 val wgPrivKey = intent?.getStringExtra(EXTRA_WG_PRIV_KEY) ?: ""
                 val configJson = org.json.JSONObject().apply {
                     put("device_id", "android-device")
-                    put("cloud_url", "http://10.250.0.12:8080")
+                    put("cloud_url", "https://3.70.135.200.sslip.io")
                     if (wgPrivKey.isNotEmpty()) {
                         put("wireguard_private_key", wgPrivKey)
                     }

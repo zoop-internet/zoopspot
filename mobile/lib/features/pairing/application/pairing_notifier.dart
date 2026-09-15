@@ -118,10 +118,14 @@ class PairingNotifier extends StateNotifier<PairingState> {
 
   /// Claims an ephemeral pairing code to link with another device in the mesh.
   Future<bool> claimToken(String code) async {
-    final cleanCode = code.trim().toUpperCase();
+    var cleanCode = code.trim().toUpperCase();
     if (cleanCode.isEmpty) {
       state = state.copyWith(errorMessage: 'Please enter a valid pairing code');
       return false;
+    }
+
+    if (!cleanCode.startsWith('ZP-') && cleanCode.length == 6) {
+      cleanCode = 'ZP-$cleanCode';
     }
 
     state = state.copyWith(
@@ -157,9 +161,19 @@ class PairingNotifier extends StateNotifier<PairingState> {
       await loadFleet();
       return true;
     } catch (e) {
+      final errStr = e.toString().toLowerCase();
+      String userMessage = 'Pairing failed: $e';
+      if (errStr.contains('not_found') || errStr.contains('expired') || errStr.contains('404')) {
+        userMessage = 'Pairing code is invalid or has expired. Please run "zoop pin" on your computer to generate a fresh 6-character PIN.';
+      } else if (errStr.contains('cannot pair a device with itself') || errStr.contains('itself')) {
+        userMessage = 'Cannot pair this device with itself.';
+      } else if (errStr.contains('unreachable') || errStr.contains('socketexception') || errStr.contains('failed host lookup')) {
+        userMessage = 'Control plane is unreachable. Check your Wi-Fi or cellular data connection.';
+      }
+
       state = state.copyWith(
         isClaiming: false,
-        errorMessage: 'Pairing failed: $e',
+        errorMessage: userMessage,
       );
       return false;
     }
