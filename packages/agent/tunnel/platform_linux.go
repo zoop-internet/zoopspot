@@ -139,40 +139,62 @@ func getDefaultWANInterface() string {
 }
 
 func platformEnableForwarding(ifName string) error {
-	// Enable IP forwarding and disable reverse path filtering
+	// 1. Enable IPv4 packet forwarding via sysctl and procfs
 	_ = exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run()
-	_ = exec.Command("sh", "-c", "echo 1 > /proc/sys/net/ipv4/ip_forward").Run()
+	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.all.forwarding=1").Run()
+	_ = exec.Command("sh", "-c", "echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true").Run()
+
+	// Enable IPv6 packet forwarding if supported
+	_ = exec.Command("sysctl", "-w", "net.ipv6.conf.all.forwarding=1").Run()
+	_ = exec.Command("sh", "-c", "echo 1 > /proc/sys/net/ipv6/conf/all/forwarding 2>/dev/null || true").Run()
+
+	// Disable reverse path filtering
 	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.all.rp_filter=0").Run()
 	_ = exec.Command("sysctl", "-w", "net.ipv4.conf.default.rp_filter=0").Run()
 	_ = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.rp_filter=0", ifName)).Run()
 
 	wanIf := getDefaultWANInterface()
-	_ = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.rp_filter=0", wanIf)).Run()
+	if wanIf != "" && wanIf != ifName {
+		_ = exec.Command("sysctl", "-w", fmt.Sprintf("net.ipv4.conf.%s.rp_filter=0", wanIf)).Run()
+	}
 
 	// Set default FORWARD policy to ACCEPT
 	_ = exec.Command("iptables", "-P", "FORWARD", "ACCEPT").Run()
 
-	// 1. TCP MSS Clamping to prevent MTU fragmentation issues over WireGuard (MTU 1420)
+	// 2. TCP MSS Clamping to prevent MTU fragmentation issues over WireGuard (MTU 1420)
 	if err := exec.Command("iptables", "-C", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run(); err != nil {
-		_ = exec.Command("iptables", "-A", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
+		_ = exec.Command("iptables", "-I", "FORWARD", "1", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
 	}
 
-	// 2. MASQUERADE outbound traffic on WAN interface
-	if err := exec.Command("iptables", "-t", "nat", "-C", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run(); err != nil {
-		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
+	// 3. Universal NAT MASQUERADE for Zoop overlay subnet (100.64.0.0/10) exiting ANY physical interface (Wi-Fi, Ethernet, Cellular)
+	if err := exec.Command("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", "100.64.0.0/10", "!", "-o", ifName, "-j", "MASQUERADE").Run(); err != nil {
+		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-s", "100.64.0.0/10", "!", "-o", ifName, "-j", "MASQUERADE").Run()
 	}
 
-	// 3. Allow forwarding from TUN to WAN (insert at top to precede container drop rules)
-	if err := exec.Command("iptables", "-C", "FORWARD", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-I", "FORWARD", "1", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run()
+	// Also keep specific WAN interface rule if detected for backward compatibility
+	if wanIf != "" && wanIf != ifName {
+		if err := exec.Command("iptables", "-t", "nat", "-C", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run(); err != nil {
+			_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
+		}
 	}
 
-	// 4. Allow established return traffic from WAN to TUN
-	if err := exec.Command("iptables", "-C", "FORWARD", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-I", "FORWARD", "2", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	// 4. Universal Forwarding: Allow all traffic from TUN to ANY external interface
+	if err := exec.Command("iptables", "-C", "FORWARD", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run(); err != nil {
+		_ = exec.Command("iptables", "-I", "FORWARD", "2", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
 	}
 
-	// 5. Prepend to DOCKER-USER if Docker daemon exists
+	// 5. Allow established/related return traffic to TUN from ANY interface
+	if err := exec.Command("iptables", "-C", "FORWARD", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run(); err != nil {
+		_ = exec.Command("iptables", "-I", "FORWARD", "3", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	}
+
+	// 6. IPv6 ULA Masquerade & Forwarding (if ip6tables is available)
+	_ = exec.Command("ip6tables", "-t", "nat", "-A", "POSTROUTING", "-s", "fd00:7a6f:6f70::/64", "!", "-o", ifName, "-j", "MASQUERADE").Run()
+	_ = exec.Command("ip6tables", "-I", "FORWARD", "1", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-I", "FORWARD", "2", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-I", "FORWARD", "1", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
+
+	// 7. Prepend to DOCKER-USER if Docker daemon exists
 	_ = exec.Command("iptables", "-I", "DOCKER-USER", "1", "-i", ifName, "-j", "ACCEPT").Run()
 	_ = exec.Command("iptables", "-I", "DOCKER-USER", "2", "-o", ifName, "-j", "ACCEPT").Run()
 
@@ -183,10 +205,19 @@ func platformDisableForwarding(ifName string) error {
 	wanIf := getDefaultWANInterface()
 
 	// Clean up iptables rules gracefully on shutdown
-	_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
-	_ = exec.Command("iptables", "-D", "FORWARD", "-i", ifName, "-o", wanIf, "-j", "ACCEPT").Run()
-	_ = exec.Command("iptables", "-D", "FORWARD", "-i", wanIf, "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-s", "100.64.0.0/10", "!", "-o", ifName, "-j", "MASQUERADE").Run()
+	if wanIf != "" && wanIf != ifName {
+		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", wanIf, "-j", "MASQUERADE").Run()
+	}
+	_ = exec.Command("iptables", "-D", "FORWARD", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
+	_ = exec.Command("iptables", "-D", "FORWARD", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	_ = exec.Command("iptables", "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
+
+	// Clean up ip6tables
+	_ = exec.Command("ip6tables", "-t", "nat", "-D", "POSTROUTING", "-s", "fd00:7a6f:6f70::/64", "!", "-o", ifName, "-j", "MASQUERADE").Run()
+	_ = exec.Command("ip6tables", "-D", "FORWARD", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-D", "FORWARD", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
 
 	return nil
 }

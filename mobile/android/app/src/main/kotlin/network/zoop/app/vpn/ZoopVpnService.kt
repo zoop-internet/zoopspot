@@ -204,22 +204,27 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             }
 
             if (routingMode == "full") {
-                // Full Internet Egress: Route all IPv4 & IPv6 traffic through Zoop exit node
+                // Full Internet Egress: Route all IPv4 traffic through Zoop exit node
                 builder.addRoute("0.0.0.0", 0)
-                // IPv6 Leak Protection: Assign ULA IPv6 address and sinkhole all IPv6 traffic into the tunnel
+                // Internal overlay address and route for mesh communication
                 builder.addAddress("fd00:7a6f:6f70::2", 128)
-                builder.addRoute("::", 0)
+                builder.addRoute("fd00:7a6f:6f70::", 64)
 
-                // High-performance privacy DNS resolvers
+                // High-performance resilient DNS resolvers (Cloudflare, Google, Quad9)
+                // Providing multiple IPv4 resolvers ensures Android Private DNS (DoT 853)
+                // and standard DNS (UDP 53) resolve instantly without IPv6 Happy Eyeballs hangs.
                 builder.addDnsServer("1.1.1.1")
+                builder.addDnsServer("8.8.8.8")
                 builder.addDnsServer("1.0.0.1")
-                builder.addDnsServer("2606:4700:4700::1111")
+                builder.addDnsServer("8.8.4.4")
+                builder.addDnsServer("9.9.9.9")
             } else {
                 // Split Tunnel: Route only Zoop mesh overlay
                 builder.addRoute("100.64.0.0", 10)
                 builder.addAddress("fd00:7a6f:6f70::2", 128)
                 builder.addRoute("fd00:7a6f:6f70::", 64)
-                builder.addDnsServer("100.64.0.1")
+                builder.addDnsServer("1.1.1.1")
+                builder.addDnsServer("8.8.8.8")
             }
 
             // Register screen state receiver for adaptive power saving

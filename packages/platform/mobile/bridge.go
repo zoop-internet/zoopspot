@@ -218,9 +218,8 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 			targetPort = bestCand.Port
 			slog.Info("ProbeCandidatesMux selected optimal candidate", "ip", targetIP, "port", targetPort)
 		} else {
-			targetIP = candidates[0].IP
-			targetPort = candidates[0].Port
-			slog.Info("ProbeCandidatesMux fallback to candidate[0]", "ip", targetIP, "port", targetPort, "err", err)
+			targetIP, targetPort = selectFallbackCandidate(candidates)
+			slog.Info("ProbeCandidatesMux fallback candidate selected", "ip", targetIP, "port", targetPort, "err", err)
 		}
 	}
 
@@ -365,4 +364,68 @@ func Disconnect() {
 	}
 
 	slog.Info("Zoop Mobile Core disconnected")
+}
+
+// selectFallbackCandidate chooses the best candidate when live probing fails or times out.
+// It prioritizes candidates on the same local subnet as the device, then STUN public
+// (Srflx) candidates, then non-loopback host candidates, avoiding dead loopback endpoints.
+func selectFallbackCandidate(candidates []types.EndpointCandidate) (string, int) {
+	if len(candidates) == 0 {
+		return "", 0
+	}
+
+	// 1. Gather active local network subnets on mobile device
+	var localSubnets []*net.IPNet
+	if ifaces, err := net.Interfaces(); err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			if addrs, err := iface.Addrs(); err == nil {
+				for _, addr := range addrs {
+					if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+						localSubnets = append(localSubnets, ipNet)
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Check if any candidate is on the same local subnet as mobile device
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip == nil || ip.IsLoopback() || cand.Port == 0 {
+			continue
+		}
+		for _, subnet := range localSubnets {
+			if subnet.Contains(ip) {
+				slog.Info("selectFallbackCandidate: found same-subnet candidate", "ip", cand.IP, "port", cand.Port)
+				return cand.IP, cand.Port
+			}
+		}
+	}
+
+	// 3. If not on same subnet, prefer Srflx (STUN public IP) candidate
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip == nil || ip.IsLoopback() || cand.Port == 0 {
+			continue
+		}
+		if cand.Type == types.CandidateTypeSrflx {
+			slog.Info("selectFallbackCandidate: preferring srflx candidate", "ip", cand.IP, "port", cand.Port)
+			return cand.IP, cand.Port
+		}
+	}
+
+	// 4. Fallback to first non-loopback candidate
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip != nil && !ip.IsLoopback() && cand.Port != 0 {
+			slog.Info("selectFallbackCandidate: using non-loopback candidate", "ip", cand.IP, "port", cand.Port)
+			return cand.IP, cand.Port
+		}
+	}
+
+	// 5. Ultimate fallback
+	return candidates[0].IP, candidates[0].Port
 }

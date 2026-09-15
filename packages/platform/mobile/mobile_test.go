@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 	"testing"
+
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
 type mockCallback struct {
@@ -97,4 +99,42 @@ func TestMobileConfigError(t *testing.T) {
 		t.Fatalf("expected callback OnError to be called")
 	}
 	cb.mu.Unlock()
+}
+
+func TestSelectFallbackCandidate(t *testing.T) {
+	// 1. Empty candidates
+	ip, port := selectFallbackCandidate(nil)
+	if ip != "" || port != 0 {
+		t.Fatalf("expected empty for nil candidates, got %s:%d", ip, port)
+	}
+
+	// 2. Loopback candidate at index 0 followed by public Srflx candidate
+	cands := []types.EndpointCandidate{
+		{IP: "127.0.0.1", Port: 51820, Type: types.CandidateTypeHost},
+		{IP: "203.0.113.5", Port: 54321, Type: types.CandidateTypeSrflx},
+	}
+	ip, port = selectFallbackCandidate(cands)
+	if ip != "203.0.113.5" || port != 54321 {
+		t.Fatalf("expected srflx candidate 203.0.113.5:54321, got %s:%d", ip, port)
+	}
+
+	// 3. Virtual/docker candidate vs Srflx candidate
+	cands = []types.EndpointCandidate{
+		{IP: "172.17.0.1", Port: 51820, Type: types.CandidateTypeHost},
+		{IP: "198.51.100.25", Port: 41234, Type: types.CandidateTypeSrflx},
+	}
+	ip, port = selectFallbackCandidate(cands)
+	if ip != "198.51.100.25" || port != 41234 {
+		t.Fatalf("expected srflx candidate 198.51.100.25:41234, got %s:%d", ip, port)
+	}
+
+	// 4. Non-loopback host candidate when loopback is first
+	cands = []types.EndpointCandidate{
+		{IP: "127.0.0.1", Port: 51820, Type: types.CandidateTypeHost},
+		{IP: "10.0.0.5", Port: 51820, Type: types.CandidateTypeHost},
+	}
+	ip, port = selectFallbackCandidate(cands)
+	if ip != "10.0.0.5" || port != 51820 {
+		t.Fatalf("expected non-loopback candidate 10.0.0.5:51820, got %s:%d", ip, port)
+	}
 }

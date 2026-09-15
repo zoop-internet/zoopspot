@@ -268,7 +268,11 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					s.Logger.Info("received peer wireguard public key, configuring tunnel")
 					peerKey, err := tunnel.ParsePublicKey(payload.WireGuardPublicKey)
 					if err == nil {
-						allowedIPs := []string{payload.RecipientIP + "/32"}
+						allowedIPs := []string{}
+						if payload.RecipientIP != "" {
+							allowedIPs = append(allowedIPs, payload.RecipientIP+"/32")
+						}
+						allowedIPs = append(allowedIPs, "fd00:7a6f:6f70::/64")
 
 						targetIP := payload.EndpointIP
 						targetPort := payload.EndpointPort
@@ -360,7 +364,7 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 				}
 			}
 
-			allowedIPs := []string{"0.0.0.0/0"}
+			allowedIPs := []string{"0.0.0.0/0", "::/0"}
 			if payload.ProviderIP != "" {
 				allowedIPs = append(allowedIPs, payload.ProviderIP+"/32")
 			}

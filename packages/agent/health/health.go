@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -135,6 +137,9 @@ func (c *Checker) RunDiagnostics(ctx context.Context) DiagnosticReport {
 	// 9. Latency & Throughput Benchmark
 	latCheck, latStats := c.checkLatencyThroughput(ctx)
 	checks = append(checks, latCheck)
+
+	// 10. Kernel IP Forwarding Check
+	checks = append(checks, c.checkIPForwarding())
 
 	overallHealthy := true
 	for _, chk := range checks {
@@ -783,4 +788,43 @@ func (c *Checker) checkLatencyThroughput(ctx context.Context) (CheckResult, *Lat
 		Message: fmt.Sprintf("RTT min=%.1fms avg=%.1fms max=%.1fms (%d samples)%s",
 			minRTT, avgRTT, maxRTT, len(rtts), throughputMsg),
 	}, stats
+}
+
+func (c *Checker) checkIPForwarding() CheckResult {
+	start := time.Now()
+	if runtime.GOOS == "linux" {
+		data, err := os.ReadFile("/proc/sys/net/ipv4/ip_forward")
+		elapsed := time.Since(start)
+		if err != nil {
+			return CheckResult{
+				Name:    "Kernel IP Forwarding",
+				Passed:  false,
+				Latency: elapsed,
+				Message: "Unable to inspect /proc/sys/net/ipv4/ip_forward",
+				Details: err.Error(),
+			}
+		}
+		val := strings.TrimSpace(string(data))
+		if val == "1" {
+			return CheckResult{
+				Name:    "Kernel IP Forwarding",
+				Passed:  true,
+				Latency: elapsed,
+				Message: "IPv4 forwarding is enabled in kernel",
+			}
+		}
+		return CheckResult{
+			Name:    "Kernel IP Forwarding",
+			Passed:  false,
+			Latency: elapsed,
+			Message: "IPv4 forwarding is DISABLED (enable via: sudo sysctl -w net.ipv4.ip_forward=1)",
+		}
+	}
+
+	return CheckResult{
+		Name:    "Kernel IP Forwarding",
+		Passed:  true,
+		Latency: time.Since(start),
+		Message: fmt.Sprintf("Platform %s IP forwarding handled by system network stack", runtime.GOOS),
+	}
 }

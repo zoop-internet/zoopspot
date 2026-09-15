@@ -51,6 +51,17 @@ func TestChecker_RunDiagnostics(t *testing.T) {
 		t.Errorf("expected at least 4 diagnostic checks, got %d", len(report.Checks))
 	}
 
+	foundForwardingCheck := false
+	for _, chk := range report.Checks {
+		if chk.Name == "Kernel IP Forwarding" {
+			foundForwardingCheck = true
+			break
+		}
+	}
+	if !foundForwardingCheck {
+		t.Errorf("expected Kernel IP Forwarding check in diagnostic report")
+	}
+
 	if len(report.PeerTelemetry) == 0 {
 		t.Errorf("expected peer telemetry snapshot, got none")
 	}
