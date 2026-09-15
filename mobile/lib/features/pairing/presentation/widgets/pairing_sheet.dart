@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/zoop_colors.dart';
 import '../../application/pairing_notifier.dart';
-import '../../dashboard/application/peers_notifier.dart';
+import 'package:zoop_mobile/features/dashboard/application/peers_notifier.dart';
 
 class PairingSheet extends ConsumerStatefulWidget {
   final int initialTabIndex;
