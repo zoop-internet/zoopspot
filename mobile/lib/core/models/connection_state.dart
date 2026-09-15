@@ -9,7 +9,8 @@ enum ConnectionStatus {
 
   bool get isConnected =>
       this == ConnectionStatus.connectedDirect ||
-      this == ConnectionStatus.connectedRelay;
+      this == ConnectionStatus.connectedRelay ||
+      this == ConnectionStatus.roaming;
 
   String get label {
     switch (this) {

@@ -1,5 +1,6 @@
 # Binaries and compiled libraries
 bin/
+dist/
 *.exe
 *.dll
 *.so

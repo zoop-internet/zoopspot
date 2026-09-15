@@ -120,6 +120,11 @@ class MainActivity : FlutterActivity() {
                             events?.success(eventMap)
                         }
                     }
+                    ZoopVpnService.lastEmittedEvent?.let { lastEvent ->
+                        runOnUiThread {
+                            events?.success(lastEvent)
+                        }
+                    }
                 }
 
                 override fun onCancel(arguments: Any?) {

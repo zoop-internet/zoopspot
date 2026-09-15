@@ -12,10 +12,10 @@ class SharingState {
   final SharingPolicy policy;
 
   const SharingState({
-    this.isSharingActive = true,
-    this.status = SharingStatus.active,
-    this.currentEgressMbps = 4.2,
-    this.usedTodayGb = 3.8,
+    this.isSharingActive = false,
+    this.status = SharingStatus.disabled,
+    this.currentEgressMbps = 0.0,
+    this.usedTodayGb = 0.0,
     this.recipients = const [],
     this.pendingRequests = const [],
     this.policy = const SharingPolicy(),
@@ -46,7 +46,6 @@ class SharingNotifier extends StateNotifier<SharingState> {
   Timer? _ticker;
 
   SharingNotifier() : super(const SharingState()) {
-    _loadInitialData();
     _startThroughputSimulator();
   }
 
@@ -57,55 +56,9 @@ class SharingNotifier extends StateNotifier<SharingState> {
   }
 
   void _loadInitialData() {
-    final recipients = [
-      ConnectedRecipientItem(
-        id: 'rec-01',
-        peerZoopId: 'ZP-US-NYC-081',
-        name: 'Alice MacBook Pro',
-        platform: 'macOS Sonoma',
-        connectedSince: DateTime.now().subtract(const Duration(minutes: 42)),
-        currentRateKbps: 2450,
-        totalTransferredBytes: 420000000,
-        assignedVirtualIp: '10.99.1.14',
-      ),
-      ConnectedRecipientItem(
-        id: 'rec-02',
-        peerZoopId: 'ZP-FR-PAR-922',
-        name: 'Jean Pixel 8',
-        platform: 'Android 14',
-        connectedSince: DateTime.now().subtract(const Duration(minutes: 18)),
-        currentRateKbps: 1280,
-        totalTransferredBytes: 150000000,
-        assignedVirtualIp: '10.99.1.18',
-      ),
-    ];
-
-    final requests = [
-      InboundSharingRequestItem(
-        id: 'req-01',
-        requesterZoopId: 'ZP-DE-HAM-551',
-        name: 'Klaus ThinkPad T14',
-        platform: 'Arch Linux',
-        requestedAt: DateTime.now().subtract(const Duration(minutes: 5)),
-        trustScore: 98.2,
-        requestedBandwidthMbps: 15,
-        note: 'Requires high-speed WireGuard tunnel for developer repository sync.',
-      ),
-      InboundSharingRequestItem(
-        id: 'req-02',
-        requesterZoopId: 'ZP-JP-TOK-312',
-        name: 'Kenji iPhone 15',
-        platform: 'iOS 17',
-        requestedAt: DateTime.now().subtract(const Duration(minutes: 14)),
-        trustScore: 95.0,
-        requestedBandwidthMbps: 5,
-        note: 'Browsing research articles securely.',
-      ),
-    ];
-
     state = state.copyWith(
-      recipients: recipients,
-      pendingRequests: requests,
+      recipients: const [],
+      pendingRequests: const [],
     );
   }
 

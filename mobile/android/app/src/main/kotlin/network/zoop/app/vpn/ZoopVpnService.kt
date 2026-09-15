@@ -360,15 +360,15 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
     }
 
     private fun emitState(state: String, endpoint: String, isDirect: Boolean) {
+        val eventMap = mapOf(
+            "type" to "state_change",
+            "state" to state,
+            "endpoint" to endpoint,
+            "isDirect" to isDirect
+        )
+        lastEmittedEvent = eventMap
         mainHandler.post {
-            eventListener?.invoke(
-                mapOf(
-                    "type" to "state_change",
-                    "state" to state,
-                    "endpoint" to endpoint,
-                    "isDirect" to isDirect
-                )
-            )
+            eventListener?.invoke(eventMap)
         }
     }
 
@@ -404,6 +404,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         const val EXTRA_CLIENT_IP = "com.zoop.vpn.CLIENT_IP"
 
         var isRunning: Boolean = false
+        var lastEmittedEvent: Map<String, Any>? = null
         var eventListener: ((Map<String, Any>) -> Unit)? = null
     }
 }

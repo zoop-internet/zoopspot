@@ -98,7 +98,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         final state = event['state'] as String?;
         final isDirect = event['isDirect'] as bool? ?? true;
         setState(() {
-          if (state == 'connected') {
+          if (state == 'connected' || state == 'direct' || state == 'relayed' || state == 'recovered') {
             _status = isDirect
                 ? ConnectionStatus.connectedDirect
                 : ConnectionStatus.connectedRelay;
@@ -114,6 +114,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             _pulseController.stop();
           } else if (state == 'roaming') {
             _status = ConnectionStatus.roaming;
+          } else if (state == 'paused') {
+            _status = ConnectionStatus.paused;
           }
         });
       } else if (type == 'error') {
@@ -132,7 +134,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final vpnBridge = ref.read(vpnBridgeServiceProvider);
     final peersState = ref.read(peersNotifierProvider);
 
-    if (_status == ConnectionStatus.disconnected) {
+    if (!_status.isConnected && _status != ConnectionStatus.connecting) {
       final targetPeer = peersState.selectedPeer ??
           (peersState.peers.isNotEmpty ? peersState.peers.first : null);
 
@@ -237,18 +239,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         }
       }
     } else {
-      final activePeer = peersState.selectedPeer ??
-          (peersState.peers.isNotEmpty ? peersState.peers.first : null);
-      final confirm = await ZoopConfirmDialog.show(
-        context: context,
-        title: 'Disconnect VPN Tunnel?',
-        message: 'Your active encrypted tunnel session${activePeer != null ? ' to "${activePeer.name}"' : ''} will be terminated.',
-        confirmLabel: 'Disconnect',
-        cancelLabel: 'Keep Connected',
-        isDestructive: true,
-        icon: Icons.link_off_rounded,
-      );
-      if (!confirm) return;
+      if (_status.isConnected) {
+        final activePeer = peersState.selectedPeer ??
+            (peersState.peers.isNotEmpty ? peersState.peers.first : null);
+        final confirm = await ZoopConfirmDialog.show(
+          context: context,
+          title: 'Disconnect VPN Tunnel?',
+          message: 'Your active encrypted tunnel session${activePeer != null ? ' to "${activePeer.name}"' : ''} will be terminated.',
+          confirmLabel: 'Disconnect',
+          cancelLabel: 'Keep Connected',
+          isDestructive: true,
+          icon: Icons.link_off_rounded,
+        );
+        if (!confirm) return;
+      }
 
       try {
         await vpnBridge.stopTunnel();
@@ -514,12 +518,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     bool isConnecting, {
     String? targetPeerName,
   }) {
-    final actionLabel = isConnected
-        ? 'Disconnect VPN tunnel'
-        : (isConnecting
-            ? 'Connecting to ${targetPeerName ?? "peer"}...'
-            : 'Connect VPN tunnel to ${targetPeerName ?? "peer"}');
-
     if (isConnected) {
       return ZoopButton.destructive(
         label: 'Disconnect',
@@ -527,18 +525,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         onPressed: _toggleConnection,
         isFullWidth: true,
         height: 52,
-        semanticsLabel: actionLabel,
+        semanticsLabel: 'Disconnect VPN tunnel',
+      );
+    }
+
+    if (isConnecting) {
+      return ZoopButton.destructive(
+        label: 'Cancel Connecting',
+        icon: Icons.close_rounded,
+        onPressed: _toggleConnection,
+        isFullWidth: true,
+        height: 52,
+        semanticsLabel: 'Cancel connection attempt to ${targetPeerName ?? "peer"}',
       );
     }
 
     return ZoopButton.primary(
-      label: isConnecting ? 'Connecting...' : 'Connect',
-      icon: isConnecting ? null : Icons.bolt_rounded,
-      isLoading: isConnecting,
-      onPressed: isConnecting ? null : _toggleConnection,
+      label: 'Connect',
+      icon: Icons.bolt_rounded,
+      onPressed: _toggleConnection,
       isFullWidth: true,
       height: 52,
-      semanticsLabel: actionLabel,
+      semanticsLabel: 'Connect VPN tunnel to ${targetPeerName ?? "peer"}',
     );
   }
 }
