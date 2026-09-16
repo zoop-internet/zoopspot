@@ -150,6 +150,18 @@ func goGetConnectionStatus() *C.char {
 	return C.CString(status)
 }
 
+//export goGetCandidatesJSON
+func goGetCandidatesJSON() *C.char {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("panic recovered in goGetCandidatesJSON", "recover", r)
+		}
+	}()
+	candidates := mobile.GetCandidatesJSON()
+	return C.CString(candidates)
+}
+
+
 //export goFreeString
 func goFreeString(str *C.char) {
 	if str != nil {

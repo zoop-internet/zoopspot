@@ -51,6 +51,9 @@ class MockVpnBridge implements IVpnBridgeService {
 
   @override
   Stream<Map<dynamic, dynamic>> get vpnEvents => const Stream.empty();
+
+  @override
+  Future<String> getCandidates() async => '[]';
 }
 
 class MockBiometrics implements IBiometricAuthService {
@@ -217,6 +220,7 @@ class MockCloudApi implements ICloudApiClient {
     required String targetDeviceId,
     required List<int> privateKeySeed,
     String? wireguardPublicKey,
+    List<dynamic>? candidates,
   }) async {
     connectionCreated = true;
     lastConnectedTargetId = targetDeviceId;

@@ -86,6 +86,7 @@ abstract class ICloudApiClient {
     required String targetDeviceId,
     required List<int> privateKeySeed,
     String? wireguardPublicKey,
+    List<dynamic>? candidates,
   });
 
   /// Lists active shares for this device.

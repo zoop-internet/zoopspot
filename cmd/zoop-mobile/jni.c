@@ -14,6 +14,7 @@ extern int goConnectPeer(const char* peerPubKey, const char* candidatesJSON, con
 extern void goNotifyNetworkChange(const char* networkType);
 extern void goSetPowerSavingMode(int enabled);
 extern char* goGetConnectionStatus(void);
+extern char* goGetCandidatesJSON(void);
 extern void goFreeString(char* str);
 extern void goDisconnect(void);
 
@@ -234,6 +235,17 @@ JNIEXPORT jstring JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_getConnecti
     jstring res = (*env)->NewStringUTF(env, cStatus ? cStatus : "{}");
     if (cStatus) {
         goFreeString(cStatus);
+    }
+    return res;
+}
+
+JNIEXPORT jstring JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_getCandidatesJSON(
+    JNIEnv* env, jobject thiz
+) {
+    char* cCand = goGetCandidatesJSON();
+    jstring res = (*env)->NewStringUTF(env, cCand ? cCand : "[]");
+    if (cCand) {
+        goFreeString(cCand);
     }
     return res;
 }

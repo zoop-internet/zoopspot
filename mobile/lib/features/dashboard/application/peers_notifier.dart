@@ -245,7 +245,10 @@ class PeersNotifier extends StateNotifier<PeersState> {
   }
 
   /// Establishes an authenticated connection session with a target peer via the Cloud Control Plane.
-  Future<Map<String, dynamic>?> initiatePeerConnection(PeerDevice targetPeer) async {
+  Future<Map<String, dynamic>?> initiatePeerConnection(
+    PeerDevice targetPeer, {
+    List<dynamic>? candidates,
+  }) async {
     try {
       final endpointId = await _storage.getEndpointId();
       final seed = await _storage.getEd25519SeedBytes();
@@ -261,6 +264,7 @@ class PeersNotifier extends StateNotifier<PeersState> {
         targetDeviceId: targetId,
         privateKeySeed: seed,
         wireguardPublicKey: wgPubKey,
+        candidates: candidates,
       );
     } catch (_) {
       return null;

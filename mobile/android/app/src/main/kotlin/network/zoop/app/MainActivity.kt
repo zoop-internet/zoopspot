@@ -7,6 +7,8 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import android.util.Log
+import network.zoop.app.vpn.ZoopMobileBridge
 import network.zoop.app.vpn.ZoopVpnService
 
 class MainActivity : FlutterActivity() {
@@ -104,6 +106,18 @@ class MainActivity : FlutterActivity() {
                     val cm = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
                     val isMetered = cm?.isActiveNetworkMetered ?: false
                     result.success(isMetered)
+                }
+                "getCandidates" -> {
+                    try {
+                        val candidates = ZoopMobileBridge.getCandidatesJSON()
+                        result.success(candidates)
+                    } catch (e: UnsatisfiedLinkError) {
+                        Log.w("MainActivity", "Native getCandidates bypassed")
+                        result.success("[]")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Failed to get candidates: ${e.message}")
+                        result.success("[]")
+                    }
                 }
                 else -> {
                     result.notImplemented()

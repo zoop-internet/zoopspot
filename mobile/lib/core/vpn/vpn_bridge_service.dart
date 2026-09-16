@@ -107,4 +107,18 @@ class VpnBridgeService implements IVpnBridgeService {
         .map((event) => event as Map<dynamic, dynamic>);
     return _eventsStream!;
   }
+
+  /// Gathers local and STUN public endpoint candidates from the native runtime.
+  @override
+  Future<String> getCandidates() async {
+    try {
+      final String? result =
+          await _methodChannel.invokeMethod<String>('getCandidates');
+      return result ?? '[]';
+    } on MissingPluginException {
+      return '[]';
+    } catch (_) {
+      return '[]';
+    }
+  }
 }

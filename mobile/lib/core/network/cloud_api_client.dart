@@ -258,6 +258,7 @@ class CloudApiClient implements ICloudApiClient {
     required String targetDeviceId,
     required List<int> privateKeySeed,
     String? wireguardPublicKey,
+    List<dynamic>? candidates,
   }) async {
     final body = <String, dynamic>{
       'recipient_id': endpointId,
@@ -265,6 +266,9 @@ class CloudApiClient implements ICloudApiClient {
     };
     if (wireguardPublicKey != null && wireguardPublicKey.isNotEmpty) {
       body['wireguard_public_key'] = wireguardPublicKey;
+    }
+    if (candidates != null && candidates.isNotEmpty) {
+      body['candidates'] = candidates;
     }
 
     final result = await authenticatedRequest(

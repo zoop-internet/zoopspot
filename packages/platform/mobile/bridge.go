@@ -366,10 +366,41 @@ func Disconnect() {
 	slog.Info("Zoop Mobile Core disconnected")
 }
 
+// GetCandidatesJSON gathers local and STUN candidates and returns them as a JSON string.
+func GetCandidatesJSON() string {
+	mu.RLock()
+	dm := devMgr
+	mu.RUnlock()
+
+	var candidates []types.EndpointCandidate
+	var err error
+
+	if dm != nil {
+		port, _ := dm.GetListenPort()
+		candidates, err = tunnel.GatherCandidatesMux(dm.GetMuxBind(), port)
+	} else {
+		candidates, err = tunnel.GatherCandidates(0)
+	}
+
+	if err != nil || len(candidates) == 0 {
+		slog.Warn("failed or empty candidates gathered in mobile bridge", "err", err)
+		return "[]"
+	}
+
+	data, err := json.Marshal(candidates)
+	if err != nil {
+		slog.Warn("failed to marshal candidates to json", "err", err)
+		return "[]"
+	}
+
+	return string(data)
+}
+
 // selectFallbackCandidate chooses the best candidate when live probing fails or times out.
 // It prioritizes candidates on the same local subnet as the device, then STUN public
 // (Srflx) candidates, then non-loopback host candidates, avoiding dead loopback endpoints.
 func selectFallbackCandidate(candidates []types.EndpointCandidate) (string, int) {
 	return tunnel.SelectFallbackCandidate(candidates)
 }
+
 

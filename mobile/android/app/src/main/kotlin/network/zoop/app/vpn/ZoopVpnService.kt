@@ -45,6 +45,7 @@ object ZoopMobileBridge {
     external fun notifyNetworkChange(networkType: String)
     external fun setPowerSavingMode(enabled: Boolean)
     external fun getConnectionStatus(): String
+    external fun getCandidatesJSON(): String
     external fun disconnect()
 }
 

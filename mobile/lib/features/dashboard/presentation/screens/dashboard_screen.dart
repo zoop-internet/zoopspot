@@ -176,10 +176,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           .read(peersNotifierProvider.notifier)
           .resolvePeerDetails(targetPeer);
 
-      // 2. Control plane session
+      // Gather local & STUN candidates from native mobile bridge
+      List<dynamic>? myCandidates;
+      try {
+        final candsJson = await vpnBridge.getCandidates();
+        if (candsJson.isNotEmpty && candsJson != '[]') {
+          myCandidates = json.decode(candsJson) as List<dynamic>;
+        }
+      } catch (e) {
+        debugPrint('Failed to gather local candidates: $e');
+      }
+
+      // 2. Control plane session with gathered candidates
       final conn = await ref
           .read(peersNotifierProvider.notifier)
-          .initiatePeerConnection(targetPeer);
+          .initiatePeerConnection(targetPeer, candidates: myCandidates);
 
       final peerKey = (conn?['wireguard_public_key'] as String?)?.isNotEmpty == true
           ? conn!['wireguard_public_key'] as String

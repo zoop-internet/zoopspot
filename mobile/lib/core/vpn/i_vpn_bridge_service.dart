@@ -23,4 +23,7 @@ abstract class IVpnBridgeService {
 
   /// Real-time stream of native network events (state changes, roaming, errors).
   Stream<Map<dynamic, dynamic>> get vpnEvents;
+
+  /// Gathers local and STUN public endpoint candidates from the native runtime.
+  Future<String> getCandidates();
 }
