@@ -118,9 +118,9 @@ func TestSelectFallbackCandidate(t *testing.T) {
 		t.Fatalf("expected srflx candidate 203.0.113.5:54321, got %s:%d", ip, port)
 	}
 
-	// 3. Virtual/docker candidate vs Srflx candidate
+	// 3. Non-matching host candidate vs Srflx candidate
 	cands = []types.EndpointCandidate{
-		{IP: "172.17.0.1", Port: 51820, Type: types.CandidateTypeHost},
+		{IP: "192.0.2.1", Port: 51820, Type: types.CandidateTypeHost},
 		{IP: "198.51.100.25", Port: 41234, Type: types.CandidateTypeSrflx},
 	}
 	ip, port = selectFallbackCandidate(cands)

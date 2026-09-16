@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -374,11 +375,22 @@ func selectFallbackCandidate(candidates []types.EndpointCandidate) (string, int)
 		return "", 0
 	}
 
-	// 1. Gather active local network subnets on mobile device
+	// 1. Gather active local physical network subnets on mobile device
 	var localSubnets []*net.IPNet
 	if ifaces, err := net.Interfaces(); err == nil {
 		for _, iface := range ifaces {
-			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagPointToPoint != 0 {
+				continue
+			}
+			name := strings.ToLower(iface.Name)
+			isVirtual := false
+			for _, prefix := range []string{"zoop", "tun", "tap", "wg", "utun", "docker", "veth", "br-", "virbr"} {
+				if strings.HasPrefix(name, prefix) {
+					isVirtual = true
+					break
+				}
+			}
+			if isVirtual {
 				continue
 			}
 			if addrs, err := iface.Addrs(); err == nil {
