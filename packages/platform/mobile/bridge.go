@@ -138,7 +138,7 @@ func StartTunnel(fd int, ifName string) error {
 		}
 	}
 
-	if err := dm.ConfigureDevice(privKey, 0); err != nil {
+	if err := dm.ConfigureDevice(privKey, 51820); err != nil {
 		if activeCallback != nil {
 			activeCallback.OnError("DEVICE_CONFIG_ERROR", fmt.Sprintf("failed to configure device: %v", err))
 		}
@@ -389,10 +389,10 @@ func GetCandidatesJSONWithLocalIP(localIP string) string {
 		port, _ := dm.GetListenPort()
 		candidates, err = tunnel.GatherCandidatesWithLocalIP(dm.GetMuxBind(), port, localIP)
 	} else {
-		candidates, err = tunnel.GatherCandidatesWithLocalIP(nil, 0, localIP)
+		candidates, err = tunnel.GatherCandidatesWithLocalIP(nil, 51820, localIP)
 	}
 
-	if err != nil || len(candidates) == 0 {
+	if len(candidates) == 0 {
 		slog.Warn("failed or empty candidates gathered in mobile bridge", "err", err)
 		return "[]"
 	}

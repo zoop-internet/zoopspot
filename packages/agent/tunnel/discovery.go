@@ -77,7 +77,12 @@ func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 			return
 		}
 
-		conn, err := net.DialUDP("udp", nil, stunServerAddr)
+		var laddr *net.UDPAddr
+		if localPort > 0 {
+			laddr = &net.UDPAddr{Port: localPort}
+		}
+
+		conn, err := net.DialUDP("udp", laddr, stunServerAddr)
 		if err != nil {
 			resChan <- result{"", 0, fmt.Errorf("failed to dial %s: %w", stunServer, err)}
 			return
