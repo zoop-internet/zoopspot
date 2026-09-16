@@ -333,3 +333,75 @@ func GatherCandidatesMux(mb *muxbind.MuxBind, fallbackPort int) ([]types.Endpoin
 
 	return candidates, nil
 }
+
+// SelectFallbackCandidate selects the most optimal candidate based on local network topology
+// (prioritizing same-subnet host candidates, then Srflx public candidates, then non-loopback candidates).
+func SelectFallbackCandidate(candidates []types.EndpointCandidate) (string, int) {
+	if len(candidates) == 0 {
+		return "", 0
+	}
+
+	// 1. Gather all local non-virtual subnets
+	var localSubnets []*net.IPNet
+	if ifaces, err := net.Interfaces(); err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagPointToPoint != 0 {
+				continue
+			}
+			name := strings.ToLower(iface.Name)
+			isVirtual := false
+			for _, prefix := range []string{"zoop", "tun", "tap", "wg", "utun", "docker", "veth", "br-", "virbr"} {
+				if strings.HasPrefix(name, prefix) {
+					isVirtual = true
+					break
+				}
+			}
+			if isVirtual {
+				continue
+			}
+			if addrs, err := iface.Addrs(); err == nil {
+				for _, addr := range addrs {
+					if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+						localSubnets = append(localSubnets, ipNet)
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Check if any candidate is on the same local subnet
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip == nil || ip.IsLoopback() || cand.Port == 0 {
+			continue
+		}
+		for _, subnet := range localSubnets {
+			if subnet.Contains(ip) {
+				return cand.IP, cand.Port
+			}
+		}
+	}
+
+	// 3. If not on same subnet, prefer Srflx (STUN public IP) candidate
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip == nil || ip.IsLoopback() || cand.Port == 0 {
+			continue
+		}
+		if cand.Type == types.CandidateTypeSrflx {
+			return cand.IP, cand.Port
+		}
+	}
+
+	// 4. Fallback to first non-loopback candidate
+	for _, cand := range candidates {
+		ip := net.ParseIP(cand.IP)
+		if ip != nil && !ip.IsLoopback() && cand.Port != 0 {
+			return cand.IP, cand.Port
+		}
+	}
+
+	// 5. Ultimate fallback
+	return candidates[0].IP, candidates[0].Port
+}
+

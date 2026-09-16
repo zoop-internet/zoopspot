@@ -286,23 +286,17 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 								targetIP = bestCand.IP
 								targetPort = bestCand.Port
 							} else {
-								s.Logger.Warn("candidate probing yielded no direct response, checking relay bridge fallback", "error", err)
-								if s.relayBridge != nil {
-									if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
-										targetIP = "127.0.0.1"
-										targetPort = rPort
-										s.Logger.Info("falling back to relay bridge on provider", "relay_port", rPort)
-									}
-								}
+								s.Logger.Info("candidate probing yielded no direct response, provider will listen passively for client handshake", "error", err)
+								targetIP = ""
+								targetPort = 0
 							}
-						} else if targetIP == "" || targetPort == 0 {
-							if s.relayBridge != nil {
-								if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
-									targetIP = "127.0.0.1"
-									targetPort = rPort
-									s.Logger.Info("no direct candidates available, routed via relay bridge on provider", "relay_port", rPort)
-								}
-							}
+						} else {
+							// In WireGuard provider/server mode, the provider listens passively.
+							// Setting targetIP to "" and targetPort to 0 tells WireGuard not to set a static endpoint,
+							// allowing WireGuard to automatically roam and bind to the client's source IP and port
+							// upon receiving the client's handshake packet.
+							targetIP = ""
+							targetPort = 0
 						}
 
 						err = s.tunnelManager.AddPeer(peerKey, targetIP, targetPort, allowedIPs)
@@ -382,8 +376,13 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					targetIP = bestCand.IP
 					targetPort = bestCand.Port
 				} else {
-					s.Logger.Warn("candidate probing yielded no direct response, checking relay bridge fallback", "error", err)
-					if s.relayBridge != nil {
+					s.Logger.Warn("candidate probing yielded no direct response, selecting best direct fallback candidate", "error", err)
+					fallbackIP, fallbackPort := tunnel.SelectFallbackCandidate(payload.Candidates)
+					if fallbackIP != "" && fallbackPort != 0 {
+						targetIP = fallbackIP
+						targetPort = fallbackPort
+						s.Logger.Info("selected direct fallback candidate on recipient", "ip", targetIP, "port", targetPort)
+					} else if s.relayBridge != nil {
 						if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
 							targetIP = "127.0.0.1"
 							targetPort = rPort
