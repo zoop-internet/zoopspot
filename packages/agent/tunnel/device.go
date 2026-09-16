@@ -3,6 +3,7 @@ package tunnel
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/allannuwamanya/zoop/packages/agent/tunnel/muxbind"
 	"golang.zx2c4.com/wireguard/conn"
@@ -40,6 +41,7 @@ func NewDeviceManager(ifName string, logger *device.Logger) (*DeviceManager, err
 	}
 
 	mb := muxbind.New(conn.NewDefaultBind())
+	installPingResponder(mb)
 
 	// Initialize WireGuard device over the TUN interface using MuxBind
 	wgDev := device.NewDevice(tunDev, mb, logger)
@@ -61,6 +63,7 @@ func NewMockDeviceManager(ifName string, logger *device.Logger) (*DeviceManager,
 
 	tunDev := newMockTUN(ifName)
 	mb := muxbind.New(conn.NewDefaultBind())
+	installPingResponder(mb)
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
@@ -84,6 +87,7 @@ func NewDeviceManagerWithFD(fd int, ifName string, logger *device.Logger) (*Devi
 	}
 
 	mb := muxbind.New(conn.NewDefaultBind())
+	installPingResponder(mb)
 	wgDev := device.NewDevice(tunDev, mb, logger)
 
 	return &DeviceManager{
@@ -248,3 +252,16 @@ func (m *mockTUN) Close() error {
 	return nil
 }
 func (m *mockTUN) BatchSize() int { return 1 }
+
+func installPingResponder(mb *muxbind.MuxBind) {
+	mb.AddHandler(func(pkt []byte, ep conn.Endpoint) bool {
+		msg := string(pkt)
+		if strings.HasPrefix(msg, "ZOOP_PING:") {
+			connID := strings.TrimPrefix(msg, "ZOOP_PING:")
+			reply := "ZOOP_PONG:" + connID
+			_ = mb.SendTo([]byte(reply), ep)
+			return true
+		}
+		return false
+	})
+}

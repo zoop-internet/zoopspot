@@ -30,7 +30,7 @@ func platformAssignIP(ifName string, ipAddress string) error {
 		return execAssignIP(ifName, ipAddress)
 	}
 
-	addr, err := netlink.ParseAddr(ipAddress + "/32")
+	addr, err := netlink.ParseAddr(ipAddress + "/24")
 	if err != nil {
 		return fmt.Errorf("failed to parse IP address %s: %w", ipAddress, err)
 	}
@@ -48,7 +48,7 @@ func platformAssignIP(ifName string, ipAddress string) error {
 }
 
 func execAssignIP(ifName, ipAddress string) error {
-	cmd := exec.Command("ip", "addr", "add", ipAddress+"/32", "dev", ifName)
+	cmd := exec.Command("ip", "addr", "add", ipAddress+"/24", "dev", ifName)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ip addr add failed: %v: %s", err, string(out))
 	}
@@ -180,18 +180,18 @@ func platformEnableForwarding(ifName string) error {
 
 	// 4. Universal Forwarding: Allow all traffic from TUN to ANY external interface
 	if err := exec.Command("iptables", "-C", "FORWARD", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-I", "FORWARD", "2", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "FORWARD", "1", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
 	}
 
 	// 5. Allow established/related return traffic to TUN from ANY interface
 	if err := exec.Command("iptables", "-C", "FORWARD", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run(); err != nil {
-		_ = exec.Command("iptables", "-I", "FORWARD", "3", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "FORWARD", "1", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	}
 
 	// 6. IPv6 ULA Masquerade & Forwarding (if ip6tables is available)
 	_ = exec.Command("ip6tables", "-t", "nat", "-A", "POSTROUTING", "-s", "fd00:7a6f:6f70::/64", "!", "-o", ifName, "-j", "MASQUERADE").Run()
 	_ = exec.Command("ip6tables", "-I", "FORWARD", "1", "-i", ifName, "!", "-o", ifName, "-j", "ACCEPT").Run()
-	_ = exec.Command("ip6tables", "-I", "FORWARD", "2", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
+	_ = exec.Command("ip6tables", "-I", "FORWARD", "1", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	_ = exec.Command("ip6tables", "-I", "FORWARD", "1", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
 
 	// 7. Prepend to DOCKER-USER if Docker daemon exists
