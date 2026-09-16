@@ -159,10 +159,15 @@ func StartTunnel(fd int, ifName string) error {
 
 // ConnectPeer initiates P2P WireGuard connection, STUN path probing, and recovery manager.
 func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) error {
+	return ConnectPeerWithLocalIP(peerPubKeyHex, candidatesJSON, relayURL, "")
+}
+
+// ConnectPeerWithLocalIP initiates P2P WireGuard connection with explicit local IP subnet awareness.
+func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayURL string, localIP string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	slog.Info("ConnectPeer called", "peerKey", peerPubKeyHex, "candidatesJSON", candidatesJSON, "relayURL", relayURL)
+	slog.Info("ConnectPeer called", "peerKey", peerPubKeyHex, "candidatesJSON", candidatesJSON, "relayURL", relayURL, "localIP", localIP)
 
 	if devMgr == nil {
 		err := fmt.Errorf("tunnel not started: call StartTunnel first")
@@ -218,8 +223,8 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 			targetPort = bestCand.Port
 			slog.Info("ProbeCandidatesMux selected optimal candidate", "ip", targetIP, "port", targetPort)
 		} else {
-			targetIP, targetPort = selectFallbackCandidate(candidates)
-			slog.Info("ProbeCandidatesMux fallback candidate selected", "ip", targetIP, "port", targetPort, "err", err)
+			targetIP, targetPort = selectFallbackCandidateWithLocalIP(candidates, localIP)
+			slog.Info("ProbeCandidatesMux fallback candidate selected", "ip", targetIP, "port", targetPort, "localIP", localIP, "err", err)
 		}
 	}
 
@@ -368,6 +373,11 @@ func Disconnect() {
 
 // GetCandidatesJSON gathers local and STUN candidates and returns them as a JSON string.
 func GetCandidatesJSON() string {
+	return GetCandidatesJSONWithLocalIP("")
+}
+
+// GetCandidatesJSONWithLocalIP gathers candidates, including an explicitly provided local IP.
+func GetCandidatesJSONWithLocalIP(localIP string) string {
 	mu.RLock()
 	dm := devMgr
 	mu.RUnlock()
@@ -377,9 +387,9 @@ func GetCandidatesJSON() string {
 
 	if dm != nil {
 		port, _ := dm.GetListenPort()
-		candidates, err = tunnel.GatherCandidatesMux(dm.GetMuxBind(), port)
+		candidates, err = tunnel.GatherCandidatesWithLocalIP(dm.GetMuxBind(), port, localIP)
 	} else {
-		candidates, err = tunnel.GatherCandidates(0)
+		candidates, err = tunnel.GatherCandidatesWithLocalIP(nil, 0, localIP)
 	}
 
 	if err != nil || len(candidates) == 0 {
@@ -400,7 +410,11 @@ func GetCandidatesJSON() string {
 // It prioritizes candidates on the same local subnet as the device, then STUN public
 // (Srflx) candidates, then non-loopback host candidates, avoiding dead loopback endpoints.
 func selectFallbackCandidate(candidates []types.EndpointCandidate) (string, int) {
-	return tunnel.SelectFallbackCandidate(candidates)
+	return selectFallbackCandidateWithLocalIP(candidates, "")
+}
+
+func selectFallbackCandidateWithLocalIP(candidates []types.EndpointCandidate, localIP string) (string, int) {
+	return tunnel.SelectFallbackCandidateWithLocalIP(candidates, localIP)
 }
 
 

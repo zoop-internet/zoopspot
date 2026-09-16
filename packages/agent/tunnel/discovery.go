@@ -94,6 +94,7 @@ func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 		message := stun.MustBuild(stun.TransactionID, stun.BindingRequest)
 
 		var publicIP string
+		var publicPort int
 		var stunErr error
 		done := make(chan bool, 1)
 
@@ -110,6 +111,7 @@ func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 				return
 			}
 			publicIP = xorAddr.IP.String()
+			publicPort = xorAddr.Port
 			done <- true
 		})
 
@@ -122,7 +124,11 @@ func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 		if stunErr != nil {
 			resChan <- result{"", 0, stunErr}
 		} else {
-			resChan <- result{publicIP, localPort, nil}
+			port := localPort
+			if port == 0 {
+				port = publicPort
+			}
+			resChan <- result{publicIP, port, nil}
 		}
 	}()
 
@@ -334,9 +340,46 @@ func GatherCandidatesMux(mb *muxbind.MuxBind, fallbackPort int) ([]types.Endpoin
 	return candidates, nil
 }
 
+// GatherCandidatesWithLocalIP collects all host and STUN candidates, injecting an explicit local IP if provided.
+func GatherCandidatesWithLocalIP(mb *muxbind.MuxBind, fallbackPort int, localIP string) ([]types.EndpointCandidate, error) {
+	candidates, err := GatherCandidatesMux(mb, fallbackPort)
+	if err != nil {
+		candidates = []types.EndpointCandidate{}
+	}
+
+	if localIP != "" {
+		ip := net.ParseIP(localIP)
+		if ip != nil && !ip.IsLoopback() {
+			duplicate := false
+			for _, c := range candidates {
+				if c.IP == localIP {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				candidates = append([]types.EndpointCandidate{{
+					IP:       localIP,
+					Port:     fallbackPort,
+					Type:     types.CandidateTypeHost,
+					Priority: 100,
+				}}, candidates...)
+			}
+		}
+	}
+
+	return candidates, nil
+}
+
 // SelectFallbackCandidate selects the most optimal candidate based on local network topology
 // (prioritizing same-subnet host candidates, then Srflx public candidates, then non-loopback candidates).
 func SelectFallbackCandidate(candidates []types.EndpointCandidate) (string, int) {
+	return SelectFallbackCandidateWithLocalIP(candidates, "")
+}
+
+// SelectFallbackCandidateWithLocalIP selects the most optimal candidate based on local network topology
+// and an explicitly provided local IP (e.g. from Android ConnectivityManager).
+func SelectFallbackCandidateWithLocalIP(candidates []types.EndpointCandidate, localIPStr string) (string, int) {
 	if len(candidates) == 0 {
 		return "", 0
 	}
@@ -365,6 +408,16 @@ func SelectFallbackCandidate(candidates []types.EndpointCandidate) (string, int)
 						localSubnets = append(localSubnets, ipNet)
 					}
 				}
+			}
+		}
+	}
+
+	// Add subnet derived from explicitly provided local IP (e.g. from Android ConnectivityManager)
+	if localIPStr != "" {
+		if parsed := net.ParseIP(localIPStr); parsed != nil && !parsed.IsLoopback() {
+			if ip4 := parsed.To4(); ip4 != nil {
+				mask24 := net.CIDRMask(24, 32)
+				localSubnets = append(localSubnets, &net.IPNet{IP: ip4.Mask(mask24), Mask: mask24})
 			}
 		}
 	}

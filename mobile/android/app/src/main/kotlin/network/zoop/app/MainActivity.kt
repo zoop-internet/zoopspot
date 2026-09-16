@@ -109,7 +109,8 @@ class MainActivity : FlutterActivity() {
                 }
                 "getCandidates" -> {
                     try {
-                        val candidates = ZoopMobileBridge.getCandidatesJSON()
+                        val localIp = ZoopMobileBridge.getActiveLocalIp(this)
+                        val candidates = ZoopMobileBridge.getCandidatesJSON(localIp)
                         result.success(candidates)
                     } catch (e: UnsatisfiedLinkError) {
                         Log.w("MainActivity", "Native getCandidates bypassed")

@@ -137,4 +137,20 @@ func TestSelectFallbackCandidate(t *testing.T) {
 	if ip != "10.0.0.5" || port != 51820 {
 		t.Fatalf("expected non-loopback candidate 10.0.0.5:51820, got %s:%d", ip, port)
 	}
+
+	// 5. Explicit local IP matching same-subnet candidate
+	cands = []types.EndpointCandidate{
+		{IP: "192.168.88.189", Port: 51820, Type: types.CandidateTypeHost},
+		{IP: "154.227.130.65", Port: 51820, Type: types.CandidateTypeSrflx},
+	}
+	ip, port = selectFallbackCandidateWithLocalIP(cands, "192.168.88.243")
+	if ip != "192.168.88.189" || port != 51820 {
+		t.Fatalf("expected LAN host candidate 192.168.88.189:51820 when on same subnet, got %s:%d", ip, port)
+	}
+
+	// 6. Explicit local IP on different subnet selects Srflx
+	ip, port = selectFallbackCandidateWithLocalIP(cands, "10.42.0.15")
+	if ip != "154.227.130.65" || port != 51820 {
+		t.Fatalf("expected WAN srflx candidate 154.227.130.65:51820 when on different subnet, got %s:%d", ip, port)
+	}
 }

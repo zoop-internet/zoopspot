@@ -10,11 +10,11 @@
 
 extern int goInitMobile(const char* configJSON);
 extern int goStartTunnel(int fd, const char* ifName);
-extern int goConnectPeer(const char* peerPubKey, const char* candidatesJSON, const char* relayURL);
+extern int goConnectPeer(const char* peerPubKey, const char* candidatesJSON, const char* relayURL, const char* localIP);
 extern void goNotifyNetworkChange(const char* networkType);
 extern void goSetPowerSavingMode(int enabled);
 extern char* goGetConnectionStatus(void);
-extern char* goGetCandidatesJSON(void);
+extern char* goGetCandidatesJSON(const char* localIP);
 extern void goFreeString(char* str);
 extern void goDisconnect(void);
 
@@ -200,17 +200,19 @@ JNIEXPORT jint JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_startTunnel(
 }
 
 JNIEXPORT jint JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_connectPeer(
-    JNIEnv* env, jobject thiz, jstring peerPubKeyHex, jstring candidatesJson, jstring relayUrl
+    JNIEnv* env, jobject thiz, jstring peerPubKeyHex, jstring candidatesJson, jstring relayUrl, jstring localIp
 ) {
     const char* cKey = peerPubKeyHex ? (*env)->GetStringUTFChars(env, peerPubKeyHex, NULL) : NULL;
     const char* cCand = candidatesJson ? (*env)->GetStringUTFChars(env, candidatesJson, NULL) : NULL;
     const char* cRelay = relayUrl ? (*env)->GetStringUTFChars(env, relayUrl, NULL) : NULL;
+    const char* cLocal = localIp ? (*env)->GetStringUTFChars(env, localIp, NULL) : NULL;
 
-    int res = goConnectPeer(cKey, cCand, cRelay);
+    int res = goConnectPeer(cKey, cCand, cRelay, cLocal);
 
     if (peerPubKeyHex && cKey) (*env)->ReleaseStringUTFChars(env, peerPubKeyHex, cKey);
     if (candidatesJson && cCand) (*env)->ReleaseStringUTFChars(env, candidatesJson, cCand);
     if (relayUrl && cRelay) (*env)->ReleaseStringUTFChars(env, relayUrl, cRelay);
+    if (localIp && cLocal) (*env)->ReleaseStringUTFChars(env, localIp, cLocal);
     return res;
 }
 
@@ -240,9 +242,11 @@ JNIEXPORT jstring JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_getConnecti
 }
 
 JNIEXPORT jstring JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_getCandidatesJSON(
-    JNIEnv* env, jobject thiz
+    JNIEnv* env, jobject thiz, jstring localIp
 ) {
-    char* cCand = goGetCandidatesJSON();
+    const char* cLocal = localIp ? (*env)->GetStringUTFChars(env, localIp, NULL) : NULL;
+    char* cCand = goGetCandidatesJSON(cLocal);
+    if (localIp && cLocal) (*env)->ReleaseStringUTFChars(env, localIp, cLocal);
     jstring res = (*env)->NewStringUTF(env, cCand ? cCand : "[]");
     if (cCand) {
         goFreeString(cCand);

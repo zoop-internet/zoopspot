@@ -41,12 +41,32 @@ object ZoopMobileBridge {
 
     external fun initMobile(configJson: String, callback: ZoopStateCallback): Int
     external fun startTunnel(fd: Int, ifName: String): Int
-    external fun connectPeer(peerPubKeyHex: String, candidatesJson: String, relayUrl: String): Int
+    external fun connectPeer(peerPubKeyHex: String, candidatesJson: String, relayUrl: String, localIp: String): Int
     external fun notifyNetworkChange(networkType: String)
     external fun setPowerSavingMode(enabled: Boolean)
     external fun getConnectionStatus(): String
-    external fun getCandidatesJSON(): String
+    external fun getCandidatesJSON(localIp: String): String
     external fun disconnect()
+
+    fun getActiveLocalIp(context: Context): String {
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return ""
+            val activeNetwork = cm.activeNetwork ?: return ""
+            val linkProps = cm.getLinkProperties(activeNetwork) ?: return ""
+            for (linkAddr in linkProps.linkAddresses) {
+                val addr = linkAddr.address
+                if (addr is java.net.Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                    val host = addr.hostAddress
+                    if (!host.isNullOrEmpty() && !host.startsWith("127.") && !host.startsWith("100.64.")) {
+                        return host
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("ZoopMobileBridge", "Failed to resolve active local IP: ${e.message}")
+        }
+        return ""
+    }
 }
 
 class ZoopVpnService : VpnService(), ZoopStateCallback {
@@ -270,11 +290,12 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                 val peerPubKey = intent?.getStringExtra(EXTRA_PEER_KEY)
                 val candidatesJson = intent?.getStringExtra(EXTRA_CANDIDATES) ?: "[]"
                 val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
+                val localIp = ZoopMobileBridge.getActiveLocalIp(this)
 
-                Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl")
+                Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl localIp=$localIp")
                 if (!peerPubKey.isNullOrEmpty()) {
                     Log.i(TAG, "Calling ZoopMobileBridge.connectPeer")
-                    ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl)
+                    ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
                 } else {
                     Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")
                 }

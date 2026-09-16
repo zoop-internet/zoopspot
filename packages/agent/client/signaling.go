@@ -286,17 +286,24 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 								targetIP = bestCand.IP
 								targetPort = bestCand.Port
 							} else {
-								s.Logger.Info("candidate probing yielded no direct response, provider will listen passively for client handshake", "error", err)
-								targetIP = ""
-								targetPort = 0
+								s.Logger.Info("candidate probing yielded no direct response, selecting best candidate for active hole punching", "error", err)
+								fallbackIP, fallbackPort := tunnel.SelectFallbackCandidate(payload.Candidates)
+								targetIP = fallbackIP
+								targetPort = fallbackPort
 							}
-						} else {
-							// In WireGuard provider/server mode, the provider listens passively.
-							// Setting targetIP to "" and targetPort to 0 tells WireGuard not to set a static endpoint,
-							// allowing WireGuard to automatically roam and bind to the client's source IP and port
-							// upon receiving the client's handshake packet.
-							targetIP = ""
-							targetPort = 0
+						}
+
+						if targetIP == "" || targetPort == 0 {
+							if payload.EndpointIP != "" && payload.EndpointPort != 0 {
+								targetIP = payload.EndpointIP
+								targetPort = payload.EndpointPort
+							} else if s.relayBridge != nil {
+								if rPort, rErr := s.relayBridge.RegisterPeer(msg.SenderID, peerKey); rErr == nil {
+									targetIP = "127.0.0.1"
+									targetPort = rPort
+									s.Logger.Info("falling back to relay bridge on provider", "relay_port", rPort)
+								}
+							}
 						}
 
 						err = s.tunnelManager.AddPeer(peerKey, targetIP, targetPort, allowedIPs)

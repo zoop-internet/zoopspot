@@ -157,8 +157,12 @@ func main() {
 	// Setup Signaling and Device Registration
 	wgKeys, err := tunnel.GenerateKeyPair()
 	if err == nil {
-		if err := devMgr.ConfigureDevice(wgKeys.PrivateKey, 0); err != nil {
-			logger.Error("failed to configure wireguard device", "error", err)
+		listenPort := 51820
+		if err := devMgr.ConfigureDevice(wgKeys.PrivateKey, listenPort); err != nil {
+			logger.Warn("failed to bind wireguard to port 51820, falling back to dynamic port", "error", err)
+			if err := devMgr.ConfigureDevice(wgKeys.PrivateKey, 0); err != nil {
+				logger.Error("failed to configure wireguard device", "error", err)
+			}
 		}
 
 		deviceName := *nameFlag
