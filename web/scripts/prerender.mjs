@@ -11,7 +11,7 @@ import { join } from 'node:path';
 const DIST = 'dist';
 const TEMPLATE = join(DIST, 'index.html');
 
-const BASE_DOMAIN = 'https://zoopinternet.online';
+const BASE_DOMAIN = 'https://zoopinternet.app';
 
 const ROUTES = {
   '/': {

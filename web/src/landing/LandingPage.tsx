@@ -1421,7 +1421,7 @@ export const LandingPage: React.FC<{
               <p className="lp-eyebrow">Zero-Knowledge Network</p>
               <h1>Privacy Policy</h1>
               <p>
-                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.online" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.online</a>
+                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.app</a>
               </p>
             </div>
 
@@ -1507,9 +1507,9 @@ export const LandingPage: React.FC<{
                 For privacy inquiries, audit requests, or data rights requests, contact our team:
               </p>
               <ul>
-                <li><strong>Email:</strong> <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a></li>
-                <li><strong>Security:</strong> <a href="mailto:security@zoopinternet.online">security@zoopinternet.online</a></li>
-                <li><strong>Official Web:</strong> <a href="https://zoopinternet.online" target="_blank" rel="noreferrer">https://zoopinternet.online</a></li>
+                <li><strong>Email:</strong> <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a></li>
+                <li><strong>Security:</strong> <a href="mailto:security@zoopinternet.app">security@zoopinternet.app</a></li>
+                <li><strong>Official Web:</strong> <a href="https://zoopinternet.app" target="_blank" rel="noreferrer">https://zoopinternet.app</a></li>
               </ul>
             </div>
 
@@ -1531,7 +1531,7 @@ export const LandingPage: React.FC<{
               <p className="lp-eyebrow">Legal &amp; Licensing</p>
               <h1>Terms of Service &amp; EULA</h1>
               <p>
-                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.online" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.online</a>
+                Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.app</a>
               </p>
             </div>
 
@@ -1618,9 +1618,9 @@ export const LandingPage: React.FC<{
                 For questions regarding these Terms or legal inquiries:
               </p>
               <ul>
-                <li><strong>Legal Notices:</strong> <a href="mailto:legal@zoopinternet.online">legal@zoopinternet.online</a></li>
-                <li><strong>General Support:</strong> <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a></li>
-                <li><strong>Website:</strong> <a href="https://zoopinternet.online" target="_blank" rel="noreferrer">https://zoopinternet.online</a></li>
+                <li><strong>Legal Notices:</strong> <a href="mailto:legal@zoopinternet.app">legal@zoopinternet.app</a></li>
+                <li><strong>General Support:</strong> <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a></li>
+                <li><strong>Website:</strong> <a href="https://zoopinternet.app" target="_blank" rel="noreferrer">https://zoopinternet.app</a></li>
               </ul>
             </div>
 
@@ -2065,7 +2065,7 @@ export const LandingPage: React.FC<{
               <ul>
                 <li><a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
                 <li><a onClick={() => handleNav('/docs')}>Documentation Hub</a></li>
-                <li><a href="mailto:support@zoopinternet.online">Support: support@zoopinternet.online</a></li>
+                <li><a href="mailto:support@zoopinternet.app">Support: support@zoopinternet.app</a></li>
                 <li><a href="https://github.com/allannuwamanya/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
                 <li><a onClick={() => handleNav('/security')}>Security Policy</a></li>
               </ul>
@@ -2078,7 +2078,7 @@ export const LandingPage: React.FC<{
               <a onClick={() => handleNav('/privacy')}>Privacy Policy</a>
               <a onClick={() => handleNav('/terms')}>Terms of Service</a>
               <a onClick={() => handleNav('/security')}>Security</a>
-              <a href="mailto:support@zoopinternet.online">support@zoopinternet.online</a>
+              <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a>
               <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer">GitHub</a>
             </div>
           </div>

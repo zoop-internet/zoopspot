@@ -2,9 +2,9 @@
 
 **Effective Date:** September 7, 2026  
 **Last Updated:** September 7, 2026  
-**Official Domain:** [zoopinternet.online](https://zoopinternet.online)  
-**Legal Inquiries:** [legal@zoopinternet.online](mailto:legal@zoopinternet.online)  
-**General Support:** [support@zoopinternet.online](mailto:support@zoopinternet.online)  
+**Official Domain:** [zoopinternet.app](https://zoopinternet.app)  
+**Legal Inquiries:** [legal@zoopinternet.app](mailto:legal@zoopinternet.app)  
+**General Support:** [support@zoopinternet.app](mailto:support@zoopinternet.app)  
 
 ---
 
@@ -113,7 +113,7 @@ You agree to defend, indemnify, and hold harmless Zoop Internet, its officers, d
 
 We reserve the right to modify or discontinue, temporarily or permanently, the hosted coordination service (or any part thereof) with or without notice.
 
-We may revise these Terms from time to time. If a revision is material, we will provide at least thirty (30) days' notice prior to any new terms taking effect via our website ([zoopinternet.online](https://zoopinternet.online)) or git release notes. By continuing to access or use Zoop after revisions become effective, you agree to be bound by the revised Terms.
+We may revise these Terms from time to time. If a revision is material, we will provide at least thirty (30) days' notice prior to any new terms taking effect via our website ([zoopinternet.app](https://zoopinternet.app)) or git release notes. By continuing to access or use Zoop after revisions become effective, you agree to be bound by the revised Terms.
 
 ---
 
@@ -127,7 +127,7 @@ If any provision of these Terms is found to be unenforceable or invalid, that pr
 
 If you have any questions, legal notices, or feedback regarding these Terms, please contact:
 
-* **Legal Notices:** [legal@zoopinternet.online](mailto:legal@zoopinternet.online)
-* **General Support:** [support@zoopinternet.online](mailto:support@zoopinternet.online)
-* **Website:** [https://zoopinternet.online](https://zoopinternet.online)
+* **Legal Notices:** [legal@zoopinternet.app](mailto:legal@zoopinternet.app)
+* **General Support:** [support@zoopinternet.app](mailto:support@zoopinternet.app)
+* **Website:** [https://zoopinternet.app](https://zoopinternet.app)
 * **GitHub Issues:** [https://github.com/allannuwamanya/zoop/issues](https://github.com/allannuwamanya/zoop/issues)

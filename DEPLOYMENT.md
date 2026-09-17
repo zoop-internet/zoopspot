@@ -12,8 +12,8 @@ This document provides a comprehensive record of the production deployment of th
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 Cloudflare Global Edge CDN                  │
-│               https://zoop-9jc.pages.dev                    │
-│   (Vite + React SPA, 22 Prerendered Static Routes, SEO)     │
+│        https://zoopinternet.app / https://zoopnetwork.pages.dev       │
+│   (Vite + React SPA, 24 Prerendered Static Routes, SEO)     │
 └──────────────────────────────┬──────────────────────────────┘
                                │ HTTPS / WSS API Requests
                                ▼
@@ -52,13 +52,14 @@ This document provides a comprehensive record of the production deployment of th
 
 ### A. Frontend Web Application (Cloudflare Pages)
 * **Status**: Live & Serving
-* **Canonical URL**: [`https://zoop-9jc.pages.dev`](https://zoop-9jc.pages.dev)
-* **Cloudflare Project Name**: `zoop`
-* **Cloudflare Account ID**: `33c649068597dcf24eb13dbe3c9f3b18`
+* **Canonical Domain**: [`https://zoopinternet.app`](https://zoopinternet.app)
+* **Edge Pages URL**: [`https://zoopnetwork.pages.dev`](https://zoopnetwork.pages.dev)
+* **Cloudflare Project Name**: `zoopnetwork`
+* **Cloudflare Account ID**: `7335973a10147fee3168dac18331dbab`
 * **Build Directory**: `web/` → output `web/dist/`
 * **Build Command**: `npm run build` (runs `tsc -b && vite build && node scripts/prerender.mjs`)
 * **Environment Variable**: `VITE_API_BASE=https://3.70.135.200.sslip.io`
-* **Custom Domain Ready**: Can attach custom domains (e.g. `zoop.network` or `app.zoop.network`) at any time via Cloudflare Pages Dashboard with zero code changes.
+* **Custom Domains**: `zoopinternet.app`, `www.zoopinternet.app` attached.
 
 ### B. Backend Server (Current AWS Host)
 * **Cloud Provider**: AWS
@@ -189,13 +190,13 @@ When you modify frontend code in `web/`:
    rm -rf /tmp/dist
    tar -xzf /tmp/web-dist.tar.gz -C /tmp
    CLOUDFLARE_API_TOKEN="<YOUR_CLOUDFLARE_API_TOKEN>" \
-   CLOUDFLARE_ACCOUNT_ID="33c649068597dcf24eb13dbe3c9f3b18" \
-   npx wrangler pages deploy /tmp/dist --project-name zoop --branch main --commit-dirty=true
+   CLOUDFLARE_ACCOUNT_ID="7335973a10147fee3168dac18331dbab" \
+   npx wrangler pages deploy /tmp/dist --project-name zoopnetwork --branch main --commit-dirty=true
    EOF
    ```
 3. Verify live URL:
    ```bash
-   curl -s -I https://zoop-9jc.pages.dev
+   curl -s -I https://zoopnetwork.pages.dev
    ```
 
 ### Playbook 3: Inspecting Server Logs & Diagnostics

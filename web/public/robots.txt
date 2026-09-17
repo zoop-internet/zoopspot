@@ -19,4 +19,4 @@ Allow: /
 User-agent: anthropic-ai
 Allow: /
 
-Sitemap: https://zoopinternet.online/sitemap.xml
+Sitemap: https://zoopinternet.app/sitemap.xml

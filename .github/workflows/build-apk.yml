@@ -50,10 +50,12 @@ jobs:
           NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* | sort -V | tail -n 1)
           echo "Using Android NDK: $NDK_PATH"
           CLANG_BIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          mkdir -p mobile/android/app/src/main/jniLibs/arm64-v8a mobile/android/app/src/main/jniLibs/x86_64
+          mkdir -p mobile/android/app/src/main/jniLibs/arm64-v8a mobile/android/app/src/main/jniLibs/x86_64 mobile/android/app/src/main/jniLibs/armeabi-v7a
           CC="$CLANG_BIN/aarch64-linux-android24-clang" CGO_ENABLED=1 GOOS=android GOARCH=arm64 go build -buildmode=c-shared -ldflags="-checklinkname=0" -o mobile/android/app/src/main/jniLibs/arm64-v8a/libzoop.so ./cmd/zoop-mobile
+          CC="$CLANG_BIN/armv7a-linux-androideabi24-clang" CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 go build -buildmode=c-shared -ldflags="-checklinkname=0" -o mobile/android/app/src/main/jniLibs/armeabi-v7a/libzoop.so ./cmd/zoop-mobile
           CC="$CLANG_BIN/x86_64-linux-android24-clang" CGO_ENABLED=1 GOOS=android GOARCH=amd64 go build -buildmode=c-shared -ldflags="-checklinkname=0" -o mobile/android/app/src/main/jniLibs/x86_64/libzoop.so ./cmd/zoop-mobile
           ls -la mobile/android/app/src/main/jniLibs/arm64-v8a/libzoop.so
+          ls -la mobile/android/app/src/main/jniLibs/armeabi-v7a/libzoop.so
           ls -la mobile/android/app/src/main/jniLibs/x86_64/libzoop.so
 
       - name: Build Android Release APK

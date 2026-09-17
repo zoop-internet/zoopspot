@@ -440,13 +440,13 @@ func SelectFallbackCandidateWithLocalIP(candidates []types.EndpointCandidate, lo
 		}
 	}
 
-	// 3. If not on same subnet, prefer Srflx (STUN public IP) candidate
+	// 3. If not on same subnet, prefer Srflx (STUN public IP) or any public non-private IP
 	for _, cand := range candidates {
 		ip := net.ParseIP(cand.IP)
 		if ip == nil || ip.IsLoopback() || cand.Port == 0 {
 			continue
 		}
-		if cand.Type == types.CandidateTypeSrflx {
+		if cand.Type == types.CandidateTypeSrflx || !ip.IsPrivate() {
 			return cand.IP, cand.Port
 		}
 	}

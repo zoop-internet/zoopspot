@@ -2,8 +2,8 @@
 
 **Effective Date:** September 7, 2026  
 **Last Updated:** September 7, 2026  
-**Official Domain:** [zoopinternet.online](https://zoopinternet.online)  
-**Support & Inquiries:** [support@zoopinternet.online](mailto:support@zoopinternet.online)  
+**Official Domain:** [zoopinternet.app](https://zoopinternet.app)  
+**Support & Inquiries:** [support@zoopinternet.app](mailto:support@zoopinternet.app)  
 
 ---
 
@@ -100,7 +100,7 @@ Under international data protection frameworks, including the EU General Data Pr
 * **Right to Portability**: You may export your public device configurations at any time.
 * **Right to Non-Discrimination**: Zoop does not sell data and provides identical security guarantees to all users.
 
-To exercise any of these rights, contact [privacy@zoopinternet.online](mailto:privacy@zoopinternet.online) or [support@zoopinternet.online](mailto:support@zoopinternet.online).
+To exercise any of these rights, contact [privacy@zoopinternet.app](mailto:privacy@zoopinternet.app) or [support@zoopinternet.app](mailto:support@zoopinternet.app).
 
 ---
 
@@ -132,7 +132,7 @@ We implement defense-in-depth technical safeguards to protect all system compone
 
 ## 10. Changes to This Privacy Policy
 
-We may update this Privacy Policy periodically to reflect changes in our technology or legal requirements. Material updates will be announced via our website ([zoopinternet.online](https://zoopinternet.online)) and documented in the git repository revision history.
+We may update this Privacy Policy periodically to reflect changes in our technology or legal requirements. Material updates will be announced via our website ([zoopinternet.app](https://zoopinternet.app)) and documented in the git repository revision history.
 
 ---
 
@@ -140,7 +140,7 @@ We may update this Privacy Policy periodically to reflect changes in our technol
 
 For questions, privacy inquiries, or data requests:
 
-* **Email:** [support@zoopinternet.online](mailto:support@zoopinternet.online)
-* **Security Team:** [security@zoopinternet.online](mailto:security@zoopinternet.online)
-* **Website:** [https://zoopinternet.online](https://zoopinternet.online)
+* **Email:** [support@zoopinternet.app](mailto:support@zoopinternet.app)
+* **Security Team:** [security@zoopinternet.app](mailto:security@zoopinternet.app)
+* **Website:** [https://zoopinternet.app](https://zoopinternet.app)
 * **GitHub Issues:** [https://github.com/allannuwamanya/zoop/issues](https://github.com/allannuwamanya/zoop/issues)

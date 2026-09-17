@@ -103,9 +103,9 @@ const App: React.FC = () => {
     if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
     // Canonical per route — prevents duplicate content (SEO)
     const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (canonical) canonical.href = `https://zoopinternet.online${normalized === '/' ? '/' : normalized}`;
+    if (canonical) canonical.href = `https://zoopinternet.app${normalized === '/' ? '/' : normalized}`;
     const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
-    if (ogUrl) ogUrl.content = `https://zoopinternet.online${normalized === '/' ? '/' : normalized}`;
+    if (ogUrl) ogUrl.content = `https://zoopinternet.app${normalized === '/' ? '/' : normalized}`;
   }, [normalized, isValidRoute]);
 
   const isAuth =

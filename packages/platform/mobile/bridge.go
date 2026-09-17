@@ -195,10 +195,14 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 					host, portStr, splitErr := net.SplitHostPort(s)
 					if splitErr == nil {
 						p, _ := strconv.Atoi(portStr)
+						cType := types.CandidateTypeHost
+						if parsed := net.ParseIP(host); parsed != nil && !parsed.IsPrivate() && !parsed.IsLoopback() {
+							cType = types.CandidateTypeSrflx
+						}
 						candidates = append(candidates, types.EndpointCandidate{
 							IP:   host,
 							Port: p,
-							Type: types.CandidateTypeHost,
+							Type: cType,
 						})
 					}
 				}

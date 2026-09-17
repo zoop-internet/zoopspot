@@ -38,6 +38,7 @@ mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/build/
 mobile/android/.gradle/
+mobile/android/.kotlin/
 mobile/android/build/
 mobile/android/app/build/
 mobile/ios/Pods/
