@@ -2,17 +2,17 @@
 /**
  * Zoop prerender — writes static HTML for each marketing route so crawlers/AI get correct meta without JS.
  * Template: dist/index.html
- * Replaces title, description, og:title/desc/url, canonical, twitter, and injects route-specific JSON-LD if needed.
+ * Replaces title, description, og:title/desc/url, canonical, twitter, and injects route-specific JSON-LD and crawler HTML.
  * Usage: node scripts/prerender.mjs  (run after `vite build`)
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
 const TEMPLATE = join(DIST, 'index.html');
-
 const BASE_DOMAIN = 'https://zoopinternet.app';
 
+// Canonical marketing routes (excluding /architecture which 301 redirects to /how-it-works)
 const ROUTES = {
   '/': {
     title: 'Zoop — Secure Direct Device-to-Device Sharing | Private Mesh',
@@ -21,12 +21,6 @@ const ROUTES = {
     ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
   '/how-it-works': {
-    title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks',
-    desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.',
-    canonical: `${BASE_DOMAIN}/how-it-works`,
-    ogImage: `${BASE_DOMAIN}/og-image.png`,
-  },
-  '/architecture': {
     title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks',
     desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.',
     canonical: `${BASE_DOMAIN}/how-it-works`,
@@ -82,30 +76,80 @@ const ROUTES = {
   },
 };
 
+const DOCS_IDS = [
+  'quickstart', 'installation', 'configuration', 'web-console',
+  'connect-share', 'devices', 'mobile-router', 'identity',
+  'organizations', 'permissions', 'troubleshooting',
+  'security-architecture', 'faq'
+];
+
 function replaceMeta(html, route, meta) {
   let out = html;
   // title
   out = out.replace(/<title>.*?<\/title>/s, `<title>${escapeHtml(meta.title)}</title>`);
   // meta description
   out = out.replace(/(<meta name="description" content=")[^"]*(")/, `$1${escapeAttr(meta.desc)}$2`);
-  // og:title
+  // og:title & twitter:title
   out = out.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${escapeAttr(meta.title)}$2`);
   out = out.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${escapeAttr(meta.title)}$2`);
-  // og:desc
+  // og:desc & twitter:desc
   out = out.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${escapeAttr(meta.desc)}$2`);
-  out = out.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escapeAttr(meta.desc.slice(0,155))}$2`);
+  out = out.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${escapeAttr(meta.desc.slice(0, 155))}$2`);
   // canonical + og:url
   out = out.replace(/(<link rel="canonical" href=")[^"]*(")/, `$1${meta.canonical}$2`);
   out = out.replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${meta.canonical}$2`);
   // hreflang alternates — point to canonical
   out = out.replace(/(<link rel="alternate" hreflang="en" href=")[^"]*(")/, `$1${meta.canonical}$2`);
-  // Inject route marker + BreadcrumbList for SEO (helps verify prerender + rich results)
-  const breadcrumb = route === '/' ? '' : `  <script type="application/ld+json">${JSON.stringify({ "@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":`${BASE_DOMAIN}/`},{"@type":"ListItem","position":2,"name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical}]})}</script>\n`;
+
+  // Multi-tier BreadcrumbList: Home -> (Docs ->) Subpage
+  let breadcrumb = '';
+  if (route !== '/') {
+    const isDocSub = route.startsWith('/docs/') && route !== '/docs';
+    const items = [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": `${BASE_DOMAIN}/` }
+    ];
+    if (isDocSub) {
+      items.push({ "@type": "ListItem", "position": 2, "name": "Docs", "item": `${BASE_DOMAIN}/docs` });
+      items.push({ "@type": "ListItem", "position": 3, "name": meta.title.split('—')[0].trim(), "item": meta.canonical });
+    } else {
+      items.push({ "@type": "ListItem", "position": 2, "name": meta.title.split('—')[0].trim() || route.slice(1), "item": meta.canonical });
+    }
+    breadcrumb = `  <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": items })}</script>\n`;
+  }
+
+  // Fallback body markup inside <div id="root"> for non-JS search crawlers (replaced by React createRoot on load)
+  const crawlerTitle = meta.title.split('—')[0].trim();
+  const fallbackBody = `
+    <header style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;background:#020617">
+      <a href="/" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#f8fafc;font-weight:800;font-size:1.1rem">
+        <img src="/zoopicon-32.webp" alt="Zoop Logo" width="28" height="28" />
+        Zoop Internet
+      </a>
+      <nav style="display:flex;gap:16px;font-size:0.875rem">
+        <a href="/how-it-works" style="color:#38bdf8;text-decoration:none">How It Works</a>
+        <a href="/products" style="color:#38bdf8;text-decoration:none">Products</a>
+        <a href="/docs" style="color:#38bdf8;text-decoration:none">Docs</a>
+        <a href="/downloads" style="color:#38bdf8;text-decoration:none">Downloads</a>
+        <a href="/pricing" style="color:#38bdf8;text-decoration:none">Pricing</a>
+      </nav>
+    </header>
+    <main style="max-width:960px;margin:40px auto;padding:0 24px;font-family:Inter,system-ui,sans-serif">
+      <h1 style="font-size:2.25rem;font-weight:800;color:#f8fafc;line-height:1.2">${escapeHtml(crawlerTitle)}</h1>
+      <p style="font-size:1.125rem;color:#94a3b8;margin-top:16px;line-height:1.6">${escapeHtml(meta.desc)}</p>
+      <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap">
+        <a href="/auth?tab=signup" style="padding:10px 20px;border-radius:8px;background:#38bdf8;color:#020617;font-weight:700;text-decoration:none">Get Started Free</a>
+        <a href="/docs" style="padding:10px 20px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#f8fafc;font-weight:600;text-decoration:none">Read Documentation</a>
+      </div>
+    </main>
+  `;
+  out = out.replace('<div id="root"></div>', `<div id="root">${fallbackBody}</div>`);
+
   out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}</head>`);
   return out;
 }
-function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function escapeAttr(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeAttr(s) { return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
 if (!existsSync(TEMPLATE)) {
   console.error(`Template not found: ${TEMPLATE}. Run vite build first.`);
@@ -114,8 +158,9 @@ if (!existsSync(TEMPLATE)) {
 const template = readFileSync(TEMPLATE, 'utf8');
 
 let count = 0;
+// Prerender canonical top-level routes
 for (const [route, meta] of Object.entries(ROUTES)) {
-  if (route === '/') continue; // root already correct, but rewrite to ensure
+  if (route === '/') continue;
   const html = replaceMeta(template, route, meta);
   const dir = join(DIST, route.replace(/^\//, ''));
   mkdirSync(dir, { recursive: true });
@@ -124,45 +169,103 @@ for (const [route, meta] of Object.entries(ROUTES)) {
   count++;
   console.log(`Prerendered ${route} -> ${file}`);
 }
-// Prerender docs subpages — user-focused curated (not internal architecture dump)
-const DOCS_IDS = ['quickstart','installation','configuration','web-console','connect-share','devices','mobile-router','identity','organizations','permissions','troubleshooting','security-architecture','faq'];
+
+// Prerender docs subpages
 for (const id of DOCS_IDS) {
   const route = `/docs/${id}`;
+  const humanTitle = id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const meta = {
-    title: `${id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} — Docs | Zoop`,
-    desc: `Zoop documentation — ${id.replace(/-/g,' ')}: open-source, WireGuard, STUN/TURN, self-hostable.`,
+    title: `${humanTitle} — Docs | Zoop`,
+    desc: `Zoop documentation — ${humanTitle}: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.`,
     canonical: `${BASE_DOMAIN}${route}`,
     ogImage: `${BASE_DOMAIN}/og-image.png`,
   };
-  // Use /docs base template but with subroute meta
   const baseMeta = ROUTES['/docs'];
-  const useMeta = { ...baseMeta, ...meta, title: meta.title.includes('Quickstart') ? 'Quick Start — Docs | Zoop' : meta.title };
+  const useMeta = {
+    ...baseMeta,
+    ...meta,
+    title: meta.title.includes('Quickstart') ? 'Quick Start — Docs | Zoop' : meta.title
+  };
   const html = replaceMeta(template, route, useMeta);
   const dir = join(DIST, route.replace(/^\//, ''));
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'index.html'), html, 'utf8');
+  const file = join(dir, 'index.html');
+  writeFileSync(file, html, 'utf8');
   count++;
-  console.log(`Prerendered ${route} -> ${join(dir, 'index.html')}`);
+  console.log(`Prerendered ${route} -> ${file}`);
 }
-// Also ensure root has prerender tag
+
+// Update root /
 {
   const html = replaceMeta(template, '/', ROUTES['/']);
   writeFileSync(TEMPLATE, html, 'utf8');
-  console.log(`Updated ${TEMPLATE} with prerender marker for /`);
+  console.log(`Updated ${TEMPLATE} with prerender marker and fallback body for /`);
 }
-// Generate sitemap.xml (routes + docs subpages)
+
+// Generate static 404.html (True 404 for Cloudflare Pages edge)
 {
-  const allRoutes = [...Object.keys(ROUTES), ...DOCS_IDS.map(id=> `/docs/${id}`)];
-  const urls = allRoutes.map(r => `  <url><loc>${BASE_DOMAIN}${r === '/' ? '/' : r}</loc><changefreq>${r==='/'?'daily': r.startsWith('/docs')?'weekly':'monthly'}</changefreq><priority>${r==='/'?'1.0': r==='/docs'?'0.9':'0.7'}</priority></url>`).join('\n');
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+  if (existsSync('public/404.html')) {
+    copyFileSync('public/404.html', join(DIST, '404.html'));
+    console.log(`Copied public/404.html -> ${join(DIST, '404.html')}`);
+  }
+}
+
+// Generate canonical sitemap.xml with lastmod dates
+{
+  const today = new Date().toISOString().split('T')[0];
+  const allRoutes = [...Object.keys(ROUTES), ...DOCS_IDS.map(id => `/docs/${id}`)];
+  const urls = allRoutes.map(r => `  <url>
+    <loc>${BASE_DOMAIN}${r === '/' ? '/' : r}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${r === '/' ? 'daily' : r.startsWith('/docs') ? 'weekly' : 'monthly'}</changefreq>
+    <priority>${r === '/' ? '1.0' : r === '/docs' ? '0.9' : '0.7'}</priority>
+  </url>`).join('\n');
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls}
+</urlset>
+`;
   writeFileSync(join(DIST, 'sitemap.xml'), sitemap, 'utf8');
-  console.log(`Generated ${join(DIST, 'sitemap.xml')} (${allRoutes.length} urls)`);
+  console.log(`Generated ${join(DIST, 'sitemap.xml')} (${allRoutes.length} canonical urls)`);
 }
-// Generate robots.txt
+
+// Generate complete robots.txt with disallows and AI crawler allowances
 {
-  const robots = `User-agent: *\nAllow: /\nSitemap: ${BASE_DOMAIN}/sitemap.xml\n`;
+  const robots = `User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /org/
+Disallow: /admin/
+Disallow: /api/
+
+# AI crawlers — explicitly allowed for LLM discoverability
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: Amazonbot
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: Bytespider
+Allow: /
+User-agent: cohere-ai
+Allow: /
+
+Sitemap: ${BASE_DOMAIN}/sitemap.xml
+`;
   writeFileSync(join(DIST, 'robots.txt'), robots, 'utf8');
   console.log(`Generated ${join(DIST, 'robots.txt')}`);
 }
-console.log(`Done. ${count+1} routes.`);
 
+console.log(`Prerender complete. Emitted ${count + 1} routes.`);

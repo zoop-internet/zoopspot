@@ -1,0 +1,126 @@
+#!/usr/bin/env node
+/**
+ * Automated Verification Script for Zoop Web Build (Phase 1-8 validation)
+ * Usage: node scripts/verify-build.mjs
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const DIST = 'dist';
+const BASE_DOMAIN = 'https://zoopinternet.app';
+
+const CANONICAL_ROUTES = [
+  '/',
+  '/how-it-works',
+  '/products',
+  '/downloads',
+  '/security',
+  '/pricing',
+  '/docs',
+  '/auth',
+  '/privacy',
+  '/terms',
+  '/docs/quickstart',
+  '/docs/installation',
+  '/docs/configuration',
+  '/docs/web-console',
+  '/docs/connect-share',
+  '/docs/devices',
+  '/docs/mobile-router',
+  '/docs/identity',
+  '/docs/organizations',
+  '/docs/permissions',
+  '/docs/troubleshooting',
+  '/docs/security-architecture',
+  '/docs/faq',
+];
+
+let errors = 0;
+function assert(condition, message) {
+  if (!condition) {
+    console.error(`❌ FAIL: ${message}`);
+    errors++;
+  } else {
+    console.log(`✅ PASS: ${message}`);
+  }
+}
+
+console.log('─── Starting Zoop Web Verification ───\n');
+
+// 1. Check dist/index.html (Root)
+assert(existsSync(join(DIST, 'index.html')), 'dist/index.html exists');
+if (existsSync(join(DIST, 'index.html'))) {
+  const rootHtml = readFileSync(join(DIST, 'index.html'), 'utf8');
+  assert(rootHtml.includes('<title>'), 'Root HTML has <title>');
+  assert(rootHtml.includes('name="description"'), 'Root HTML has meta description');
+  assert(rootHtml.includes(`rel="canonical" href="${BASE_DOMAIN}/"`), 'Root HTML has canonical pointing to root');
+}
+
+// 2. Check all Canonical Routes exist as prerendered static HTML
+for (const route of CANONICAL_ROUTES) {
+  if (route === '/') continue;
+  const filePath = join(DIST, route.replace(/^\//, ''), 'index.html');
+  const exists = existsSync(filePath);
+  assert(exists, `Route ${route} exists at ${filePath}`);
+  if (exists) {
+    const html = readFileSync(filePath, 'utf8');
+    const expectedCanonical = `${BASE_DOMAIN}${route}`;
+    assert(html.includes(`rel="canonical" href="${expectedCanonical}"`), `Route ${route} has exact canonical ${expectedCanonical}`);
+    assert(html.includes('<div id="root">') && !html.includes('<div id="root"></div>'), `Route ${route} has non-empty crawler body content`);
+    assert(html.includes('BreadcrumbList'), `Route ${route} has Schema.org BreadcrumbList`);
+  }
+}
+
+// 3. Check dist/404.html (True 404)
+assert(existsSync(join(DIST, '404.html')), 'dist/404.html exists');
+if (existsSync(join(DIST, '404.html'))) {
+  const notFoundHtml = readFileSync(join(DIST, '404.html'), 'utf8');
+  assert(notFoundHtml.includes('content="noindex, nofollow"'), '404.html has noindex, nofollow');
+  assert(notFoundHtml.includes('404'), '404.html contains 404 code');
+  assert(notFoundHtml.includes('href="/"'), '404.html has link back to home');
+}
+
+// 4. Check dist/robots.txt
+assert(existsSync(join(DIST, 'robots.txt')), 'dist/robots.txt exists');
+if (existsSync(join(DIST, 'robots.txt'))) {
+  const robots = readFileSync(join(DIST, 'robots.txt'), 'utf8');
+  assert(robots.includes('Disallow: /app/'), 'robots.txt disallows /app/');
+  assert(robots.includes('Disallow: /org/'), 'robots.txt disallows /org/');
+  assert(robots.includes('Disallow: /admin/'), 'robots.txt disallows /admin/');
+  assert(robots.includes('Disallow: /api/'), 'robots.txt disallows /api/');
+  assert(robots.includes('GPTBot') && robots.includes('ClaudeBot'), 'robots.txt explicitly permits AI crawlers');
+  assert(robots.includes(`Sitemap: ${BASE_DOMAIN}/sitemap.xml`), 'robots.txt links to sitemap.xml');
+}
+
+// 5. Check dist/sitemap.xml
+assert(existsSync(join(DIST, 'sitemap.xml')), 'dist/sitemap.xml exists');
+if (existsSync(join(DIST, 'sitemap.xml'))) {
+  const sitemap = readFileSync(join(DIST, 'sitemap.xml'), 'utf8');
+  assert(!sitemap.includes('zoop.network'), 'sitemap.xml does NOT contain legacy zoop.network');
+  assert(!sitemap.includes('/app<'), 'sitemap.xml does NOT contain private /app');
+  assert(!sitemap.includes('/architecture<'), 'sitemap.xml does NOT contain alias /architecture');
+  assert(sitemap.includes('<lastmod>'), 'sitemap.xml includes <lastmod> ISO dates');
+
+  for (const route of CANONICAL_ROUTES) {
+    const loc = `${BASE_DOMAIN}${route === '/' ? '/' : route}`;
+    assert(sitemap.includes(`<loc>${loc}</loc>`), `sitemap.xml contains canonical URL ${loc}`);
+  }
+}
+
+// 6. Check dist/_redirects
+assert(existsSync(join(DIST, '_redirects')), 'dist/_redirects exists');
+if (existsSync(join(DIST, '_redirects'))) {
+  const redirects = readFileSync(join(DIST, '_redirects'), 'utf8');
+  assert(!redirects.includes('/*    /index.html   200'), '_redirects does NOT have blanket /* rewrite (prevents soft-404)');
+  assert(redirects.includes('/app/*') && redirects.includes('/app'), '_redirects rewrites /app to index.html 200');
+  assert(redirects.includes('/org/*'), '_redirects rewrites /org to index.html 200');
+  assert(redirects.includes('/admin/*'), '_redirects rewrites /admin to index.html 200');
+  assert(redirects.includes('/architecture') && redirects.includes('301'), '_redirects 301 redirects /architecture to /how-it-works');
+}
+
+console.log(`\n─── Verification Finished with ${errors} error(s) ───`);
+if (errors > 0) {
+  process.exit(1);
+} else {
+  console.log('🎉 ALL PHASE 1 CHECKS PASSED!\n');
+}

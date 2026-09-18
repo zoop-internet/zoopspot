@@ -20,16 +20,16 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 ## Phase Execution Checklist
 
 ### Phase 1: Technical SEO (Crawl, Index, Architecture)
-- [ ] **1.1 Fix Soft-404 in `_redirects` & generate `dist/404.html`**
-  - Update `scripts/prerender.mjs` to emit `dist/404.html` with full styling and HTTP 404 response capability.
-  - Update `public/_redirects` to only proxy explicit SPA client-side routes (`/app/*`, `/org/*`, `/admin/*`) to `/index.html 200`. Unmatched requests drop to `404.html` natively.
-- [ ] **1.2 Update `robots.txt` Disallow directives**
-  - In `scripts/prerender.mjs` and `public/robots.txt`, disallow `/app/`, `/org/`, `/admin/`, and `/api/`. Preserve AI bot allowances (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`).
-- [ ] **1.3 Clean `public/sitemap.xml`**
-  - Replace any remaining references to `zoop.network` with `https://zoopinternet.app`.
-  - Remove private `/app` from public sitemap.
-- [ ] **1.4 Disambiguate `/architecture` & `/how-it-works`**
-  - Update `scripts/prerender.mjs` and `src/App.tsx` so `/architecture` has a distinct technical title and description, and self-canonicalizes to `https://zoopinternet.app/architecture`.
+- [x] **1.1 Fix Soft-404 in `_redirects` & generate `dist/404.html`** [DONE - Deployed & verified with curl HTTP 404]
+  - Updated `scripts/prerender.mjs` and added `public/404.html` to emit true HTTP 404 on unmapped paths.
+  - Updated `public/_redirects` to only proxy explicit SPA client-side routes (`/app/*`, `/org/*`, `/admin/*`) to `/index.html 200`. Unmatched requests drop to `404.html` natively.
+- [x] **1.2 Update `robots.txt` Disallow directives** [DONE - Deployed & verified with curl]
+  - In `scripts/prerender.mjs` and `public/robots.txt`, disallowed `/app/`, `/org/`, `/admin/`, and `/api/`. Preserved all AI bot allowances (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`, etc.).
+- [x] **1.3 Clean `public/sitemap.xml`** [DONE - Deployed & verified with curl]
+  - Replaced legacy `zoop.network` with `https://zoopinternet.app` across all URLs.
+  - Added valid ISO-8601 `<lastmod>` timestamps and removed private `/app`.
+- [x] **1.4 Disambiguate `/architecture` & `/how-it-works`** [DONE - Deployed & verified with curl HTTP 301]
+  - Configured clean HTTP 301 redirect in `_redirects` and client router from `/architecture` to `/how-it-works`. Omitted non-canonical alias from sitemap.
 
 ### Phase 2: On-Page SEO & Content Quality
 - [ ] **2.1 Semantic Navigation Anchors**

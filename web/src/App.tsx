@@ -15,7 +15,6 @@ const AuthPage = lazy(() => import('./auth/AuthPage').then(m => ({ default: m.Au
 const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/': { title: 'Zoop — Secure Direct Device-to-Device Sharing | Private Mesh', desc: 'Share your home or phone internet directly with trusted devices — no VPN bottlenecks. WireGuard-encrypted, NAT-traversal, open-source & free. Install Zoop in 30 seconds.' },
   '/how-it-works': { title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks', desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.' },
-  '/architecture': { title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks', desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.' },
   '/products': { title: 'Products — Zoop for Desktop, Mobile & Routers | One Ecosystem', desc: 'Zoop for Linux, macOS, Windows, Android, iOS & OpenWrt. One mesh across your computers, phones and home routers.' },
   '/downloads': { title: 'Download Zoop — Free for Linux, macOS, Windows, Mobile & Routers', desc: 'Download Zoop free: .deb, .pkg, .msi, APK, iOS beta & router .ipk. One-tap install, open-source MIT.' },
   '/security': { title: 'Security & Privacy — End-to-End Encrypted, Open Source, No Tracking', desc: 'Zoop is end-to-end encrypted (WireGuard), Ed25519 auth, zero tracking logs, open source & audited. Your traffic stays private.' },
@@ -40,7 +39,7 @@ function normalizePath(raw: string): string {
 }
 
 const VALID_ROUTES = new Set([
-  '/', '/how-it-works', '/architecture', '/products', '/downloads', '/security', '/pricing', '/docs',
+  '/', '/how-it-works', '/products', '/downloads', '/security', '/pricing', '/docs',
   '/privacy', '/privacy-policy', '/terms', '/terms-of-service', '/eula',
   '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
   '/app', '/user', '/org', '/admin',
@@ -87,6 +86,14 @@ const App: React.FC = () => {
   const searchParams = urlForParse.searchParams;
   const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs');
   const pathnameForLanding = isValidRoute ? pathname : '/';
+
+  // Handle alias redirects client-side
+  useEffect(() => {
+    if (normalized === '/architecture') {
+      window.history.replaceState({}, '', '/how-it-works');
+      setCurrentUrl('/how-it-works');
+    }
+  }, [normalized]);
 
   // Per-route title/description/canonical sync for SEO (covers S4-05 + canonical)
   useEffect(() => {
@@ -139,15 +146,32 @@ const Fallback: React.FC = () => (
 );
 
 const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({ path, onNavigate }) => (
-  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', background: '#020617', color: '#f1f5f9', textAlign: 'center' }}>
-    <div style={{ fontSize: '4rem', fontWeight: 800, letterSpacing: '-0.04em', color: '#38bdf8' }}>404</div>
-    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 8 }}>Page not found</h1>
-    <p style={{ color: '#94a3b8', marginTop: 8, maxWidth: 480, lineHeight: 1.6 }}>No route matches <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono, monospace)', fontSize:'0.8125rem' }}>{path}</code>. Check the URL or return home.</p>
-    <div style={{ display:'flex', gap:12, marginTop:20 }}>
-      <button className="lp-btn-primary" onClick={() => onNavigate('/')} style={{ padding:'10px 18px', borderRadius: 10, background: '#38bdf8', color:'#020617', border:0, fontWeight:700, cursor:'pointer' }}>Go to homepage</button>
-      <button className="lp-btn-secondary" onClick={() => window.history.back()} style={{ padding:'10px 18px', borderRadius:10, background:'rgba(255,255,255,0.06)', color:'#f1f5f9', border:'1px solid rgba(255,255,255,0.08)', fontWeight:600, cursor:'pointer' }}>Go back</button>
+  <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', background: '#020617', color: '#f1f5f9', textAlign: 'center', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <a href="/" onClick={(e) => { e.preventDefault(); onNavigate('/'); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 28 }}>
+      <img src="/zoopicon-32.webp" alt="Zoop Internet" width={32} height={32} />
+      <span style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f8fafc' }}>Zoop <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.28)', padding: '2px 8px', borderRadius: 999 }}>Internet</span></span>
+    </a>
+    <div style={{ fontSize: '5rem', fontWeight: 900, letterSpacing: '-0.04em', color: '#38bdf8', lineHeight: 1 }}>404</div>
+    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '14px 0 0' }}>Page not found</h1>
+    <p style={{ color: '#94a3b8', margin: '10px 0 0', maxWidth: 500, lineHeight: 1.6, fontSize: '1rem' }}>No route matches <code style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono, monospace)', fontSize:'0.8125rem', color: '#38bdf8' }}>{path}</code>. Check the URL or return home.</p>
+    <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
+      <button className="lp-btn-primary" onClick={() => onNavigate('/')} style={{ padding: '12px 24px', borderRadius: 10, background: '#38bdf8', color: '#020617', border: 0, fontWeight: 700, cursor: 'pointer', fontSize: '0.9375rem' }}>Go to homepage</button>
+      <button className="lp-btn-secondary" onClick={() => onNavigate('/docs')} style={{ padding: '12px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 600, cursor: 'pointer', fontSize: '0.9375rem' }}>Documentation</button>
+      <button className="lp-btn-secondary" onClick={() => window.history.back()} style={{ padding: '12px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.12)', fontWeight: 600, cursor: 'pointer', fontSize: '0.9375rem' }}>Go back</button>
     </div>
-    <div style={{ marginTop:24, fontSize:'0.75rem', color:'#64748b' }}><a href="/docs" onClick={e=>{e.preventDefault(); onNavigate('/docs');}} style={{ color:'#38bdf8' }}>Docs</a> · <a href="/downloads" onClick={e=>{e.preventDefault(); onNavigate('/downloads');}} style={{ color:'#38bdf8' }}>Downloads</a> · <a href="https://github.com/allannuwamanya/zoop" target="_blank" rel="noreferrer" style={{ color:'#38bdf8' }}>GitHub</a></div>
+    <nav style={{ marginTop: 36, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 16, fontSize: '0.8125rem', color: '#94a3b8', flexWrap: 'wrap', justifyContent: 'center' }} aria-label="Popular navigation links">
+      <a href="/how-it-works" onClick={e => { e.preventDefault(); onNavigate('/how-it-works'); }} style={{ color: '#38bdf8', textDecoration: 'none' }}>How It Works</a>
+      <span>·</span>
+      <a href="/products" onClick={e => { e.preventDefault(); onNavigate('/products'); }} style={{ color: '#38bdf8', textDecoration: 'none' }}>Products</a>
+      <span>·</span>
+      <a href="/downloads" onClick={e => { e.preventDefault(); onNavigate('/downloads'); }} style={{ color: '#38bdf8', textDecoration: 'none' }}>Downloads</a>
+      <span>·</span>
+      <a href="/pricing" onClick={e => { e.preventDefault(); onNavigate('/pricing'); }} style={{ color: '#38bdf8', textDecoration: 'none' }}>Pricing</a>
+      <span>·</span>
+      <a href="/security" onClick={e => { e.preventDefault(); onNavigate('/security'); }} style={{ color: '#38bdf8', textDecoration: 'none' }}>Security</a>
+      <span>·</span>
+      <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>GitHub</a>
+    </nav>
   </div>
 );
 

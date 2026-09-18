@@ -56,3 +56,4 @@ tools/dev-fixtures/
 web/public/*.json
 web/public/*.html
 !web/public/index.html
+!web/public/404.html

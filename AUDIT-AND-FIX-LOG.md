@@ -2,7 +2,7 @@
 **Domain:** `zoopinternet.app` / `zoopnetwork.pages.dev`  
 **Date:** September 2026  
 **Auditor:** Senior Web Performance, SEO & UI/UX Engineer (Antigravity)  
-**Status:** Audit Complete — Remediation Plan Ready for Execution  
+**Status:** Phase 1 (Technical SEO) Remediated & Live Verified; Ready for Phase 2  
 
 ---
 
@@ -72,51 +72,31 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 
 ### Phase 1: Technical SEO (Crawl, Index, Architecture)
 
-#### Finding 1.1: Soft-404 Responses on Nonexistent URLs
+#### Finding 1.1: Soft-404 Responses on Nonexistent URLs [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/public/_redirects:1`
 - **Issue**: `/* /index.html 200` causes Cloudflare Pages to return HTTP 200 for any random URL (e.g. `/random-slug`), serving the SPA index file. Search engines perceive this as a Soft 404.
-- **Fix**:
-  1. Generate `dist/404.html` in `prerender.mjs`.
-  2. In `web/public/_redirects`, only rewrite specific SPA app routes (`/app/*`, `/org/*`, `/admin/*`) to `/index.html 200`. Cloudflare Pages will automatically serve `404.html` with status HTTP 404 for unmapped paths.
+- **Remediation**:
+  1. Generated static `404.html` with noindex and recovery navigation links.
+  2. In `web/public/_redirects`, scoped SPA rewrites to `/app/*`, `/org/*`, `/admin/*`. Unmapped paths now drop to Cloudflare Pages edge HTTP 404 (verified via curl).
 
-#### Finding 1.2: Overwriting of `robots.txt` Disallow Rules
+#### Finding 1.2: Overwriting of `robots.txt` Disallow Rules [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/scripts/prerender.mjs:161-166` vs `web/public/robots.txt:1-5`
-- **Issue**: `prerender.mjs` generates `dist/robots.txt` containing only `User-agent: *\nAllow: /\nSitemap: ...`, wiping out `Disallow: /admin/` and `Disallow: /api/`. Additionally, `/app/` and `/org/` are missing from disallow directives.
-- **Fix**: Update `prerender.mjs` and `web/public/robots.txt` to emit:
-  ```txt
-  User-agent: *
-  Allow: /
-  Disallow: /app/
-  Disallow: /org/
-  Disallow: /admin/
-  Disallow: /api/
+- **Issue**: `prerender.mjs` was overwriting `dist/robots.txt` and wiping out disallow directives.
+- **Remediation**: Updated both `prerender.mjs` and `web/public/robots.txt` with explicit `Disallow: /app/`, `/org/`, `/admin/`, `/api/` while explicitly permitting AI crawlers (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`, etc.). Verified live at `https://zoopnetwork.pages.dev/robots.txt`.
 
-  # AI crawlers
-  User-agent: GPTBot
-  Allow: /
-  User-agent: ClaudeBot
-  Allow: /
-  User-agent: PerplexityBot
-  Allow: /
-  User-agent: Google-Extended
-  Allow: /
-
-  Sitemap: https://zoopinternet.app/sitemap.xml
-  ```
-
-#### Finding 1.3: Legacy Domain & Private Route in `sitemap.xml`
+#### Finding 1.3: Legacy Domain & Private Route in `sitemap.xml` [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/public/sitemap.xml:3-11`
-- **Issue**: `web/public/sitemap.xml` references `https://zoop.network` and includes `/app`.
-- **Fix**: Replace content in `web/public/sitemap.xml` with canonical `https://zoopinternet.app` URLs, excluding authenticated `/app`.
+- **Issue**: Referenced legacy domain `https://zoop.network` and included private `/app`.
+- **Remediation**: Replaced with all 23 canonical `https://zoopinternet.app` public URLs, added ISO-8601 `<lastmod>` timestamps, and excluded private routes. Verified live at `https://zoopnetwork.pages.dev/sitemap.xml`.
 
-#### Finding 1.4: Canonical Duplication between `/how-it-works` and `/architecture`
+#### Finding 1.4: Canonical Duplication between `/how-it-works` and `/architecture` [REMEDIATED & VERIFIED]
 - **Severity**: Medium
 - **Location**: `web/scripts/prerender.mjs:29-34`, `web/src/App.tsx:18`
-- **Issue**: `/architecture` has identical title/description to `/how-it-works` and canonicalizes to `/how-it-works`, yet is listed as a separate URL in `sitemap.xml`.
-- **Fix**: Give `/architecture` distinct title ("System Architecture & Deep Dive — WireGuard, STUN/TURN, IPAM | Zoop"), distinct description, and self-referencing canonical tag.
+- **Issue**: `/architecture` was listed in sitemap but canonicalized to `/how-it-works`.
+- **Remediation**: Added clean HTTP 301 redirect in `_redirects` and client-side router from `/architecture` to `/how-it-works`. Removed non-canonical `/architecture` from sitemap. Verified live returning HTTP 301.
 
 ---
 

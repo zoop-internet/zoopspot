@@ -1,1 +1,28 @@
-/*    /index.html   200
+# Cloudflare Pages Redirects & Rewrites
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+# ─── Legacy & Alias 301 Permanent Redirects ──────────────────────────────────
+/architecture         /how-it-works     301
+/privacy-policy       /privacy          301
+/terms-of-service     /terms            301
+/eula                 /terms            301
+/login                /auth?tab=signin  301
+/signin               /auth?tab=signin  301
+/sign-in              /auth?tab=signin  301
+/signup               /auth?tab=signup  301
+/sign-up              /auth?tab=signup  301
+/register             /auth?tab=signup  301
+/user                 /app              301
+/user/*               /app/:splat       301
+
+# ─── Authenticated SPA Client Routes (Proxy to index.html with 200) ──────────
+/app                  /index.html       200
+/app/*                /index.html       200
+/org                  /index.html       200
+/org/*                /index.html       200
+/admin                /index.html       200
+/admin/*              /index.html       200
+
+# Note: All public marketing and docs routes are served directly from static
+# prerendered HTML directories (e.g. /how-it-works/index.html).
+# Any unmapped path falls through to native Cloudflare Pages /404.html with HTTP 404.
