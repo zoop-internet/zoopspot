@@ -102,29 +102,30 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 
 ### Phase 2: On-Page SEO & Content Quality
 
-#### Finding 2.1: Navigation Elements Implemented as Buttons or Hrefless Anchors
+#### Finding 2.1: Navigation Elements Implemented as Buttons or Hrefless Anchors [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**:
   - `web/src/landing/LandingPage.tsx:1030-1052` (Desktop topbar)
   - `web/src/landing/LandingPage.tsx:1097-1103` (Mobile drawer)
   - `web/src/landing/LandingPage.tsx:2034-2060` (Footer links)
+  - `web/src/landing/LandingPage.tsx` (Hero, pricing, testimonials, CTA banner)
 - **Issue**:
-  - Desktop nav uses `<button onClick={() => handleNav('/...')}>`.
-  - Footer uses `<a onClick={() => handleNav('/...')}>` without `href`.
-  - Search crawlers cannot follow these links, and users cannot middle-click / open in new tabs.
-- **Fix**: Change to semantic `<a href="/target" onClick={(e) => { e.preventDefault(); handleNav('/target'); }}>`.
+  - Desktop nav used `<button onClick={() => handleNav('/...')}>`.
+  - Footer used `<a onClick={() => handleNav('/...')}>` without `href`.
+  - Search crawlers could not follow these links, and users could not middle-click / open in new tabs.
+- **Fix & Verification**: Converted all navigation pills, brand logos, hero CTAs, pricing action buttons, and footer links to semantic `<a href="..." onClick={(e) => { e.preventDefault(); handleNav(...); }}>`. Updated `LandingPage.css` to ensure styling parity between anchors and buttons. Deployed and verified live on Cloudflare Pages.
 
-#### Finding 2.2: Multiple Nested `<main>` Elements
+#### Finding 2.2: Multiple Nested `<main>` Elements [REMEDIATED & VERIFIED]
 - **Severity**: Medium
-- **Location**: `web/src/landing/LandingPage.tsx:1121`, 1132, 1176, 1248, 1302, 1363, 1419, 1529
-- **Issue**: Outer container is `<main id="main-content">`, and individual page subviews also render `<main className="lp-page-wrapper">`. HTML5 permits only one `<main>` landmark.
-- **Fix**: Change inner page wrappers from `<main className="lp-page-wrapper">` to `<div className="lp-page-wrapper">`.
+- **Location**: `web/src/landing/LandingPage.tsx` (across all subviews: `/pricing`, `/downloads`, `/how-it-works`, `/products`, `/security`, `/privacy`, `/terms`)
+- **Issue**: Outer container was `<main id="main-content">`, and individual page subviews also rendered `<main className="lp-page-wrapper">`. HTML5 permits only one `<main>` landmark. Additionally, `lp-trust-bar` and `lp-faq` were placed outside `</main>`.
+- **Fix & Verification**: Converted all subview inner containers to `<div className="lp-page-wrapper">`. Moved `lp-trust-bar` and `lp-faq` inside `<main id="main-content">`. Replaced `<h1>` inside `<noscript>` in `index.html` with a `<p>` tag. Every view now has strictly one `<main>` element and one `<h1>` in the DOM.
 
-#### Finding 2.3: Non-JS Crawlers Receive Empty Body Content
+#### Finding 2.3: Non-JS Crawlers Receive Empty Body Content [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/scripts/prerender.mjs:85-106`, `web/dist/*/index.html`
-- **Issue**: Prerender only updates `<head>` meta tags. `<div id="root"></div>` remains completely empty until JS runs.
-- **Fix**: Update `prerender.mjs` to inject route-specific semantic HTML shell (H1, route summary, primary features, and navigation links) into `<div id="root">` of prerendered files. When client-side React boots, `createRoot` cleanly hydrates/renders the interactive app.
+- **Issue**: Prerender only updated `<head>` meta tags. `<div id="root"></div>` remained completely empty until JS ran.
+- **Fix & Verification**: `prerender.mjs` generates route-specific semantic HTML shell (H1, route summary, primary features, and navigation links) into `<div id="root">` of all 23 prerendered route files. Verified live via curl with 200 OK and single `<h1>` tag per page. Also updated public GitHub repository links to `zoop-internet/zoop`.
 
 ---
 

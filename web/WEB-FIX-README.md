@@ -32,13 +32,15 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
   - Configured clean HTTP 301 redirect in `_redirects` and client router from `/architecture` to `/how-it-works`. Omitted non-canonical alias from sitemap.
 
 ### Phase 2: On-Page SEO & Content Quality
-- [ ] **2.1 Semantic Navigation Anchors**
-  - In `src/landing/LandingPage.tsx`, convert topbar nav buttons and mobile drawer buttons to `<a href="...">` elements while keeping SPA navigation with `e.preventDefault(); handleNav('/...');`.
-  - In footer links, add `href` attributes to all `<a>` tags (e.g. `href="/products"`, `href="/downloads"`).
-- [ ] **2.2 Eliminate Nested `<main>` Elements**
-  - In `src/landing/LandingPage.tsx`, replace nested `<main className="lp-page-wrapper">` tags with `<div className="lp-page-wrapper">` across Pricing, Downloads, HowItWorks, Products, Security, Privacy, and Terms views.
-- [ ] **2.3 Prerender Fallback Content into `<div id="root">`**
-  - In `scripts/prerender.mjs`, insert route-specific semantic HTML (H1, route summary paragraph, and primary links) into `<div id="root">` so non-JS scrapers receive rich indexed text.
+- [x] **2.1 Semantic Navigation Anchors** [DONE - Deployed & verified]
+  - Converted topbar nav, brand logo, mobile drawer, hero CTAs, pricing action buttons, and all footer links to semantic `<a href="...">` elements with `onClick={(e) => { e.preventDefault(); handleNav('/...'); }}` SPA routing.
+  - Added matching CSS styling in `src/landing/LandingPage.css`.
+- [x] **2.2 Eliminate Nested `<main>` Elements** [DONE - Deployed & verified]
+  - In `src/landing/LandingPage.tsx`, replaced nested `<main className="lp-page-wrapper">` tags with `<div className="lp-page-wrapper">` across Pricing, Downloads, HowItWorks, Products, Security, Privacy, and Terms views.
+  - Moved `lp-trust-bar` and `lp-faq` inside `<main id="main-content">`. Replaced `<h1>` in `<noscript>` with `<p>`. Exactly one `<main>` landmark exists on every page.
+- [x] **2.3 Prerender Fallback Content into `<div id="root">`** [DONE - Deployed & verified]
+  - In `scripts/prerender.mjs`, inserted route-specific semantic HTML (H1, route summary paragraph, and primary links) into `<div id="root">` so non-JS scrapers receive rich indexed text.
+  - Standardized GitHub links across landing page and docs to `https://github.com/zoop-internet/zoop`.
 
 ### Phase 3: AI-Search Visibility (AEO/GEO) & Structured Data
 - [ ] **3.1 Update AI Knowledge Documents**
