@@ -1507,3 +1507,84 @@
   .docs-sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); max-height: none; }
   .docs-main { padding: 20px; }
 }
+
+/* ─── Phase 5 UI/UX Polish: Mobile Hints, Badges, & Print Styles ──────── */
+.lp-scroll-hint {
+  display: none;
+}
+@media (max-width: 768px) {
+  .lp-scroll-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--cyan);
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+.lp-product-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lp-recommended-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.docs-empty-state {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.docs-empty-state strong {
+  color: var(--ink);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.docs-mobile-toggle {
+  display: none;
+}
+@media (max-width: 768px) {
+  .docs-mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--surface-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+  .docs-nav:not(.mobile-open) {
+    display: none;
+  }
+}
+
+@media print {
+  .lp-topbar, .lp-footer, .lp-top-loading-bar, .lp-toast-container, .skip-link, .lp-cta-banner { display: none !important; }
+  .landing-shell { background: #fff !important; color: #000 !important; }
+  .lp-page-wrapper, .docs-layout, .docs-article { color: #000 !important; max-width: 100% !important; }
+}
+

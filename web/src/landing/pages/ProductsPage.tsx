@@ -29,6 +29,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ handleNav }) => {
             <li><Ico d={Icons.check} size={14} /> Ultra-low battery and CPU usage</li>
             <li><Ico d={Icons.check} size={14} /> Instant status in your system menu</li>
           </ul>
+          <div className="lp-product-actions">
+            <a href="/downloads" className="lp-btn-primary" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>
+              Download for PC &amp; Mac <Ico d={Icons.arrowRight} size={13} />
+            </a>
+          </div>
         </div>
 
         <div className="lp-product-card">
@@ -43,6 +48,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ handleNav }) => {
             <li><Ico d={Icons.check} size={14} /> Instant notification of peer requests</li>
             <li><Ico d={Icons.check} size={14} /> Safe public Wi-Fi shield</li>
           </ul>
+          <div className="lp-product-actions">
+            <a href="/downloads" className="lp-btn-primary" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>
+              Get Mobile App <Ico d={Icons.arrowRight} size={13} />
+            </a>
+          </div>
         </div>
 
         <div className="lp-product-card">
@@ -57,6 +67,11 @@ export const ProductsPage: React.FC<ProductsPageProps> = ({ handleNav }) => {
             <li><Ico d={Icons.check} size={14} /> One-click sharing approvals</li>
             <li><Ico d={Icons.check} size={14} /> Full control of your network</li>
           </ul>
+          <div className="lp-product-actions">
+            <a href="/app" className="lp-btn-primary" onClick={(e) => { e.preventDefault(); handleNav('/app'); }}>
+              Open Web Console <Ico d={Icons.arrowRight} size={13} />
+            </a>
+          </div>
         </div>
       </div>
 

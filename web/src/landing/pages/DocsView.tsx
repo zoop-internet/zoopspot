@@ -21,6 +21,7 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
     return cand && DOCS_FLAT.some(d => d.id === cand) ? cand : DOCS_FLAT[0]?.id || 'quickstart';
   });
   const [search, setSearch] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [md, setMd] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -115,24 +116,54 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="docs-mobile-toggle"
+            onClick={() => setMobileNavOpen(prev => !prev)}
+            aria-expanded={mobileNavOpen}
+            aria-label="Toggle documentation topics navigation"
+          >
+            <span>Topic: {active?.title || 'Guides'}</span>
+            <span>{mobileNavOpen ? '▲' : '▼'}</span>
+          </button>
         </div>
-        <nav className="docs-nav">
-          {filteredSections.map(sec => (
-            <div key={sec.label} className="docs-sec">
-              <div className="docs-sec-label">{sec.label}</div>
-              {sec.items.map(it => (
+        <nav className={`docs-nav ${mobileNavOpen ? 'mobile-open' : ''}`}>
+          {filteredSections.length === 0 ? (
+            <div className="docs-empty-state">
+              <strong>No guides found</strong>
+              <span>No documentation matches "{search}"</span>
+              <div style={{ marginTop: 12 }}>
                 <button
-                  key={it.id}
-                  className={`docs-item ${activeId === it.id ? 'active' : ''}`}
-                  onClick={() => setActiveId(it.id)}
-                  aria-current={activeId === it.id ? 'page' : undefined}
+                  type="button"
+                  className="lp-btn-secondary"
+                  onClick={() => setSearch('')}
+                  style={{ minHeight: 34, padding: '0 12px', fontSize: '0.75rem' }}
                 >
-                  <span className="docs-item-title">{it.title}</span>
-                  <span className="docs-item-desc">{it.desc}</span>
+                  Clear search
                 </button>
-              ))}
+              </div>
             </div>
-          ))}
+          ) : (
+            filteredSections.map(sec => (
+              <div key={sec.label} className="docs-sec">
+                <div className="docs-sec-label">{sec.label}</div>
+                {sec.items.map(it => (
+                  <button
+                    key={it.id}
+                    className={`docs-item ${activeId === it.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveId(it.id);
+                      setMobileNavOpen(false);
+                    }}
+                    aria-current={activeId === it.id ? 'page' : undefined}
+                  >
+                    <span className="docs-item-title">{it.title}</span>
+                    <span className="docs-item-desc">{it.desc}</span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
         </nav>
         <div className="docs-sidebar-foot">
           <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub →</a>

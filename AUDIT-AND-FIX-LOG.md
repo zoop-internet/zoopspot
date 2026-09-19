@@ -192,6 +192,42 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Issue**: Interactive `.lp-device-node` elements and nav pills lacked explicit `:focus-visible` styling; `/how-it-works` lacked a high-fidelity visual architecture diagram.
 - **Remediation**: Added accessible `:focus-visible` outlines on nav links and interactive mesh nodes. Generated and embedded an optimized 25 KB WebP architecture diagram (`/assets/zoop-mesh-architecture.webp`) in `/how-it-works`. Deployed and verified live.
 
+#### Finding 5.3: Comparison Table Horizontal Overflow on Mobile [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/pages/OverviewPage.tsx`, `web/src/landing/LandingPage.css`
+- **Issue**: On viewports <=768px, the feature comparison table clipped horizontally without an explicit affordance indicating scrollability.
+- **Remediation**: Added `.lp-scroll-hint` ("← Swipe horizontally to compare all features →") visible strictly on mobile, with smooth momentum scrolling (`-webkit-overflow-scrolling: touch`) and subtle scrollbar styling.
+
+#### Finding 5.4: Missing Contextual Action CTAs on Product Cards [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/pages/ProductsPage.tsx`, `web/src/landing/LandingPage.css`
+- **Issue**: Product cards for Desktop, Mobile, and Web Console listed capabilities without direct action paths, forcing users to scroll back up to the top navigation.
+- **Remediation**: Added `.lp-product-actions` buttons to Desktop ("Download for PC & Mac"), Mobile ("Get Mobile App"), and Web Console ("Open Web Console") directing users immediately to their respective workflows.
+
+#### Finding 5.5: Static Downloads Matrix Without Platform Detection [REMEDIATED & VERIFIED]
+- **Severity**: Low
+- **Location**: `web/src/landing/pages/DownloadsPage.tsx`, `web/src/landing/LandingPage.css`
+- **Issue**: Users landing on `/downloads` had to manually scan across 5 platforms to find their current OS.
+- **Remediation**: Added client-side OS detection memo (`detectedOs`) that recognizes macOS, Windows, Linux, Android, and iOS, rendering a subtle `.lp-recommended-badge` ("Recommended for your device") on the detected platform card.
+
+#### Finding 5.6: Lack of Reassurance & FAQ in Pricing View [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/pages/PricingPage.tsx`
+- **Issue**: `/pricing` lacked answers to common commercial objections (e.g. personal license guarantees, self-hosting compatibility, organization SLA details).
+- **Remediation**: Added a dedicated "Pricing FAQ & Open-Source Guarantees" callout addressing free-forever personal use under MIT, organizational fleet capabilities, and self-hosted control plane parity.
+
+#### Finding 5.7: Missing Security Vulnerability Disclosure Channel [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/src/landing/pages/SecurityPage.tsx`
+- **Issue**: Security researchers and enterprise auditors lacked clear vulnerability reporting guidelines and response time commitments.
+- **Remediation**: Added a dedicated "Security & Vulnerability Disclosure" card with `security@zoopinternet.app`, 24-hour response commitment, and direct link to the repository PGP key and security advisory policy.
+
+#### Finding 5.8: Docs Mobile Navigation & Empty Search State [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/pages/DocsView.tsx`, `web/src/landing/LandingPage.css`
+- **Issue**: On mobile screens, the full docs sidebar took up significant vertical screen space before content. When searching docs with no matching results, an empty blank list was shown.
+- **Remediation**: Implemented a responsive topic drawer button (`.docs-mobile-toggle`) on mobile that expands/collapses the topics list, and a rich `.docs-empty-state` with a "Clear search" button when zero matches are found. Added `@media print` styles to cleanly print docs and legal pages.
+
 ---
 
 ### Phase 6: Accessibility (WCAG 2.2 AA)

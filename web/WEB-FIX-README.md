@@ -67,6 +67,18 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 - [x] **5.2 Interactive Element Focus States & Architecture Illustration** [DONE - Deployed & verified]
   - Added explicit `:focus-visible` styling to `.lp-device-node` and nav links in `src/landing/LandingPage.css`.
   - Generated and embedded optimized WebP architecture diagram (`/assets/zoop-mesh-architecture.webp`, 25 KB) in the `/how-it-works` view.
+- [x] **5.3 Mobile Horizontal Scroll Affordance** [DONE - Deployed & verified]
+  - Added `.lp-scroll-hint` ("← Swipe horizontally to compare all features →") above the comparison table on screens <=768px with momentum scrolling.
+- [x] **5.4 Contextual Action Buttons on Product Cards** [DONE - Deployed & verified]
+  - Added direct action buttons to Desktop ("Download for PC & Mac"), Mobile ("Get Mobile App"), and Web Console ("Open Web Console") cards.
+- [x] **5.5 Client-side Platform Detection** [DONE - Deployed & verified]
+  - Added `useMemo` OS detection in `/downloads` with `.lp-recommended-badge` highlighting the user's active operating system.
+- [x] **5.6 Pricing Reassurance & Guarantees FAQ** [DONE - Deployed & verified]
+  - Added open-source and license guarantees callout to `/pricing` answering personal free-forever, organization fleet, and self-hosted control plane questions.
+- [x] **5.7 Security Disclosure & Vulnerability Reporting** [DONE - Deployed & verified]
+  - Added vulnerability reporting channel (`security@zoopinternet.app`), 24h response commitment, and PGP key advisory link to `/security`.
+- [x] **5.8 Docs Search Zero-State & Mobile Navigation Drawer** [DONE - Deployed & verified]
+  - Added responsive `.docs-mobile-toggle` drawer and `.docs-empty-state` with "Clear search" button to `/docs`. Added `@media print` rules.
 
 ### Phase 6: Accessibility (WCAG 2.2 AA)
 - [x] **6.1 Accessible Media & Decorative Icons** [DONE - Deployed & verified]

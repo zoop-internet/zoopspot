@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { Ico } from '../components/Icons';
 import { Icons } from '../components/iconConstants';
 import { DOWNLOAD_DATA } from '../data/downloadsData';
@@ -15,6 +16,17 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
   copyText,
   copiedCmd,
 }) => {
+  const detectedOs = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('mac')) return 'macos';
+    if (ua.includes('win')) return 'windows';
+    if (ua.includes('android')) return 'mobile';
+    if (ua.includes('linux')) return 'linux';
+    if (ua.includes('iphone') || ua.includes('ipad')) return 'mobile';
+    return null;
+  }, []);
+
   return (
     <div className="lp-page-wrapper">
       <div className="lp-page-header">
@@ -29,10 +41,17 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
 
       <div className="lp-downloads-grid">
         {DOWNLOAD_DATA.map((item) => (
-          <div key={item.id} className="lp-dl-card">
+          <div key={item.id} className="lp-dl-card" style={detectedOs === item.id ? { borderColor: 'rgba(52, 211, 153, 0.4)', background: 'linear-gradient(145deg, var(--surface-card), rgba(52, 211, 153, 0.04))' } : undefined}>
             <div className="lp-dl-top">
               <div className="lp-dl-icon">{item.icon}</div>
-              <span className="lp-brand-badge">Free</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {detectedOs === item.id && (
+                  <span className="lp-recommended-badge">
+                    <Ico d={Icons.check} size={11} /> Recommended
+                  </span>
+                )}
+                <span className="lp-brand-badge">Free</span>
+              </div>
             </div>
             <h3>{item.name}</h3>
             <p className="lp-dl-sub">{item.sub}</p>

@@ -185,6 +185,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <h2 id="compare-heading">Direct beats detoured.</h2>
           <p className="lp-subtext">Same encryption. Shorter path. You own the route.</p>
         </div>
+        <div className="lp-scroll-hint">← Swipe horizontally to compare all features →</div>
         <div className="lp-compare-wrap">
           <div className="lp-compare-table">
             <div style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--ink)', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--line)' }}>Feature</div>

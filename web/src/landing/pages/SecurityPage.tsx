@@ -72,6 +72,33 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ handleNav }) => {
         </div>
       </div>
 
+      <div style={{ marginTop: 24, background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28 }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Ico d={Icons.shield} size={20} />
+          Security &amp; Vulnerability Disclosure
+        </h3>
+        <p style={{ fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--muted)', margin: '0 0 16px' }}>
+          We welcome responsible security research and vulnerability disclosures. If you discover a security issue or cryptographic vulnerability in the Zoop protocol, client daemon, or control plane, please notify our security team directly.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', fontSize: '0.875rem' }}>
+          <div>
+            <strong style={{ color: 'var(--ink)' }}>Email: </strong>
+            <a href="mailto:security@zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+              security@zoopinternet.app
+            </a>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--ink)' }}>PGP Key &amp; Policy: </strong>
+            <a href="https://github.com/zoop-internet/zoop/blob/main/SECURITY.md" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+              Zoop Security Advisory &amp; PGP Key →
+            </a>
+          </div>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 12, marginBottom: 0 }}>
+          We commit to acknowledging reports within 24 hours and providing coordinated disclosure timelines following industry best practices.
+        </p>
+      </div>
+
       <div style={{ marginTop: 64, textAlign: 'center' }}>
         <a href="/" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/'); }}>
           ← Back to Overview

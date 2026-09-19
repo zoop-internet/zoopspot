@@ -76,7 +76,23 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ handleNav }) => 
         </div>
       </div>
 
-      <div style={{ marginTop: 64, textAlign: 'center' }}>
+      {/* Conversion CTA banner */}
+      <div className="lp-cta-banner" style={{ marginTop: 48 }}>
+        <div className="lp-cta-copy">
+          <h2>Ready to test direct tunneling?</h2>
+          <p>Experience sub-millisecond local latency with zero centralized hops. Install in 30 seconds.</p>
+        </div>
+        <div className="lp-cta-actions">
+          <a href="/downloads" className="lp-btn-primary large" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>
+            Get Zoop Free
+          </a>
+          <a href="/app" className="lp-btn-secondary large" onClick={(e) => { e.preventDefault(); handleNav('/app'); }}>
+            Launch Web Console
+          </a>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 48, textAlign: 'center' }}>
         <a href="/" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/'); }}>
           ← Back to Overview
         </a>

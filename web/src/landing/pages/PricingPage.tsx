@@ -58,8 +58,28 @@ export const PricingPage: React.FC<PricingPageProps> = ({
           </form>
         </div>
       </div>
-      <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.75rem', color: 'var(--muted)' }}>All plans include end-to-end encryption, NAT traversal, MIT license. Questions? <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>Security →</a></p>
-      <div style={{ marginTop: 64, textAlign: 'center' }}><a href="/" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/'); }}>← Back to Overview</a></div>
+
+      {/* FAQ & Guarantees callout */}
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 24, maxWidth: 860, margin: '36px auto 0' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 12px', color: 'var(--ink)' }}>Pricing FAQ &amp; Open-Source Guarantees</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, fontSize: '0.8125rem', color: 'var(--ink-secondary)', lineHeight: 1.6 }}>
+          <div>
+            <strong style={{ color: 'var(--ink)' }}>Is Personal really free forever?</strong>
+            <p style={{ margin: '4px 0 0' }}>Yes. Personal use (up to 5 devices, unlimited direct tunnels) is and will always be free under the MIT open-source license.</p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--ink)' }}>What is the Organizations plan?</strong>
+            <p style={{ margin: '4px 0 0' }}>Built for engineering teams and fleets needing centralized management, audit logs, and role-based access control.</p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--ink)' }}>Can I self-host the coordinator?</strong>
+            <p style={{ margin: '4px 0 0' }}>Absolutely. Both <code>zoop-cloud</code> and <code>zoopd</code> are open source. You can run your own control plane with Postgres or in-memory storage.</p>
+          </div>
+        </div>
+      </div>
+
+      <p style={{ textAlign: 'center', marginTop: 18, fontSize: '0.75rem', color: 'var(--muted)' }}>All plans include end-to-end encryption, NAT traversal, MIT license. Questions? <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>Security →</a></p>
+      <div style={{ marginTop: 48, textAlign: 'center' }}><a href="/" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/'); }}>← Back to Overview</a></div>
     </div>
   );
 };
