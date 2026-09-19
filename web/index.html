@@ -53,14 +53,29 @@
   <link rel="preload" href="/zoopicon-32.png" as="image" type="image/png" fetchpriority="low" />
   <link rel="preload" href="/og-image.webp" as="image" type="image/webp" imagesrcset="/og-image.webp 1200w" fetchpriority="low" />
 
-  <!-- Structured Data: Organization + SoftwareApplication -->
+  <!-- Structured Data: WebSite + Organization + SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Zoop Internet",
+    "url": "https://zoopinternet.app",
+    "description": "Open-source direct device-to-device mesh platform for private, fast internet sharing with WireGuard encryption.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Zoop Internet",
+      "url": "https://zoopinternet.app",
+      "logo": "https://zoopinternet.app/zoopicon-192.png"
+    }
+  }
+  </script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "Zoop Internet",
     "url": "https://zoopinternet.app",
-    "logo": "https://zoopinternet.app/zoopicontransparent.png",
+    "logo": "https://zoopinternet.app/zoopicon-192.png",
     "description": "Open-source direct device-to-device mesh platform — WireGuard encrypted, NAT traversal, free.",
     "foundingDate": "2024",
     "sameAs": ["https://github.com/zoop-internet/zoop"]

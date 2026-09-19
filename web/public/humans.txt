@@ -1,10 +1,10 @@
 /* TEAM */
 Lead Product: Zoop Internet — Direct Device-to-Device Mesh
-Contact: founders@zoop.network
-Site: https://zoop.network
+Contact: founders@zoopinternet.app
+Site: https://zoopinternet.app
 Location: Remote — Nairobi · Kampala · Lagos · Global
-GitHub: https://github.com/allannuwamanya/zoop
-Issues: https://github.com/allannuwamanya/zoop/issues
+GitHub: https://github.com/zoop-internet/zoop
+Issues: https://github.com/zoop-internet/zoop/issues
 
 /* THANKS */
 WireGuard® (Noise_IK, ChaCha20-Poly1305, Curve25519)

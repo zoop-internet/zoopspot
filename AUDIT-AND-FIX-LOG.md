@@ -131,23 +131,23 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 
 ### Phase 3: AI-Search Visibility (AEO/GEO) & Structured Data
 
-#### Finding 3.1: Stale Domain in `llms-full.txt` and `ai.txt`
+#### Finding 3.1: Stale Domain in `llms-full.txt`, `llms.txt`, `ai.txt`, and `humans.txt` [REMEDIATED & VERIFIED]
 - **Severity**: High
-- **Location**: `web/public/llms-full.txt:3, 12, 62, 65`, `web/public/ai.txt:8`
-- **Issue**: Mentions `zoop.network` 7 times and instructs LLMs to query deprecated `FAQPage` JSON-LD.
-- **Fix**: Update all references to `https://zoopinternet.app` and align structured data recommendations.
+- **Location**: `web/public/llms-full.txt`, `web/public/llms.txt`, `web/public/ai.txt`, `web/public/humans.txt`
+- **Issue**: Mentioned `zoop.network` and outdated `allannuwamanya/zoop` repository URLs.
+- **Fix & Verification**: Standardized all AI reference documents, entity cards, contact emails, and repository URLs to `https://zoopinternet.app` and `https://github.com/zoop-internet/zoop`. Deployed and verified live at `/llms.txt`, `/llms-full.txt`, `/ai.txt`, and `/humans.txt`.
 
-#### Finding 3.2: Missing `WebSite` Schema
+#### Finding 3.2: Missing `WebSite` Schema [REMEDIATED & VERIFIED]
 - **Severity**: Medium
 - **Location**: `web/index.html:56-84`
-- **Issue**: Contains `Organization` and `SoftwareApplication`, but lacks `WebSite` schema.
-- **Fix**: Add Schema.org `WebSite` JSON-LD definition.
+- **Issue**: Contained `Organization` and `SoftwareApplication`, but lacked `WebSite` schema.
+- **Fix & Verification**: Added Schema.org `WebSite` JSON-LD definition with name, URL, description, and publisher details. Also updated `Organization` logo to `/zoopicon-192.png`. Deployed and verified live via curl.
 
-#### Finding 3.3: Incomplete BreadcrumbList Hierarchy for Docs Subpages
+#### Finding 3.3: Incomplete BreadcrumbList Hierarchy for Docs Subpages [REMEDIATED & VERIFIED]
 - **Severity**: Low
-- **Location**: `web/scripts/prerender.mjs:103`
-- **Issue**: Emits 2-level breadcrumb (`Home` -> `Topic`) instead of 3-level (`Home` -> `Docs` -> `Topic`).
-- **Fix**: Update breadcrumb generation in `prerender.mjs` to include the parent `/docs` step for all `/docs/*` subpages.
+- **Location**: `web/scripts/prerender.mjs:104-118`
+- **Issue**: Emitted 2-level breadcrumb (`Home` -> `Topic`) instead of 3-level (`Home` -> `Docs` -> `Topic`).
+- **Fix & Verification**: Prerender engine now builds 3-level breadcrumbs (`Home` -> `Docs` -> `Topic`) for all 13 documentation subpages (`/docs/*`). Automated verification in `verify-build.mjs` validates BreadcrumbList existence across all routes.
 
 ---
 

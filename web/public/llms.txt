@@ -3,11 +3,11 @@
 > Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal, and Ed25519 identities.
 
 - **Website:** https://zoopinternet.app
-- **GitHub:** https://github.com/allannuwamanya/zoop
-- **Docs:** https://zoopinternet.app/how-it-works
+- **GitHub:** https://github.com/zoop-internet/zoop
+- **Docs:** https://zoopinternet.app/docs
 - **Downloads:** https://zoopinternet.app/downloads
 - **Security:** https://zoopinternet.app/security
-- **API docs:** https://github.com/allannuwamanya/zoop/blob/main/docs/api.md
+- **API docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
 
 ## What Zoop Does
 - Provider endpoints (home broadband, phone hotspot, office) share connectivity with Recipient endpoints (laptop on road, family device) via direct encrypted tunnels.

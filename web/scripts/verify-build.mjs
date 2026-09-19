@@ -118,9 +118,27 @@ if (existsSync(join(DIST, '_redirects'))) {
   assert(redirects.includes('/architecture') && redirects.includes('301'), '_redirects 301 redirects /architecture to /how-it-works');
 }
 
+// 7. Phase 3 Checks: AI Search & Structured Data
+if (existsSync(join(DIST, 'index.html'))) {
+  const rootHtml = readFileSync(join(DIST, 'index.html'), 'utf8');
+  assert(rootHtml.includes('"@type": "WebSite"'), 'Root HTML has Schema.org WebSite definition');
+  assert(rootHtml.includes('"@type": "Organization"'), 'Root HTML has Schema.org Organization definition');
+  assert(rootHtml.includes('"@type": "SoftwareApplication"'), 'Root HTML has Schema.org SoftwareApplication definition');
+}
+
+for (const file of ['llms.txt', 'llms-full.txt', 'ai.txt', 'humans.txt']) {
+  const filePath = join(DIST, file);
+  assert(existsSync(filePath), `dist/${file} exists`);
+  if (existsSync(filePath)) {
+    const content = readFileSync(filePath, 'utf8');
+    assert(!content.includes('zoop.network'), `dist/${file} does NOT contain legacy zoop.network`);
+    assert(!content.includes('allannuwamanya/zoop'), `dist/${file} does NOT contain legacy allannuwamanya/zoop`);
+  }
+}
+
 console.log(`\n─── Verification Finished with ${errors} error(s) ───`);
 if (errors > 0) {
   process.exit(1);
 } else {
-  console.log('🎉 ALL PHASE 1 CHECKS PASSED!\n');
+  console.log('🎉 ALL CHECKS PASSED!\n');
 }

@@ -43,13 +43,15 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
   - Standardized GitHub links across landing page and docs to `https://github.com/zoop-internet/zoop`.
 
 ### Phase 3: AI-Search Visibility (AEO/GEO) & Structured Data
-- [ ] **3.1 Update AI Knowledge Documents**
-  - In `public/llms-full.txt`, `public/llms.txt`, `public/ai.txt`, and `public/humans.txt`, update all references from `zoop.network` to `https://zoopinternet.app`.
-  - Remove deprecated `FAQPage` schema references.
-- [ ] **3.2 Add Schema.org `WebSite` Definition**
-  - In `index.html` and `scripts/prerender.mjs`, add `WebSite` JSON-LD schema with site name, URL, and search/publisher attributes.
-- [ ] **3.3 Multi-tier Breadcrumb for Documentation**
-  - In `scripts/prerender.mjs`, update docs breadcrumbs to include the parent `/docs` hierarchy (`Home` -> `Docs` -> `Page`).
+- [x] **3.1 Update AI Knowledge Documents** [DONE - Deployed & verified]
+  - In `public/llms-full.txt`, `public/llms.txt`, `public/ai.txt`, and `public/humans.txt`, updated all references from `zoop.network` to `https://zoopinternet.app`.
+  - Updated all GitHub repository references to `https://github.com/zoop-internet/zoop`.
+- [x] **3.2 Add Schema.org `WebSite` Definition** [DONE - Deployed & verified]
+  - In `index.html`, added `WebSite` JSON-LD schema with name, URL, description, and publisher attributes.
+  - Updated `Organization` logo from unoptimized PNG to `/zoopicon-192.png`.
+- [x] **3.3 Multi-tier Breadcrumb for Documentation** [DONE - Deployed & verified]
+  - In `scripts/prerender.mjs`, verified docs breadcrumbs include the parent `/docs` hierarchy (`Home` -> `Docs` -> `Page`).
+  - Added automated assertions to `scripts/verify-build.mjs`.
 
 ### Phase 4: Core Web Vitals & Performance
 - [ ] **4.1 Replace 743 KB Logo with Optimized WebP**
