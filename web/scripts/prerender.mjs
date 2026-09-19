@@ -117,6 +117,109 @@ function replaceMeta(html, route, meta) {
     breadcrumb = `  <script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": items })}</script>\n`;
   }
 
+  // Per-template structured data schemas for search & AI answer engines
+  let templateSchema = '';
+  const today = new Date().toISOString().split('T')[0];
+  if (route.startsWith('/docs/')) {
+    const techArticle = {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": meta.title.split('—')[0].trim(),
+      "description": meta.desc,
+      "inLanguage": "en",
+      "mainEntityOfPage": meta.canonical,
+      "author": {
+        "@type": "Organization",
+        "name": "Zoop Core Team",
+        "url": "https://github.com/zoop-internet"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Zoop Internet",
+        "url": BASE_DOMAIN,
+        "logo": `${BASE_DOMAIN}/zoopicon-192.png`
+      },
+      "datePublished": "2024-06-01",
+      "dateModified": today
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(techArticle)}</script>\n`;
+  } else if (route === '/downloads') {
+    const dlSchema = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Zoop Internet",
+      "applicationCategory": "NetworkingApplication",
+      "operatingSystem": "Linux, macOS, Windows, Android, iOS, OpenWrt",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "description": meta.desc,
+      "softwareVersion": "0.1.0-alpha",
+      "license": "https://opensource.org/licenses/MIT",
+      "url": meta.canonical,
+      "downloadUrl": `${BASE_DOMAIN}/downloads`
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(dlSchema)}</script>\n`;
+  } else if (route === '/products') {
+    const prodSchema = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Zoop Internet Ecosystem",
+      "applicationCategory": "NetworkingApplication",
+      "operatingSystem": "Cross-platform (Linux, macOS, Windows, Android, iOS, OpenWrt)",
+      "description": meta.desc,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "url": meta.canonical
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(prodSchema)}</script>\n`;
+  } else if (route === '/pricing') {
+    const pricingSchema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": "Zoop Mesh Platform",
+      "description": meta.desc,
+      "brand": { "@type": "Brand", "name": "Zoop" },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Personal Free",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "5 devices, unlimited direct tunnels, WireGuard encrypted, community support."
+        },
+        {
+          "@type": "Offer",
+          "name": "Organizations (Founding)",
+          "price": "8.00",
+          "priceCurrency": "USD",
+          "description": "Per seat per month. Unlimited members, fleet controls, audit logs, IPAM & relay controls."
+        }
+      ]
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(pricingSchema)}</script>\n`;
+  } else if (route === '/security') {
+    const secSchema = {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "Zoop Security & Privacy Architecture",
+      "description": meta.desc,
+      "inLanguage": "en",
+      "mainEntityOfPage": meta.canonical,
+      "author": {
+        "@type": "Organization",
+        "name": "Zoop Security Team",
+        "url": "https://github.com/zoop-internet"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Zoop Internet",
+        "url": BASE_DOMAIN,
+        "logo": `${BASE_DOMAIN}/zoopicon-192.png`
+      },
+      "datePublished": "2024-06-01",
+      "dateModified": today
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(secSchema)}</script>\n`;
+  }
+
   // Fallback body markup inside <div id="root"> for non-JS search crawlers (replaced by React createRoot on load)
   const crawlerTitle = meta.title.split('—')[0].trim();
   const fallbackBody = `
@@ -144,7 +247,7 @@ function replaceMeta(html, route, meta) {
   `;
   out = out.replace('<div id="root"></div>', `<div id="root">${fallbackBody}</div>`);
 
-  out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}</head>`);
+  out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}${templateSchema}</head>`);
   return out;
 }
 

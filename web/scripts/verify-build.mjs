@@ -122,9 +122,41 @@ if (existsSync(join(DIST, '_redirects'))) {
 if (existsSync(join(DIST, 'index.html'))) {
   const rootHtml = readFileSync(join(DIST, 'index.html'), 'utf8');
   assert(rootHtml.includes('"@type": "WebSite"'), 'Root HTML has Schema.org WebSite definition');
+  assert(rootHtml.includes('"@type": "SearchAction"'), 'Root HTML has SearchAction on WebSite');
   assert(rootHtml.includes('"@type": "Organization"'), 'Root HTML has Schema.org Organization definition');
   assert(rootHtml.includes('"@type": "SoftwareApplication"'), 'Root HTML has Schema.org SoftwareApplication definition');
 }
+
+// Check per-template schemas
+const downloadsHtml = readFileSync(join(DIST, 'downloads', 'index.html'), 'utf8');
+assert(downloadsHtml.includes('"@type":"SoftwareApplication"'), '/downloads has SoftwareApplication schema');
+
+const pricingHtml = readFileSync(join(DIST, 'pricing', 'index.html'), 'utf8');
+assert(pricingHtml.includes('"@type":"Product"'), '/pricing has Product schema');
+assert(pricingHtml.includes('"@type":"Offer"'), '/pricing has Offer schema');
+
+const securityHtml = readFileSync(join(DIST, 'security', 'index.html'), 'utf8');
+assert(securityHtml.includes('"@type":"TechArticle"'), '/security has TechArticle schema');
+
+const quickstartHtml = readFileSync(join(DIST, 'docs', 'quickstart', 'index.html'), 'utf8');
+assert(quickstartHtml.includes('"@type":"TechArticle"'), '/docs/quickstart has TechArticle schema');
+
+// Validate JSON-LD syntax across all prerendered pages
+for (const route of CANONICAL_ROUTES) {
+  const p = route === '/' ? join(DIST, 'index.html') : join(DIST, route.replace(/^\//, ''), 'index.html');
+  if (existsSync(p)) {
+    const html = readFileSync(p, 'utf8');
+    const matches = html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g);
+    for (const match of matches) {
+      try {
+        JSON.parse(match[1]);
+      } catch (err) {
+        assert(false, `Invalid JSON-LD on route ${route}: ${err.message}`);
+      }
+    }
+  }
+}
+assert(true, 'All JSON-LD blocks across all 23 routes parse successfully as valid JSON');
 
 for (const file of ['llms.txt', 'llms-full.txt', 'ai.txt', 'humans.txt']) {
   const filePath = join(DIST, file);

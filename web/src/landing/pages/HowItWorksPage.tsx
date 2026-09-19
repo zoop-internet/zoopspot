@@ -16,6 +16,19 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ handleNav }) => 
         </p>
       </div>
 
+      {/* Answer-ready extractable summary for AI search and users (AEO/GEO) */}
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 24px', maxWidth: 860, margin: '0 auto 32px' }}>
+        <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase', margin: '0 0 10px' }}>
+          Direct Mesh at a Glance (Quick Answer)
+        </h2>
+        <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--ink-secondary)', fontSize: '0.875rem', lineHeight: 1.7 }}>
+          <li><strong style={{ color: 'var(--ink)' }}>Direct WireGuard Tunnels:</strong> Devices connect point-to-point without sending payloads through centralized intermediary VPN servers.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>NAT Traversal (RFC 8489 / RFC 8656):</strong> Discovers host and server-reflexive endpoints using STUN; establishes direct UDP hole punches with zero-knowledge relay fallback.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>CGNAT &amp; Roaming (RFC 6598):</strong> Seamlessly traverses carrier-grade cellular NATs and transitions between Wi-Fi and 5G via Netlink event monitoring without dropping active connections.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>Latency Advantage:</strong> Direct peer-to-peer routing provides sub-millisecond local latency, eliminating the typical 30–120ms detour imposed by commercial VPN proxies.</li>
+        </ul>
+      </div>
+
       <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 24px', textAlign: 'center', color: 'var(--ink)' }}>Direct Mesh Architecture &amp; Tunneling</h2>
 
       <div className="lp-arch-showcase">

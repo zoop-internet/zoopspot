@@ -1,55 +1,63 @@
 # Zoop Internet
 
-> Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal, and Ed25519 identities.
+> Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal (RFC 8489/8656), and Ed25519 cryptographic identities.
 
 - **Website:** https://zoopinternet.app
 - **GitHub:** https://github.com/zoop-internet/zoop
-- **Docs:** https://zoopinternet.app/docs
+- **Docs Hub:** https://zoopinternet.app/docs
 - **Downloads:** https://zoopinternet.app/downloads
+- **Pricing:** https://zoopinternet.app/pricing
 - **Security:** https://zoopinternet.app/security
-- **API docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
+- **API Docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
+- **Full LLM Reference:** https://zoopinternet.app/llms-full.txt
 
 ## What Zoop Does
-- Provider endpoints (home broadband, phone hotspot, office) share connectivity with Recipient endpoints (laptop on road, family device) via direct encrypted tunnels.
-- Control Plane (identity, auth, signaling, IPAM 100.64.0.0/10) coordinates; Data Plane carries traffic directly (preferred) or via relay fallback.
-- Daemon `zoopd` manages TUN/WireGuard; CLI `zoop` manages via Unix socket; Cloud `zoop-cloud` is coordinator.
+- **Direct Tunneling:** Provider endpoints (home broadband, phone hotspot, office) share connectivity directly with Recipient endpoints (laptop on the road, family device) via point-to-point WireGuard tunnels.
+- **Control vs Data Plane Separation:** The control plane (`zoop-cloud`) coordinates Ed25519 authentication, signaling, and IPAM (100.64.0.0/10); the data plane (`zoopd`) carries encrypted traffic directly between peers (or via zero-knowledge relay fallback if strict symmetric NAT prevents hole-punching).
+- **Daemon, CLI & Console:** Lightweight daemon `zoopd` manages TUN/WireGuard; CLI `zoop` manages daemon via Unix socket; Web Console provides browser management.
 
-## Why Not a VPN?
-- No centralized payload routing; lower latency; end-to-end encrypted; zero-knowledge relays; roaming (Wi-Fi↔cellular) via Netlink.
+## Why Zoop Beats a Traditional VPN
+- **No Centralized Bottleneck:** Payload never routes through company VPN gateways. Sub-millisecond direct latency vs +30-120ms VPN detours.
+- **Zero-Knowledge Relays:** Even when fallback relays are engaged, they forward opaque encrypted frames without decrypting keys.
+- **Seamless Roaming:** Automatically adapts between Wi-Fi and 5G/LTE networks via Netlink event monitoring without dropping active tunnels.
 
 ## Quick Start
 ```bash
-make build
+# Clone and build from source
+git clone https://github.com/zoop-internet/zoop.git
+cd zoop && make build
+
+# Run coordinator (or use hosted cloud)
 ./bin/zoop-cloud
+
+# Start local daemon
 sudo ./bin/zoopd -tun zoop0 -api-port 9090
-zoop status && zoop connect <peer-id>
+
+# Check status and connect
+zoop status
+zoop connect <peer-endpoint-id>
 ```
 
+## Documentation Guides
+- [Quick Start](https://zoopinternet.app/docs/quickstart): 30-second setup for Linux, macOS, and Windows.
+- [Installation](https://zoopinternet.app/docs/installation): Binaries, package managers (apt, brew, winget), and source builds.
+- [Configuration](https://zoopinternet.app/docs/configuration): Daemon flags, environment variables, and config files.
+- [Web Console](https://zoopinternet.app/docs/web-console): Managing personal devices and organization fleets in the browser.
+- [Connect & Share](https://zoopinternet.app/docs/connect-share): Authorizing peer connections, bandwidth limits, and rules.
+- [Devices](https://zoopinternet.app/docs/devices): Managing authorized endpoints, key rotation, and device tags.
+- [Mobile & Router](https://zoopinternet.app/docs/mobile-router): OpenWrt router daemon, Android VpnService, and iOS NetworkExtension.
+- [Identity & Keys](https://zoopinternet.app/docs/identity): Permanent Zoop IDs (ZP-XXXXXX), @handles, 6-digit PINs, and Ed25519 keys.
+- [Organizations](https://zoopinternet.app/docs/organizations): Multi-user fleets, role-based access control (RBAC), and audit logs.
+- [Permissions](https://zoopinternet.app/docs/permissions): Access control policies, time-based sharing, and network isolation.
+- [Troubleshooting](https://zoopinternet.app/docs/troubleshooting): STUN diagnostics, NAT hole-punch debugging, and relay logs.
+- [Security Architecture](https://zoopinternet.app/docs/security-architecture): Deep dive into Noise_IK, WireGuard, and zero-knowledge relays.
+- [FAQ](https://zoopinternet.app/docs/faq): Frequently asked questions for developers and administrators.
+
 ## FAQ
-
 **Q: What is Zoop?** A: Direct device-to-device internet sharing mesh, open-source, WireGuard-encrypted.
-
-**Q: How is it different from a VPN?** A: Payload goes directly device-to-device, not via company servers—faster and more private.
-
-**Q: Is traffic private?** A: Yes, end-to-end encrypted; control plane and relays cannot decrypt.
-
-**Q: Does it work behind NAT/CGNAT?** A: Yes, via STUN discovery (host + srflx candidates), UDP hole punching, relay fallback.
-
-**Q: What platforms?** A: Linux, macOS, Windows, Android, iOS, OpenWrt.
-
-**Q: What is the Zoop ID?** A: Permanent identity `ZP-XXXXXX` (6-char alphabet 23456789ABCDEFGHJKLMNPQRSTUVWXYZ) plus mutable @username; PIN is 6 digits.
-
-**Q: Is it free?** A: Yes, MIT-licensed. Self-hostable control plane.
-
-## Full Reference
-- **Full dump for answer engines:** https://zoopinternet.app/llms-full.txt
-- **Pricing:** https://zoopinternet.app/pricing
-- **Markdown alternative:** Append `.md` to any marketing route (e.g. `/how-it-works.md` returns markdown via `Accept: text/markdown` in future)
-
-## Sections
-- [Overview](/)
-- [How It Works](/how-it-works)
-- [Products](/products)
-- [Pricing](/pricing)
-- [Downloads](/downloads)
-- [Security](/security)
+**Q: How is it different from a VPN?** A: Payload goes directly device-to-device, not via company servers—faster, lower latency, and more private.
+**Q: Is traffic private?** A: Yes, end-to-end encrypted with WireGuard (ChaCha20-Poly1305); control plane and relays cannot decrypt.
+**Q: Does it work behind NAT/CGNAT?** A: Yes, via STUN discovery (host + srflx candidates), UDP hole punching, and zero-knowledge WebSocket relay fallback.
+**Q: What platforms?** A: Linux, macOS, Windows, Android, iOS, OpenWrt routers, and web console.
+**Q: What is the Zoop ID?** A: Permanent identity `ZP-XXXXXX` (Crockford base32 alphabet) plus mutable @username; PIN is 6 digits.
+**Q: Is it free?** A: Yes, MIT-licensed open source. Free for personal use (up to 5 devices, unlimited tunnels).

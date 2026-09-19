@@ -42,15 +42,33 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ handleNav }) => {
       </div>
 
       <div style={{ marginTop: 32, background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28 }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 10 }}>How we encrypt — in 80 words</h3>
-        <p style={{ fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--muted)', margin: 0 }}>
-          Zoop uses <abbr title="WireGuard — modern VPN protocol"><strong>WireGuard</strong></abbr> (Noise_IK, ChaCha20-Poly1305, Curve25519) for the data plane and <strong>Ed25519</strong> for control-plane auth. Devices derive a deterministic Endpoint ID from their public key (UUIDv5). Signaling uses `zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH` with bounded 100k nonce cache and strict 0600 key storage (PBKDF2-AES-GCM optional via <code>ZOOP_IDENTITY_PASSPHRASE</code>). Relays are zero-decryption — DERP-style `ws://` forwarding of `[senderID][payload]` only. IPAM from <code>100.64.0.0/10</code> per-RFC6598 assigns /30 pairs (1,048,576 capacity) atomically via Postgres.
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 10 }}>Cryptographic Architecture &amp; Formal Standards</h3>
+        <p style={{ fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--muted)', margin: '0 0 16px' }}>
+          Zoop implements peer-to-peer data plane encryption using <abbr title="WireGuard — modern VPN protocol"><strong>WireGuard®</strong></abbr> with 1-RTT key exchange and forward secrecy. Control plane signaling and device identity authentication are anchored entirely by <strong>Ed25519</strong> asymmetric cryptography. Relays operate in zero-decryption mode (DERP-style <code>ws://</code>) and can only inspect opaque frames, never payloads.
         </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, margin: '16px 0', fontSize: '0.8125rem' }}>
+          <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <strong style={{ color: 'var(--ink)' }}>Noise_IK Handshake:</strong>
+            <p style={{ margin: '4px 0 0', color: 'var(--ink-secondary)' }}>Mutual authentication with static-ephemeral Diffie-Hellman key agreement providing forward secrecy.</p>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <strong style={{ color: 'var(--ink)' }}>RFC 8439 (AEAD):</strong>
+            <p style={{ margin: '4px 0 0', color: 'var(--ink-secondary)' }}>ChaCha20-Poly1305 authenticated symmetric stream cipher for all in-flight packets.</p>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <strong style={{ color: 'var(--ink)' }}>RFC 7748 &amp; RFC 8032:</strong>
+            <p style={{ margin: '4px 0 0', color: 'var(--ink-secondary)' }}>Curve25519 elliptic-curve Diffie-Hellman and Ed25519 high-speed digital signatures.</p>
+          </div>
+          <div style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+            <strong style={{ color: 'var(--ink)' }}>RFC 6598 IPAM:</strong>
+            <p style={{ margin: '4px 0 0', color: 'var(--ink-secondary)' }}>Isolated Carrier-Grade Shared Address Space (<code>100.64.0.0/10</code>) allocated as point-to-point /30 subnets.</p>
+          </div>
+        </div>
         <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <span className="lp-trust-badge">WireGuard® · ChaCha20</span>
-          <span className="lp-trust-badge">Ed25519 · Nonce + TTL</span>
-          <span className="lp-trust-badge">0600 · PBKDF2 · AES-GCM</span>
-          <span className="lp-trust-badge">100.64.0.0/10 · /30</span>
+          <span className="lp-trust-badge">WireGuard® · Noise_IK</span>
+          <span className="lp-trust-badge">RFC 8439 · ChaCha20-Poly1305</span>
+          <span className="lp-trust-badge">RFC 8032 · Ed25519</span>
+          <span className="lp-trust-badge">RFC 6598 · 100.64.0.0/10</span>
         </div>
       </div>
 
