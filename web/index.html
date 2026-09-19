@@ -49,9 +49,8 @@
   <meta name="twitter:image" content="https://zoopinternet.app/og-image.png" />
   <meta name="twitter:creator" content="@zoopnetwork" />
 
-  <!-- Performance hints: no eager 743kB preload. LCP is hero text, not icon. Icon decoded async. -->
-  <link rel="preload" href="/zoopicon-32.png" as="image" type="image/png" fetchpriority="low" />
-  <link rel="preload" href="/og-image.webp" as="image" type="image/webp" imagesrcset="/og-image.webp 1200w" fetchpriority="low" />
+  <!-- Performance hints: preload primary icon with low priority -->
+  <link rel="preload" href="/zoopicon-32.webp" as="image" type="image/webp" fetchpriority="low" />
 
   <!-- Structured Data: WebSite + Organization + SoftwareApplication -->
   <script type="application/ld+json">

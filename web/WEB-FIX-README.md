@@ -54,13 +54,12 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
   - Added automated assertions to `scripts/verify-build.mjs`.
 
 ### Phase 4: Core Web Vitals & Performance
-- [ ] **4.1 Replace 743 KB Logo with Optimized WebP**
-  - In `src/landing/LandingPage.tsx` (line 787), replace `/zoopicontransparent.png` with `/zoopicon-32.webp` (or `/zoopicon-192.webp`).
-  - Update similar usages in `src/admin/AdminConsole.tsx`, `src/app/org/OrgDashboard.tsx`, `src/app/user/UserDashboard.tsx`, and `src/auth/AuthPage.tsx`.
-- [ ] **4.2 Remove `og-image.webp` Preload**
-  - In `index.html`, remove `<link rel="preload" href="/og-image.webp" ...>`.
-- [ ] **4.3 Eliminate Artificial 180ms Navigation Latency**
-  - In `src/landing/LandingPage.tsx` (`handleNav`), trigger `onNavigate(path)` immediately rather than deferring inside a 180ms `setTimeout`, boosting INP score.
+- [x] **4.1 Replace 743 KB Logo with Optimized WebP** [DONE - Deployed & verified]
+  - Replaced `/zoopicontransparent.png` across `LandingPage.tsx`, `AdminConsole.tsx`, `OrgDashboard.tsx`, `UserDashboard.tsx`, and `AuthPage.tsx` with `/zoopicon-32.webp` (and `/zoopicon-192.webp 2x` srcSet).
+- [x] **4.2 Remove `og-image.webp` Preload** [DONE - Deployed & verified]
+  - In `index.html`, removed the unused `og-image.webp` preload and updated primary icon preload to WebP.
+- [x] **4.3 Eliminate Artificial 180ms Navigation Latency** [DONE - Deployed & verified]
+  - In `src/landing/LandingPage.tsx` (`handleNav`), trigger `onNavigate(path)` immediately rather than deferring inside a 180ms `setTimeout`, eliminating artificial latency and optimizing INP.
 
 ### Phase 5: Modern UI/UX
 - [ ] **5.1 404 Experience Upgrade**

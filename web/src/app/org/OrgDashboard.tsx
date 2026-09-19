@@ -305,7 +305,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         {/* Brand — matches landing: Zoop Internet */}
         <div className="sidebar-brand" style={{ cursor: 'default', gap: 8 }}>
           <div className="sidebar-brand-icon" style={{ width: 32, height: 32, borderRadius: 8, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 10px rgba(8,242,255,0.15)' }}>
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={24} height={24} />
+            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={24} height={24} />
           </div>
           <div className="sidebar-brand-name">Zoop</div>
           <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 99, background: 'rgba(8,242,255,0.12)', color: '#38bdf8', border: '1px solid rgba(8,242,255,0.28)' }}>Internet</span>

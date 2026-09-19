@@ -260,17 +260,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     <div className="auth-shell">
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <header className="auth-topbar" role="banner">
-        <div className="auth-brand" onClick={() => onNavigate('/')} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter') onNavigate('/');}} aria-label="Zoop Internet — go to homepage">
+        <a href="/" className="auth-brand" onClick={(e) => { e.preventDefault(); onNavigate('/'); }} aria-label="Zoop Internet — go to homepage">
           <div className="auth-brand-logo">
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} />
+            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={28} height={28} />
           </div>
           <span className="auth-brand-name">Zoop</span>
           <span className="auth-brand-tag">Internet</span>
-        </div>
-        <button className="auth-back-link" onClick={() => onNavigate('/')}>
+        </a>
+        <a href="/" className="auth-back-link" onClick={(e) => { e.preventDefault(); onNavigate('/'); }}>
           {Icons.arrowLeft}
           <span>Back to Overview</span>
-        </button>
+        </a>
       </header>
 
       <main id="main-content" className="auth-main" tabIndex={-1}>

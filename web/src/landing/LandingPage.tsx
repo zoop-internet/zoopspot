@@ -785,7 +785,7 @@ const BentArrowMeshIllustration: React.FC = () => {
 
       {/* Central Zoop Hub — decorative, SVG already describes mesh — performance: async decode */}
       <div className="lp-node-center-hub" title="Zoop Direct Bridge" aria-hidden="true">
-        <img src="/zoopicontransparent.png" alt="" width={44} height={44} decoding="async" loading="eager" />
+        <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="" width={44} height={44} decoding="async" loading="eager" />
       </div>
 
       {/* Node 1: Home Wi-Fi & Broadband */}
@@ -931,24 +931,19 @@ export const LandingPage: React.FC<{
   const navTimersRef = React.useRef<number[]>([]);
   const handleNav = (path: string) => {
     if (currentPath === path) return;
-    // Clear any pending nav timers to avoid queueing
+    // Navigate immediately for optimal INP and perceived performance
+    onNavigate(path);
+    // Concurrent progress animation feedback
     navTimersRef.current.forEach(id => clearTimeout(id));
     navTimersRef.current = [];
     setLoadingVisible(true);
-    setLoadingProgress(0);
-    // Use rAF for smooth progress, not nested timeouts
-    requestAnimationFrame(() => setLoadingProgress(35));
-    const t1 = window.setTimeout(() => setLoadingProgress(75), 80);
-    const t2 = window.setTimeout(() => {
-      setLoadingProgress(100);
-      onNavigate(path);
-      const t3 = window.setTimeout(() => {
-        setLoadingVisible(false);
-        setLoadingProgress(0);
-      }, 180);
-      navTimersRef.current.push(t3);
-    }, 180);
-    navTimersRef.current.push(t1, t2);
+    setLoadingProgress(40);
+    requestAnimationFrame(() => setLoadingProgress(100));
+    const t1 = window.setTimeout(() => {
+      setLoadingVisible(false);
+      setLoadingProgress(0);
+    }, 150);
+    navTimersRef.current.push(t1);
   };
   useEffect(() => () => { navTimersRef.current.forEach(id => clearTimeout(id)); }, []);
 

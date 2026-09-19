@@ -2927,7 +2927,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
       <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`} aria-label="Admin navigation">
         <div className="admin-brand" style={{ gap: 10 }}>
           <div className="admin-brand-icon" style={{ width: 36, height: 36, borderRadius: 9, background: '#000', border: '1px solid rgba(8,242,255,0.3)', boxShadow: '0 0 14px rgba(8,242,255,0.2)' }}>
-            <img src="/zoopicontransparent.png" alt="Zoop Internet" width={28} height={28} />
+            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={28} height={28} />
           </div>
           <div>
             <div className="admin-brand-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Zoop <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 99, background: 'rgba(8,242,255,0.12)', color: '#38bdf8', border: '1px solid rgba(8,242,255,0.28)' }}>Internet</span></div>

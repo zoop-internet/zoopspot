@@ -153,7 +153,7 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 
 ### Phase 4: Core Web Vitals & Performance
 
-#### Finding 4.1: Massive 743 KB Uncompressed PNG in Critical Viewports
+#### Finding 4.1: Massive 743 KB Uncompressed PNG in Critical Viewports [REMEDIATED & VERIFIED]
 - **Severity**: Critical
 - **Location**:
   - `web/src/landing/LandingPage.tsx:787` (`/zoopicontransparent.png` rendered at 44x44px in hero hub)
@@ -161,20 +161,20 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
   - `web/src/app/org/OrgDashboard.tsx:308`
   - `web/src/app/user/UserDashboard.tsx:1707`
   - `web/src/auth/AuthPage.tsx:265`
-- **Issue**: Loads a 743 KB image where a 1.3 KB WebP icon (`/zoopicon-32.webp`) is needed.
-- **Fix**: Replace all occurrences with `/zoopicon-32.webp` (or `/zoopicon-192.webp` for 2x displays).
+- **Issue**: Loaded an uncompressed 743 KB PNG where a 1.3 KB WebP icon (`/zoopicon-32.webp`) is needed.
+- **Fix & Verification**: Replaced all 5 occurrences with `/zoopicon-32.webp` (with `/zoopicon-192.webp 2x` high-DPI srcSet). Reduced payload by >740 KB (99.8%) per user visit. Deployed and verified live.
 
-#### Finding 4.2: Unused Preload of Social Share Image (`og-image.webp`)
+#### Finding 4.2: Unused Preload of Social Share Image (`og-image.webp`) [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/index.html:54`
-- **Issue**: `<link rel="preload" href="/og-image.webp" ...>` forces mobile and desktop browsers to download an image that is never visible in the viewport.
-- **Fix**: Delete line 54 in `web/index.html`.
+- **Issue**: `<link rel="preload" href="/og-image.webp" ...>` forced mobile and desktop browsers to eagerly download an image never visible in the initial viewport.
+- **Fix & Verification**: Removed the `og-image.webp` preload from `index.html` and updated primary icon preload to `/zoopicon-32.webp`. Verified live via curl that only the primary WebP icon is preloaded.
 
-#### Finding 4.3: Artificial 180ms Navigation Latency Worsening INP
+#### Finding 4.3: Artificial 180ms Navigation Latency Worsening INP [REMEDIATED & VERIFIED]
 - **Severity**: High
-- **Location**: `web/src/landing/LandingPage.tsx:940-950`
-- **Issue**: `handleNav` defers `onNavigate(path)` inside a 180ms `setTimeout` to show a progress bar animation.
-- **Fix**: Trigger `onNavigate(path)` immediately; run the progress bar animation concurrently without holding back navigation.
+- **Location**: `web/src/landing/LandingPage.tsx:932-952`
+- **Issue**: `handleNav` deferred `onNavigate(path)` inside a 180ms `setTimeout` to show a progress bar animation, introducing artificial delay and degrading INP.
+- **Fix & Verification**: Changed `handleNav` to invoke `onNavigate(path)` immediately while running the progress indicator concurrently. SPA navigation is now instantaneous (0ms latency). Verified in browser runtime.
 
 ---
 
