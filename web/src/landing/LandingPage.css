@@ -191,6 +191,14 @@
   background: rgba(8, 242, 255, 0.12);
 }
 
+.lp-nav-pill button:focus-visible,
+.lp-nav-pill a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+  color: var(--ink);
+  background: rgba(8, 242, 255, 0.18);
+}
+
 .lp-topbar-actions {
   display: flex;
   align-items: center;
@@ -456,6 +464,14 @@
   transform: scale(1.06);
   border-color: var(--cyan);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 28px rgba(8, 242, 255, 0.35);
+}
+
+.lp-device-node:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  transform: scale(1.06);
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 4px rgba(8, 242, 255, 0.25), 0 16px 40px rgba(0, 0, 0, 0.8);
 }
 
 .lp-node-icon-box {
@@ -804,6 +820,22 @@
 .lp-product-features li svg { color: var(--green); flex-shrink: 0; }
 
 /* ─── Architecture Deep Dive Cards ─────────────────────────────────────── */
+.lp-arch-showcase {
+  margin: 0 auto 36px;
+  max-width: 960px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  background: var(--surface-card);
+}
+
+.lp-arch-showcase img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .lp-arch-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

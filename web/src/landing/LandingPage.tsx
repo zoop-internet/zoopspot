@@ -563,7 +563,7 @@ const DocsView: React.FC<{ initialId?: string; onNavigateHome: () => void }> = (
     <div className="docs-layout">
       <aside className="docs-sidebar" aria-label="Docs navigation">
         <div className="docs-sidebar-head">
-          <div className="docs-brand-mini"><img src="/zoopicon-32.png" alt="" width={18} height={18}/><span>Zoop</span><span className="docs-ver">v0.1.0-alpha</span></div>
+          <div className="docs-brand-mini"><img src="/zoopicon-32.webp" alt="" aria-hidden="true" width={18} height={18}/><span>Zoop</span><span className="docs-ver">v0.1.0-alpha</span></div>
           <div className="docs-search-wrap">
             <input ref={searchRef} className="docs-search" placeholder="Search docs…  ⌘K" aria-label="Search docs" value={search} onChange={e=>setSearch(e.target.value)} />
           </div>
@@ -785,7 +785,7 @@ const BentArrowMeshIllustration: React.FC = () => {
 
       {/* Central Zoop Hub — decorative, SVG already describes mesh — performance: async decode */}
       <div className="lp-node-center-hub" title="Zoop Direct Bridge" aria-hidden="true">
-        <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="" width={44} height={44} decoding="async" loading="eager" />
+        <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="" aria-hidden="true" width={44} height={44} decoding="async" loading="eager" />
       </div>
 
       {/* Node 1: Home Wi-Fi & Broadband */}
@@ -1017,7 +1017,7 @@ export const LandingPage: React.FC<{
       <header className={`lp-topbar ${scrolled ? 'scrolled' : ''} ${isDocs ? 'docs-topbar' : ''}`} role="banner">
         <a href="/" className="lp-brand" onClick={(e) => { e.preventDefault(); handleNav('/'); }} aria-label="Zoop Internet — go to homepage">
           <div className="lp-brand-icon">
-            <img src="/zoopicon-32.png" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.png 2x" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
+            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
           </div>
           <span className="lp-brand-text">Zoop</span>
           <span className="lp-brand-badge">Internet</span>
@@ -1254,6 +1254,17 @@ export const LandingPage: React.FC<{
             </div>
 
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 24px', textAlign: 'center', color: 'var(--ink)' }}>Direct Mesh Architecture &amp; Tunneling</h2>
+
+            <div className="lp-arch-showcase">
+              <img
+                src="/assets/zoop-mesh-architecture.webp"
+                alt="Zoop peer-to-peer mesh architecture diagram showing encrypted tunnels between devices"
+                width={1280}
+                height={720}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
 
             <div className="lp-arch-grid">
               <div className="lp-arch-card">
@@ -2014,7 +2025,7 @@ export const LandingPage: React.FC<{
             <div className="lp-footer-brand">
               <a href="/" className="lp-brand" onClick={(e) => { e.preventDefault(); handleNav('/'); }} aria-label="Zoop Internet — go to homepage">
                 <div className="lp-brand-icon">
-                  <img src="/zoopicon-32.png" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.png 2x" alt="Zoop" width={28} height={28} loading="lazy" />
+                  <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={28} height={28} loading="lazy" />
                 </div>
                 <span className="lp-brand-text">Zoop Internet</span>
               </a>
