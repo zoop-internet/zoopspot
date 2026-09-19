@@ -168,13 +168,16 @@ for (const file of ['llms.txt', 'llms-full.txt', 'ai.txt', 'humans.txt']) {
   }
 }
 
-// 8. Phase 5-7 Checks: Assets & Security Headers
+// 8. Phase 4-7 Checks: Performance, Assets & Security Headers
 assert(existsSync(join(DIST, 'assets', 'zoop-mesh-architecture.webp')), 'dist/assets/zoop-mesh-architecture.webp exists');
 assert(existsSync(join(DIST, '_headers')), 'dist/_headers exists');
 if (existsSync(join(DIST, '_headers'))) {
   const headers = readFileSync(join(DIST, '_headers'), 'utf8');
   assert(headers.includes('Strict-Transport-Security'), '_headers includes Strict-Transport-Security (HSTS)');
   assert(headers.includes('Cross-Origin-Opener-Policy: same-origin'), '_headers includes Cross-Origin-Opener-Policy: same-origin');
+  assert(headers.includes('/*.png'), '_headers includes caching rule for /*.png');
+  assert(headers.includes('/*.svg'), '_headers includes caching rule for /*.svg');
+  assert(headers.includes('/*.ico'), '_headers includes caching rule for /*.ico');
 }
 
 console.log(`\n─── Verification Finished with ${errors} error(s) ───`);

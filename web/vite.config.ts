@@ -22,6 +22,9 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (id.includes('src/landing/data/docsData')) return 'landing-docs-data';
+          if (id.includes('src/landing/pages/DocsView')) return 'landing-docs';
+          if (id.includes('src/landing/pages/DownloadsPage') || id.includes('src/landing/data/downloadsData')) return 'landing-downloads';
           if (id.includes('src/landing/')) return 'landing';
           if (id.includes('src/admin/AdminConsole')) return 'admin';
           if (id.includes('src/app/user/UserDashboard')) return 'app-user';

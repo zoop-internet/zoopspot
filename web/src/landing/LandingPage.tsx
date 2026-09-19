@@ -9,15 +9,15 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
 import { OverviewPage } from './pages/OverviewPage';
-import { HowItWorksPage } from './pages/HowItWorksPage';
-import { ProductsPage } from './pages/ProductsPage';
-import { DownloadsPage } from './pages/DownloadsPage';
-import { PricingPage } from './pages/PricingPage';
-import { SecurityPage } from './pages/SecurityPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { TermsPage } from './pages/TermsPage';
-import { DocsView } from './pages/DocsView';
-import { DOCS_FLAT } from './data/docsData';
+
+const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then(m => ({ default: m.HowItWorksPage })));
+const ProductsPage = React.lazy(() => import('./pages/ProductsPage').then(m => ({ default: m.ProductsPage })));
+const DownloadsPage = React.lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
+const PricingPage = React.lazy(() => import('./pages/PricingPage').then(m => ({ default: m.PricingPage })));
+const SecurityPage = React.lazy(() => import('./pages/SecurityPage').then(m => ({ default: m.SecurityPage })));
+const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = React.lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
+const DocsView = React.lazy(() => import('./pages/DocsView').then(m => ({ default: m.DocsView })));
 
 /* ─── Main Landing Page Component ──────────────────────────────────────── */
 export const LandingPage: React.FC<{
@@ -175,80 +175,83 @@ export const LandingPage: React.FC<{
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
-        {/* ─── DOCS — professional sidebar + rendered markdown from /docs/*.md ─ */}
-        {isDocs && (
-          <DocsView
-            key={activeRoute}
-            initialId={(() => {
-              const seg = activeRoute.replace(/^\/docs\/?/, '').replace(/^\/documentation\/?/, '').split('/')[0].split('?')[0].split('#')[0];
-              return DOCS_FLAT.some(d => d.id === seg) ? seg : (activeRoute.includes('quickstart') ? 'quickstart' : DOCS_FLAT[0].id);
-            })()}
-            onNavigateHome={() => handleNav('/')}
-          />
-        )}
+        <React.Suspense fallback={
+          <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite">
+            <div className="spinner" style={{ width: 28, height: 28 }} aria-hidden />
+            <span style={{ color: 'var(--muted)', fontSize: 13 }}>Loading view…</span>
+          </div>
+        }>
+          {/* ─── DOCS — professional sidebar + rendered markdown from /docs/*.md ─ */}
+          {isDocs && (
+            <DocsView
+              key={activeRoute}
+              onNavigateHome={() => handleNav('/')}
+            />
+          )}
 
-        {/* ─── DEDICATED PRICING PAGE ───────────────────────────────── */}
-        {activeRoute === '/pricing' && (
-          <PricingPage
-            handleNav={handleNav}
-            handleWaitlist={handleWaitlist}
-            waitlistEmail={waitlistEmail}
-            setWaitlistEmail={setWaitlistEmail}
-            waitlistStatus={waitlistStatus}
-            setWaitlistStatus={setWaitlistStatus}
-            waitlistMsg={waitlistMsg}
-          />
-        )}
+          {/* ─── DEDICATED PRICING PAGE ───────────────────────────────── */}
+          {activeRoute === '/pricing' && (
+            <PricingPage
+              handleNav={handleNav}
+              handleWaitlist={handleWaitlist}
+              waitlistEmail={waitlistEmail}
+              setWaitlistEmail={setWaitlistEmail}
+              waitlistStatus={waitlistStatus}
+              setWaitlistStatus={setWaitlistStatus}
+              waitlistMsg={waitlistMsg}
+            />
+          )}
 
-        {/* ─── DEDICATED DOWNLOADS PAGE ───────────────────────────────── */}
-        {activeRoute === '/downloads' && (
-          <DownloadsPage
-            handleNav={handleNav}
-            handleDownloadClick={handleDownloadClick}
-            copyText={copyText}
-            copiedCmd={copiedCmd}
-          />
-        )}
+          {/* ─── DEDICATED DOWNLOADS PAGE ───────────────────────────────── */}
+          {activeRoute === '/downloads' && (
+            <DownloadsPage
+              handleNav={handleNav}
+              handleDownloadClick={handleDownloadClick}
+              copyText={copyText}
+              copiedCmd={copiedCmd}
+            />
+          )}
 
-        {/* ─── DEDICATED HOW IT WORKS PAGE ────────────────────────────── */}
-        {(activeRoute === '/how-it-works' || activeRoute === '/architecture') && (
-          <HowItWorksPage handleNav={handleNav} />
-        )}
+          {/* ─── DEDICATED HOW IT WORKS PAGE ────────────────────────────── */}
+          {(activeRoute === '/how-it-works' || activeRoute === '/architecture') && (
+            <HowItWorksPage handleNav={handleNav} />
+          )}
 
-        {/* ─── DEDICATED PRODUCTS PAGE ────────────────────────────────── */}
-        {activeRoute === '/products' && (
-          <ProductsPage handleNav={handleNav} />
-        )}
+          {/* ─── DEDICATED PRODUCTS PAGE ────────────────────────────────── */}
+          {activeRoute === '/products' && (
+            <ProductsPage handleNav={handleNav} />
+          )}
 
-        {/* ─── DEDICATED SECURITY PAGE ────────────────────────────────── */}
-        {activeRoute === '/security' && (
-          <SecurityPage handleNav={handleNav} />
-        )}
+          {/* ─── DEDICATED SECURITY PAGE ────────────────────────────────── */}
+          {activeRoute === '/security' && (
+            <SecurityPage handleNav={handleNav} />
+          )}
 
-        {/* ─── DEDICATED PRIVACY POLICY PAGE ───────────────────────────── */}
-        {(activeRoute === '/privacy' || activeRoute === '/privacy-policy') && (
-          <PrivacyPage handleNav={handleNav} />
-        )}
+          {/* ─── DEDICATED PRIVACY POLICY PAGE ───────────────────────────── */}
+          {(activeRoute === '/privacy' || activeRoute === '/privacy-policy') && (
+            <PrivacyPage handleNav={handleNav} />
+          )}
 
-        {/* ─── DEDICATED TERMS OF SERVICE & EULA PAGE ───────────────────── */}
-        {(activeRoute === '/terms' || activeRoute === '/terms-of-service' || activeRoute === '/eula') && (
-          <TermsPage handleNav={handleNav} />
-        )}
+          {/* ─── DEDICATED TERMS OF SERVICE & EULA PAGE ───────────────────── */}
+          {(activeRoute === '/terms' || activeRoute === '/terms-of-service' || activeRoute === '/eula') && (
+            <TermsPage handleNav={handleNav} />
+          )}
 
-        {/* ─── DEFAULT OVERVIEW / HOME PAGE ───────────────────────────── */}
-        {activeRoute === '/' && (
-          <OverviewPage
-            handleNav={handleNav}
-            isAuthenticated={isAuthenticated}
-            onLaunchConsole={onLaunchConsole}
-            waitlistEmail={waitlistEmail}
-            setWaitlistEmail={setWaitlistEmail}
-            waitlistStatus={waitlistStatus}
-            setWaitlistStatus={setWaitlistStatus}
-            waitlistMsg={waitlistMsg}
-            handleWaitlist={handleWaitlist}
-          />
-        )}
+          {/* ─── DEFAULT OVERVIEW / HOME PAGE ───────────────────────────── */}
+          {activeRoute === '/' && (
+            <OverviewPage
+              handleNav={handleNav}
+              isAuthenticated={isAuthenticated}
+              onLaunchConsole={onLaunchConsole}
+              waitlistEmail={waitlistEmail}
+              setWaitlistEmail={setWaitlistEmail}
+              waitlistStatus={waitlistStatus}
+              setWaitlistStatus={setWaitlistStatus}
+              waitlistMsg={waitlistMsg}
+              handleWaitlist={handleWaitlist}
+            />
+          )}
+        </React.Suspense>
       </main>
 
       {/* ─── Footer ─────────────────────────────────────────────────── */}
