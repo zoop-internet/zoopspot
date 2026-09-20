@@ -296,15 +296,57 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Issue**: References to legacy `allannuwamanya/zoop` instead of official `zoop-internet/zoop`.
 - **Remediation**: Updated all references to `https://github.com/zoop-internet/zoop`. Verified with zero occurrences of legacy repo URLs in source or build output.
 
+#### Finding 7.4: RFC 9116 Security Disclosure (`security.txt`) [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/public/.well-known/security.txt`, `web/public/security.txt`, `web/public/_redirects:15`, `web/public/_headers:38-44`
+- **Issue**: Missing standard RFC 9116 machine-readable vulnerability disclosure file for security researchers.
+- **Remediation**: Created RFC 9116 compliant `.well-known/security.txt` and `/security.txt` fallback with `Contact`, `Expires`, `Preferred-Languages`, `Canonical`, `Policy`, `Acknowledgments`, and `Hiring` directives. Configured HTTP 301 redirect and text/plain headers. Verified live on edge via curl.
+
+#### Finding 7.5: CSP & Permissions-Policy Hardening & CORP [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/public/_headers:3,7,8`
+- **Issue**: CSP lacked `base-uri 'self'`, `object-src 'none'`, and `upgrade-insecure-requests`; Permissions-Policy did not restrict high-risk APIs (`payment`, `usb`, `interest-cohort`, `screen-wake-lock`); Cross-Origin-Resource-Policy was missing.
+- **Remediation**: Added `Cross-Origin-Resource-Policy: same-origin` to root and `cross-origin` to static assets; hardened CSP directives; restricted high-risk browser capabilities in Permissions-Policy. Verified live on edge via curl.
+
+#### Finding 7.6: Repository & Policy Document Synchronization [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `SECURITY.md`, `docs/compliance/privacy_policy.md`
+- **Issue**: `SECURITY.md` used legacy reporting email `security@zoop.network` without SLA; `docs/compliance/privacy_policy.md` used outdated repository link.
+- **Remediation**: Updated `SECURITY.md` to `security@zoopinternet.app` with a 24-hour response SLA and RFC 9116 reference; updated privacy policy repository reference to `zoop-internet/zoop`.
+
+#### Finding 7.7: Legacy Domain Elimination in Docs & Styling [REMEDIATED & VERIFIED]
+- **Severity**: Low
+- **Location**: `web/public/docs/web.md`, `web/src/admin/AdminConsole.css`
+- **Issue**: Legacy `zoop.network` domains remained in architectural diagrams and CSS comments.
+- **Remediation**: Replaced all occurrences with canonical `zoopinternet.app` domains. Zero instances of `zoop.network` remain in web source or build artifacts.
+
 ---
 
 ### Phase 8: Verification & Monitoring Setup
 
-#### Finding 8.1: Automated Build & Edge Verification [REMEDIATED & VERIFIED]
-- **Severity**: Medium
+#### Finding 8.1: Automated Build & Pre-render Assertions (`verify-build.mjs`) [REMEDIATED & VERIFIED]
+- **Severity**: High
 - **Location**: `web/scripts/verify-build.mjs`
 - **Issue**: Need automated verification that all 23 prerendered routes exist, contain valid HTML with non-empty crawler content, accurate sitemaps, valid headers, and zero legacy domains.
-- **Remediation**: Implemented `scripts/verify-build.mjs` checking 70+ automated assertions in the build pipeline. All tests pass with 0 errors. Live edge verified via Cloudflare Pages.
+- **Remediation**: Implemented `scripts/verify-build.mjs` checking 100+ automated assertions in the build pipeline across prerendered HTML, Schema.org JSON-LD validity, robots.txt, sitemap.xml, RFC 9116 security.txt, CSP directives, and WCAG accessibility standards. All tests pass with 0 errors.
+
+#### Finding 8.2: Synthetic Edge Probing & Live Health Monitoring (`monitor-edge.mjs`) [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/scripts/monitor-edge.mjs`
+- **Issue**: Need automated synthetic health probing of live edge deployment (`zoopnetwork.pages.dev` / `zoopinternet.app`) to verify HTTP 200 responses, security headers, 301 redirects, soft-404 prevention, and AI discovery.
+- **Remediation**: Implemented `scripts/monitor-edge.mjs` executing live HTTP requests against edge servers. Validates HSTS, CSP, COOP, CORP, Permissions-Policy, canonical routes, 301 redirects (`/architecture`, `/security.txt`, `/login`), RFC 9116 security disclosure, and soft-404 rejection (returns true HTTP 404). All probes pass with 0 errors.
+
+#### Finding 8.3: Automated CI/CD Gating in GitHub Actions [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `.github/workflows/ci.yml:97`, `.github/workflows/deploy-pages.yml:38`
+- **Issue**: CI workflows and Cloudflare Pages deploy action did not run the automated verification suite, allowing potential regressions in prerendering or security headers to slip into production.
+- **Remediation**: Integrated `node scripts/verify-build.mjs` as a mandatory step in both `ci.yml` (Web job) and `deploy-pages.yml` before deployment. Added `npm run test:verify`, `npm run test:edge`, and `npm test` scripts to `web/package.json`.
+
+#### Finding 8.4: Zero-Redirect Edge Prerendering (Dual Emit) [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/scripts/prerender.mjs:270-275, 295-300`
+- **Issue**: Standard Cloudflare Pages directory prerendering (`dir/index.html`) triggered HTTP 308 redirects for requests without a trailing slash (`/how-it-works` -> `/how-it-works/`), increasing TTFB and crawler overhead.
+- **Remediation**: Updated `scripts/prerender.mjs` to emit both `dir/index.html` and flat `${route}.html`. Cloudflare Pages now serves canonical URLs directly with HTTP 200 OK without intermediate redirects. Verified live via edge probe.
 
 ---
 

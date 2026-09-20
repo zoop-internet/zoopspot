@@ -99,19 +99,38 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 ### Phase 7: Security & Trust Signals
 - [x] **7.1 Add HSTS to `_headers`** [DONE - Deployed & verified]
   - Added `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` to root rules. Verified live via edge curl.
-- [x] **7.2 Add COOP to `_headers`** [DONE - Deployed & verified]
-  - Added `Cross-Origin-Opener-Policy: same-origin`. Verified live via edge curl.
-- [x] **7.3 Standardize GitHub Repository Links** [DONE - Deployed & verified]
-  - Updated all GitHub URLs across `AdminConsole.tsx`, `AuthPage.tsx`, `ErrorBoundary.tsx`, `WorkspaceSwitcher.tsx`, and `.env.example` to `https://github.com/zoop-internet/zoop`.
+- [x] **7.2 Add COOP & CORP to `_headers`** [DONE - Deployed & verified]
+  - Added `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` globally, with `Cross-Origin-Resource-Policy: cross-origin` for static assets (`/assets/*`, `/*.webp`, `/*.png`, `/*.svg`, `/*.ico`). Verified live via edge curl.
+- [x] **7.3 CSP & Permissions-Policy Hardening** [DONE - Deployed & verified]
+  - Hardened Content-Security-Policy with `base-uri 'self'`, `object-src 'none'`, and `upgrade-insecure-requests`.
+  - Expanded Permissions-Policy to explicitly restrict `camera=()`, `microphone=()`, `geolocation=()`, `payment=()`, `usb=()`, `interest-cohort=()`, and `screen-wake-lock=()`.
+- [x] **7.4 RFC 9116 Machine-Readable Security Disclosure** [DONE - Deployed & verified]
+  - Implemented `web/public/.well-known/security.txt` conforming to RFC 9116 with `Contact`, `Expires`, `Preferred-Languages`, `Canonical`, `Policy`, `Acknowledgments`, and `Hiring` directives.
+  - Implemented fallback `web/public/security.txt` and HTTP 301 permanent redirect in `_redirects`. Verified live via edge curl with `Content-Type: text/plain; charset=utf-8`.
+- [x] **7.5 Repository Security Policy & Privacy Policy Synchronization** [DONE - Deployed & verified]
+  - Synchronized `SECURITY.md` with official disclosure email `security@zoopinternet.app`, 24h SLA acknowledgment commitment, and RFC 9116 reference.
+  - Synchronized `docs/compliance/privacy_policy.md` contact email and repository links.
+- [x] **7.6 Complete Legacy Domain Elimination** [DONE - Deployed & verified]
+  - Replaced all legacy `zoop.network` domain occurrences across `web/public/docs/web.md`, `web/src/admin/AdminConsole.css`, `web/src/landing/data/docsData.ts`, and `web/.env.example` with canonical `zoopinternet.app`. Standardized GitHub links to `https://github.com/zoop-internet/zoop`.
 
 ### Phase 8: Verification & Monitoring Setup
 - [x] **8.1 Automated Build Verification Script** [DONE - Deployed & verified]
-  - Implemented `scripts/verify-build.mjs` running automated assertions across:
-    1. Existence of all 23 prerendered canonical route directories.
+  - Implemented `scripts/verify-build.mjs` running 100+ automated assertions across:
+    1. Existence of all 23 prerendered canonical route directories and flat HTML files.
     2. Non-empty `<div id="root">` crawler fallback body content in all HTML files.
     3. `dist/sitemap.xml` validity and route synchronization (zero legacy domains).
     4. `dist/404.html` presence with `noindex, nofollow`.
     5. `dist/robots.txt` disallow directives for private paths + AI bot allowances.
-    6. `_headers` validation (HSTS, COOP) and architecture asset presence.
-- [x] **8.2 Cloudflare Pages Edge Deployment & curl Verification** [DONE - Deployed & verified]
-  - Deployed to Cloudflare Pages (`zoopnetwork.pages.dev`) and verified live edge HTTP 200, 301, and 404 responses along with security headers.
+    6. `_headers` validation (HSTS, COOP, CORP, CSP, Permissions-Policy) and architecture asset presence.
+    7. RFC 9116 `dist/.well-known/security.txt` and `dist/security.txt` verification.
+    8. WCAG 2.2 AA accessibility rules (`<html lang="en">`, `.skip-link`, `:focus-visible`, image `alt`/`aria-hidden`).
+- [x] **8.2 Synthetic Edge Probing & Live Health Monitoring** [DONE - Deployed & verified]
+  - Implemented `scripts/monitor-edge.mjs` executing automated synthetic probes against the live edge deployment.
+  - Probes root security headers, canonical route HTTP 200 responses, 301 redirects, RFC 9116 security disclosure, soft-404 rejection (returns true HTTP 404), and AI discovery documents.
+- [x] **8.3 Automated CI/CD Gating in GitHub Actions** [DONE - Deployed & verified]
+  - Integrated `node scripts/verify-build.mjs` into `.github/workflows/ci.yml` (Web job) and `.github/workflows/deploy-pages.yml` (prior to Cloudflare Pages deployment).
+  - Added `npm run test:verify`, `npm run test:edge`, and `npm test` scripts to `web/package.json`.
+- [x] **8.4 Zero-Redirect Edge Prerendering (Dual Emit)** [DONE - Deployed & verified]
+  - Configured `scripts/prerender.mjs` to emit both `dir/index.html` and flat `${route}.html` to ensure Cloudflare Pages serves canonical paths directly with HTTP 200 OK without intermediate 308 redirects.
+- [x] **8.5 Cloudflare Pages Edge Deployment & Live Edge Verification** [DONE - Deployed & verified]
+  - Deployed to Cloudflare Pages (`zoopnetwork.pages.dev`) and verified live edge HTTP 200, 301, and 404 responses along with security headers. All 18 edge probes passed with 0 errors.

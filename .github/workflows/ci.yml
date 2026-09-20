@@ -94,3 +94,7 @@ jobs:
         env:
           VITE_API_BASE: https://3.70.135.200.sslip.io
         run: npm run build
+
+      - name: Verify Web Build Assertions
+        working-directory: web
+        run: node scripts/verify-build.mjs

@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/prerender.mjs",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:verify": "node scripts/verify-build.mjs",
+    "test:edge": "node scripts/monitor-edge.mjs",
+    "test": "npm run lint && node scripts/verify-build.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

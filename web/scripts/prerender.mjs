@@ -265,12 +265,15 @@ let count = 0;
 for (const [route, meta] of Object.entries(ROUTES)) {
   if (route === '/') continue;
   const html = replaceMeta(template, route, meta);
-  const dir = join(DIST, route.replace(/^\//, ''));
+  const relPath = route.replace(/^\//, '');
+  const dir = join(DIST, relPath);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, 'index.html');
   writeFileSync(file, html, 'utf8');
+  const flatFile = join(DIST, `${relPath}.html`);
+  writeFileSync(flatFile, html, 'utf8');
   count++;
-  console.log(`Prerendered ${route} -> ${file}`);
+  console.log(`Prerendered ${route} -> ${file} and ${flatFile}`);
 }
 
 // Prerender docs subpages
@@ -290,12 +293,15 @@ for (const id of DOCS_IDS) {
     title: meta.title.includes('Quickstart') ? 'Quick Start — Docs | Zoop' : meta.title
   };
   const html = replaceMeta(template, route, useMeta);
-  const dir = join(DIST, route.replace(/^\//, ''));
+  const relPath = route.replace(/^\//, '');
+  const dir = join(DIST, relPath);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, 'index.html');
   writeFileSync(file, html, 'utf8');
+  const flatFile = join(DIST, `${relPath}.html`);
+  writeFileSync(flatFile, html, 'utf8');
   count++;
-  console.log(`Prerendered ${route} -> ${file}`);
+  console.log(`Prerendered ${route} -> ${file} and ${flatFile}`);
 }
 
 // Update root /
