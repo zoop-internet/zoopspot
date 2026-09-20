@@ -249,12 +249,6 @@ export const LandingPage: React.FC<{
               handleNav={handleNav}
               isAuthenticated={isAuthenticated}
               onLaunchConsole={onLaunchConsole}
-              waitlistEmail={waitlistEmail}
-              setWaitlistEmail={setWaitlistEmail}
-              waitlistStatus={waitlistStatus}
-              setWaitlistStatus={setWaitlistStatus}
-              waitlistMsg={waitlistMsg}
-              handleWaitlist={handleWaitlist}
             />
           )}
         </React.Suspense>

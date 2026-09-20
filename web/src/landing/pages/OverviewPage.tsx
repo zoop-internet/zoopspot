@@ -8,24 +8,12 @@ interface OverviewPageProps {
   handleNav: (path: string) => void;
   isAuthenticated: boolean;
   onLaunchConsole: (mode: PortalMode) => void;
-  waitlistEmail: string;
-  setWaitlistEmail: (val: string) => void;
-  waitlistStatus: 'idle' | 'loading' | 'success' | 'error';
-  setWaitlistStatus: (val: 'idle' | 'loading' | 'success' | 'error') => void;
-  waitlistMsg: string;
-  handleWaitlist: (e: React.FormEvent) => void;
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   handleNav,
   isAuthenticated,
   onLaunchConsole,
-  waitlistEmail,
-  setWaitlistEmail,
-  waitlistStatus,
-  setWaitlistStatus,
-  waitlistMsg,
-  handleWaitlist,
 }) => {
   return (
     <>
@@ -34,10 +22,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="lp-hero-inner">
           <div className="lp-hero-grid">
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#38bdf8', marginBottom: 12 }}>
-                Share your internet
-              </div>
-              <h1>
+              <h1 style={{ margin: '0 0 20px' }}>
+                <span style={{ color: '#ffffff', display: 'block', marginBottom: 6 }}>Share your internet.</span>
                 <span className="lp-grad-text">Direct. Fast. Truly private.</span>
               </h1>
               <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
@@ -77,34 +63,44 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ position: 'relative', width: '100%', maxWidth: 560, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(8,242,255,0.25)', animation: 'lpPulseGlow 6s ease-in-out infinite', background: '#06090e' }}>
-                <img
-                  src="/assets/zoop_hero_connect.jpg"
-                  alt="Direct encrypted connection linking devices with glowing peer mesh"
-                  width={1280}
-                  height={720}
-                  style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover' }}
-                  loading="eager"
-                  fetchPriority="high"
-                />
+              <div style={{ position: 'relative', width: '100%', maxWidth: 560, borderRadius: 20, border: '1px solid rgba(8,242,255,0.25)', animation: 'lpPulseGlow 6s ease-in-out infinite', background: '#06090e' }}>
+                <div style={{ overflow: 'hidden', borderRadius: 20 }}>
+                  <img
+                    src="/assets/zoop_hero_connect.jpg"
+                    alt="Direct encrypted connection linking devices with glowing peer mesh"
+                    width={1280}
+                    height={720}
+                    style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover' }}
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                </div>
 
-                {/* Animated Floating Card 1: Live Route */}
-                <div className="lp-hero-float-card top-left">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399', flexShrink: 0 }} aria-hidden />
+                {/* Floating Animated Badge 1: Friends Travel */}
+                <div className="lp-hero-photo-badge top-right">
+                  <img src="/assets/zoop_friends_travel.jpg" alt="Friends sharing data" width={46} height={46} />
                   <div>
-                    <div style={{ fontWeight: 800, color: 'var(--ink)' }}>MacBook ⟷ iPhone</div>
-                    <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 600 }}>&lt;1ms direct route</div>
+                    <div style={{ fontWeight: 800, color: 'var(--ink)', fontSize: '0.8rem' }}>Friends on the Go</div>
+                    <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 600 }}>Instant data sharing</div>
                   </div>
                 </div>
 
-                {/* Animated Floating Card 2: Speed & Transfer */}
-                <div className="lp-hero-float-card bottom-right">
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399', flexShrink: 0 }}>
-                    <Ico d={Icons.zap} size={14} />
-                  </div>
+                {/* Floating Animated Badge 2: Remote Work */}
+                <div className="lp-hero-photo-badge bottom-left">
+                  <img src="/assets/zoop_remote_work.jpg" alt="Remote work connection" width={46} height={46} />
                   <div>
-                    <div style={{ fontWeight: 800, color: 'var(--ink)' }}>Home Fiber Direct</div>
-                    <div style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 600 }}>940 Mbps · Zero lag</div>
+                    <div style={{ fontWeight: 800, color: 'var(--ink)', fontSize: '0.8rem' }}>Remote Work Freedom</div>
+                    <div style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 600 }}>Zero latency · Home fiber</div>
+                  </div>
+                </div>
+
+                {/* Floating Badge 3: Pure Internet Speed (no Mac/iPhone words) */}
+                <div className="lp-hero-speed-badge">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399', flexShrink: 0 }} aria-hidden />
+                  <div>
+                    <span style={{ fontWeight: 800, color: 'var(--ink)' }}>940 Mbps</span>
+                    <span style={{ color: 'var(--muted)', margin: '0 4px' }}>·</span>
+                    <span style={{ color: '#34d399', fontWeight: 700 }}>&lt;1ms direct route</span>
                   </div>
                 </div>
               </div>
@@ -153,7 +149,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="lp-section-heading centered">
           <p className="lp-eyebrow">Real Freedom · Everyday Scenarios</p>
           <h2>Built for how you actually live and connect.</h2>
-          <p className="lp-subtext">No IT degree required. Just real-world internet freedom for friends, travelers, and remote workers.</p>
+          <p className="lp-subtext">No IT degree required. Just real-world internet freedom for friends, travelers, families, and remote workers.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, maxWidth: 1040, margin: '0 auto' }}>
@@ -197,7 +193,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 loading="lazy"
               />
               <span style={{ position: 'absolute', top: 12, left: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#34d399', fontSize: '0.72rem', fontWeight: 700 }}>
-                Remote Work &amp; Creators
+                Remote Work &amp; Nomads
               </span>
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, gap: 10 }}>
@@ -209,6 +205,62 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </p>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600, marginTop: 6 }}>
                 <Ico d={Icons.check} size={13} /> Zero lag · Continuous Wi-Fi &amp; 5G roaming
+              </div>
+            </div>
+          </div>
+
+          {/* Scenario 3: Family & Home Cloud */}
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 240, overflow: 'hidden', position: 'relative' }}>
+              <img
+                src="/assets/zoop_family_mesh.jpg"
+                alt="Family and friends securely connected across home and mobile devices"
+                width={1280}
+                height={720}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+              />
+              <span style={{ position: 'absolute', top: 12, left: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#a78bfa', fontSize: '0.72rem', fontWeight: 700 }}>
+                Home &amp; Family Cloud
+              </span>
+            </div>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, gap: 10 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Lend fast home broadband to your entire family fleet.
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--ink-secondary)', lineHeight: 1.6, margin: 0, flex: 1 }}>
+                Keep your kids, partners, and family devices securely linked to your high-speed home network when they are away. Stream private home media and access network storage without paying monthly cloud subscriptions.
+              </p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem', color: '#a78bfa', fontWeight: 600, marginTop: 6 }}>
+                <Ico d={Icons.check} size={13} /> Up to 5 personal devices free forever
+              </div>
+            </div>
+          </div>
+
+          {/* Scenario 4: Ultra Low-Latency Gaming & Co-Op */}
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 240, overflow: 'hidden', position: 'relative' }}>
+              <img
+                src="/assets/zoop_gaming_mesh.jpg"
+                alt="Low latency direct route for gaming and creative live collaboration"
+                width={1280}
+                height={720}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+              />
+              <span style={{ position: 'absolute', top: 12, left: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700 }}>
+                Low-Latency Gaming &amp; Co-Op
+              </span>
+            </div>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, gap: 10 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Direct LAN gaming over the internet with zero port forwarding.
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--ink-secondary)', lineHeight: 1.6, margin: 0, flex: 1 }}>
+                Tired of strict NAT type warnings, complex router port forwarding, or laggy public servers? Zoop connects your gaming rigs directly with sub-millisecond added latency. Play LAN multiplayer games with friends across town or continents.
+              </p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem', color: '#fbbf24', fontWeight: 600, marginTop: 6 }}>
+                <Ico d={Icons.check} size={13} /> Sub-millisecond direct routes · NAT bypass
               </div>
             </div>
           </div>
@@ -321,66 +373,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </section>
 
-      {/* Pricing — with real waitlist */}
-      <section className="lp-section" aria-labelledby="pricing-heading">
-        <div className="lp-section-heading centered">
-          <p className="lp-eyebrow">Simple &amp; Transparent</p>
-          <h2 id="pricing-heading">Free to start. Built to scale.</h2>
-          <p className="lp-subtext">Self-host free forever. Teams lock founding price.</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, maxWidth: 860, margin: '0 auto' }}>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#34d399' }}>Personal — Free Forever</span>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>$0 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--muted)' }}>/ month</span></div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited direct tunnels</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Up to 5 devices</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> WireGuard® + STUN/TURN + roaming</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Community support + self-host</li>
-            </ul>
-            <a href="/auth?tab=signup" className="lp-btn-primary" style={{ marginTop: 8, width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }}>Create Zoop ID — Free <Ico d={Icons.arrowRight} size={14} /></a>
-            <span style={{ fontSize: '0.7rem', color: 'var(--muted)', textAlign: 'center' }}>No credit card · Zoop ID is ZP-XXXXXX + 6-digit PIN</span>
-          </div>
-          <div style={{ background: 'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(52,211,153,0.06))', border: '1px solid rgba(8,242,255,0.28)', borderRadius: 14, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, position: 'relative', overflow: 'hidden' }}>
-            <span style={{ position: 'absolute', top: 12, right: 12, fontSize: '0.65rem', fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: '#38bdf8', color: '#020904' }}>Founding price</span>
-            <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#38bdf8' }}>Organizations</span>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--ink)' }}>$8 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--muted)' }}>/ seat / mo</span></div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', color: 'var(--ink-secondary)' }}>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Everything in Personal</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Unlimited org members + fleet</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Audit logs, roles, IPAM &amp; relay controls</li>
-              <li style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Ico d={Icons.check} size={14} /> Priority relay regions + SLA</li>
-            </ul>
-            <form onSubmit={handleWaitlist} style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Join founding waitlist">
-              <label htmlFor="waitlist-email" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-secondary)' }}>Join founding waitlist — lock $8/seat</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  id="waitlist-email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="you@email.com"
-                  value={waitlistEmail}
-                  onChange={e => { setWaitlistEmail(e.target.value); setWaitlistStatus('idle'); }}
-                  required
-                  aria-label="Email for waitlist"
-                  aria-invalid={waitlistStatus === 'error'}
-                  aria-describedby={waitlistStatus !== 'idle' ? 'waitlist-status-msg' : undefined}
-                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${waitlistStatus === 'error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background: 'rgba(0,0,0,0.35)', color: 'var(--ink)', fontSize: '0.875rem', outline: 'none' }}
-                />
-                <button type="submit" className="lp-btn-primary" style={{ whiteSpace: 'nowrap', minHeight: 38, padding: '0 16px' }} disabled={waitlistStatus === 'loading'}>{waitlistStatus === 'loading' ? 'Joining…' : 'Join →'}</button>
-              </div>
-              {waitlistStatus !== 'idle' && (
-                <span id="waitlist-status-msg" role={waitlistStatus === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ fontSize: '0.75rem', color: waitlistStatus === 'success' ? '#34d399' : waitlistStatus === 'error' ? '#f87171' : 'var(--muted)', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                  {waitlistStatus === 'success' ? <Ico d={Icons.check} size={12} /> : null} {waitlistMsg}
-                </span>
-              )}
-              <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>No spam. Founding price locked at signup. <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>Privacy: zero tracking</a></span>
-            </form>
-          </div>
-        </div>
-        <p style={{ textAlign: 'center', marginTop: 14, fontSize: '0.75rem', color: 'var(--muted)' }}>All plans include end-to-end encryption, NAT traversal and open-source MIT license. Self-host the control plane free forever.</p>
-      </section>
+
 
       {/* Testimonials — verified open-source contributors */}
       <section className="lp-section">
