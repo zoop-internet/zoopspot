@@ -34,13 +34,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="lp-hero-inner">
           <div className="lp-hero-grid">
             <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#38bdf8', marginBottom: 12 }}>
+                Share your internet
+              </div>
               <h1>
-                Share your internet.
-                <br />
                 <span className="lp-grad-text">Direct. Fast. Truly private.</span>
               </h1>
               <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
-                Lend your home broadband or phone data to your laptop, friends, or family—<strong style={{ color: 'var(--ink)' }}>directly between devices with zero middlemen</strong>. No slow VPN servers, no complicated setups, and no subscription fees. <strong style={{ color: 'var(--ink)' }}>Ready in 30 seconds.</strong>
+                Lend your home broadband or mobile data to your laptop, friends, or family directly between devices. Zero middleman bottlenecks, no complex router configurations, and no subscription fees. Ready in 30 seconds.
               </p>
               <div className="lp-hero-actions">
                 {isAuthenticated ? (
@@ -76,7 +77,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ position: 'relative', width: '100%', maxWidth: 560, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(8,242,255,0.25)', boxShadow: '0 20px 50px rgba(0,0,0,0.7), 0 0 35px rgba(8,242,255,0.12)', background: '#06090e' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: 560, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(8,242,255,0.25)', animation: 'lpPulseGlow 6s ease-in-out infinite', background: '#06090e' }}>
                 <img
                   src="/assets/zoop_hero_connect.jpg"
                   alt="Direct encrypted connection linking devices with glowing peer mesh"
@@ -86,11 +87,25 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   loading="eager"
                   fetchPriority="high"
                 />
-                <div style={{ position: 'absolute', bottom: 12, left: 14, right: 14, padding: '8px 14px', borderRadius: 10, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--ink)', fontWeight: 700 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} aria-hidden /> Direct P2P Active
-                  </span>
-                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>&lt;1ms added latency</span>
+
+                {/* Animated Floating Card 1: Live Route */}
+                <div className="lp-hero-float-card top-left">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399', flexShrink: 0 }} aria-hidden />
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--ink)' }}>MacBook ⟷ iPhone</div>
+                    <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 600 }}>&lt;1ms direct route</div>
+                  </div>
+                </div>
+
+                {/* Animated Floating Card 2: Speed & Transfer */}
+                <div className="lp-hero-float-card bottom-right">
+                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399', flexShrink: 0 }}>
+                    <Ico d={Icons.zap} size={14} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--ink)' }}>Home Fiber Direct</div>
+                    <div style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 600 }}>940 Mbps · Zero lag</div>
+                  </div>
                 </div>
               </div>
             </div>

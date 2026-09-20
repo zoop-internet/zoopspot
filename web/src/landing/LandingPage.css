@@ -1655,6 +1655,78 @@
   background: var(--line);
 }
 
+/* ─── Animated Floating Hero Cards ───────────────────────────────────────── */
+@keyframes lpFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes lpFloatAlt {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes lpPulseGlow {
+  0%, 100% {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px rgba(8, 242, 255, 0.12);
+  }
+  50% {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 45px rgba(8, 242, 255, 0.25);
+  }
+}
+
+.lp-hero-float-card {
+  position: absolute;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(6, 9, 14, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(8, 242, 255, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(8, 242, 255, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+  font-size: 0.78rem;
+}
+
+.lp-hero-float-card.top-left {
+  top: 16px;
+  left: 16px;
+  animation: lpFloat 4.5s ease-in-out infinite;
+}
+
+.lp-hero-float-card.bottom-right {
+  bottom: 16px;
+  right: 16px;
+  border-color: rgba(52, 211, 153, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(52, 211, 153, 0.15);
+  animation: lpFloatAlt 5s ease-in-out infinite;
+}
+
+@media (max-width: 640px) {
+  .lp-hero-float-card {
+    padding: 6px 10px;
+    font-size: 0.7rem;
+  }
+  .lp-hero-float-card.top-left {
+    top: 8px;
+    left: 8px;
+  }
+  .lp-hero-float-card.bottom-right {
+    bottom: 8px;
+    right: 8px;
+  }
+}
+
 /* ─── Real Semantic Comparison Table ─────────────────────────────────────── */
 .lp-compare-wrap {
   max-width: 1040px;
