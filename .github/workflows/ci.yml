@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.25'
           cache: true
 
       - name: Verify dependencies
@@ -30,7 +30,7 @@ jobs:
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          go-version-input: '1.26'
+          go-version-input: '1.25'
           go-package: ./...
 
       - name: Run Linters
@@ -55,7 +55,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.25'
           cache: true
 
       - name: Build CLI for macOS (Darwin arm64)

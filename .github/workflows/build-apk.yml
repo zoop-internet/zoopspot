@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.25'
           cache: true
 
       - name: Set up Java 17
@@ -47,7 +47,11 @@ jobs:
 
       - name: Build Native Go WireGuard Engine (libzoop.so)
         run: |
-          NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* | sort -V | tail -n 1)
+          if [ -z "$(ls -A $ANDROID_SDK_ROOT/ndk 2>/dev/null)" ]; then
+            echo "Installing Android NDK..."
+            $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125"
+          fi
+          NDK_PATH=$(ls -d $ANDROID_SDK_ROOT/ndk/* 2>/dev/null | sort -V | tail -n 1)
           echo "Using Android NDK: $NDK_PATH"
           CLANG_BIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin"
           mkdir -p mobile/android/app/src/main/jniLibs/arm64-v8a mobile/android/app/src/main/jniLibs/x86_64 mobile/android/app/src/main/jniLibs/armeabi-v7a
