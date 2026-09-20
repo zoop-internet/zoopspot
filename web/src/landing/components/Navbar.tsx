@@ -100,6 +100,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a href="/security" className={activeRoute === '/security' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/security'); }}>
             Security
           </a>
+          <a href="/blog" className={activeRoute === '/blog' || activeRoute.startsWith('/blog/') ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/blog'); }}>
+            Blog
+          </a>
         </nav>
 
         <div className="lp-topbar-actions">
@@ -167,6 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="/pricing" onClick={(e) => { e.preventDefault(); handleNav('/pricing'); setMenuOpen(false); }}>Pricing</a>
             <a href="/downloads" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); setMenuOpen(false); }}>Downloads</a>
             <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); setMenuOpen(false); }}>Security</a>
+            <a href="/blog" onClick={(e) => { e.preventDefault(); handleNav('/blog'); setMenuOpen(false); }}>Blog</a>
             <div className="lp-mobile-drawer-divider" />
             {isAuthenticated ? (
               <>

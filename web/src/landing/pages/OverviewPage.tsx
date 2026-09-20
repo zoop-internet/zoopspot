@@ -3,7 +3,6 @@ import type { PortalMode } from '../../types';
 import { Ico } from '../components/Icons';
 import { Icons } from '../components/iconConstants';
 import { AnimatedCounter } from '../components/AnimatedCounter';
-import { BentArrowMeshIllustration } from '../components/BentArrowMeshIllustration';
 
 interface OverviewPageProps {
   handleNav: (path: string) => void;
@@ -39,15 +38,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} aria-hidden /> Open Source · No tracking · Direct mesh
               </div>
               <h1>
-                Share your home or phone
+                Share your internet.
                 <br />
-                <span className="lp-grad-text">internet — directly.</span>
+                <span className="lp-grad-text">Direct. Fast. Truly private.</span>
               </h1>
               <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
-                Lend your home broadband or phone data to your laptop, family or team — <strong style={{ color: 'var(--ink)' }}>device-to-device, no VPN servers in the middle</strong>. Private, faster (<span style={{ color: '#34d399', fontWeight: 800 }}>&lt;1ms</span> direct), and works even behind strict home or mobile carrier firewalls (<abbr title="Carrier-Grade NAT — your ISP shares one public IP with many homes" style={{ textDecoration: 'underline dotted', cursor: 'help' }}>CGNAT</abbr>). <strong style={{ color: 'var(--ink)' }}>30-sec setup.</strong>
+                Lend your home broadband or phone data to your laptop, friends, or family—<strong style={{ color: 'var(--ink)' }}>directly between devices with zero middlemen</strong>. No slow VPN servers, no complicated setups, and no subscription fees. <strong style={{ color: 'var(--ink)' }}>Ready in 30 seconds.</strong>
               </p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6, lineHeight: 1.5, maxWidth: 520 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ico d={Icons.check} size={10} /> Private to you</span> · <abbr title="WireGuard — modern VPN cryptography, Noise_IK + ChaCha20-Poly1305" style={{ textDecoration: 'underline dotted', cursor: 'help' }}>WireGuard®</abbr> encrypted · End-to-end · Revoke anytime · <a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>How sharing works →</a>
+              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8, lineHeight: 1.5, maxWidth: 520 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ico d={Icons.check} size={10} /> Instant direct speed</span> · End-to-end encrypted · Works on any Wi-Fi or 5G · Free for personal use · <a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>See how it works →</a>
               </p>
               <div className="lp-hero-actions">
                 {isAuthenticated ? (
@@ -78,7 +77,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--line)' }} aria-hidden />
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.shield} size={12} /> End-to-end encrypted</span>
                 <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--line)' }} aria-hidden />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.globe} size={12} /> Works behind CGNAT</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.globe} size={12} /> Zero middleman servers</span>
               </div>
               <div style={{ marginTop: 10, fontSize: '0.72rem', color: 'var(--muted)' }}>
                 <code style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--line)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono)', color: 'var(--cyan)' }}>curl -fsSL https://get.zoop.dev | sh</code> <span style={{ marginLeft: 6 }}>or</span> <a href="/downloads" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>download matrix →</a>
@@ -86,11 +85,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               {/* Journey stepper — reduces cognitive load, guides 3 steps */}
               <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }} aria-label="3-step journey">
                 {[
-                  { n: '1', t: 'Create Zoop ID', d: 'ZP-… + PIN' },
-                  { n: '2', t: 'Authorize', d: 'Sharing → recipient' },
-                  { n: '3', t: 'Connect', d: 'Direct tunnel' },
+                  { n: '1', t: 'Get Zoop', d: 'Free 30-sec setup' },
+                  { n: '2', t: 'Share with Friends', d: 'One tap to invite' },
+                  { n: '3', t: 'Connect Directly', d: 'Fast & private' },
                 ].map(s => (
-                  <span key={s.n} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.70rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', padding: '5px 9px', borderRadius: 999, color: 'var(--text-secondary)' }}>
+                  <span key={s.n} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', padding: '5px 10px', borderRadius: 999, color: 'var(--text-secondary)' }}>
                     <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(56,189,248,0.12)', color: '#38bdf8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.65rem' }}>{s.n}</span>
                     <strong style={{ color: 'var(--ink)' }}>{s.t}</strong> <span style={{ color: 'var(--muted)' }}>· {s.d}</span>
                   </span>
@@ -98,8 +97,24 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </div>
             </div>
 
-            <div>
-              <BentArrowMeshIllustration />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: 560, borderRadius: 20, overflow: 'hidden', border: '1px solid rgba(8,242,255,0.25)', boxShadow: '0 20px 50px rgba(0,0,0,0.7), 0 0 35px rgba(8,242,255,0.12)', background: '#06090e' }}>
+                <img
+                  src="/assets/zoop_hero_connect.jpg"
+                  alt="Direct encrypted connection linking devices with glowing peer mesh"
+                  width={1280}
+                  height={720}
+                  style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover' }}
+                  loading="eager"
+                  fetchPriority="high"
+                />
+                <div style={{ position: 'absolute', bottom: 12, left: 14, right: 14, padding: '8px 14px', borderRadius: 10, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--ink)', fontWeight: 700 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} aria-hidden /> Direct P2P Active
+                  </span>
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>&lt;1ms added latency</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -122,7 +137,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <span className="lp-metric-val">
             &lt; <AnimatedCounter end={1} unit=" ms" />
           </span>
-          <span className="lp-metric-sub">Ultra-low latency transfer</span>
+          <span className="lp-metric-sub">Feels like local Wi-Fi</span>
         </div>
 
         <div className="lp-metric-item in-view">
@@ -132,11 +147,78 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
 
         <div className="lp-metric-item in-view">
-          <span className="lp-metric-label">Connection Drop Rate</span>
+          <span className="lp-metric-label">Connection Reliability</span>
           <span className="lp-metric-val">
-            <AnimatedCounter end={0.0} unit="%" decimals={1} />
+            <AnimatedCounter end={99.9} unit="%" decimals={1} />
           </span>
           <span className="lp-metric-sub">Seamless Wi-Fi &amp; 5G roaming</span>
+        </div>
+      </section>
+
+      {/* ─── Real-World Everyday Scenarios ────────────────────────────── */}
+      <section className="lp-section">
+        <div className="lp-section-heading centered">
+          <p className="lp-eyebrow">Real Freedom · Everyday Scenarios</p>
+          <h2>Built for how you actually live and connect.</h2>
+          <p className="lp-subtext">No IT degree required. Just real-world internet freedom for friends, travelers, and remote workers.</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, maxWidth: 1040, margin: '0 auto' }}>
+          {/* Scenario 1: Friends on the Go */}
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 240, overflow: 'hidden', position: 'relative' }}>
+              <img
+                src="/assets/zoop_friends_travel.jpg"
+                alt="Friends sharing fast internet together at a cafe while traveling"
+                width={1280}
+                height={720}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+              />
+              <span style={{ position: 'absolute', top: 12, left: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#38bdf8', fontSize: '0.72rem', fontWeight: 700 }}>
+                Travel &amp; Adventures
+              </span>
+            </div>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, gap: 10 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Share mobile data with friends anywhere in the world.
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--ink-secondary)', lineHeight: 1.6, margin: 0, flex: 1 }}>
+                Traveling with friends? When one person has an unlimited eSIM or fast connection, share it with your travel buddies in one tap. No sharing sensitive hotspot passwords, no sketchy public Wi-Fi, and no extra roaming charges.
+              </p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem', color: '#34d399', fontWeight: 600, marginTop: 6 }}>
+                <Ico d={Icons.check} size={13} /> One tap to approve · Revoke anytime
+              </div>
+            </div>
+          </div>
+
+          {/* Scenario 2: Remote Work Freedom */}
+          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 240, overflow: 'hidden', position: 'relative' }}>
+              <img
+                src="/assets/zoop_remote_work.jpg"
+                alt="Remote worker enjoying lag-free connection to home setup from a scenic balcony"
+                width={1280}
+                height={720}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+              />
+              <span style={{ position: 'absolute', top: 12, left: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(6,9,14,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#34d399', fontSize: '0.72rem', fontWeight: 700 }}>
+                Remote Work &amp; Creators
+              </span>
+            </div>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', flex: 1, gap: 10 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Your home workstation follows you to every coffee shop.
+              </h3>
+              <p style={{ fontSize: '0.88rem', color: 'var(--ink-secondary)', lineHeight: 1.6, margin: 0, flex: 1 }}>
+                Working from a beachside cafe or remote cabin? Access your home desktop, files, and high-speed fiber as if you were sitting right at your desk. Sub-millisecond added latency means zero lag when editing files, coding, or gaming.
+              </p>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600, marginTop: 6 }}>
+                <Ico d={Icons.check} size={13} /> Zero lag · Continuous Wi-Fi &amp; 5G roaming
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -145,7 +227,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="lp-section-heading centered">
           <p className="lp-eyebrow">Up in 3 Taps — No Servers, No Config</p>
           <h2>No complicated setup. Just install and connect.</h2>
-          <p className="lp-subtext">Zoop handles NAT traversal and encryption automatically. You handle one tap.</p>
+          <p className="lp-subtext">Zoop handles encryption and networking automatically. You handle one tap.</p>
         </div>
 
         <div className="lp-steps-grid">
@@ -155,7 +237,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="lp-step-num">01</span>
             </div>
             <h3>1. Install on Your Devices</h3>
-            <p>Lightweight daemon on laptop/home PC, one-tap app on phones, .ipk on OpenWrt. Runs quietly — ~12MB RAM.</p>
+            <p>Runs quietly on your laptop, home PC, phone, or router. Lightweight, gentle on battery, and uses ~12MB RAM.</p>
           </div>
 
           <div className="lp-step-card">
@@ -164,7 +246,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="lp-step-num">02</span>
             </div>
             <h3>2. Connect in One Tap</h3>
-            <p>Authorize trusted peers (family/team/your other devices). Direct WireGuard tunnel forms via STUN hole-punch; relay only if NAT forbids.</p>
+            <p>Authorize friends, family, or your own devices with a single tap. A direct encrypted link forms instantly.</p>
           </div>
 
           <div className="lp-step-card">
@@ -173,7 +255,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="lp-step-num">03</span>
             </div>
             <h3>3. Stay Connected, Anywhere</h3>
-            <p>Roam Wi-Fi ↔ 5G without drops (Netlink detection). Browse/stream with &lt;1ms added latency, end-to-end encrypted.</p>
+            <p>Move freely between Wi-Fi and 5G without dropped calls or interrupted downloads. Encrypted and fast.</p>
           </div>
         </div>
       </section>
@@ -193,12 +275,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--line)', textAlign: 'center' }}>Traditional VPN</div>
             <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--line)', textAlign: 'center' }}>Tailscale / Mesh VPN</div>
             {[
-              ['How your data travels', 'Direct device-to-device (your devices only)', 'Via company servers', 'Via coordination server + DERP relay'],
-              ['Added lag', '~ <1ms direct / relay only if NAT blocks', '+30–120ms via provider', '+10–40ms (often relayed)'],
-              ['Who can read your traffic?', 'No one but your devices (zero-knowledge relay)', 'Provider can (exit node)', 'No one (WireGuard)'],
-              ['Works behind home & mobile firewall?', 'Yes — STUN discovery + TURN relay + roaming', 'Needs open port/forward', 'STUN + DERP'],
-              ['Price', 'Free personal, $8/mo teams', '$5–12/mo per user', 'Free up to 3 users, then $6+'],
-              ['Open source?', 'MIT, self-hostable + auditable', 'Usually closed', 'Partial / source-available'],
+              ['How your data travels', 'Direct device-to-device (shortest path, zero middleman)', 'Detoured through company servers', 'Via third-party coordination servers & relays'],
+              ['Speed & Added Lag', 'Feels instant (<1ms added) — like same local Wi-Fi', 'Noticeable lag (+30–120ms) — slows browsing & gaming', 'Moderate delay (+10–40ms, often relayed)'],
+              ['Who can read your traffic?', 'Only you and your devices (zero snooping, zero logs)', 'VPN company can monitor or log your activity', 'Third-party servers see your connections'],
+              ['Works on 5G & hotel Wi-Fi?', 'Yes, seamlessly — automatic roaming with zero drops', 'Frequently disconnects or blocked by firewalls', 'Works, but relies on background relay servers'],
+              ['Setup & Ease', '30 seconds — one tap to connect, no router config', 'Pick a country server and hope it’s not throttled', 'Requires account setup and technical IP config'],
+              ['Price', 'Free forever for personal (MIT open source)', '$5–$15/month subscriptions', 'Free up to 3 users, then $6+/user/month'],
             ].map(([feat, zoop, vpn, tailscale]) => (
               <React.Fragment key={feat}>
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', color: 'var(--ink-secondary)', fontWeight: 600 }}>{feat}</div>
@@ -208,7 +290,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </React.Fragment>
             ))}
           </div>
-          <div style={{ padding: '12px 16px', fontSize: '0.72rem', color: 'var(--muted)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>Measurements illustrative; direct path depends on NAT/firewall. Zoop relay fallback is WebSocket, still end-to-end encrypted.</div>
+          <div style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--muted)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+            Direct connections provide maximum throughput. When direct path is blocked by strict corporate firewalls, encrypted relay fallback ensures you never lose connection.
+          </div>
         </div>
       </section>
 

@@ -26,6 +26,7 @@ const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/admin': { title: 'Platform Admin — Overview & Operations | Zoop', desc: 'Operator console for Zoop cloud — health, relays, IPAM & audit.' },
   '/privacy': { title: 'Privacy Policy — Zero Logging & Cryptographic Mesh | Zoop', desc: 'Zoop Privacy Policy: Zero logging of payload traffic, browsing history, DNS or destination IPs. End-to-end WireGuard encrypted, open source.' },
   '/terms': { title: 'Terms of Service & EULA — Peer-to-Peer Mesh | Zoop', desc: 'Zoop Terms of Service and End User License Agreement: Peer-to-peer network usage, acceptable use policy, and licensing.' },
+  '/blog': { title: 'Blog & Stories — Peer-to-Peer Freedom & Guides | Zoop', desc: 'Read stories, guides, and insights on peer-to-peer sharing, travel connectivity, and lag-free private device networking.' },
 };
 
 function normalizePath(raw: string): string {
@@ -40,6 +41,7 @@ function normalizePath(raw: string): string {
 
 const VALID_ROUTES = new Set([
   '/', '/how-it-works', '/products', '/downloads', '/security', '/pricing', '/docs',
+  '/blog',
   '/privacy', '/privacy-policy', '/terms', '/terms-of-service', '/eula',
   '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
   '/app', '/user', '/org', '/admin',
@@ -84,7 +86,7 @@ const App: React.FC = () => {
   const pathname = urlForParse.pathname;
   const normalized = normalizePath(pathname);
   const searchParams = urlForParse.searchParams;
-  const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs');
+  const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs') || normalized.startsWith('/blog/') || normalized.startsWith('/blog');
   const pathnameForLanding = isValidRoute ? pathname : '/';
 
   // Handle alias redirects client-side
@@ -98,7 +100,7 @@ const App: React.FC = () => {
   // Per-route title/description/canonical sync for SEO (covers S4-05 + canonical)
   useEffect(() => {
     const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
-      : (['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : normalized)));
+      : (['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : (normalized.startsWith('/blog') ? '/blog' : normalized))));
     const meta = ROUTE_META[key] || ROUTE_META['/'];
     document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
     if (!isValidRoute) console.warn('[zoop] unknown route:', normalized, '→ falling back to landing');

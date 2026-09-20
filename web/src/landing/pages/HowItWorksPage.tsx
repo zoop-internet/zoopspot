@@ -16,16 +16,16 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ handleNav }) => 
         </p>
       </div>
 
-      {/* Answer-ready extractable summary for AI search and users (AEO/GEO) */}
+      {/* Quick Answer for users and AI search */}
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 24px', maxWidth: 860, margin: '0 auto 32px' }}>
         <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase', margin: '0 0 10px' }}>
-          Direct Mesh at a Glance (Quick Answer)
+          Direct Sharing at a Glance
         </h2>
         <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--ink-secondary)', fontSize: '0.875rem', lineHeight: 1.7 }}>
-          <li><strong style={{ color: 'var(--ink)' }}>Direct WireGuard Tunnels:</strong> Devices connect point-to-point without sending payloads through centralized intermediary VPN servers.</li>
-          <li><strong style={{ color: 'var(--ink)' }}>NAT Traversal (RFC 8489 / RFC 8656):</strong> Discovers host and server-reflexive endpoints using STUN; establishes direct UDP hole punches with zero-knowledge relay fallback.</li>
-          <li><strong style={{ color: 'var(--ink)' }}>CGNAT &amp; Roaming (RFC 6598):</strong> Seamlessly traverses carrier-grade cellular NATs and transitions between Wi-Fi and 5G via Netlink event monitoring without dropping active connections.</li>
-          <li><strong style={{ color: 'var(--ink)' }}>Latency Advantage:</strong> Direct peer-to-peer routing provides sub-millisecond local latency, eliminating the typical 30–120ms detour imposed by commercial VPN proxies.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>Direct Device Connections:</strong> Your laptop, phone, and home computer connect straight to each other. Your internet data never routes through third-party company servers.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>Automatic Setup:</strong> Works behind home Wi-Fi and mobile data networks automatically. No port forwarding, no router adjustments.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>Seamless Roaming:</strong> Walk from home Wi-Fi to mobile 5G mid-call or during downloads without dropping the connection.</li>
+          <li><strong style={{ color: 'var(--ink)' }}>True Speed (&lt;1ms added):</strong> Because your traffic takes the shortest physical path, you get the full speed of your internet without VPN slowdowns.</li>
         </ul>
       </div>
 

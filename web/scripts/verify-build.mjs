@@ -33,6 +33,11 @@ const CANONICAL_ROUTES = [
   '/docs/troubleshooting',
   '/docs/security-architecture',
   '/docs/faq',
+  '/blog',
+  '/blog/why-peer-to-peer-is-the-future',
+  '/blog/share-internet-with-friends-traveling',
+  '/blog/goodbye-vpn-lag-gaming-remote-work',
+  '/blog/what-is-direct-mesh-networking',
 ];
 
 let errors = 0;
@@ -140,6 +145,12 @@ assert(securityHtml.includes('"@type":"TechArticle"'), '/security has TechArticl
 
 const quickstartHtml = readFileSync(join(DIST, 'docs', 'quickstart', 'index.html'), 'utf8');
 assert(quickstartHtml.includes('"@type":"TechArticle"'), '/docs/quickstart has TechArticle schema');
+
+const blogHtml = readFileSync(join(DIST, 'blog', 'index.html'), 'utf8');
+assert(blogHtml.includes('"@type":"Blog"'), '/blog has Blog schema');
+
+const blogPostHtml = readFileSync(join(DIST, 'blog', 'why-peer-to-peer-is-the-future', 'index.html'), 'utf8');
+assert(blogPostHtml.includes('"@type":"BlogPosting"'), '/blog/why-peer-to-peer-is-the-future has BlogPosting schema');
 
 // Validate JSON-LD syntax across all prerendered pages
 for (const route of CANONICAL_ROUTES) {

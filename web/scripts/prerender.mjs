@@ -74,6 +74,36 @@ const ROUTES = {
     canonical: `${BASE_DOMAIN}/terms`,
     ogImage: `${BASE_DOMAIN}/og-image.png`,
   },
+  '/blog': {
+    title: 'The Zoop Blog — Stories, Guides & Peer-to-Peer Freedom',
+    desc: 'Thoughts on peer-to-peer freedom, travel connectivity, and how to get the fastest, most private internet on earth.',
+    canonical: `${BASE_DOMAIN}/blog`,
+    ogImage: `${BASE_DOMAIN}/og-image.png`,
+  },
+  '/blog/why-peer-to-peer-is-the-future': {
+    title: 'Why We Built Zoop: The Internet Was Meant to Be Peer-to-Peer | Blog',
+    desc: 'How corporate VPNs convinced millions to rent their own internet back, and why direct device sharing is taking it back.',
+    canonical: `${BASE_DOMAIN}/blog/why-peer-to-peer-is-the-future`,
+    ogImage: `${BASE_DOMAIN}/assets/zoop_hero_connect.jpg`,
+  },
+  '/blog/share-internet-with-friends-traveling': {
+    title: 'How to Share Internet with Friends While Traveling | Blog',
+    desc: 'The easiest, safest way to keep your travel group connected across laptops and phones without paying for extra SIMs or sketchy hotel Wi-Fi.',
+    canonical: `${BASE_DOMAIN}/blog/share-internet-with-friends-traveling`,
+    ogImage: `${BASE_DOMAIN}/assets/zoop_friends_travel.jpg`,
+  },
+  '/blog/goodbye-vpn-lag-gaming-remote-work': {
+    title: 'Goodbye Lag: Why Gamers & Remote Workers Switch to Direct Tunnels | Blog',
+    desc: 'What actually happens when you cut out the VPN middleman? Sub-millisecond latency, zero dropped calls, and instant file sync.',
+    canonical: `${BASE_DOMAIN}/blog/goodbye-vpn-lag-gaming-remote-work`,
+    ogImage: `${BASE_DOMAIN}/assets/zoop_remote_work.jpg`,
+  },
+  '/blog/what-is-direct-mesh-networking': {
+    title: 'Direct Mesh vs. Traditional VPNs: A Simple, Human Guide | Blog',
+    desc: 'No networking degree required. Here is how device-to-device encryption works without the headache of networking textbooks.',
+    canonical: `${BASE_DOMAIN}/blog/what-is-direct-mesh-networking`,
+    ogImage: `${BASE_DOMAIN}/assets/zoop-mesh-architecture.webp`,
+  },
 };
 
 const DOCS_IDS = [
@@ -218,6 +248,44 @@ function replaceMeta(html, route, meta) {
       "dateModified": today
     };
     templateSchema = `  <script type="application/ld+json">${JSON.stringify(secSchema)}</script>\n`;
+  } else if (route === '/blog') {
+    const blogSchema = {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "The Zoop Blog",
+      "description": meta.desc,
+      "url": meta.canonical,
+      "publisher": {
+        "@type": "Organization",
+        "name": "Zoop Internet",
+        "url": BASE_DOMAIN,
+        "logo": `${BASE_DOMAIN}/zoopicon-192.png`
+      }
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(blogSchema)}</script>\n`;
+  } else if (route.startsWith('/blog/')) {
+    const postSchema = {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "headline": meta.title.split('|')[0].trim(),
+      "description": meta.desc,
+      "image": meta.ogImage,
+      "datePublished": "2026-09-18",
+      "dateModified": today,
+      "mainEntityOfPage": meta.canonical,
+      "author": {
+        "@type": "Organization",
+        "name": "Zoop Team",
+        "url": BASE_DOMAIN
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Zoop Internet",
+        "url": BASE_DOMAIN,
+        "logo": `${BASE_DOMAIN}/zoopicon-192.png`
+      }
+    };
+    templateSchema = `  <script type="application/ld+json">${JSON.stringify(postSchema)}</script>\n`;
   }
 
   // Fallback body markup inside <div id="root"> for non-JS search crawlers (replaced by React createRoot on load)

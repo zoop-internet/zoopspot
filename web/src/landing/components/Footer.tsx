@@ -52,6 +52,7 @@ export const Footer: React.FC<FooterProps> = ({ handleNav, onLaunchConsole }) =>
             <h4>Learn More</h4>
             <ul>
               <li><a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }}>How It Works</a></li>
+              <li><a href="/blog" onClick={(e) => { e.preventDefault(); handleNav('/blog'); }}>Blog &amp; Stories</a></li>
               <li><a href="/docs" onClick={(e) => { e.preventDefault(); handleNav('/docs'); }}>Documentation</a></li>
               <li><a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }}>Security Architecture</a></li>
               <li><a href="/privacy" onClick={(e) => { e.preventDefault(); handleNav('/privacy'); }}>Privacy Policy</a></li>

@@ -59,6 +59,8 @@ async function probe() {
       '/terms',
       '/docs',
       '/docs/quickstart',
+      '/blog',
+      '/blog/why-peer-to-peer-is-the-future',
     ];
 
     for (const route of routesToCheck) {

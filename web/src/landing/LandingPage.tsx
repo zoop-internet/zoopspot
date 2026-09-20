@@ -18,6 +18,7 @@ const SecurityPage = React.lazy(() => import('./pages/SecurityPage').then(m => (
 const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
 const TermsPage = React.lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const DocsView = React.lazy(() => import('./pages/DocsView').then(m => ({ default: m.DocsView })));
+const BlogPage = React.lazy(() => import('./pages/BlogPage').then(m => ({ default: m.BlogPage })));
 
 /* ─── Main Landing Page Component ──────────────────────────────────────── */
 export const LandingPage: React.FC<{
@@ -235,6 +236,11 @@ export const LandingPage: React.FC<{
           {/* ─── DEDICATED TERMS OF SERVICE & EULA PAGE ───────────────────── */}
           {(activeRoute === '/terms' || activeRoute === '/terms-of-service' || activeRoute === '/eula') && (
             <TermsPage handleNav={handleNav} />
+          )}
+
+          {/* ─── DEDICATED BLOG SECTION ───────────────────────────────── */}
+          {(activeRoute === '/blog' || activeRoute.startsWith('/blog/')) && (
+            <BlogPage currentPath={activeRoute} handleNav={handleNav} />
           )}
 
           {/* ─── DEFAULT OVERVIEW / HOME PAGE ───────────────────────────── */}
