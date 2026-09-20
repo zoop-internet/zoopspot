@@ -26,8 +26,9 @@ Security maintenance is actively provided for the following releases:
 If you identify any security issue—particularly vulnerabilities involving cryptographic key generation, WireGuard handshake negotiation, signaling leaks, authentication bypasses, or relay data isolation:
 
 1. **Internal Team Channel**: Open an encrypted inquiry or direct message to the Security Lead.
-2. **Security Email**: Send an encrypted report to `security@zoop.network` (or repository administrators).
-3. **GitHub Private Advisory**: If enabled on this repository, navigate to the **Security** tab and click **"Report a vulnerability"**.
+2. **Security Email**: Send an encrypted report to `security@zoopinternet.app` (or repository administrators).
+3. **GitHub Private Advisory**: Navigate to the repository **Security** tab and click **"Report a vulnerability"**.
+4. **RFC 9116 Disclosure**: Machine-readable security contacts are published at `https://zoopinternet.app/.well-known/security.txt`.
 
 ### What to Include in Your Report
 To accelerate triage, please provide:
@@ -41,7 +42,7 @@ To accelerate triage, please provide:
 
 ## 3. Vulnerability Handling SLA
 
-- **Initial Acknowledgment**: Within **48 hours** of report receipt.
+- **Initial Acknowledgment**: Within **24 hours** of report receipt.
 - **Triage & Reproduction**: Within **5 business days**.
 - **Remediation & Patching**: Critical issues are prioritized for hotfix deployment within **14 days**.
 - **Confidentiality**: All vulnerability details remain confidential until patches are released across production control nodes and relays.

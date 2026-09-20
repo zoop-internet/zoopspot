@@ -222,9 +222,38 @@ if (allImagesAccessible) {
   assert(true, 'All <img> tags across all canonical routes have alt or aria-hidden attributes');
 }
 
+// 10. Phase 7 Checks: Security & Trust Signals (RFC 9116, CSP, CORP, Permissions-Policy)
+assert(existsSync(join(DIST, '.well-known', 'security.txt')), 'dist/.well-known/security.txt exists (RFC 9116)');
+if (existsSync(join(DIST, '.well-known', 'security.txt'))) {
+  const secTxt = readFileSync(join(DIST, '.well-known', 'security.txt'), 'utf8');
+  assert(secTxt.includes('Contact: mailto:security@zoopinternet.app'), 'security.txt contains official security email');
+  assert(secTxt.includes('Expires:'), 'security.txt contains RFC 9116 Expires date');
+  assert(secTxt.includes('Canonical: https://zoopinternet.app/.well-known/security.txt'), 'security.txt contains Canonical URI');
+  assert(secTxt.includes('Policy: https://zoopinternet.app/security'), 'security.txt contains Policy URI');
+}
+
+assert(existsSync(join(DIST, 'security.txt')), 'dist/security.txt fallback exists');
+
+if (existsSync(join(DIST, '_headers'))) {
+  const headers = readFileSync(join(DIST, '_headers'), 'utf8');
+  assert(headers.includes("base-uri 'self'"), '_headers includes base-uri self');
+  assert(headers.includes("object-src 'none'"), '_headers includes object-src none');
+  assert(headers.includes('upgrade-insecure-requests'), '_headers includes upgrade-insecure-requests');
+  assert(headers.includes('Cross-Origin-Resource-Policy: same-origin'), '_headers includes Cross-Origin-Resource-Policy: same-origin');
+  assert(headers.includes('payment=()'), '_headers includes hardened Permissions-Policy with payment=()');
+  assert(headers.includes('usb=()'), '_headers includes hardened Permissions-Policy with usb=()');
+  assert(headers.includes('/.well-known/security.txt'), '_headers includes config for /.well-known/security.txt');
+}
+
+if (existsSync(join(DIST, '_redirects'))) {
+  const redirects = readFileSync(join(DIST, '_redirects'), 'utf8');
+  assert(redirects.includes('/security.txt') && redirects.includes('/.well-known/security.txt'), '_redirects contains 301 redirect for /security.txt');
+}
+
 console.log(`\n─── Verification Finished with ${errors} error(s) ───`);
 if (errors > 0) {
   process.exit(1);
 } else {
   console.log('🎉 ALL CHECKS PASSED!\n');
 }
+

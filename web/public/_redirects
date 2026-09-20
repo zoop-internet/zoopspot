@@ -12,6 +12,7 @@
 /signup               /auth?tab=signup  301
 /sign-up              /auth?tab=signup  301
 /register             /auth?tab=signup  301
+/security.txt         /.well-known/security.txt 301
 /user                 /app              301
 /user/*               /app/:splat       301
 
