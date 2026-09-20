@@ -43,6 +43,12 @@ build-ios-core:
 	@mkdir -p ios/Frameworks
 	gomobile bind -target=ios -o ios/Frameworks/ZoopCore.xcframework ./packages/platform/mobile
 
+android-diagnose:
+	@./test/android-harness/diagnose_chain.sh
+
+android-deploy:
+	@./test/android-harness/build_and_deploy.sh
+
 dev-cloud:
 	$(GO) run ./cloud
 
