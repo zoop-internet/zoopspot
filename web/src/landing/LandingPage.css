@@ -1626,6 +1626,166 @@
   }
 }
 
+/* ─── Modern Hero Trust Bar ────────────────────────────────────────────── */
+.lp-hero-trust-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 22px;
+  align-items: center;
+}
+
+.lp-trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lp-trust-item svg {
+  color: #34d399;
+}
+
+.lp-trust-sep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+/* ─── Real Semantic Comparison Table ─────────────────────────────────────── */
+.lp-compare-wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+.lp-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.lp-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.lp-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.lp-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 720px;
+  font-size: 0.88rem;
+}
+
+.lp-table thead th {
+  padding: 18px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  vertical-align: bottom;
+}
+
+.lp-table thead th.lp-col-feature {
+  width: 26%;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.lp-table thead th.lp-col-zoop {
+  width: 28%;
+  background: rgba(8, 242, 255, 0.08);
+  border-left: 1px solid rgba(8, 242, 255, 0.22);
+  border-right: 1px solid rgba(8, 242, 255, 0.22);
+  color: #38bdf8;
+  font-size: 1.05rem;
+  font-weight: 800;
+  position: relative;
+}
+
+.lp-table thead th.lp-col-competitor {
+  width: 23%;
+  color: var(--muted);
+}
+
+.lp-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.15s ease;
+}
+
+.lp-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lp-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.lp-table tbody th[scope="row"] {
+  padding: 16px 20px;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.lp-table tbody td {
+  padding: 16px 20px;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.lp-table tbody td.lp-cell-zoop {
+  background: rgba(8, 242, 255, 0.04);
+  border-left: 1px solid rgba(8, 242, 255, 0.15);
+  border-right: 1px solid rgba(8, 242, 255, 0.15);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.lp-table tbody td.lp-cell-competitor {
+  color: #9aa8bd;
+  font-weight: 500;
+}
+
+.lp-table-footer-note {
+  padding: 14px 20px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--line);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.lp-badge-zoop {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 242, 255, 0.15);
+  border: 1px solid rgba(8, 242, 255, 0.35);
+  color: #38bdf8;
+  margin-bottom: 6px;
+}
+
 @media print {
   .lp-topbar, .lp-footer, .lp-top-loading-bar, .lp-toast-container, .skip-link, .lp-cta-banner { display: none !important; }
   .landing-shell { background: #fff !important; color: #000 !important; }

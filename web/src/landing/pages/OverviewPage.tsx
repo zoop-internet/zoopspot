@@ -34,9 +34,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="lp-hero-inner">
           <div className="lp-hero-grid">
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', borderRadius: 999, background: 'rgba(8,242,255,0.10)', border: '1px solid rgba(8,242,255,0.28)', fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', marginBottom: 16 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} aria-hidden /> Open Source · No tracking · Direct mesh
-              </div>
               <h1>
                 Share your internet.
                 <br />
@@ -44,9 +41,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </h1>
               <p className="lp-hero-desc" style={{ maxWidth: 520 }}>
                 Lend your home broadband or phone data to your laptop, friends, or family—<strong style={{ color: 'var(--ink)' }}>directly between devices with zero middlemen</strong>. No slow VPN servers, no complicated setups, and no subscription fees. <strong style={{ color: 'var(--ink)' }}>Ready in 30 seconds.</strong>
-              </p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8, lineHeight: 1.5, maxWidth: 520 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ico d={Icons.check} size={10} /> Instant direct speed</span> · End-to-end encrypted · Works on any Wi-Fi or 5G · Free for personal use · <a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>See how it works →</a>
               </p>
               <div className="lp-hero-actions">
                 {isAuthenticated ? (
@@ -72,28 +66,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </>
                 )}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14, alignItems: 'center' }} aria-label="Trust proof">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.check} size={12} /> 5 devices free</span>
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--line)' }} aria-hidden />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.shield} size={12} /> End-to-end encrypted</span>
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--line)' }} aria-hidden />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}><Ico d={Icons.globe} size={12} /> Zero middleman servers</span>
-              </div>
-              <div style={{ marginTop: 10, fontSize: '0.72rem', color: 'var(--muted)' }}>
-                <code style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--line)', padding: '2px 6px', borderRadius: 6, fontFamily: 'var(--font-mono)', color: 'var(--cyan)' }}>curl -fsSL https://get.zoop.dev | sh</code> <span style={{ marginLeft: 6 }}>or</span> <a href="/downloads" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }} style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer' }}>download matrix →</a>
-              </div>
-              {/* Journey stepper — reduces cognitive load, guides 3 steps */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }} aria-label="3-step journey">
-                {[
-                  { n: '1', t: 'Get Zoop', d: 'Free 30-sec setup' },
-                  { n: '2', t: 'Share with Friends', d: 'One tap to invite' },
-                  { n: '3', t: 'Connect Directly', d: 'Fast & private' },
-                ].map(s => (
-                  <span key={s.n} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', padding: '5px 10px', borderRadius: 999, color: 'var(--text-secondary)' }}>
-                    <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(56,189,248,0.12)', color: '#38bdf8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.65rem' }}>{s.n}</span>
-                    <strong style={{ color: 'var(--ink)' }}>{s.t}</strong> <span style={{ color: 'var(--muted)' }}>· {s.d}</span>
-                  </span>
-                ))}
+              <div className="lp-hero-trust-bar" aria-label="Key guarantees">
+                <span className="lp-trust-item"><Ico d={Icons.check} size={14} /> 5 devices free</span>
+                <span className="lp-trust-sep" aria-hidden="true" />
+                <span className="lp-trust-item"><Ico d={Icons.shield} size={14} /> End-to-end encrypted</span>
+                <span className="lp-trust-sep" aria-hidden="true" />
+                <span className="lp-trust-item"><Ico d={Icons.zap} size={14} /> Zero middleman lag</span>
               </div>
             </div>
 
@@ -269,28 +247,60 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
         <div className="lp-scroll-hint">← Swipe horizontally to compare all features →</div>
         <div className="lp-compare-wrap">
-          <div className="lp-compare-table">
-            <div style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--ink)', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--line)' }}>Feature</div>
-            <div style={{ padding: '14px 16px', fontWeight: 800, color: '#38bdf8', background: 'rgba(8,242,255,0.08)', borderBottom: '1px solid var(--line)', textAlign: 'center' }}>Zoop</div>
-            <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--line)', textAlign: 'center' }}>Traditional VPN</div>
-            <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--line)', textAlign: 'center' }}>Tailscale / Mesh VPN</div>
-            {[
-              ['How your data travels', 'Direct device-to-device (shortest path, zero middleman)', 'Detoured through company servers', 'Via third-party coordination servers & relays'],
-              ['Speed & Added Lag', 'Feels instant (<1ms added) — like same local Wi-Fi', 'Noticeable lag (+30–120ms) — slows browsing & gaming', 'Moderate delay (+10–40ms, often relayed)'],
-              ['Who can read your traffic?', 'Only you and your devices (zero snooping, zero logs)', 'VPN company can monitor or log your activity', 'Third-party servers see your connections'],
-              ['Works on 5G & hotel Wi-Fi?', 'Yes, seamlessly — automatic roaming with zero drops', 'Frequently disconnects or blocked by firewalls', 'Works, but relies on background relay servers'],
-              ['Setup & Ease', '30 seconds — one tap to connect, no router config', 'Pick a country server and hope it’s not throttled', 'Requires account setup and technical IP config'],
-              ['Price', 'Free forever for personal (MIT open source)', '$5–$15/month subscriptions', 'Free up to 3 users, then $6+/user/month'],
-            ].map(([feat, zoop, vpn, tailscale]) => (
-              <React.Fragment key={feat}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', color: 'var(--ink-secondary)', fontWeight: 600 }}>{feat}</div>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', background: 'rgba(8,242,255,0.05)', color: 'var(--ink)', fontWeight: 700 }}>{zoop}</div>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', color: 'var(--muted)' }}>{vpn}</div>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'center', color: 'var(--muted)' }}>{tailscale}</div>
-              </React.Fragment>
-            ))}
+          <div className="lp-table-container">
+            <table className="lp-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="lp-col-feature">Feature</th>
+                  <th scope="col" className="lp-col-zoop">
+                    <span className="lp-badge-zoop">Direct P2P</span>
+                    <div>Zoop</div>
+                  </th>
+                  <th scope="col" className="lp-col-competitor">Traditional VPN</th>
+                  <th scope="col" className="lp-col-competitor">Tailscale / Mesh VPN</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">How your data travels</th>
+                  <td className="lp-cell-zoop">Direct device-to-device (your devices only)</td>
+                  <td className="lp-cell-competitor">Via company servers</td>
+                  <td className="lp-cell-competitor">Via coordination server + DERP relay</td>
+                </tr>
+                <tr>
+                  <th scope="row">Speed &amp; Added Lag</th>
+                  <td className="lp-cell-zoop">~ &lt;1ms direct (relay only if NAT blocks)</td>
+                  <td className="lp-cell-competitor">+30–120ms via provider</td>
+                  <td className="lp-cell-competitor">+10–40ms (often relayed)</td>
+                </tr>
+                <tr>
+                  <th scope="row">Who can read your traffic?</th>
+                  <td className="lp-cell-zoop">No one but your devices (zero-knowledge relay)</td>
+                  <td className="lp-cell-competitor">Provider can inspect or decrypt</td>
+                  <td className="lp-cell-competitor">Coordination node sees metadata &amp; keys</td>
+                </tr>
+                <tr>
+                  <th scope="row">Works on 5G &amp; hotel Wi-Fi?</th>
+                  <td className="lp-cell-zoop">Yes (automatic NAT hole punching)</td>
+                  <td className="lp-cell-competitor">Frequently blocked or throttled</td>
+                  <td className="lp-cell-competitor">Often drops to slow relay</td>
+                </tr>
+                <tr>
+                  <th scope="row">Setup &amp; Ease</th>
+                  <td className="lp-cell-zoop">30 seconds — one tap to connect, no config</td>
+                  <td className="lp-cell-competitor">Pick a country server and hope it’s fast</td>
+                  <td className="lp-cell-competitor">Requires account setup and IP config</td>
+                </tr>
+                <tr>
+                  <th scope="row">Price</th>
+                  <td className="lp-cell-zoop">Free forever for personal (MIT open source)</td>
+                  <td className="lp-cell-competitor">$5–$15/month subscriptions</td>
+                  <td className="lp-cell-competitor">Free up to 3 users, then $6+/user/month</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div style={{ padding: '12px 16px', fontSize: '0.75rem', color: 'var(--muted)', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+          <div className="lp-table-footer-note">
             Direct connections provide maximum throughput. When direct path is blocked by strict corporate firewalls, encrypted relay fallback ensures you never lose connection.
           </div>
         </div>
