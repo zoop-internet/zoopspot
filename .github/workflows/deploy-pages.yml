@@ -44,7 +44,7 @@ jobs:
         working-directory: web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '7335973a10147fee3168dac18331dbab' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '33c649068597dcf24eb13dbe3c9f3b18' }}
         run: |
           npx wrangler pages deploy dist --project-name=zoopnetwork --branch=main --commit-dirty=true
 
