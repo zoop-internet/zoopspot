@@ -51,9 +51,14 @@ const App: React.FC = () => {
   const [currentUrl, setCurrentUrl] = useState<string>(() => window.location.pathname + window.location.search + window.location.hash);
 
   useEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
     const handleNav = () => {
       setCurrentUrl(window.location.pathname + window.location.search + window.location.hash);
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     };
     window.addEventListener('popstate', handleNav);
     window.addEventListener('hashchange', handleNav);
@@ -69,8 +74,10 @@ const App: React.FC = () => {
     if (current !== target) {
       window.history.pushState({}, '', target);
       setCurrentUrl(target);
-      window.scrollTo(0, 0);
     }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   };
 
   const handleSwitchMode = (mode: PortalMode) => {

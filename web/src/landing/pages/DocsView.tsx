@@ -32,6 +32,9 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
 
   useEffect(() => {
     window.history.replaceState({}, '', activeId === 'quickstart' ? '/docs' : `/docs/${activeId}`);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
   }, [activeId]);
 
   useEffect(() => {

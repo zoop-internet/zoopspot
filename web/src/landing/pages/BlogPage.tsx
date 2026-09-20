@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ico } from '../components/Icons';
 import { Icons } from '../components/iconConstants';
 import { BLOG_POSTS } from '../data/blogData';
@@ -11,6 +11,12 @@ interface BlogPageProps {
 export const BlogPage: React.FC<BlogPageProps> = ({ currentPath, handleNav }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [currentPath]);
 
   // Extract slug if currentPath is /blog/:slug
   const slugMatch = currentPath.match(/^\/blog\/([a-z0-9-]+)$/i);

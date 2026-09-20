@@ -26,6 +26,7 @@ export const LandingPage: React.FC<{
   onNavigate: (path: string) => void;
   onLaunchConsole: (mode: PortalMode) => void;
 }> = ({ currentPath = '/', onNavigate, onLaunchConsole }) => {
+  const activeRoute = currentPath.toLowerCase();
   const { user, isAuthenticated, logout } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,9 +65,22 @@ export const LandingPage: React.FC<{
     };
   }, [menuOpen]);
 
+  // Guarantee immediate scroll-to-top whenever activeRoute changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [activeRoute]);
+
   const navTimersRef = useRef<number[]>([]);
   const handleNav = (path: string) => {
-    if (currentPath === path) return;
+    if (currentPath === path) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     // Navigate immediately for optimal INP and perceived performance
     onNavigate(path);
     // Concurrent progress animation feedback
@@ -143,7 +157,6 @@ export const LandingPage: React.FC<{
     }
   };
 
-  const activeRoute = currentPath.toLowerCase();
   const isDocs = activeRoute === '/docs' || activeRoute.startsWith('/docs/') || activeRoute === '/documentation' || activeRoute.startsWith('/documentation/');
 
   return (
