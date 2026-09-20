@@ -244,6 +244,36 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Issue**: Secondary muted text required compliance with WCAG AA 4.5:1 minimum contrast.
 - **Remediation**: Standardized `--muted` variable to `#9aa8bd` (providing 6.1:1 contrast on dark background `#0c1219`).
 
+#### Finding 6.3: Unstyled Skip Link (WCAG 2.4.1 Bypass Blocks) [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/src/landing/LandingPage.css`, `web/src/auth/AuthPage.css`
+- **Issue**: `<a href="#main-content" className="skip-link">Skip to main content</a>` existed in markup but lacked CSS styling, failing to become visible when focused with the Tab key.
+- **Remediation**: Implemented high-contrast `.skip-link` styling (`background: #38bdf8; color: #020904; font-weight: 800; outline: 3px solid #fff;`) that slides down smoothly (`top: 16px`) when focused via keyboard.
+
+#### Finding 6.4: Incomplete Focus Visible Rings Across Interactive Controls (WCAG 2.4.7) [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/LandingPage.css`, `web/src/auth/AuthPage.css`
+- **Issue**: Brand links, hamburger buttons, user badge buttons, toast dismiss buttons, FAQ summaries, and footer links lacked explicit `:focus-visible` styling.
+- **Remediation**: Added 2px cyan (`var(--cyan)`) outlines with 2px offset across all interactive components in `LandingPage.css` and `AuthPage.css`.
+
+#### Finding 6.5: Uncontained Keyboard Focus in Mobile Drawer (WCAG 2.1.2) [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/src/landing/components/Navbar.tsx`
+- **Issue**: When the mobile navigation drawer was opened with a keyboard, focus did not move inside the drawer, Tab key could escape behind the modal backdrop, and pressing Escape did not restore focus to the menu trigger button.
+- **Remediation**: Implemented a focus trap in `Navbar.tsx` that automatically focuses the first link upon opening, cycles Tab and Shift+Tab within the drawer, handles Escape dismissal, and returns focus to `menuBtnRef` on close.
+
+#### Finding 6.6: Clickable Snippets Not Keyboard Accessible (WCAG 2.1.1) [REMEDIATED & VERIFIED]
+- **Severity**: High
+- **Location**: `web/src/landing/pages/DownloadsPage.tsx`, `web/src/landing/pages/DocsView.tsx`
+- **Issue**: Clickable install command snippets on `/downloads` and "Copy as Markdown" on `/docs` were non-button elements (`<div>` and `<a>` without `href`), making them unreachable and inoperable for keyboard users.
+- **Remediation**: Converted code snippets to native `<button type="button">` elements with descriptive `aria-label` attributes, enabling Tab focus and `Enter`/`Space` activation.
+
+#### Finding 6.7: ARIA Tablist Pattern & Dynamic Form Error Associations (WCAG 4.1.2 & 3.3.1) [REMEDIATED & VERIFIED]
+- **Severity**: Medium
+- **Location**: `web/src/landing/pages/DocsView.tsx`, `web/src/landing/pages/OverviewPage.tsx`, `web/src/landing/pages/PricingPage.tsx`, `web/src/auth/AuthPage.tsx`
+- **Issue**: Documentation tabs lacked keyboard arrow navigation (`ArrowLeft`/`ArrowRight`/`Home`/`End`); waitlist and authentication forms lacked explicit `aria-invalid` and `aria-describedby` associations linking input fields to live error messages.
+- **Remediation**: Added full WAI-ARIA APG arrow-key tab navigation on `role="tablist"` in `DocsView.tsx`; linked all inputs to their error messages using `aria-describedby` and `aria-invalid`; added `role="tabpanel"` and `aria-labelledby` to auth form tabs.
+
 ---
 
 ### Phase 7: Security & Trust Signals

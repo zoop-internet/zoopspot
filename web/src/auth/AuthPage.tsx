@@ -301,22 +301,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </p>
           </div>
 
-          <div className="auth-tabs" role="tablist">
+          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
             <button
               type="button"
+              id="auth-tab-signin"
               className={`auth-tab-btn ${tab === 'signin' ? 'active' : ''}`}
               onClick={() => { setTab('signin'); setErrorMsg(null); setSuccessMsg(null); setFieldErrors({}); }}
               role="tab"
               aria-selected={tab === 'signin'}
+              aria-controls="auth-panel-signin"
+              tabIndex={tab === 'signin' ? 0 : -1}
             >
               Sign In
             </button>
             <button
               type="button"
+              id="auth-tab-signup"
               className={`auth-tab-btn ${tab === 'signup' ? 'active' : ''}`}
               onClick={() => { setTab('signup'); setErrorMsg(null); setSuccessMsg(null); setFieldErrors({}); }}
               role="tab"
               aria-selected={tab === 'signup'}
+              aria-controls="auth-panel-signup"
+              tabIndex={tab === 'signup' ? 0 : -1}
             >
               Create Zoop ID
             </button>
@@ -336,7 +342,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
 
           {tab === 'signin' && (
-            <form className="auth-form" onSubmit={handleSignIn} noValidate>
+            <form id="auth-panel-signin" role="tabpanel" aria-labelledby="auth-tab-signin" className="auth-form" onSubmit={handleSignIn} noValidate>
               <div className="auth-field">
                 <label htmlFor="auth-identifier">Zoop ID or Username</label>
                 <input
@@ -415,7 +421,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
 
           {tab === 'signup' && (
-            <form className="auth-form" onSubmit={handleSignUp} noValidate>
+            <form id="auth-panel-signup" role="tabpanel" aria-labelledby="auth-tab-signup" className="auth-form" onSubmit={handleSignUp} noValidate>
               <div className="auth-field">
                 <label htmlFor="signup-username">Username</label>
                 <div className="auth-input-wrap">

@@ -245,11 +245,24 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <form onSubmit={handleWaitlist} style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Join founding waitlist">
               <label htmlFor="waitlist-email" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-secondary)' }}>Join founding waitlist — lock $8/seat</label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input id="waitlist-email" type="email" inputMode="email" autoComplete="email" placeholder="you@email.com" value={waitlistEmail} onChange={e => { setWaitlistEmail(e.target.value); setWaitlistStatus('idle'); }} required aria-label="Email for waitlist" style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${waitlistStatus === 'error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background: 'rgba(0,0,0,0.35)', color: 'var(--ink)', fontSize: '0.875rem', outline: 'none' }} />
+                <input
+                  id="waitlist-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="you@email.com"
+                  value={waitlistEmail}
+                  onChange={e => { setWaitlistEmail(e.target.value); setWaitlistStatus('idle'); }}
+                  required
+                  aria-label="Email for waitlist"
+                  aria-invalid={waitlistStatus === 'error'}
+                  aria-describedby={waitlistStatus !== 'idle' ? 'waitlist-status-msg' : undefined}
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${waitlistStatus === 'error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background: 'rgba(0,0,0,0.35)', color: 'var(--ink)', fontSize: '0.875rem', outline: 'none' }}
+                />
                 <button type="submit" className="lp-btn-primary" style={{ whiteSpace: 'nowrap', minHeight: 38, padding: '0 16px' }} disabled={waitlistStatus === 'loading'}>{waitlistStatus === 'loading' ? 'Joining…' : 'Join →'}</button>
               </div>
               {waitlistStatus !== 'idle' && (
-                <span role={waitlistStatus === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ fontSize: '0.75rem', color: waitlistStatus === 'success' ? '#34d399' : waitlistStatus === 'error' ? '#f87171' : 'var(--muted)', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                <span id="waitlist-status-msg" role={waitlistStatus === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ fontSize: '0.75rem', color: waitlistStatus === 'success' ? '#34d399' : waitlistStatus === 'error' ? '#f87171' : 'var(--muted)', display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                   {waitlistStatus === 'success' ? <Ico d={Icons.check} size={12} /> : null} {waitlistMsg}
                 </span>
               )}

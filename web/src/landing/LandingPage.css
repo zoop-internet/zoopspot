@@ -49,6 +49,50 @@
 .landing-shell a { color: inherit; text-decoration: none; cursor: pointer; }
 .landing-shell button, .landing-shell input, .landing-shell select { font-family: inherit; }
 
+/* ─── Accessibility: Skip Link (WCAG 2.4.1) ────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -120px;
+  left: 16px;
+  z-index: 10000;
+  padding: 12px 20px;
+  background: #38bdf8;
+  color: #020904;
+  font-weight: 800;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transition: top 0.15s ease-in-out;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 16px;
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* ─── Accessibility: Global Focus Indicators (WCAG 2.4.7 / 2.4.13) ──────── */
+.lp-brand:focus-visible,
+.lp-menu-btn:focus-visible,
+.lp-user-badge-btn:focus-visible,
+.lp-btn-ghost-logout:focus-visible,
+.lp-toast-close:focus-visible,
+.lp-faq-item summary:focus-visible,
+.lp-mobile-drawer a:focus-visible,
+.lp-mobile-drawer button:focus-visible,
+.lp-dl-btn:focus-visible,
+.lp-code-snippet:focus-visible,
+.docs-tab:focus-visible,
+.docs-item:focus-visible,
+.docs-copy-page:focus-visible,
+.docs-toc-item:focus-visible,
+.docs-mobile-toggle:focus-visible,
+.lp-footer a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
 /* ─── Top Loading Progress Bar (YouTube/GitHub Style) ──────────────────── */
 .lp-top-loading-bar {
   position: fixed;

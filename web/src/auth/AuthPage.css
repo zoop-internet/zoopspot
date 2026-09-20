@@ -20,6 +20,42 @@
   position: relative;
 }
 
+/* ─── Accessibility: Skip Link (WCAG 2.4.1) ────────────────────────────── */
+.auth-shell .skip-link {
+  position: absolute;
+  top: -120px;
+  left: 16px;
+  z-index: 10000;
+  padding: 12px 20px;
+  background: #38bdf8;
+  color: #020904;
+  font-weight: 800;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transition: top 0.15s ease-in-out;
+}
+.auth-shell .skip-link:focus,
+.auth-shell .skip-link:focus-visible {
+  top: 16px;
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* ─── Accessibility: Focus Visible States (WCAG 2.4.7) ─────────────────── */
+.auth-brand:focus-visible,
+.auth-back-link:focus-visible,
+.auth-tab-btn:focus-visible,
+.auth-submit-btn:focus-visible,
+.auth-switch-btn:focus-visible,
+.auth-link-btn:focus-visible,
+.auth-forgot-link:focus-visible,
+.auth-key-import-toggle:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
 /* ─── Top Nav Bar in Auth ───────────────────────────────────────── */
 .auth-topbar {
   height: 64px;

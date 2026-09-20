@@ -180,6 +180,48 @@ if (existsSync(join(DIST, '_headers'))) {
   assert(headers.includes('/*.ico'), '_headers includes caching rule for /*.ico');
 }
 
+// 9. Phase 6 Checks: Accessibility (WCAG 2.2 AA)
+if (existsSync(join(DIST, 'index.html'))) {
+  const rootHtml = readFileSync(join(DIST, 'index.html'), 'utf8');
+  assert(rootHtml.includes('lang="en"'), 'Root HTML specifies <html lang="en">');
+  assert(rootHtml.includes('class="skip-link"') || rootHtml.includes("skip-link"), 'Root HTML contains skip-link');
+}
+
+const landingCssPath = join('src', 'landing', 'LandingPage.css');
+if (existsSync(landingCssPath)) {
+  const css = readFileSync(landingCssPath, 'utf8');
+  assert(css.includes('.skip-link'), 'LandingPage.css includes .skip-link styles');
+  assert(css.includes(':focus-visible'), 'LandingPage.css includes :focus-visible rules');
+}
+
+const authCssPath = join('src', 'auth', 'AuthPage.css');
+if (existsSync(authCssPath)) {
+  const css = readFileSync(authCssPath, 'utf8');
+  assert(css.includes('.skip-link'), 'AuthPage.css includes .skip-link styles');
+  assert(css.includes(':focus-visible'), 'AuthPage.css includes :focus-visible rules');
+}
+
+// Check that all <img> tags in prerendered HTML have alt attributes or aria-hidden
+let allImagesAccessible = true;
+for (const route of CANONICAL_ROUTES) {
+  const p = route === '/' ? join(DIST, 'index.html') : join(DIST, route.replace(/^\//, ''), 'index.html');
+  if (existsSync(p)) {
+    const html = readFileSync(p, 'utf8');
+    const imgTags = html.match(/<img[^>]+>/g) || [];
+    for (const tag of imgTags) {
+      const hasAlt = tag.includes('alt=');
+      const hasAriaHidden = tag.includes('aria-hidden="true"') || tag.includes('aria-hidden');
+      if (!hasAlt && !hasAriaHidden) {
+        allImagesAccessible = false;
+        assert(false, `Image in ${route} missing alt or aria-hidden: ${tag}`);
+      }
+    }
+  }
+}
+if (allImagesAccessible) {
+  assert(true, 'All <img> tags across all canonical routes have alt or aria-hidden attributes');
+}
+
 console.log(`\n─── Verification Finished with ${errors} error(s) ───`);
 if (errors > 0) {
   process.exit(1);

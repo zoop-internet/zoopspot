@@ -78,17 +78,19 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
             </div>
 
             {item.installCommand && (
-              <div
+              <button
+                type="button"
                 className="lp-code-snippet"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', width: '100%', textAlign: 'left' }}
                 onClick={() => copyText(item.installCommand!, item.id)}
+                aria-label={`Copy install command: ${item.installCommand}`}
                 title="Click to copy install command"
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.installCommand}
                 </span>
                 <Ico d={copiedCmd === item.id ? Icons.check : Icons.copy} size={13} />
-              </div>
+              </button>
             )}
           </div>
         ))}

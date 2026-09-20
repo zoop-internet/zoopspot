@@ -179,14 +179,39 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
         <div className="docs-llms-banner" role="note">
           <span style={{ fontWeight: 800 }}>Documentation Index</span> — Fetch the complete index at <a href="/llms.txt">/llms.txt</a> · <a href="/llms-full.txt">full</a> · Use before exploring further.
         </div>
-        <div className="docs-tabs" role="tablist" aria-label="Docs sections">
-          {DOCS_SECTIONS.map(sec => {
+        <div
+          className="docs-tabs"
+          role="tablist"
+          aria-label="Docs sections"
+          onKeyDown={(e) => {
+            const activeSecIdx = DOCS_SECTIONS.findIndex(sec => sec.items.some(i => i.id === activeId));
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              const next = (activeSecIdx + 1) % DOCS_SECTIONS.length;
+              setActiveId(DOCS_SECTIONS[next].items[0].id);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const prev = (activeSecIdx - 1 + DOCS_SECTIONS.length) % DOCS_SECTIONS.length;
+              setActiveId(DOCS_SECTIONS[prev].items[0].id);
+            } else if (e.key === 'Home') {
+              e.preventDefault();
+              setActiveId(DOCS_SECTIONS[0].items[0].id);
+            } else if (e.key === 'End') {
+              e.preventDefault();
+              setActiveId(DOCS_SECTIONS[DOCS_SECTIONS.length - 1].items[0].id);
+            }
+          }}
+        >
+          {DOCS_SECTIONS.map((sec, idx) => {
             const isActive = sec.items.some(i => i.id === activeId);
             return (
               <button
                 key={sec.label}
+                id={`docs-tab-${idx}`}
                 role="tab"
+                tabIndex={isActive ? 0 : -1}
                 aria-selected={isActive}
+                aria-controls="docs-article-panel"
                 className={`docs-tab ${isActive ? 'active' : ''}`}
                 onClick={() => setActiveId(sec.items[0].id)}
               >
@@ -222,16 +247,19 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
         <div className="docs-meta-bar">
           <span>Last updated Aug 28, 2026</span>
           <span>·</span>
-          <a
+          <button
+            type="button"
+            className="docs-meta-btn"
             onClick={() => {
               navigator.clipboard.writeText(md);
               setCopied('md');
               setTimeout(() => setCopied(null), 1200);
             }}
-            style={{ cursor: 'pointer' }}
+            aria-label="Copy current guide content as Markdown"
+            style={{ background: 'none', border: 'none', color: '#38bdf8', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'none' }}
           >
             {copied === 'md' ? 'Copied!' : 'Copy as Markdown'}
-          </a>
+          </button>
           <span>·</span>
           <a href={active?.file === 'README' ? 'https://github.com/zoop-internet/zoop#quick-start' : `/docs/${active?.file}.md`} target="_blank" rel="noreferrer">View as Markdown</a>
           <span>·</span>
@@ -240,7 +268,7 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
         {loading && <div className="docs-loading"><span className="spinner" style={{ width: 16, height: 16, display: 'inline-block' }} /> Loading {active?.file}.md…</div>}
         {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
         {!loading && !err && (
-          <div className="docs-prose-wrap">
+          <div id="docs-article-panel" role="tabpanel" className="docs-prose-wrap" tabIndex={0} aria-label={`Documentation: ${active?.title}`}>
             <article className="docs-article" dangerouslySetInnerHTML={{ __html: mdToHtml(md) }} />
             <aside className="docs-toc" aria-label="On this page">
               <div className="docs-toc-title">On this page</div>

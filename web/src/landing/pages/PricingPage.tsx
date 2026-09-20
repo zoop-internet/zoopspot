@@ -51,10 +51,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({
           <form onSubmit={handleWaitlist} style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Join founding waitlist">
             <label htmlFor="pricing-waitlist" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-secondary)' }}>Join founding waitlist — lock $8</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input id="pricing-waitlist" type="email" placeholder="you@company.com" value={waitlistEmail} onChange={e => { setWaitlistEmail(e.target.value); setWaitlistStatus('idle'); }} required style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${waitlistStatus === 'error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background: 'rgba(0,0,0,0.35)', color: 'var(--ink)', fontSize: '0.875rem' }} />
+              <input
+                id="pricing-waitlist"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={waitlistEmail}
+                onChange={e => { setWaitlistEmail(e.target.value); setWaitlistStatus('idle'); }}
+                required
+                aria-label="Email for founding waitlist"
+                aria-invalid={waitlistStatus === 'error'}
+                aria-describedby={waitlistStatus !== 'idle' ? 'pricing-waitlist-status' : undefined}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: `1px solid ${waitlistStatus === 'error' ? 'rgba(248,113,113,0.5)' : 'var(--line)'}`, background: 'rgba(0,0,0,0.35)', color: 'var(--ink)', fontSize: '0.875rem' }}
+              />
               <button type="submit" className="lp-btn-primary" disabled={waitlistStatus === 'loading'}>{waitlistStatus === 'loading' ? 'Joining…' : 'Join →'}</button>
             </div>
-            {waitlistStatus !== 'idle' && <span role={waitlistStatus === 'error' ? 'alert' : 'status'} style={{ fontSize: '0.75rem', color: waitlistStatus === 'success' ? '#34d399' : '#f87171' }}>{waitlistMsg}</span>}
+            {waitlistStatus !== 'idle' && <span id="pricing-waitlist-status" role={waitlistStatus === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ fontSize: '0.75rem', color: waitlistStatus === 'success' ? '#34d399' : '#f87171' }}>{waitlistMsg}</span>}
           </form>
         </div>
       </div>

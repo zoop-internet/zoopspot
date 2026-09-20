@@ -85,6 +85,16 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
   - Audited all `<img>` tags across `LandingPage.tsx` and console dashboards; added `aria-hidden="true"` to decorative icons and descriptive `alt` text to informative graphics.
 - [x] **6.2 Contrast Optimization** [DONE - Deployed & verified]
   - Verified `--muted` text variable (`#9aa8bd`, 6.1:1 contrast on `#0c1219`) exceeds the WCAG AA 4.5:1 requirement. Standardized secondary text styles.
+- [x] **6.3 Skip Link Styles & Transition (WCAG 2.4.1)** [DONE - Deployed & verified]
+  - Implemented `.skip-link` styles in `LandingPage.css` and `AuthPage.css` with smooth transition and high-contrast focus state (`#38bdf8` on `#020904`, 3px white outline).
+- [x] **6.4 Global Focus Visible Rings (WCAG 2.4.7 / 2.4.13)** [DONE - Deployed & verified]
+  - Implemented 2px cyan outlines with 2px offset for all interactive controls (brand, hamburger, user badges, logout, toast dismiss, FAQ summaries, drawer items, copy buttons, tabs, footer links).
+- [x] **6.5 Mobile Drawer Focus Trap & Escape Restoration (WCAG 2.1.2)** [DONE - Deployed & verified]
+  - Added focus trap in `Navbar.tsx` that moves focus inside the drawer on open, traps Tab/Shift+Tab, handles Escape dismissal, and returns focus to the hamburger button on close.
+- [x] **6.6 Keyboard Operable Code Snippets (WCAG 2.1.1)** [DONE - Deployed & verified]
+  - Converted `.lp-code-snippet` in `/downloads` and "Copy as Markdown" in `/docs` to native `<button type="button">` with descriptive `aria-label` attributes.
+- [x] **6.7 WAI-ARIA Tablist Pattern & Form Error Linking (WCAG 4.1.2 & 3.3.1)** [DONE - Deployed & verified]
+  - Added keyboard arrow navigation (`ArrowLeft`/`ArrowRight`/`Home`/`End`) to documentation tabs; linked waitlist and authentication inputs with live status messages using `aria-describedby` and `aria-invalid`. Added `role="tabpanel"` on auth tabs.
 
 ### Phase 7: Security & Trust Signals
 - [x] **7.1 Add HSTS to `_headers`** [DONE - Deployed & verified]

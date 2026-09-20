@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { PortalMode } from '../../types';
 import { Ico } from './Icons';
 import { Icons } from './iconConstants';
@@ -28,6 +28,44 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLaunchConsole,
   logout,
 }) => {
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const prevMenuOpen = useRef(menuOpen);
+
+  useEffect(() => {
+    if (menuOpen) {
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>('a, button');
+      if (focusable && focusable.length > 0) {
+        focusable[0].focus();
+      }
+    } else if (prevMenuOpen.current) {
+      menuBtnRef.current?.focus();
+    }
+    prevMenuOpen.current = menuOpen;
+  }, [menuOpen]);
+
+  const handleDrawerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setMenuOpen(false);
+      menuBtnRef.current?.focus();
+      return;
+    }
+    if (e.key === 'Tab') {
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>('a, button');
+      if (!focusable || focusable.length === 0) return;
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    }
+  };
+
   return (
     <>
       {/* ─── Topbar — distinct on docs (solid, not glass) ─────────────────── */}
@@ -96,7 +134,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </a>
             </>
           )}
-          <button className="lp-menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} aria-controls="lp-mobile-drawer">
+          <button
+            ref={menuBtnRef}
+            className="lp-menu-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            aria-controls="lp-mobile-drawer"
+          >
             <Ico d={menuOpen ? Icons.close : Icons.menu} size={20} />
           </button>
         </div>
@@ -106,7 +151,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       {menuOpen && (
         <>
           <div className="lp-mobile-drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <div id="lp-mobile-drawer" className="lp-mobile-drawer" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <div
+            ref={drawerRef}
+            id="lp-mobile-drawer"
+            className="lp-mobile-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            onKeyDown={handleDrawerKeyDown}
+          >
             <a href="/" onClick={(e) => { e.preventDefault(); handleNav('/'); setMenuOpen(false); }}>Overview</a>
             <a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</a>
             <a href="/products" onClick={(e) => { e.preventDefault(); handleNav('/products'); setMenuOpen(false); }}>Products</a>
