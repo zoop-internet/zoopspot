@@ -3,6 +3,7 @@ import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
 import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminUsageCsv, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice, listDevices, createOrganization } from '../api/client';
 import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
+import { AwsSpinner } from '../components/AwsSpinner';
 import './AdminConsole.css';
 
 /* ─── Icon Primitives ─────────────────────────────────────────────── */
@@ -636,7 +637,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
       <div className="section">
         <div className="section-header"><span className="section-title">Platform Overview</span></div>
         <div className="admin-loading-row">
-          <span className="spinner" />
+          <AwsSpinner size={16} />
           <span>Loading platform data…</span>
         </div>
       </div>
@@ -694,7 +695,7 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button className="btn btn-ghost btn-xs" onClick={() => onNavigate('system')} aria-label="View system status">View status <I.chevronR /></button>
             <button className="btn btn-ghost btn-xs" onClick={reload} aria-label="Refresh platform data">
-              {loading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : 'Refresh'}
+              {loading ? <AwsSpinner size={12} /> : 'Refresh'}
             </button>
           </div>
         </div>

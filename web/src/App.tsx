@@ -10,6 +10,7 @@ const UserDashboard = lazy(() => import('./app/user/UserDashboard').then(m => ({
 const OrgDashboard = lazy(() => import('./app/org/OrgDashboard').then(m => ({ default: m.OrgDashboard })));
 const AdminConsole = lazy(() => import('./admin/AdminConsole').then(m => ({ default: m.AdminConsole })));
 const AuthPage = lazy(() => import('./auth/AuthPage').then(m => ({ default: m.AuthPage })));
+import { AwsSpinner } from './components/AwsSpinner';
 
 // Route-specific meta for SEO (S4-05) — keep in sync with scripts/prerender.mjs
 const ROUTE_META: Record<string, { title: string; desc: string }> = {
@@ -148,9 +149,8 @@ const App: React.FC = () => {
   const redirectUrl = searchParams.get('redirect_url') || '/app';
 
 const Fallback: React.FC = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite" aria-busy="true">
-    <div className="spinner" style={{ width: 28, height: 28 }} aria-hidden />
-    <span style={{ color: '#8b9bb0', fontSize: 13 }}>Loading Zoop…</span>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#000000' }} role="status" aria-live="polite" aria-busy="true">
+    <AwsSpinner size={32} />
   </div>
 );
 

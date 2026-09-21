@@ -7,6 +7,7 @@ import {
   extractToc,
   mdToHtml,
 } from '../data/docsData';
+import { AwsSpinner } from '../../components/AwsSpinner';
 
 interface DocsViewProps {
   initialId?: string;
@@ -268,7 +269,7 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialId, onNavigateHome })
           <span>·</span>
           <a href="https://developers.cloudflare.com/agent-setup/" target="_blank" rel="noreferrer">Agent setup</a>
         </div>
-        {loading && <div className="docs-loading"><span className="spinner" style={{ width: 16, height: 16, display: 'inline-block' }} /> Loading {active?.file}.md…</div>}
+        {loading && <div className="docs-loading"><AwsSpinner size={16} /> Loading {active?.file}.md…</div>}
         {err && <div className="docs-error" role="alert">{err} — <a href={`https://github.com/zoop-internet/zoop/blob/main/docs/${active?.file}.md`} target="_blank" rel="noreferrer">Open on GitHub</a></div>}
         {!loading && !err && (
           <div id="docs-article-panel" role="tabpanel" className="docs-prose-wrap" tabIndex={0} aria-label={`Documentation: ${active?.title}`}>

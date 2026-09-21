@@ -15,6 +15,7 @@ import {
 } from '../../api/client';
 
 import { Icons } from '../../components/iconDefs';
+import { AwsSpinner } from '../../components/AwsSpinner';
 
 /* ─── Icon helpers ───────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) =>
@@ -71,7 +72,7 @@ const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'e
       <div className="section">
         <div className="section-header"><span className="section-title">Local daemon (zoopd)</span></div>
         <div className="inline-empty">
-          <span className="spinner" style={{ width: 14, height: 14, display: 'inline-block', verticalAlign: 'middle', marginRight: 8 }} />
+          <span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={14} /></span>
           Checking for daemon on 127.0.0.1:9090…
         </div>
       </div>
@@ -354,7 +355,7 @@ const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type
               }}
             />
             <button className="btn btn-ghost btn-xs" onClick={refreshAllDevices}>
-              {devicesLoading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+              {devicesLoading ? <AwsSpinner size={13} /> : 'Refresh'}
             </button>
             <button className="btn btn-primary btn-xs" onClick={onRegister}>
               <Ico d={I.plus} />Register new
@@ -531,7 +532,7 @@ const ConnectionsTab: React.FC<{
     </div>
   );
 
-  const Spin = () => <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} />;
+  const Spin = () => <AwsSpinner size={12} />;
 
   if (!deviceId) {
     return (
@@ -618,7 +619,7 @@ const ConnectionsTab: React.FC<{
           <span className="section-note">Awaiting action</span>
         </div>
         {isLoading ? (
-          <div className="inline-empty"><span className="spinner" style={{ width: 14, height: 14, display: 'inline-block', verticalAlign: 'middle', marginRight: 8 }} />Loading connections…</div>
+          <div className="inline-empty"><span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={14} /></span>Loading connections…</div>
         ) : pending.length === 0 ? (
           <div className="inline-empty">No pending connection requests.</div>
         ) : (
@@ -688,11 +689,11 @@ const ConnectionsTab: React.FC<{
         <div className="section-header">
           <span className="section-title">Active connections ({active.length})</span>
           <button className="btn btn-ghost btn-xs" id="refresh-connections-btn" onClick={refreshConnections}>
-            {connectionsLoading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : 'Refresh'}
+            {connectionsLoading ? <AwsSpinner size={13} /> : 'Refresh'}
           </button>
         </div>
         {isLoading ? (
-          <div className="inline-empty"><span className="spinner" style={{ width: 14, height: 14, display: 'inline-block', verticalAlign: 'middle', marginRight: 8 }} />Loading connections…</div>
+          <div className="inline-empty"><span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={14} /></span>Loading connections…</div>
         ) : active.length === 0 ? (
           <div className="inline-empty">No active connections. Initiate a connection above to start routing traffic.</div>
         ) : (
@@ -808,7 +809,7 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
             )}
           </div>
           <button type="submit" className="btn btn-primary btn-sm" id="share-create-btn" disabled={sharing}>
-            {sharing ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
+            {sharing ? <AwsSpinner size={13} variant="inverted" /> : <Ico d={I.plus} />}
             Authorize sharing
           </button>
         </form>
@@ -846,7 +847,7 @@ const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' |
                       <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                         {confirming ? (
                           <>
-                            <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyShare(s.id.toString()); try{ await doDeleteShare(s.id.toString()); onToast('Share revoked','info'); setConfirmRevoke(null);} catch(e){ onToast(e instanceof Error?e.message:'Revoke failed','error');} finally{ setBusyShare(null);} }} aria-label="Confirm revoke share">{isBusy ? <span className="spinner" style={{width:11,height:11}}/> : 'Confirm'}</button>
+                            <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyShare(s.id.toString()); try{ await doDeleteShare(s.id.toString()); onToast('Share revoked','info'); setConfirmRevoke(null);} catch(e){ onToast(e instanceof Error?e.message:'Revoke failed','error');} finally{ setBusyShare(null);} }} aria-label="Confirm revoke share">{isBusy ? <AwsSpinner size={12} variant="inverted" /> : 'Confirm'}</button>
                             <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRevoke(null)}>Cancel</button>
                           </>
                         ) : (
@@ -968,7 +969,7 @@ const SettingsTab: React.FC<{
                 </span>
                 <button className="btn btn-danger btn-sm" id="settings-unregister-confirm-btn"
                   disabled={unregistering} onClick={handleUnregister}>
-                  {unregistering ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}Unregister
+                  {unregistering ? <span style={{ marginRight: 6, display: 'inline-flex' }}><AwsSpinner size={13} variant="inverted" /></span> : null}Unregister
                 </button>
                 <button className="btn btn-ghost btn-sm" disabled={unregistering} onClick={() => setConfirming(false)}>Cancel</button>
               </div>
@@ -1233,7 +1234,7 @@ const WalletTab: React.FC<{
           </button>
         </div>
         <button className="btn btn-ghost btn-xs" onClick={() => loadData(true)} disabled={refreshing}>
-          {refreshing ? <span className="spinner" style={{ width: 12, height: 12 }} /> : null}
+          {refreshing ? <span style={{ marginRight: 6, display: 'inline-flex' }}><AwsSpinner size={12} /></span> : null}
           Refresh Ledger
         </button>
       </div>
@@ -1263,7 +1264,7 @@ const WalletTab: React.FC<{
 
         {loading ? (
           <div className="inline-empty">
-            <span className="spinner" style={{ width: 16, height: 16, marginRight: 8 }} /> Loading transactions…
+            <span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={16} /></span> Loading transactions…
           </div>
         ) : filteredTxs.length === 0 ? (
           <div className="inline-empty" style={{ padding: '32px 16px', flexDirection: 'column', gap: 6 }}>
@@ -1505,7 +1506,7 @@ const WalletTab: React.FC<{
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={submittingDeposit}>
-                  {submittingDeposit ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}
+                  {submittingDeposit ? <span style={{ marginRight: 6, display: 'inline-flex' }}><AwsSpinner size={13} variant="inverted" /></span> : null}
                   Confirm & Deposit
                 </button>
               </div>
@@ -1616,7 +1617,7 @@ const WalletTab: React.FC<{
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary btn-sm" disabled={submittingWithdraw}>
-                  {submittingWithdraw ? <span className="spinner" style={{ width: 13, height: 13 }} /> : null}
+                  {submittingWithdraw ? <span style={{ marginRight: 6, display: 'inline-flex' }}><AwsSpinner size={13} variant="inverted" /></span> : null}
                   Confirm & Withdraw
                 </button>
               </div>

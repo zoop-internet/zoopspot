@@ -3,6 +3,7 @@ import type { PortalMode } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { WorkspaceSwitcher } from '../../components/WorkspaceSwitcher';
 import { MobileBottomNav } from '../../components/MobileBottomNav';
+import { AwsSpinner } from '../../components/AwsSpinner';
 
 /* ─── Icons ──────────────────────────────────────────────────── */
 import { Icons } from '../../components/iconDefs';
@@ -151,7 +152,7 @@ const CreateOrgModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={loading}>Cancel</button>
             <button type="submit" className="btn btn-primary btn-sm" id="org-create-submit" disabled={loading || !name.trim()}>
-              {loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
+              {loading ? <AwsSpinner size={13} variant="inverted" /> : <Ico d={I.plus} />}
               Create organization
             </button>
           </div>
@@ -234,7 +235,7 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary btn-sm" id="member-add-submit" disabled={loading}>
-              {loading ? <span className="spinner" style={{ width: 13, height: 13 }} /> : <Ico d={I.plus} />}
+              {loading ? <AwsSpinner size={13} variant="inverted" /> : <Ico d={I.plus} />}
               Add member
             </button>
           </div>
@@ -511,7 +512,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                               <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                                 {confirming ? (
                                   <>
-                                    <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyMember(m.id.toString()); try{ await doRemoveOrgMember(m.id.toString()); addToast('Member removed','info'); setConfirmRemove(null);} catch(e){ addToast(e instanceof Error?e.message:'Remove failed','error');} finally{ setBusyMember(null);} }} aria-label="Confirm remove member">{isBusy ? <span className="spinner" style={{width:11,height:11}}/> : 'Confirm'}</button>
+                                    <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyMember(m.id.toString()); try{ await doRemoveOrgMember(m.id.toString()); addToast('Member removed','info'); setConfirmRemove(null);} catch(e){ addToast(e instanceof Error?e.message:'Remove failed','error');} finally{ setBusyMember(null);} }} aria-label="Confirm remove member">{isBusy ? <AwsSpinner size={11} variant="inverted" /> : 'Confirm'}</button>
                                     <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRemove(null)}>Cancel</button>
                                   </>
                                 ) : (

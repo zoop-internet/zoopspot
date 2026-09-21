@@ -313,7 +313,22 @@ function replaceMeta(html, route, meta) {
       </div>
     </main>
   `;
-  out = out.replace('<div id="root"></div>', `<div id="root">${fallbackBody}</div>`);
+  const loaderHtml = `
+    <div id="app-initial-loader" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #000000;">
+      <span class="aws-spinner" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: aws-spin 0.8s linear infinite; transform-origin: center;">
+          <circle cx="16" cy="16" r="14.5" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+          <circle cx="16" cy="16" r="14.5" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="63.7 27.3" />
+        </svg>
+      </span>
+    </div>
+  `;
+  const crawlerAccessible = `
+    <div style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">
+      ${fallbackBody}
+    </div>
+  `;
+  out = out.replace(/<div id="root">[\s\S]*?<\/div>/, `<div id="root">${loaderHtml}${crawlerAccessible}</div>`);
 
   out = out.replace('</head>', `  <meta name="prerender" content="${route}" />\n${breadcrumb}${templateSchema}</head>`);
   return out;

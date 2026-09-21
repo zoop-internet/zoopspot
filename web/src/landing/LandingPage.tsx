@@ -9,6 +9,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
 import { OverviewPage } from './pages/OverviewPage';
+import { AwsSpinner } from '../components/AwsSpinner';
 
 const HowItWorksPage = React.lazy(() => import('./pages/HowItWorksPage').then(m => ({ default: m.HowItWorksPage })));
 const ProductsPage = React.lazy(() => import('./pages/ProductsPage').then(m => ({ default: m.ProductsPage })));
@@ -190,9 +191,8 @@ export const LandingPage: React.FC<{
       {/* ─── Animated Page Content Container ────────────────────────── */}
       <main id="main-content" className="lp-page-content-animated" key={activeRoute} tabIndex={-1}>
         <React.Suspense fallback={
-          <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }} role="status" aria-live="polite">
-            <div className="spinner" style={{ width: 28, height: 28 }} aria-hidden />
-            <span style={{ color: 'var(--muted)', fontSize: 13 }}>Loading view…</span>
+          <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }} role="status" aria-live="polite">
+            <AwsSpinner size={32} />
           </div>
         }>
           {/* ─── DOCS — professional sidebar + rendered markdown from /docs/*.md ─ */}
