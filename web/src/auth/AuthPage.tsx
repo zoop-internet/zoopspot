@@ -165,8 +165,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     <div className="aws-auth-page">
       <a href="#main-content" className="skip-link">Skip to main content</a>
 
-      {/* Top Header with Centered Logo */}
-      <header className="aws-auth-header">
+      <div className="aws-auth-container">
+        {/* Top Header with Centered Logo */}
+        <header className="aws-auth-header">
         <a
           href="/"
           className="aws-brand-link"
@@ -556,12 +557,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         )}
 
-      </main>
-
-      {/* Clean, subtle geometric lines at bottom (matching AWS screenshot 1) */}
-      <footer className="aws-auth-footer" aria-hidden="true">
-        <div className="aws-bottom-lines" />
-      </footer>
+        </main>
+      </div>
     </div>
   );
 };
