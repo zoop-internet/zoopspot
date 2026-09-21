@@ -138,12 +138,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setSignUpDeviceName(detected);
   }, []);
 
-  // Sync mode if initialTab changes
+  // Sync mode when initialTab prop changes from external navigation
   useEffect(() => {
-    if (mode !== 'congratulations') {
-      setMode(initialTab);
-    }
-  }, [initialTab, mode]);
+    setMode((prev) => (prev === 'congratulations' ? prev : initialTab));
+  }, [initialTab]);
 
   const clearErrors = () => {
     setErrorMsg(null);
@@ -416,6 +414,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             clearErrors();
                             setMode('signin');
                             setSignInStep(1);
+                            onNavigate('/auth?tab=signin');
                           }}
                         >
                           Sign in to an existing Zoop ID
@@ -568,6 +567,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             clearErrors();
                             setMode('signup');
                             setSignUpStep(1);
+                            onNavigate('/auth?tab=signup');
                           }}
                         >
                           New to Zoop? Create a Zoop ID
@@ -705,6 +705,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     clearErrors();
                     setMode('signin');
                     setSignInStep(1);
+                    onNavigate('/auth?tab=signin');
                   }}
                 >
                   Sign in to another account
