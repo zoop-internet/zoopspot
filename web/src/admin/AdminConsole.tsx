@@ -2859,9 +2859,35 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
 };
 
+export interface AdminConsoleProps {
+  mode: PortalMode;
+  onSwitch: (m: PortalMode) => void;
+  currentPath?: string;
+  onNavigate?: (path: string) => void;
+}
+
 /* ─── Main Component ──────────────────────────────────────────────── */
-export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
-  const [tab, setTab] = useState<AdminTab>('overview');
+export const AdminConsole: React.FC<AdminConsoleProps> = ({ mode, onSwitch, currentPath, onNavigate }) => {
+  const getTabFromPath = (path?: string): AdminTab => {
+    const p = (path || window.location.pathname).replace(/\/+$/, '');
+    const seg = p.split('/').pop()?.toLowerCase();
+    const VALID_TABS: AdminTab[] = [
+      'overview', 'operations', 'usage', 'billing',
+      'users', 'organizations', 'devices',
+      'connections', 'network', 'relays',
+      'security', 'abuse', 'system'
+    ];
+    if (seg && VALID_TABS.includes(seg as AdminTab)) {
+      return seg as AdminTab;
+    }
+    const h = window.location.hash.replace(/^#/, '').toLowerCase();
+    if (VALID_TABS.includes(h as AdminTab)) {
+      return h as AdminTab;
+    }
+    return 'overview';
+  };
+
+  const [tab, setTab] = useState<AdminTab>(() => getTabFromPath(currentPath));
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
@@ -2869,6 +2895,25 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [showNotifications, setShowNotifications] = useState(false);
   const data = useAdminData();
   const cur = SCREENS[tab];
+
+  // Sync tab with route path
+  useEffect(() => {
+    const nextTab = getTabFromPath(currentPath);
+    setTab(nextTab);
+  }, [currentPath]);
+
+  const handleTabChange = (newTab: AdminTab) => {
+    setTab(newTab);
+    const targetPath = newTab === 'overview' ? '/admin' : `/admin/${newTab}`;
+    if (onNavigate) {
+      onNavigate(targetPath);
+    } else {
+      window.history.pushState({}, '', targetPath);
+    }
+    if (window.location.hash) {
+      window.history.replaceState({}, '', targetPath);
+    }
+  };
 
   useEffect(() => {
     if (!globalAutoRefresh) return;
@@ -2947,7 +2992,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                 {section.items.map(item => (
                   <button key={item.id} id={`admin-nav-${item.id}`}
                     className={`admin-nav-item${tab === item.id ? ' active' : ''}`}
-                    onClick={() => { setTab(item.id); setSidebarOpen(false); }}
+                    onClick={() => { handleTabChange(item.id); setSidebarOpen(false); }}
                     aria-current={tab === item.id ? 'page' : undefined}>
                     {item.icon}
                     <span className="admin-nav-item-label" style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
@@ -3034,7 +3079,7 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
                     </span>
                   )}
                 </button>
-                <NotificationsDropdown open={showNotifications} onClose={() => setShowNotifications(false)} data={data} onNavigate={setTab} />
+                <NotificationsDropdown open={showNotifications} onClose={() => setShowNotifications(false)} data={data} onNavigate={handleTabChange} />
               </div>
             </div>
             {cur.action && <div className="admin-page-actions">{cur.action}</div>}
@@ -3042,10 +3087,10 @@ export const AdminConsole: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
         </header>
 
         <main id="main-content" className="admin-page-body" tabIndex={-1} aria-label={cur.title} style={{ position: 'relative', isolation: 'isolate' }}>
-          {cur.render(data, setTab, addToast)}
+          {cur.render(data, handleTabChange, addToast)}
         </main>
       </div>
-      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} data={data} onNavigate={setTab} />
+      <CommandPalette open={showPalette} onClose={() => setShowPalette(false)} data={data} onNavigate={handleTabChange} />
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );

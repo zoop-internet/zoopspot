@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { PortalMode } from '../../types';
 import type { ApiWallet, ApiPaymentTransaction, ApiEarningRecord } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -1629,24 +1629,51 @@ const WalletTab: React.FC<{
   );
 };
 
+export interface UserDashboardProps {
+  mode: PortalMode;
+  onSwitch: (m: PortalMode) => void;
+  currentPath?: string;
+  onNavigate?: (path: string) => void;
+}
+
 /* ─── Main UserDashboard — modern nav ─────────────────────────── */
-export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, currentPath, onNavigate }) => {
   const { user, deviceId, deviceName, allDevices, connections } = useApp();
-  const [tab, setTab] = useState<UserTab>(() => {
-    const h = window.location.hash.replace(/^#/, '') as UserTab;
-    return (['overview','devices','connections','sharing','wallet','settings'].includes(h) ? h : 'overview') as UserTab;
-  });
+
+  const getTabFromPath = (path?: string): UserTab => {
+    const p = (path || window.location.pathname).replace(/\/+$/, '');
+    const seg = p.split('/').pop()?.toLowerCase();
+    if (seg && ['overview', 'devices', 'connections', 'sharing', 'wallet', 'settings'].includes(seg)) {
+      return seg as UserTab;
+    }
+    const h = window.location.hash.replace(/^#/, '').toLowerCase();
+    if (['overview', 'devices', 'connections', 'sharing', 'wallet', 'settings'].includes(h)) {
+      return h as UserTab;
+    }
+    return 'overview';
+  };
+
+  const [tab, setTab] = useState<UserTab>(() => getTabFromPath(currentPath));
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // Deep-link IA: sync tab ↔ hash for direct linking (#sharing, #connections)
-  React.useEffect(() => { window.location.hash = tab; }, [tab]);
-  React.useEffect(() => {
-    const onHash = () => {
-      const h = window.location.hash.replace(/^#/, '') as UserTab;
-      if (['overview','devices','connections','sharing','wallet','settings'].includes(h)) setTab(h);
-    };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, []);
+
+  // Sync tab with route path
+  useEffect(() => {
+    const nextTab = getTabFromPath(currentPath);
+    setTab(nextTab);
+  }, [currentPath]);
+
+  const handleTabChange = (newTab: UserTab) => {
+    setTab(newTab);
+    const targetPath = newTab === 'overview' ? '/app' : `/app/${newTab}`;
+    if (onNavigate) {
+      onNavigate(targetPath);
+    } else {
+      window.history.pushState({}, '', targetPath);
+    }
+    if (window.location.hash) {
+      window.history.replaceState({}, '', targetPath);
+    }
+  };
 
   const navCounts: Record<UserTab, number | null> = {
     overview: null,
@@ -1719,7 +1746,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
             <button key={item.id} id={`nav-${item.id}`}
               title={TAB_SUBS[item.id]}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
-              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
+              onClick={() => { handleTabChange(item.id); setSidebarOpen(false); }}
               aria-current={tab === item.id ? 'page' : undefined}>
               <span className="nav-icon-box">{item.icon}</span>
               <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
@@ -1734,7 +1761,7 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
           <div
             className="sidebar-user"
             id="user-profile-area"
-            onClick={() => { setTab('settings'); setSidebarOpen(false); }}
+            onClick={() => { handleTabChange('settings'); setSidebarOpen(false); }}
             title="Open Account & Settings"
             style={{ cursor: 'pointer' }}
           >
@@ -1776,12 +1803,12 @@ export const UserDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMod
         <main id="main-content" className="page-body" tabIndex={-1} aria-labelledby="page-title">
           {tab === 'overview'    && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
           {tab === 'devices'     && <DevicesTab  onRegister={handleRegisterDirect} onToast={addToast} />}
-          {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => setTab('sharing')} />}
+          {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => handleTabChange('sharing')} />}
           {tab === 'sharing'     && <SharingTab onToast={addToast} />}
           {tab === 'wallet'      && <WalletTab onToast={addToast} />}
           {tab === 'settings'    && <SettingsTab onSwitch={onSwitch} onToast={addToast} />}
         </main>
-        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon: n.icon }))} activeId={tab} onChange={v=>setTab(v as typeof tab)} />
+        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon: n.icon }))} activeId={tab} onChange={v=>handleTabChange(v as UserTab)} />
       </div>
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />

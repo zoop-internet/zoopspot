@@ -94,7 +94,15 @@ const App: React.FC = () => {
   const pathname = urlForParse.pathname;
   const normalized = normalizePath(pathname);
   const searchParams = urlForParse.searchParams;
-  const isValidRoute = VALID_ROUTES.has(normalized) || normalized.startsWith('/docs/') || normalized.startsWith('/docs') || normalized.startsWith('/blog/') || normalized.startsWith('/blog');
+  const isValidRoute =
+    VALID_ROUTES.has(normalized) ||
+    normalized.startsWith('/docs') ||
+    normalized.startsWith('/blog') ||
+    normalized.startsWith('/app') ||
+    normalized.startsWith('/user') ||
+    normalized.startsWith('/org') ||
+    normalized.startsWith('/admin') ||
+    normalized.startsWith('/auth');
   const pathnameForLanding = isValidRoute ? pathname : '/';
 
   // Handle alias redirects client-side
@@ -108,7 +116,7 @@ const App: React.FC = () => {
   // Per-route title/description/canonical sync for SEO (covers S4-05 + canonical)
   useEffect(() => {
     const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
-      : (['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : (normalized.startsWith('/blog') ? '/blog' : normalized))));
+      : (normalized === '/app' || normalized.startsWith('/app') || ['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : (normalized.startsWith('/blog') ? '/blog' : normalized))));
     const meta = ROUTE_META[key] || ROUTE_META['/'];
     document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
     if (!isValidRoute) console.warn('[zoop] unknown route:', normalized, '→ falling back to landing');
@@ -127,6 +135,7 @@ const App: React.FC = () => {
 
   const isAuth =
     normalized === '/auth' ||
+    normalized.startsWith('/auth/') ||
     normalized === '/login' ||
     normalized === '/signin' ||
     normalized === '/sign-in' ||
@@ -134,9 +143,9 @@ const App: React.FC = () => {
     normalized === '/sign-up' ||
     normalized === '/register';
 
-  const isApp = normalized === '/app' || normalized === '/user';
-  const isOrg = normalized === '/org';
-  const isAdmin = normalized === '/admin';
+  const isApp = normalized === '/app' || normalized.startsWith('/app/') || normalized === '/user' || normalized.startsWith('/user/');
+  const isOrg = normalized === '/org' || normalized.startsWith('/org/');
+  const isAdmin = normalized === '/admin' || normalized.startsWith('/admin/');
 
   const initialAuthTab =
     normalized.includes('signup') ||
@@ -193,11 +202,11 @@ const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({
           ) : isAuth ? (
             <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
           ) : isApp ? (
-            <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} /></ErrorBoundary>
+            <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
           ) : isOrg ? (
-            <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} /></ErrorBoundary>
+            <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
           ) : isAdmin ? (
-            <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} /></ErrorBoundary>
+            <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
           ) : (
             <LandingPage currentPath={pathnameForLanding} onNavigate={navigateTo} onLaunchConsole={handleSwitchMode} />
           )}

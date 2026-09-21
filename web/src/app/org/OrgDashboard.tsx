@@ -245,14 +245,34 @@ const AddMemberModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+export interface OrgDashboardProps {
+  mode: PortalMode;
+  onSwitch: (m: PortalMode) => void;
+  currentPath?: string;
+  onNavigate?: (path: string) => void;
+}
+
 /* ─── Main OrgDashboard ───────────────────────────────────────── */
-export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode) => void }> = ({ mode, onSwitch }) => {
+export const OrgDashboard: React.FC<OrgDashboardProps> = ({ mode, onSwitch, currentPath, onNavigate }) => {
   const {
     organizations, currentOrg, orgMembers, selectOrg,
     allDevices, refreshOrganizations, refreshOrgMembers, doRemoveOrgMember,
   } = useApp();
 
-  const [tab, setTab] = useState<OrgTab>('overview');
+  const getTabFromPath = (path?: string): OrgTab => {
+    const p = (path || window.location.pathname).replace(/\/+$/, '');
+    const seg = p.split('/').pop()?.toLowerCase();
+    if (seg && ['overview', 'members', 'devices', 'policies', 'logs'].includes(seg)) {
+      return seg as OrgTab;
+    }
+    const h = window.location.hash.replace(/^#/, '').toLowerCase();
+    if (['overview', 'members', 'devices', 'policies', 'logs'].includes(h)) {
+      return h as OrgTab;
+    }
+    return 'overview';
+  };
+
+  const [tab, setTab] = useState<OrgTab>(() => getTabFromPath(currentPath));
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberFilter, setMemberFilter] = useState('');
@@ -261,6 +281,25 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [busyMember, setBusyMember] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+
+  // Sync tab with route path
+  useEffect(() => {
+    const nextTab = getTabFromPath(currentPath);
+    setTab(nextTab);
+  }, [currentPath]);
+
+  const handleTabChange = (newTab: OrgTab) => {
+    setTab(newTab);
+    const targetPath = newTab === 'overview' ? '/org' : `/org/${newTab}`;
+    if (onNavigate) {
+      onNavigate(targetPath);
+    } else {
+      window.history.pushState({}, '', targetPath);
+    }
+    if (window.location.hash) {
+      window.history.replaceState({}, '', targetPath);
+    }
+  };
 
   useEffect(() => {
     const h = () => setShowCreateOrg(true);
@@ -342,7 +381,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
           {NAV.map(item => (
             <button key={item.id} id={`org-nav-${item.id}`}
               className={`nav-item${tab === item.id ? ' active' : ''}`}
-              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
+              onClick={() => { handleTabChange(item.id); setSidebarOpen(false); }}
               aria-current={tab === item.id ? 'page' : undefined}>
               <span className="nav-icon-box">{item.icon}</span>
               <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
@@ -602,7 +641,7 @@ export const OrgDashboard: React.FC<{ mode: PortalMode; onSwitch: (m: PortalMode
             </>
           )}
         </main>
-        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon:n.icon }))} activeId={tab} onChange={v=>setTab(v as typeof tab)} />
+        <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon:n.icon }))} activeId={tab} onChange={v=>handleTabChange(v as OrgTab)} />
       </div>
 
       {showCreateOrg && <CreateOrgModal onClose={() => { setShowCreateOrg(false); addToast('Organization updated', 'info'); }} />}
