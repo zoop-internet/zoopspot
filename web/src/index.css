@@ -994,6 +994,39 @@ html, body, #root {
   box-sizing: border-box;
 }
 
+.aws-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.aws-spinner svg {
+  animation: aws-spin 0.8s linear infinite;
+  transform-origin: center;
+}
+
+.aws-spinner-track {
+  stroke: rgba(255, 255, 255, 0.18);
+}
+
+.aws-spinner-arc {
+  stroke: #38bdf8;
+}
+
+.aws-spinner-primary .aws-spinner-arc {
+  stroke: #ec7211;
+}
+
+.aws-spinner-inverted .aws-spinner-track {
+  stroke: rgba(2, 9, 4, 0.25);
+}
+
+.aws-spinner-inverted .aws-spinner-arc {
+  stroke: #020904;
+}
+
 @keyframes aws-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

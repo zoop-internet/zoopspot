@@ -125,6 +125,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [transitioningStep, setTransitioningStep] = useState(false);
 
   // Auto-detect device name
   useEffect(() => {
@@ -158,7 +159,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setFieldErrors({ identifier: 'Enter your username or Zoop ID' });
       return;
     }
-    setSignInStep(2);
+    setTransitioningStep(true);
+    setTimeout(() => {
+      setTransitioningStep(false);
+      setSignInStep(2);
+    }, 400);
   };
 
   const handleSignInSubmit = async (e: React.FormEvent) => {
@@ -179,7 +184,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     try {
       await login(signInIdentifier.trim(), pin, rememberMe);
       setSuccessMsg('Signed in! Redirecting…');
-      setTimeout(() => onNavigate(redirectUrl), 350);
+      setTimeout(() => onNavigate(redirectUrl), 650);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign in failed. Check your ID and PIN.');
     } finally {
@@ -209,7 +214,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
-    setSignUpStep(2);
+    setTransitioningStep(true);
+    setTimeout(() => {
+      setTransitioningStep(false);
+      setSignUpStep(2);
+    }, 400);
   };
 
   const handleSignUpSubmit = async (e: React.FormEvent) => {
@@ -241,7 +250,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     try {
       await signup(username, pin, undefined, signUpDeviceName.trim(), false);
       setSuccessMsg('Zoop ID created! Redirecting…');
-      setTimeout(() => onNavigate(redirectUrl), 400);
+      setTimeout(() => onNavigate(redirectUrl), 650);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign up failed. Please try another username.');
     } finally {
@@ -257,7 +266,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       const demoUser = `demo${Math.floor(1000 + Math.random() * 9000)}`;
       await signup(demoUser, demoPin, 'Demo User', 'Demo Device', false);
       setSuccessMsg('Demo access ready! Redirecting…');
-      setTimeout(() => onNavigate(redirectUrl), 350);
+      setTimeout(() => onNavigate(redirectUrl), 650);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Demo sign in failed.');
     } finally {
@@ -402,8 +411,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         )}
                       </div>
 
-                      <button type="submit" className="auth-btn-primary">
-                        Continue (step 1 of 2)
+                      <button type="submit" className="auth-btn-primary" disabled={transitioningStep}>
+                        {transitioningStep ? (
+                          <>
+                            <AwsSpinner size={16} variant="inverted" />
+                            <span>Continuing…</span>
+                          </>
+                        ) : (
+                          <span>Continue (step 1 of 2)</span>
+                        )}
                       </button>
 
                       <div className="auth-bottom-link-row">
@@ -555,8 +571,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         )}
                       </div>
 
-                      <button type="submit" className="auth-btn-primary">
-                        Continue
+                      <button type="submit" className="auth-btn-primary" disabled={transitioningStep}>
+                        {transitioningStep ? (
+                          <>
+                            <AwsSpinner size={16} variant="inverted" />
+                            <span>Continuing…</span>
+                          </>
+                        ) : (
+                          <span>Continue</span>
+                        )}
                       </button>
 
                       <div className="auth-bottom-link-row">

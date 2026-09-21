@@ -17,11 +17,22 @@ export const AwsSpinner: React.FC<AwsSpinnerProps> = ({
   const circumference = 2 * Math.PI * radius;
   const arcLength = circumference * 0.7;
   const gapLength = circumference * 0.3;
+  // Track and arc stroke colors based on variant
+  const trackColor = variant === 'inverted' ? 'rgba(2, 9, 4, 0.25)' : 'rgba(255, 255, 255, 0.18)';
+  const arcColor = variant === 'primary' ? '#ec7211' : variant === 'inverted' ? '#020904' : '#38bdf8';
 
   return (
     <span
       className={`aws-spinner aws-spinner-${variant} ${className}`}
-      style={{ width: pixelSize, height: pixelSize }}
+      style={{
+        width: pixelSize,
+        height: pixelSize,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        verticalAlign: 'middle',
+        flexShrink: 0,
+      }}
       role="status"
       aria-label="Loading"
     >
@@ -31,12 +42,17 @@ export const AwsSpinner: React.FC<AwsSpinnerProps> = ({
         height={pixelSize}
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        style={{
+          animation: 'aws-spin 0.8s linear infinite',
+          transformOrigin: 'center',
+        }}
       >
         <circle
           className="aws-spinner-track"
           cx={pixelSize / 2}
           cy={pixelSize / 2}
           r={radius}
+          stroke={trackColor}
           strokeWidth={strokeWidth}
         />
         <circle
@@ -44,6 +60,7 @@ export const AwsSpinner: React.FC<AwsSpinnerProps> = ({
           cx={pixelSize / 2}
           cy={pixelSize / 2}
           r={radius}
+          stroke={arcColor}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={`${arcLength} ${gapLength}`}
