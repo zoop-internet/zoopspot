@@ -117,11 +117,19 @@ assert(existsSync(join(DIST, '_redirects')), 'dist/_redirects exists');
 if (existsSync(join(DIST, '_redirects'))) {
   const redirects = readFileSync(join(DIST, '_redirects'), 'utf8');
   assert(!redirects.includes('/*    /index.html   200'), '_redirects does NOT have blanket /* rewrite (prevents soft-404)');
-  assert(redirects.includes('/app/*') && redirects.includes('/app'), '_redirects rewrites /app to index.html 200');
-  assert(redirects.includes('/org/*'), '_redirects rewrites /org to index.html 200');
-  assert(redirects.includes('/admin/*'), '_redirects rewrites /admin to index.html 200');
+  assert(redirects.includes('/app/*') && redirects.includes('/app'), '_redirects rewrites /app to /app/index.html 200');
+  assert(redirects.includes('/org/*'), '_redirects rewrites /org to /org/index.html 200');
+  assert(redirects.includes('/admin/*'), '_redirects rewrites /admin to /admin/index.html 200');
   assert(redirects.includes('/architecture') && redirects.includes('301'), '_redirects 301 redirects /architecture to /how-it-works');
 }
+
+// 6b. Check SPA App Shells exist
+assert(existsSync(join(DIST, 'app', 'index.html')), 'dist/app/index.html exists');
+assert(existsSync(join(DIST, 'app.html')), 'dist/app.html exists');
+assert(existsSync(join(DIST, 'app', 'wallet', 'index.html')), 'dist/app/wallet/index.html exists');
+assert(existsSync(join(DIST, 'app', 'wallet.html')), 'dist/app/wallet.html exists');
+assert(existsSync(join(DIST, 'org', 'index.html')), 'dist/org/index.html exists');
+assert(existsSync(join(DIST, 'admin', 'index.html')), 'dist/admin/index.html exists');
 
 // 7. Phase 3 Checks: AI Search & Structured Data
 if (existsSync(join(DIST, 'index.html'))) {

@@ -387,6 +387,70 @@ for (const id of DOCS_IDS) {
   console.log(`Prerendered ${route} -> ${file} and ${flatFile}`);
 }
 
+// Prerender SPA application shells for clean path-based URL routing (HTTP 200 at edge)
+const SPA_ROUTES = [
+  // User dashboard
+  { route: '/app', title: 'Zoop App — Overview' },
+  { route: '/app/overview', title: 'Overview — Zoop App' },
+  { route: '/app/devices', title: 'Devices — Zoop App' },
+  { route: '/app/connections', title: 'Connections — Zoop App' },
+  { route: '/app/sharing', title: 'Sharing — Zoop App' },
+  { route: '/app/wallet', title: 'Wallet & Earnings — Zoop App' },
+  { route: '/app/settings', title: 'Settings — Zoop App' },
+
+  // Org dashboard
+  { route: '/org', title: 'Organization — Zoop' },
+  { route: '/org/overview', title: 'Overview — Zoop Org' },
+  { route: '/org/members', title: 'Members — Zoop Org' },
+  { route: '/org/devices', title: 'Devices — Zoop Org' },
+  { route: '/org/policies', title: 'Policies — Zoop Org' },
+  { route: '/org/logs', title: 'Logs — Zoop Org' },
+
+  // Admin console
+  { route: '/admin', title: 'Admin Console — Zoop' },
+  { route: '/admin/overview', title: 'Overview — Zoop Admin' },
+  { route: '/admin/operations', title: 'Operations — Zoop Admin' },
+  { route: '/admin/usage', title: 'Usage — Zoop Admin' },
+  { route: '/admin/billing', title: 'Billing — Zoop Admin' },
+  { route: '/admin/users', title: 'Users — Zoop Admin' },
+  { route: '/admin/organizations', title: 'Organizations — Zoop Admin' },
+  { route: '/admin/devices', title: 'Devices — Zoop Admin' },
+  { route: '/admin/connections', title: 'Connections — Zoop Admin' },
+  { route: '/admin/network', title: 'Network — Zoop Admin' },
+  { route: '/admin/relays', title: 'Relays — Zoop Admin' },
+  { route: '/admin/security', title: 'Security — Zoop Admin' },
+  { route: '/admin/abuse', title: 'Abuse — Zoop Admin' },
+  { route: '/admin/system', title: 'System — Zoop Admin' },
+];
+
+for (const item of SPA_ROUTES) {
+  let html = template;
+  html = html.replace(/<title>.*?<\/title>/s, `<title>${escapeHtml(item.title)}</title>`);
+  html = html.replace('</head>', `  <meta name="robots" content="noindex, nofollow" />\n  <meta name="prerender" content="${item.route}" />\n</head>`);
+  
+  const loaderHtml = `
+    <div id="app-initial-loader" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #000000;">
+      <span class="aws-spinner" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg" style="animation: aws-spin 0.8s linear infinite; transform-origin: center;">
+          <circle cx="16" cy="16" r="14.5" stroke="rgba(255, 255, 255, 0.18)" stroke-width="3" />
+          <circle cx="16" cy="16" r="14.5" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="63.7 27.3" />
+        </svg>
+      </span>
+    </div>
+  `;
+  html = html.replace(/<div id="root">[\s\S]*?<\/div>/, `<div id="root">${loaderHtml}</div>`);
+
+  const relPath = item.route.replace(/^\//, '');
+  const dir = join(DIST, relPath);
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'index.html');
+  writeFileSync(file, html, 'utf8');
+  const flatFile = join(DIST, `${relPath}.html`);
+  writeFileSync(flatFile, html, 'utf8');
+  count++;
+  console.log(`Prerendered SPA route ${item.route} -> ${file} and ${flatFile}`);
+}
+
 // Update root /
 {
   const html = replaceMeta(template, '/', ROUTES['/']);

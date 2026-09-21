@@ -16,13 +16,13 @@
 /user                 /app              301
 /user/*               /app/:splat       301
 
-# ─── Authenticated SPA Client Routes (Proxy to index.html with 200) ──────────
-/app                  /index.html       200
-/app/*                /index.html       200
-/org                  /index.html       200
-/org/*                /index.html       200
-/admin                /index.html       200
-/admin/*              /index.html       200
+# ─── Authenticated SPA Client Routes (Proxy with 200) ──────────
+/app                  /app/index.html       200
+/app/*                /app/index.html       200
+/org                  /org/index.html       200
+/org/*                /org/index.html       200
+/admin                /admin/index.html     200
+/admin/*              /admin/index.html     200
 
 # Note: All public marketing and docs routes are served directly from static
 # prerendered HTML directories (e.g. /how-it-works/index.html).
