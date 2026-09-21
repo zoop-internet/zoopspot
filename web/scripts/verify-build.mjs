@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
-const BASE_DOMAIN = 'https://zoopinternet.app';
+const BASE_DOMAIN = 'https://zoopnetwork.app';
 
 const CANONICAL_ROUTES = [
   '/',
@@ -237,10 +237,10 @@ if (allImagesAccessible) {
 assert(existsSync(join(DIST, '.well-known', 'security.txt')), 'dist/.well-known/security.txt exists (RFC 9116)');
 if (existsSync(join(DIST, '.well-known', 'security.txt'))) {
   const secTxt = readFileSync(join(DIST, '.well-known', 'security.txt'), 'utf8');
-  assert(secTxt.includes('Contact: mailto:security@zoopinternet.app'), 'security.txt contains official security email');
+  assert(secTxt.includes('Contact: mailto:security@zoopnetwork.app'), 'security.txt contains official security email');
   assert(secTxt.includes('Expires:'), 'security.txt contains RFC 9116 Expires date');
-  assert(secTxt.includes('Canonical: https://zoopinternet.app/.well-known/security.txt'), 'security.txt contains Canonical URI');
-  assert(secTxt.includes('Policy: https://zoopinternet.app/security'), 'security.txt contains Policy URI');
+  assert(secTxt.includes('Canonical: https://zoopnetwork.app/.well-known/security.txt'), 'security.txt contains Canonical URI');
+  assert(secTxt.includes('Policy: https://zoopnetwork.app/security'), 'security.txt contains Policy URI');
 }
 
 assert(existsSync(join(DIST, 'security.txt')), 'dist/security.txt fallback exists');

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 const DIST = 'dist';
 const TEMPLATE = join(DIST, 'index.html');
-const BASE_DOMAIN = 'https://zoopinternet.app';
+const BASE_DOMAIN = 'https://zoopnetwork.app';
 
 // Canonical marketing routes (excluding /architecture which 301 redirects to /how-it-works)
 const ROUTES = {

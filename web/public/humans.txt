@@ -1,7 +1,7 @@
 /* TEAM */
 Lead Product: Zoop Internet — Direct Device-to-Device Mesh
-Contact: founders@zoopinternet.app
-Site: https://zoopinternet.app
+Contact: founders@zoopnetwork.app
+Site: https://zoopnetwork.app
 Location: Remote — Nairobi · Kampala · Lagos · Global
 GitHub: https://github.com/zoop-internet/zoop
 Issues: https://github.com/zoop-internet/zoop/issues

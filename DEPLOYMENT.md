@@ -12,7 +12,7 @@ This document provides a comprehensive record of the production deployment of th
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 Cloudflare Global Edge CDN                  │
-│        https://zoopinternet.app / https://zoopnetwork.pages.dev       │
+│        https://zoopnetwork.app / https://zoopnetwork.pages.dev       │
 │   (Vite + React SPA, 24 Prerendered Static Routes, SEO)     │
 └──────────────────────────────┬──────────────────────────────┘
                                │ HTTPS / WSS API Requests
@@ -52,14 +52,14 @@ This document provides a comprehensive record of the production deployment of th
 
 ### A. Frontend Web Application (Cloudflare Pages)
 * **Status**: Live & Serving
-* **Canonical Domain**: [`https://zoopinternet.app`](https://zoopinternet.app)
+* **Canonical Domain**: [`https://zoopnetwork.app`](https://zoopnetwork.app)
 * **Edge Pages URL**: [`https://zoopnetwork.pages.dev`](https://zoopnetwork.pages.dev)
 * **Cloudflare Project Name**: `zoopnetwork`
 * **Cloudflare Account ID**: `7335973a10147fee3168dac18331dbab`
 * **Build Directory**: `web/` → output `web/dist/`
 * **Build Command**: `npm run build` (runs `tsc -b && vite build && node scripts/prerender.mjs`)
 * **Environment Variable**: `VITE_API_BASE=https://3.70.135.200.sslip.io`
-* **Custom Domains**: `zoopinternet.app`, `www.zoopinternet.app` attached.
+* **Custom Domains**: `zoopnetwork.app`, `www.zoopnetwork.app` attached.
 
 ### B. Backend Server (Current AWS Host)
 * **Cloud Provider**: AWS

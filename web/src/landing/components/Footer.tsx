@@ -65,7 +65,7 @@ export const Footer: React.FC<FooterProps> = ({ handleNav, onLaunchConsole }) =>
             <ul>
               <li><a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub Repository</a></li>
               <li><a href="/docs" onClick={(e) => { e.preventDefault(); handleNav('/docs'); }}>Documentation Hub</a></li>
-              <li><a href="mailto:support@zoopinternet.app">Support: support@zoopinternet.app</a></li>
+              <li><a href="mailto:support@zoopnetwork.app">Support: support@zoopnetwork.app</a></li>
               <li><a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer">Help &amp; Issues</a></li>
               <li><a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }}>Security Policy</a></li>
             </ul>
@@ -78,7 +78,7 @@ export const Footer: React.FC<FooterProps> = ({ handleNav, onLaunchConsole }) =>
             <a href="/privacy" onClick={(e) => { e.preventDefault(); handleNav('/privacy'); }}>Privacy Policy</a>
             <a href="/terms" onClick={(e) => { e.preventDefault(); handleNav('/terms'); }}>Terms of Service</a>
             <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); }}>Security</a>
-            <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a>
+            <a href="mailto:support@zoopnetwork.app">support@zoopnetwork.app</a>
             <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
           </div>
         </div>

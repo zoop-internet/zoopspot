@@ -2,9 +2,9 @@
 
 **Effective Date:** September 7, 2026  
 **Last Updated:** September 7, 2026  
-**Official Domain:** [zoopinternet.app](https://zoopinternet.app)  
-**Legal Inquiries:** [legal@zoopinternet.app](mailto:legal@zoopinternet.app)  
-**General Support:** [support@zoopinternet.app](mailto:support@zoopinternet.app)  
+**Official Domain:** [zoopnetwork.app](https://zoopnetwork.app)  
+**Legal Inquiries:** [legal@zoopnetwork.app](mailto:legal@zoopnetwork.app)  
+**General Support:** [support@zoopnetwork.app](mailto:support@zoopnetwork.app)  
 
 ---
 
@@ -113,7 +113,7 @@ You agree to defend, indemnify, and hold harmless Zoop Internet, its officers, d
 
 We reserve the right to modify or discontinue, temporarily or permanently, the hosted coordination service (or any part thereof) with or without notice.
 
-We may revise these Terms from time to time. If a revision is material, we will provide at least thirty (30) days' notice prior to any new terms taking effect via our website ([zoopinternet.app](https://zoopinternet.app)) or git release notes. By continuing to access or use Zoop after revisions become effective, you agree to be bound by the revised Terms.
+We may revise these Terms from time to time. If a revision is material, we will provide at least thirty (30) days' notice prior to any new terms taking effect via our website ([zoopnetwork.app](https://zoopnetwork.app)) or git release notes. By continuing to access or use Zoop after revisions become effective, you agree to be bound by the revised Terms.
 
 ---
 
@@ -127,7 +127,7 @@ If any provision of these Terms is found to be unenforceable or invalid, that pr
 
 If you have any questions, legal notices, or feedback regarding these Terms, please contact:
 
-* **Legal Notices:** [legal@zoopinternet.app](mailto:legal@zoopinternet.app)
-* **General Support:** [support@zoopinternet.app](mailto:support@zoopinternet.app)
-* **Website:** [https://zoopinternet.app](https://zoopinternet.app)
+* **Legal Notices:** [legal@zoopnetwork.app](mailto:legal@zoopnetwork.app)
+* **General Support:** [support@zoopnetwork.app](mailto:support@zoopnetwork.app)
+* **Website:** [https://zoopnetwork.app](https://zoopnetwork.app)
 * **GitHub Issues:** [https://github.com/allannuwamanya/zoop/issues](https://github.com/allannuwamanya/zoop/issues)

@@ -104,7 +104,7 @@ Linux Sharer Gateway (100.64.0.1 / zoopa)
 
 ## Live Deployment & Infrastructure
 
-- **Web App (Frontend)**: [`https://zoopinternet.app`](https://zoopinternet.app) / [`https://zoopnetwork.pages.dev`](https://zoopnetwork.pages.dev) (Cloudflare Pages edge CDN)
+- **Web App (Frontend)**: [`https://zoopnetwork.app`](https://zoopnetwork.app) / [`https://zoopnetwork.pages.dev`](https://zoopnetwork.pages.dev) (Cloudflare Pages edge CDN)
 - **Control Plane API (Backend)**: [`https://3.70.135.200.sslip.io`](https://3.70.135.200.sslip.io) (Hosted on AWS `eu-central-1` EC2 with automated Caddy TLS)
 - **Database**: Serverless PostgreSQL via Neon (`eu-central-1`)
 - **Portability**: Cloud-agnostic architecture easily portable to GCP, Hetzner, DigitalOcean, or bare metal.

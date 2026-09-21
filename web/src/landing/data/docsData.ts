@@ -203,7 +203,7 @@ Only set what you change. Defaults work for dev.
 ## Most used
 | Var | Default | When to change |
 |---|---|---|
-| ZOOP_CONTROL_PLANE_URL | http://localhost:8080 | point app at hosted cloud e.g. https://cloud.zoopinternet.app |
+| ZOOP_CONTROL_PLANE_URL | http://localhost:8080 | point app at hosted cloud e.g. https://cloud.zoopnetwork.app |
 | ZOOP_STUN_SERVER | stun.l.google.com:19302 | if you run your own STUN |
 | ZOOP_TUN_NAME | zoop0 | if name collides |
 | ZOOP_API_PORT | 9090 | Prometheus /metrics + /v1/health |

@@ -12,7 +12,7 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ handleNav }) => {
         <p className="lp-eyebrow">Zero-Knowledge Network</p>
         <h1>Privacy Policy</h1>
         <p>
-          Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.app</a>
+          Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopnetwork.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopnetwork.app</a>
         </p>
       </div>
 
@@ -98,9 +98,9 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ handleNav }) => {
           For privacy inquiries, audit requests, or data rights requests, contact our team:
         </p>
         <ul>
-          <li><strong>Email:</strong> <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a></li>
-          <li><strong>Security:</strong> <a href="mailto:security@zoopinternet.app">security@zoopinternet.app</a></li>
-          <li><strong>Official Web:</strong> <a href="https://zoopinternet.app" target="_blank" rel="noreferrer">https://zoopinternet.app</a></li>
+          <li><strong>Email:</strong> <a href="mailto:support@zoopnetwork.app">support@zoopnetwork.app</a></li>
+          <li><strong>Security:</strong> <a href="mailto:security@zoopnetwork.app">security@zoopnetwork.app</a></li>
+          <li><strong>Official Web:</strong> <a href="https://zoopnetwork.app" target="_blank" rel="noreferrer">https://zoopnetwork.app</a></li>
         </ul>
       </div>
 

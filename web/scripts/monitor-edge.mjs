@@ -90,9 +90,9 @@ async function probe() {
     const secRes = await fetch(`${TARGET}/.well-known/security.txt`, { redirect: 'manual' });
     assert(secRes.status === 200, `/.well-known/security.txt returns HTTP 200 (got ${secRes.status})`);
     const secText = await secRes.text();
-    assert(secText.includes('Contact: mailto:security@zoopinternet.app'), 'security.txt contains official security contact');
+    assert(secText.includes('Contact: mailto:security@zoopnetwork.app'), 'security.txt contains official security contact');
     assert(secText.includes('Expires:'), 'security.txt contains Expires directive');
-    assert(secText.includes('Canonical: https://zoopinternet.app/.well-known/security.txt'), 'security.txt contains Canonical directive');
+    assert(secText.includes('Canonical: https://zoopnetwork.app/.well-known/security.txt'), 'security.txt contains Canonical directive');
 
     // 5. True 404 (Soft-404 Prevention)
     console.log('\n5. Checking Soft-404 Prevention...');

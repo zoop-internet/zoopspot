@@ -30,7 +30,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ currentPath, handleNav }) =>
     : BLOG_POSTS.filter(p => p.category === selectedCategory);
 
   const handleCopyShare = (slug: string) => {
-    const url = `https://zoopinternet.app/blog/${slug}`;
+    const url = `https://zoopnetwork.app/blog/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedSlug(slug);
     setTimeout(() => setCopiedSlug(null), 2500);

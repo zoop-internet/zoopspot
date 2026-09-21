@@ -12,7 +12,7 @@ export const TermsPage: React.FC<TermsPageProps> = ({ handleNav }) => {
         <p className="lp-eyebrow">Legal &amp; Licensing</p>
         <h1>Terms of Service &amp; EULA</h1>
         <p>
-          Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopinternet.app</a>
+          Effective Date: September 7, 2026 · Official Domain: <a href="https://zoopnetwork.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>zoopnetwork.app</a>
         </p>
       </div>
 
@@ -99,9 +99,9 @@ export const TermsPage: React.FC<TermsPageProps> = ({ handleNav }) => {
           For questions regarding these Terms or legal inquiries:
         </p>
         <ul>
-          <li><strong>Legal Notices:</strong> <a href="mailto:legal@zoopinternet.app">legal@zoopinternet.app</a></li>
-          <li><strong>General Support:</strong> <a href="mailto:support@zoopinternet.app">support@zoopinternet.app</a></li>
-          <li><strong>Website:</strong> <a href="https://zoopinternet.app" target="_blank" rel="noreferrer">https://zoopinternet.app</a></li>
+          <li><strong>Legal Notices:</strong> <a href="mailto:legal@zoopnetwork.app">legal@zoopnetwork.app</a></li>
+          <li><strong>General Support:</strong> <a href="mailto:support@zoopnetwork.app">support@zoopnetwork.app</a></li>
+          <li><strong>Website:</strong> <a href="https://zoopnetwork.app" target="_blank" rel="noreferrer">https://zoopnetwork.app</a></li>
         </ul>
       </div>
 

@@ -2,14 +2,14 @@
 
 > Zoop Internet is an open-source direct device-to-device mesh platform that lets trusted devices share internet securely without routing payload through centralized VPN servers. Built on WireGuard (ChaCha20-Poly1305, Curve25519), STUN/TURN NAT traversal (RFC 8489/8656), and Ed25519 cryptographic identities.
 
-- **Website:** https://zoopinternet.app
+- **Website:** https://zoopnetwork.app
 - **GitHub:** https://github.com/zoop-internet/zoop
-- **Docs Hub:** https://zoopinternet.app/docs
-- **Downloads:** https://zoopinternet.app/downloads
-- **Pricing:** https://zoopinternet.app/pricing
-- **Security:** https://zoopinternet.app/security
+- **Docs Hub:** https://zoopnetwork.app/docs
+- **Downloads:** https://zoopnetwork.app/downloads
+- **Pricing:** https://zoopnetwork.app/pricing
+- **Security:** https://zoopnetwork.app/security
 - **API Docs:** https://github.com/zoop-internet/zoop/blob/main/docs/api.md
-- **Full LLM Reference:** https://zoopinternet.app/llms-full.txt
+- **Full LLM Reference:** https://zoopnetwork.app/llms-full.txt
 
 ## What Zoop Does
 - **Direct Tunneling:** Provider endpoints (home broadband, phone hotspot, office) share connectivity directly with Recipient endpoints (laptop on the road, family device) via point-to-point WireGuard tunnels.
@@ -39,19 +39,19 @@ zoop connect <peer-endpoint-id>
 ```
 
 ## Documentation Guides
-- [Quick Start](https://zoopinternet.app/docs/quickstart): 30-second setup for Linux, macOS, and Windows.
-- [Installation](https://zoopinternet.app/docs/installation): Binaries, package managers (apt, brew, winget), and source builds.
-- [Configuration](https://zoopinternet.app/docs/configuration): Daemon flags, environment variables, and config files.
-- [Web Console](https://zoopinternet.app/docs/web-console): Managing personal devices and organization fleets in the browser.
-- [Connect & Share](https://zoopinternet.app/docs/connect-share): Authorizing peer connections, bandwidth limits, and rules.
-- [Devices](https://zoopinternet.app/docs/devices): Managing authorized endpoints, key rotation, and device tags.
-- [Mobile & Router](https://zoopinternet.app/docs/mobile-router): OpenWrt router daemon, Android VpnService, and iOS NetworkExtension.
-- [Identity & Keys](https://zoopinternet.app/docs/identity): Permanent Zoop IDs (ZP-XXXXXX), @handles, 6-digit PINs, and Ed25519 keys.
-- [Organizations](https://zoopinternet.app/docs/organizations): Multi-user fleets, role-based access control (RBAC), and audit logs.
-- [Permissions](https://zoopinternet.app/docs/permissions): Access control policies, time-based sharing, and network isolation.
-- [Troubleshooting](https://zoopinternet.app/docs/troubleshooting): STUN diagnostics, NAT hole-punch debugging, and relay logs.
-- [Security Architecture](https://zoopinternet.app/docs/security-architecture): Deep dive into Noise_IK, WireGuard, and zero-knowledge relays.
-- [FAQ](https://zoopinternet.app/docs/faq): Frequently asked questions for developers and administrators.
+- [Quick Start](https://zoopnetwork.app/docs/quickstart): 30-second setup for Linux, macOS, and Windows.
+- [Installation](https://zoopnetwork.app/docs/installation): Binaries, package managers (apt, brew, winget), and source builds.
+- [Configuration](https://zoopnetwork.app/docs/configuration): Daemon flags, environment variables, and config files.
+- [Web Console](https://zoopnetwork.app/docs/web-console): Managing personal devices and organization fleets in the browser.
+- [Connect & Share](https://zoopnetwork.app/docs/connect-share): Authorizing peer connections, bandwidth limits, and rules.
+- [Devices](https://zoopnetwork.app/docs/devices): Managing authorized endpoints, key rotation, and device tags.
+- [Mobile & Router](https://zoopnetwork.app/docs/mobile-router): OpenWrt router daemon, Android VpnService, and iOS NetworkExtension.
+- [Identity & Keys](https://zoopnetwork.app/docs/identity): Permanent Zoop IDs (ZP-XXXXXX), @handles, 6-digit PINs, and Ed25519 keys.
+- [Organizations](https://zoopnetwork.app/docs/organizations): Multi-user fleets, role-based access control (RBAC), and audit logs.
+- [Permissions](https://zoopnetwork.app/docs/permissions): Access control policies, time-based sharing, and network isolation.
+- [Troubleshooting](https://zoopnetwork.app/docs/troubleshooting): STUN diagnostics, NAT hole-punch debugging, and relay logs.
+- [Security Architecture](https://zoopnetwork.app/docs/security-architecture): Deep dive into Noise_IK, WireGuard, and zero-knowledge relays.
+- [FAQ](https://zoopnetwork.app/docs/faq): Frequently asked questions for developers and administrators.
 
 ## FAQ
 **Q: What is Zoop?** A: Direct device-to-device internet sharing mesh, open-source, WireGuard-encrypted.

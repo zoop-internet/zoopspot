@@ -26,9 +26,9 @@ Security maintenance is actively provided for the following releases:
 If you identify any security issue—particularly vulnerabilities involving cryptographic key generation, WireGuard handshake negotiation, signaling leaks, authentication bypasses, or relay data isolation:
 
 1. **Internal Team Channel**: Open an encrypted inquiry or direct message to the Security Lead.
-2. **Security Email**: Send an encrypted report to `security@zoopinternet.app` (or repository administrators).
+2. **Security Email**: Send an encrypted report to `security@zoopnetwork.app` (or repository administrators).
 3. **GitHub Private Advisory**: Navigate to the repository **Security** tab and click **"Report a vulnerability"**.
-4. **RFC 9116 Disclosure**: Machine-readable security contacts are published at `https://zoopinternet.app/.well-known/security.txt`.
+4. **RFC 9116 Disclosure**: Machine-readable security contacts are published at `https://zoopnetwork.app/.well-known/security.txt`.
 
 ### What to Include in Your Report
 To accelerate triage, please provide:

@@ -83,8 +83,8 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ handleNav }) => {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', fontSize: '0.875rem' }}>
           <div>
             <strong style={{ color: 'var(--ink)' }}>Email: </strong>
-            <a href="mailto:security@zoopinternet.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
-              security@zoopinternet.app
+            <a href="mailto:security@zoopnetwork.app" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+              security@zoopnetwork.app
             </a>
           </div>
           <div>

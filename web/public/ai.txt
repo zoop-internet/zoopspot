@@ -5,4 +5,4 @@ Allow: /
 # API and admin endpoints are not for training.
 
 # See llms.txt for entity summary
-# https://zoopinternet.app/llms.txt
+# https://zoopnetwork.app/llms.txt

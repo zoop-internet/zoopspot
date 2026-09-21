@@ -1,5 +1,5 @@
 # Zoop Internet — Web Remediation Plan (`web/`)
-**Target Host:** `zoopinternet.app` (`zoopnetwork.pages.dev`)  
+**Target Host:** `zoopnetwork.app` (`zoopnetwork.pages.dev`)  
 **Package:** `web/`  
 **Reference Document:** [AUDIT-AND-FIX-LOG.md](../AUDIT-AND-FIX-LOG.md)
 
@@ -26,7 +26,7 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 - [x] **1.2 Update `robots.txt` Disallow directives** [DONE - Deployed & verified with curl]
   - In `scripts/prerender.mjs` and `public/robots.txt`, disallowed `/app/`, `/org/`, `/admin/`, and `/api/`. Preserved all AI bot allowances (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`, etc.).
 - [x] **1.3 Clean `public/sitemap.xml`** [DONE - Deployed & verified with curl]
-  - Replaced legacy `zoop.network` with `https://zoopinternet.app` across all URLs.
+  - Replaced legacy `zoop.network` with `https://zoopnetwork.app` across all URLs.
   - Added valid ISO-8601 `<lastmod>` timestamps and removed private `/app`.
 - [x] **1.4 Disambiguate `/architecture` & `/how-it-works`** [DONE - Deployed & verified with curl HTTP 301]
   - Configured clean HTTP 301 redirect in `_redirects` and client router from `/architecture` to `/how-it-works`. Omitted non-canonical alias from sitemap.
@@ -44,7 +44,7 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 
 ### Phase 3: AI-Search Visibility (AEO/GEO) & Structured Data
 - [x] **3.1 Update AI Knowledge Documents** [DONE - Deployed & verified]
-  - In `public/llms-full.txt`, `public/llms.txt`, `public/ai.txt`, and `public/humans.txt`, updated all references from `zoop.network` to `https://zoopinternet.app`.
+  - In `public/llms-full.txt`, `public/llms.txt`, `public/ai.txt`, and `public/humans.txt`, updated all references from `zoop.network` to `https://zoopnetwork.app`.
   - Updated all GitHub repository references to `https://github.com/zoop-internet/zoop`.
 - [x] **3.2 Add Schema.org `WebSite` Definition** [DONE - Deployed & verified]
   - In `index.html`, added `WebSite` JSON-LD schema with name, URL, description, and publisher attributes.
@@ -76,7 +76,7 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
 - [x] **5.6 Pricing Reassurance & Guarantees FAQ** [DONE - Deployed & verified]
   - Added open-source and license guarantees callout to `/pricing` answering personal free-forever, organization fleet, and self-hosted control plane questions.
 - [x] **5.7 Security Disclosure & Vulnerability Reporting** [DONE - Deployed & verified]
-  - Added vulnerability reporting channel (`security@zoopinternet.app`), 24h response commitment, and PGP key advisory link to `/security`.
+  - Added vulnerability reporting channel (`security@zoopnetwork.app`), 24h response commitment, and PGP key advisory link to `/security`.
 - [x] **5.8 Docs Search Zero-State & Mobile Navigation Drawer** [DONE - Deployed & verified]
   - Added responsive `.docs-mobile-toggle` drawer and `.docs-empty-state` with "Clear search" button to `/docs`. Added `@media print` rules.
 
@@ -108,10 +108,10 @@ The `web/` workspace is a React 19 application built with Vite and TypeScript:
   - Implemented `web/public/.well-known/security.txt` conforming to RFC 9116 with `Contact`, `Expires`, `Preferred-Languages`, `Canonical`, `Policy`, `Acknowledgments`, and `Hiring` directives.
   - Implemented fallback `web/public/security.txt` and HTTP 301 permanent redirect in `_redirects`. Verified live via edge curl with `Content-Type: text/plain; charset=utf-8`.
 - [x] **7.5 Repository Security Policy & Privacy Policy Synchronization** [DONE - Deployed & verified]
-  - Synchronized `SECURITY.md` with official disclosure email `security@zoopinternet.app`, 24h SLA acknowledgment commitment, and RFC 9116 reference.
+  - Synchronized `SECURITY.md` with official disclosure email `security@zoopnetwork.app`, 24h SLA acknowledgment commitment, and RFC 9116 reference.
   - Synchronized `docs/compliance/privacy_policy.md` contact email and repository links.
 - [x] **7.6 Complete Legacy Domain Elimination** [DONE - Deployed & verified]
-  - Replaced all legacy `zoop.network` domain occurrences across `web/public/docs/web.md`, `web/src/admin/AdminConsole.css`, `web/src/landing/data/docsData.ts`, and `web/.env.example` with canonical `zoopinternet.app`. Standardized GitHub links to `https://github.com/zoop-internet/zoop`.
+  - Replaced all legacy `zoop.network` domain occurrences across `web/public/docs/web.md`, `web/src/admin/AdminConsole.css`, `web/src/landing/data/docsData.ts`, and `web/.env.example` with canonical `zoopnetwork.app`. Standardized GitHub links to `https://github.com/zoop-internet/zoop`.
 
 ### Phase 8: Verification & Monitoring Setup
 - [x] **8.1 Automated Build Verification Script** [DONE - Deployed & verified]

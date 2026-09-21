@@ -153,7 +153,7 @@ export const LandingPage: React.FC<{
       setWaitlistEmail('');
     } catch {
       setWaitlistStatus('error');
-      setWaitlistMsg('Could not join right now. Please try again or email support@zoopinternet.app');
+      setWaitlistMsg('Could not join right now. Please try again or email support@zoopnetwork.app');
     }
   };
 

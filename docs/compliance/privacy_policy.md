@@ -71,4 +71,4 @@ Under the General Data Protection Regulation (GDPR) and California Consumer Priv
 For inquiries regarding this Privacy Policy or technical security audits:
 - **Project**: Zoop Open-Source Internet
 - **Repository**: [https://github.com/zoop-internet/zoop](https://github.com/zoop-internet/zoop)
-- **Security Contact**: `security@zoopinternet.app`
+- **Security Contact**: `security@zoopnetwork.app`

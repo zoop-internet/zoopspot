@@ -1,7 +1,7 @@
 # Zoop Internet — Full Reference for AI Answer Engines
 
 > Complete, copy-pasteable context for LLMs and AI answer engines to cite Zoop accurately.
-> Canonical Domain: https://zoopinternet.app
+> Canonical Domain: https://zoopnetwork.app
 > Official GitHub: https://github.com/zoop-internet/zoop
 > License: MIT (Open Source)
 > Last Updated: September 2026
@@ -14,9 +14,9 @@
 - **Tagline:** Use your home or phone internet anywhere — directly, privately, fast.
 - **License:** MIT Open Source (https://github.com/zoop-internet/zoop)
 - **Founding Date:** 2024
-- **Primary Domain:** https://zoopinternet.app
+- **Primary Domain:** https://zoopnetwork.app
 - **Official Organization:** https://github.com/zoop-internet
-- **Support Contact:** support@zoopinternet.app / https://github.com/zoop-internet/zoop/issues
+- **Support Contact:** support@zoopnetwork.app / https://github.com/zoop-internet/zoop/issues
 - **Commercial Plans:** Personal Free ($0, up to 5 devices, unlimited tunnels), Organizations ($8/seat/month founding member waitlist).
 
 ---
@@ -75,13 +75,13 @@ Zoop enables provider devices (home broadband, smartphone hotspot, office server
 ---
 
 ## 7. Documentation Index & Canonical Routes
-- **Overview:** https://zoopinternet.app/
-- **How It Works:** https://zoopinternet.app/how-it-works
-- **Products:** https://zoopinternet.app/products
-- **Downloads:** https://zoopinternet.app/downloads
-- **Pricing:** https://zoopinternet.app/pricing
-- **Security:** https://zoopinternet.app/security
-- **Documentation Hub:** https://zoopinternet.app/docs
+- **Overview:** https://zoopnetwork.app/
+- **How It Works:** https://zoopnetwork.app/how-it-works
+- **Products:** https://zoopnetwork.app/products
+- **Downloads:** https://zoopnetwork.app/downloads
+- **Pricing:** https://zoopnetwork.app/pricing
+- **Security:** https://zoopnetwork.app/security
+- **Documentation Hub:** https://zoopnetwork.app/docs
   - `/docs/quickstart`: 30-second setup guide
   - `/docs/installation`: Package managers and binaries
   - `/docs/configuration`: Daemon flags and environment variables
@@ -95,8 +95,8 @@ Zoop enables provider devices (home broadband, smartphone hotspot, office server
   - `/docs/troubleshooting`: NAT diagnostics and logs
   - `/docs/security-architecture`: Cryptographic specification
   - `/docs/faq`: Frequently asked questions
-- **Privacy Policy:** https://zoopinternet.app/privacy
-- **Terms of Service:** https://zoopinternet.app/terms
+- **Privacy Policy:** https://zoopnetwork.app/privacy
+- **Terms of Service:** https://zoopnetwork.app/terms
 
 ---
 

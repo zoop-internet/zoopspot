@@ -1,5 +1,5 @@
 # Zoop Internet — Website Audit & Fix Log
-**Domain:** `zoopinternet.app` / `zoopnetwork.pages.dev`  
+**Domain:** `zoopnetwork.app` / `zoopnetwork.pages.dev`  
 **Date:** September 2026  
 **Auditor:** Senior Web Performance, SEO & UI/UX Engineer (Antigravity)  
 **Status:** All 8 Phases Remediated, Automated Verified, and Deployed Live to Cloudflare Pages  
@@ -90,7 +90,7 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Severity**: High
 - **Location**: `web/public/sitemap.xml:3-11`
 - **Issue**: Referenced legacy domain `https://zoop.network` and included private `/app`.
-- **Remediation**: Replaced with all 23 canonical `https://zoopinternet.app` public URLs, added ISO-8601 `<lastmod>` timestamps, and excluded private routes. Verified live at `https://zoopnetwork.pages.dev/sitemap.xml`.
+- **Remediation**: Replaced with all 23 canonical `https://zoopnetwork.app` public URLs, added ISO-8601 `<lastmod>` timestamps, and excluded private routes. Verified live at `https://zoopnetwork.pages.dev/sitemap.xml`.
 
 #### Finding 1.4: Canonical Duplication between `/how-it-works` and `/architecture` [REMEDIATED & VERIFIED]
 - **Severity**: Medium
@@ -135,7 +135,7 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Severity**: High
 - **Location**: `web/public/llms-full.txt`, `web/public/llms.txt`, `web/public/ai.txt`, `web/public/humans.txt`
 - **Issue**: Mentioned `zoop.network` and outdated `allannuwamanya/zoop` repository URLs.
-- **Fix & Verification**: Standardized all AI reference documents, entity cards, contact emails, and repository URLs to `https://zoopinternet.app` and `https://github.com/zoop-internet/zoop`. Deployed and verified live at `/llms.txt`, `/llms-full.txt`, `/ai.txt`, and `/humans.txt`.
+- **Fix & Verification**: Standardized all AI reference documents, entity cards, contact emails, and repository URLs to `https://zoopnetwork.app` and `https://github.com/zoop-internet/zoop`. Deployed and verified live at `/llms.txt`, `/llms-full.txt`, `/ai.txt`, and `/humans.txt`.
 
 #### Finding 3.2: Missing `WebSite` Schema [REMEDIATED & VERIFIED]
 - **Severity**: Medium
@@ -220,7 +220,7 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Severity**: High
 - **Location**: `web/src/landing/pages/SecurityPage.tsx`
 - **Issue**: Security researchers and enterprise auditors lacked clear vulnerability reporting guidelines and response time commitments.
-- **Remediation**: Added a dedicated "Security & Vulnerability Disclosure" card with `security@zoopinternet.app`, 24-hour response commitment, and direct link to the repository PGP key and security advisory policy.
+- **Remediation**: Added a dedicated "Security & Vulnerability Disclosure" card with `security@zoopnetwork.app`, 24-hour response commitment, and direct link to the repository PGP key and security advisory policy.
 
 #### Finding 5.8: Docs Mobile Navigation & Empty Search State [REMEDIATED & VERIFIED]
 - **Severity**: Medium
@@ -312,13 +312,13 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 - **Severity**: Medium
 - **Location**: `SECURITY.md`, `docs/compliance/privacy_policy.md`
 - **Issue**: `SECURITY.md` used legacy reporting email `security@zoop.network` without SLA; `docs/compliance/privacy_policy.md` used outdated repository link.
-- **Remediation**: Updated `SECURITY.md` to `security@zoopinternet.app` with a 24-hour response SLA and RFC 9116 reference; updated privacy policy repository reference to `zoop-internet/zoop`.
+- **Remediation**: Updated `SECURITY.md` to `security@zoopnetwork.app` with a 24-hour response SLA and RFC 9116 reference; updated privacy policy repository reference to `zoop-internet/zoop`.
 
 #### Finding 7.7: Legacy Domain Elimination in Docs & Styling [REMEDIATED & VERIFIED]
 - **Severity**: Low
 - **Location**: `web/public/docs/web.md`, `web/src/admin/AdminConsole.css`
 - **Issue**: Legacy `zoop.network` domains remained in architectural diagrams and CSS comments.
-- **Remediation**: Replaced all occurrences with canonical `zoopinternet.app` domains. Zero instances of `zoop.network` remain in web source or build artifacts.
+- **Remediation**: Replaced all occurrences with canonical `zoopnetwork.app` domains. Zero instances of `zoop.network` remain in web source or build artifacts.
 
 ---
 
@@ -333,7 +333,7 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 #### Finding 8.2: Synthetic Edge Probing & Live Health Monitoring (`monitor-edge.mjs`) [REMEDIATED & VERIFIED]
 - **Severity**: High
 - **Location**: `web/scripts/monitor-edge.mjs`
-- **Issue**: Need automated synthetic health probing of live edge deployment (`zoopnetwork.pages.dev` / `zoopinternet.app`) to verify HTTP 200 responses, security headers, 301 redirects, soft-404 prevention, and AI discovery.
+- **Issue**: Need automated synthetic health probing of live edge deployment (`zoopnetwork.pages.dev` / `zoopnetwork.app`) to verify HTTP 200 responses, security headers, 301 redirects, soft-404 prevention, and AI discovery.
 - **Remediation**: Implemented `scripts/monitor-edge.mjs` executing live HTTP requests against edge servers. Validates HSTS, CSP, COOP, CORP, Permissions-Policy, canonical routes, 301 redirects (`/architecture`, `/security.txt`, `/login`), RFC 9116 security disclosure, and soft-404 rejection (returns true HTTP 404). All probes pass with 0 errors.
 
 #### Finding 8.3: Automated CI/CD Gating in GitHub Actions [REMEDIATED & VERIFIED]
@@ -353,5 +353,5 @@ A comprehensive 8-phase audit was conducted across the Zoop Internet web fronten
 ## 4. Human / External Decisions Flagged
 
 1. **GitHub Repository URL**: Confirm migrating all public links from `https://github.com/allannuwamanya/zoop` to `https://github.com/zoop-internet/zoop`.
-2. **Cloudflare DNS Records**: Ensure `CNAME @ zoopnetwork.pages.dev` and `CNAME www zoopnetwork.pages.dev` are set in the Cloudflare dashboard for `zoopinternet.app`.
-3. **Contact Email**: Confirm `support@zoopinternet.app` is the primary public mailbox.
+2. **Cloudflare DNS Records**: Ensure `CNAME @ zoopnetwork.pages.dev` and `CNAME www zoopnetwork.pages.dev` are set in the Cloudflare dashboard for `zoopnetwork.app`.
+3. **Contact Email**: Confirm `support@zoopnetwork.app` is the primary public mailbox.
