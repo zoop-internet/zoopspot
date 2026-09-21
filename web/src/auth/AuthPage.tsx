@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import { AwsSpinner } from '../components/AwsSpinner';
 import './AuthPage.css';
 
 /* ─── Icons ────────────────────────────────────────────────────────── */
@@ -24,8 +25,13 @@ const Icons = {
     </svg>
   ),
   arrowLeft: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m15 18-6-6 6-6" />
+    </svg>
+  ),
+  arrowRight: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14m-7-7 7 7-7 7" />
     </svg>
   ),
   zap: (
@@ -46,14 +52,16 @@ const Icons = {
   ),
   alert: (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
 };
 
 const PIN_LENGTH = 6;
 
-/* ─── PIN Boxes — accessible OTP with single hidden input for autofill ── */
+/* ─── PIN Boxes Component ─────────────────────────────────────────── */
 const PinBoxes: React.FC<{
   value: string;
   onChange: (v: string) => void;
@@ -65,25 +73,23 @@ const PinBoxes: React.FC<{
   describedBy?: string;
 }> = ({ value, onChange, length = PIN_LENGTH, showDigits = false, error = false, disabled = false, idPrefix = 'pin', describedBy }) => {
   const hiddenRef = useRef<HTMLInputElement>(null);
-  const isComplete = value.replace(/\D/g,'').length === length;
+  const isComplete = value.replace(/\D/g, '').length === length;
   const digits = value.padEnd(length, ' ').split('').slice(0, length);
 
   const handleHiddenChange = (raw: string) => {
-    const cleaned = raw.replace(/\D/g,'').slice(0, length);
+    const cleaned = raw.replace(/\D/g, '').slice(0, length);
     onChange(cleaned);
   };
 
   const handleBoxClick = () => hiddenRef.current?.focus();
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      // let hidden input handle cursor
-    }
-  };
-
   return (
-    <div className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`} role="group" aria-label="Zoop PIN — 6 digits, revocable, never emailed" onClick={handleBoxClick}>
-      {/* Hidden input — single source for autofill/one-time-code */}
+    <div
+      className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`}
+      role="group"
+      aria-label={`Zoop PIN, ${length} digits`}
+      onClick={handleBoxClick}
+    >
       <input
         ref={hiddenRef}
         id={`${idPrefix}-hidden`}
@@ -94,7 +100,6 @@ const PinBoxes: React.FC<{
         maxLength={length}
         value={value}
         onChange={e => handleHiddenChange(e.target.value)}
-        onKeyDown={handleKeyDown}
         disabled={disabled}
         aria-label={`Zoop PIN, ${length} digits`}
         aria-invalid={error ? true : undefined}
@@ -136,7 +141,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const { login, signup, loginWithKey, isRegistering } = useApp();
   const [tab, setTab] = useState<'signin' | 'signup'>(initialTab);
 
-  // Sign in
+  // Progressive Disclosure Steps:
+  // Sign In: 1 (Identifier) -> 2 (PIN / Credential)
+  // Sign Up: 1 (Username) -> 2 (PIN) -> 3 (Device)
+  const [signInStep, setSignInStep] = useState<1 | 2>(1);
+  const [signUpStep, setSignUpStep] = useState<1 | 2 | 3>(1);
+
+  // Sign in fields
   const [signInIdentifier, setSignInIdentifier] = useState('');
   const [signInPin, setSignInPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -144,7 +155,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [showKeyImport, setShowKeyImport] = useState(false);
   const [rawKeyInput, setRawKeyInput] = useState('');
 
-  // Sign up
+  // Sign up fields
   const [signUpUsername, setSignUpUsername] = useState('');
   const [signUpDisplayName, setSignUpDisplayName] = useState('');
   const [signUpPin, setSignUpPin] = useState('');
@@ -152,7 +163,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [signUpDeviceName, setSignUpDeviceName] = useState('');
   const [isProvider, setIsProvider] = useState(false);
 
-  // Feedback
+  // Feedback states
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -161,9 +172,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const triggerShake = () => setShakeKey(k => k + 1);
 
+  // Auto-detect device name
   useEffect(() => {
     const ua = navigator.userAgent;
-    let detected = 'My Browser Device';
+    let detected = 'Browser Device';
     if (ua.includes('Macintosh')) detected = 'MacBook Pro';
     else if (ua.includes('Windows')) detected = 'Windows PC';
     else if (ua.includes('Linux')) detected = 'Linux Workstation';
@@ -172,24 +184,54 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setSignUpDeviceName(detected);
   }, []);
 
-  // Live validation feedback
+  // Live username validation feedback
   const usernameFeedback = (() => {
     if (!signUpUsername) return null;
     const u = signUpUsername.trim().replace(/^@/, '');
     if (u.length < 2) return { type: 'error' as const, text: 'At least 2 characters' };
-    if (!/^[a-zA-Z0-9._-]+$/.test(u)) return { type: 'error' as const, text: 'Only letters, numbers, . _ -' };
-    if (u.length >= 3) return { type: 'success' as const, text: 'Looks good' };
+    if (!/^[a-zA-Z0-9._-]+$/.test(u)) return { type: 'error' as const, text: 'Letters, numbers, . _ - only' };
+    if (u.length >= 3) return { type: 'success' as const, text: 'Available' };
     return null;
   })();
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  /* ─── Sign In Handlers ─────────────────────────────────────────── */
+  const handleSignInNext = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+    const identifier = signInIdentifier.trim();
+    if (!identifier) {
+      setFieldErrors({ identifier: 'Enter your Zoop ID or username' });
+      triggerShake();
+      return;
+    }
+    setFieldErrors({});
+    setSignInStep(2);
+  };
+
+  const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signInStep === 1) {
+      handleSignInNext(e);
+      return;
+    }
+
     setErrorMsg(null);
     setSuccessMsg(null);
-    const errs: Record<string,string> = {};
-    if (!signInIdentifier.trim()) errs.identifier = 'Enter your Zoop ID or username';
-    if (!showKeyImport && !new RegExp(`^\\d{${PIN_LENGTH}}$`).test(signInPin)) errs.pin = `PIN must be ${PIN_LENGTH} digits`;
-    if (Object.keys(errs).length) { setFieldErrors(errs); triggerShake(); return; }
+    const errs: Record<string, string> = {};
+
+    if (!showKeyImport && !new RegExp(`^\\d{${PIN_LENGTH}}$`).test(signInPin)) {
+      errs.pin = `PIN must be ${PIN_LENGTH} digits`;
+    }
+    if (showKeyImport && !rawKeyInput.trim()) {
+      errs.key = 'Paste your device key credential';
+    }
+
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      triggerShake();
+      return;
+    }
+
     setFieldErrors({});
     setLoading(true);
     try {
@@ -208,20 +250,67 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  /* ─── Sign Up Handlers ─────────────────────────────────────────── */
+  const handleSignUpStep1Next = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+    const username = signUpUsername.trim().replace(/^@/, '');
+    if (!username || username.length < 2) {
+      setFieldErrors({ username: 'Choose a username (at least 2 characters)' });
+      triggerShake();
+      return;
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+      setFieldErrors({ username: 'Letters, numbers, . _ - only' });
+      triggerShake();
+      return;
+    }
+    setFieldErrors({});
+    setSignUpStep(2);
+  };
+
+  const handleSignUpStep2Next = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+    const errs: Record<string, string> = {};
+    if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(signUpPin)) {
+      errs.pin = `PIN must be ${PIN_LENGTH} digits`;
+    }
+    if (signUpPin !== signUpPinConfirm) {
+      errs.pinConfirm = 'PINs do not match';
+    }
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      triggerShake();
+      return;
+    }
+    setFieldErrors({});
+    setSignUpStep(3);
+  };
+
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (signUpStep === 1) {
+      handleSignUpStep1Next(e);
+      return;
+    }
+    if (signUpStep === 2) {
+      handleSignUpStep2Next(e);
+      return;
+    }
+
     setErrorMsg(null);
     setSuccessMsg(null);
-    const username = signUpUsername.trim().replace(/^@/, '');
-    const errs: Record<string,string> = {};
-    if (!username || username.length < 2) errs.username = 'Choose at least 2 characters';
-    if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(signUpPin)) errs.pin = `PIN must be ${PIN_LENGTH} digits`;
-    if (signUpPin !== signUpPinConfirm) errs.pinConfirm = 'PINs do not match';
-    if (!signUpDeviceName.trim()) errs.device = 'Device name required';
-    if (Object.keys(errs).length) { setFieldErrors(errs); triggerShake(); return; }
+    if (!signUpDeviceName.trim()) {
+      setFieldErrors({ device: 'Device name is required' });
+      triggerShake();
+      return;
+    }
+
     setFieldErrors({});
     setLoading(true);
     try {
+      const username = signUpUsername.trim().replace(/^@/, '');
       await signup(
         username,
         signUpPin,
@@ -256,9 +345,33 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   };
 
+  const switchTab = (nextTab: 'signin' | 'signup') => {
+    setTab(nextTab);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setFieldErrors({});
+    setSignInStep(1);
+    setSignUpStep(1);
+  };
+
   return (
     <div className="auth-shell">
       <a href="#main-content" className="skip-link">Skip to main content</a>
+
+      {/* Abstract AWS-Style Background Ambient Lines & Glow */}
+      <div className="auth-abstract-bg" aria-hidden="true">
+        <div className="auth-abstract-glow-top" />
+        <div className="auth-abstract-glow-side" />
+        <svg className="auth-abstract-grid" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="auth-grid-pattern" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255, 255, 255, 0.025)" strokeWidth="1" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#auth-grid-pattern)" />
+        </svg>
+      </div>
+
       <header className="auth-topbar" role="banner">
         <a href="/" className="auth-brand" onClick={(e) => { e.preventDefault(); onNavigate('/'); }} aria-label="Zoop Internet — go to homepage">
           <div className="auth-brand-logo">
@@ -274,39 +387,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       </header>
 
       <main id="main-content" className="auth-main" tabIndex={-1}>
-        {/* Funnel progress — where this step sits in 1→3 journey */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:14, flexWrap:'wrap' }} aria-label="Progress: step 2 of 3 — authentication">
-          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:700, color:'var(--text-muted)' }}>
-            <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(52,211,153,0.18)', color:'#34d399', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>✓</span> Visit landing
-          </span>
-          <span aria-hidden style={{ color:'var(--text-muted)' }}>→</span>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:800, color:'#38bdf8', background:'rgba(56,189,248,0.10)', border:'1px solid rgba(56,189,248,0.22)', padding:'3px 8px', borderRadius:999 }}>
-            <span style={{ width:18, height:18, borderRadius:'50%', background:'#38bdf8', color:'#020904', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>2</span> {tab==='signup' ? 'Create Zoop ID' : 'Sign in'}
-          </span>
-          <span aria-hidden style={{ color:'var(--text-muted)' }}>→</span>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:'0.70rem', fontWeight:600, color:'var(--text-muted)', opacity:0.8 }}>
-            <span style={{ width:18, height:18, borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'1px solid var(--line)', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>3</span> Use console (/app)
-          </span>
-        </div>
         <div key={shakeKey} className={`auth-card ${Object.keys(fieldErrors).length || errorMsg ? 'auth-shake' : ''}`}>
-          <div className="auth-header">
-            <h1>{tab === 'signin' ? 'Sign in to Zoop' : 'Create your Zoop identity'}</h1>
-            <p>
-              {tab === 'signin'
-                ? 'Your Zoop ID (ZP-… or @username) + 6-digit PIN unlocks this device → then → Personal console.'
-                : 'Pick a username + 6-digit PIN — your permanent Zoop ID (ZP-…) is generated instantly, then you land in /app.'}
-            </p>
-            <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginTop:6, lineHeight:1.5, background:'rgba(56,189,248,0.06)', border:'1px solid rgba(56,189,248,0.12)', padding:'6px 10px', borderRadius:8 }}>
-              <strong style={{ color:'#38bdf8' }}>No email needed.</strong> Next: Devices are auto-registered from this browser · <a onClick={()=>onNavigate('/docs')} style={{ color:'#38bdf8', textDecoration:'underline', cursor:'pointer' }}>Docs →</a>
-            </p>
-          </div>
-
+          
+          {/* AWS Cloudscape Style Tab Switcher */}
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
             <button
               type="button"
               id="auth-tab-signin"
               className={`auth-tab-btn ${tab === 'signin' ? 'active' : ''}`}
-              onClick={() => { setTab('signin'); setErrorMsg(null); setSuccessMsg(null); setFieldErrors({}); }}
+              onClick={() => switchTab('signin')}
               role="tab"
               aria-selected={tab === 'signin'}
               aria-controls="auth-panel-signin"
@@ -318,7 +407,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               type="button"
               id="auth-tab-signup"
               className={`auth-tab-btn ${tab === 'signup' ? 'active' : ''}`}
-              onClick={() => { setTab('signup'); setErrorMsg(null); setSuccessMsg(null); setFieldErrors({}); }}
+              onClick={() => switchTab('signup')}
               role="tab"
               aria-selected={tab === 'signup'}
               aria-controls="auth-panel-signup"
@@ -328,6 +417,50 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </button>
           </div>
 
+          {/* Sign Up 3-Step Segmented Progress Bar */}
+          {tab === 'signup' && (
+            <div className="auth-step-bar" aria-label={`Step ${signUpStep} of 3`}>
+              <div className={`auth-step-seg ${signUpStep >= 1 ? 'active' : ''} ${signUpStep > 1 ? 'completed' : ''}`}>
+                <span className="step-num">{signUpStep > 1 ? '✓' : '1'}</span>
+                <span className="step-label">Username</span>
+              </div>
+              <div className="auth-step-line" />
+              <div className={`auth-step-seg ${signUpStep >= 2 ? 'active' : ''} ${signUpStep > 2 ? 'completed' : ''}`}>
+                <span className="step-num">{signUpStep > 2 ? '✓' : '2'}</span>
+                <span className="step-label">Security PIN</span>
+              </div>
+              <div className="auth-step-line" />
+              <div className={`auth-step-seg ${signUpStep >= 3 ? 'active' : ''}`}>
+                <span className="step-num">3</span>
+                <span className="step-label">Device</span>
+              </div>
+            </div>
+          )}
+
+          {/* Minimalist Header */}
+          <div className="auth-header">
+            {tab === 'signin' ? (
+              <>
+                <h1>{signInStep === 1 ? 'Sign in' : 'Enter your PIN'}</h1>
+                <p>{signInStep === 1 ? 'Enter your Zoop ID or username to continue' : 'Enter your 6-digit PIN to unlock this device'}</p>
+              </>
+            ) : (
+              <>
+                <h1>
+                  {signUpStep === 1 && 'Choose your username'}
+                  {signUpStep === 2 && 'Set your security PIN'}
+                  {signUpStep === 3 && 'Name this device'}
+                </h1>
+                <p>
+                  {signUpStep === 1 && 'Pick a permanent handle for your direct mesh'}
+                  {signUpStep === 2 && 'Your 6-digit PIN protects device authorization'}
+                  {signUpStep === 3 && 'This device will be registered to your Zoop ID'}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Alert messages */}
           {errorMsg && (
             <div className="auth-alert auth-alert-error" role="alert" aria-live="assertive">
               <span>{Icons.alert}</span>
@@ -341,200 +474,360 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </div>
           )}
 
+          {/* ─── SIGN IN FLOW (2 Steps) ───────────────────────────────── */}
           {tab === 'signin' && (
-            <form id="auth-panel-signin" role="tabpanel" aria-labelledby="auth-tab-signin" className="auth-form" onSubmit={handleSignIn} noValidate>
-              <div className="auth-field">
-                <label htmlFor="auth-identifier">Zoop ID or Username</label>
-                <input
-                  id="auth-identifier"
-                  type="text"
-                  className={`auth-input ${fieldErrors.identifier ? 'input-error' : signInIdentifier ? 'input-success' : ''}`}
-                  placeholder="ZP-7K4M9X  or  @alex"
-                  value={signInIdentifier}
-                  onChange={(e) => setSignInIdentifier(e.target.value)}
-                  autoComplete="username"
-                  autoFocus
-                  required
-                  aria-invalid={!!fieldErrors.identifier}
-                  aria-describedby={fieldErrors.identifier ? 'auth-identifier-error' : 'auth-identifier-hint'}
-                />
-                {fieldErrors.identifier ? <span id="auth-identifier-error" className="field-feedback error" role="alert">{fieldErrors.identifier}</span> : <span id="auth-identifier-hint" className="auth-hint">Your permanent Zoop ID or @username</span>}
-              </div>
+            <form id="auth-panel-signin" role="tabpanel" aria-labelledby="auth-tab-signin" className="auth-form auth-step-enter" onSubmit={handleSignInSubmit} noValidate>
+              
+              {/* Step 1: Identifier */}
+              {signInStep === 1 && (
+                <div className="auth-step-content">
+                  <div className="auth-field">
+                    <label htmlFor="auth-identifier">Zoop ID or Username</label>
+                    <input
+                      id="auth-identifier"
+                      type="text"
+                      className={`auth-input ${fieldErrors.identifier ? 'input-error' : signInIdentifier ? 'input-success' : ''}`}
+                      placeholder="ZP-7K4M9X or @alex"
+                      value={signInIdentifier}
+                      onChange={(e) => { setSignInIdentifier(e.target.value); setFieldErrors({}); }}
+                      autoComplete="username"
+                      autoFocus
+                      required
+                      aria-invalid={!!fieldErrors.identifier}
+                      aria-describedby={fieldErrors.identifier ? 'auth-identifier-error' : undefined}
+                    />
+                    {fieldErrors.identifier && (
+                      <span id="auth-identifier-error" className="field-feedback error" role="alert">{fieldErrors.identifier}</span>
+                    )}
+                  </div>
 
-              {!showKeyImport ? (
-                <div className="auth-field">
-                  <div className="pin-label-row">
-                    <label>Zoop PIN</label>
-                    <div className="pin-actions">
-                      <button type="button" className="auth-link-btn" onClick={() => setShowPin(v => !v)} aria-label={showPin ? 'Hide PIN' : 'Show PIN'}>
-                        {showPin ? Icons.eyeOff : Icons.eye} {showPin ? 'Hide' : 'Show'}
-                      </button>
-                      <a href="#demo" onClick={(e) => { e.preventDefault(); handleDemoAccess(); }} className="auth-forgot-link">Try Demo</a>
-                    </div>
+                  <button type="submit" className="auth-submit-btn" id="auth-signin-next-btn">
+                    <span>Next</span>
+                    {Icons.arrowRight}
+                  </button>
+
+                  <div className="auth-secondary-actions">
+                    <button type="button" className="auth-text-link" onClick={handleDemoAccess}>
+                      Try Demo Access
+                    </button>
+                    <span className="auth-action-sep">·</span>
+                    <button type="button" className="auth-text-link" onClick={() => { setShowKeyImport(true); setSignInStep(2); }}>
+                      Device Key
+                    </button>
                   </div>
-                  <PinBoxes value={signInPin} onChange={setSignInPin} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signin-pin" describedBy={fieldErrors.pin ? 'signin-pin-error' : 'signin-pin-hint'} />
-                  <div className="pin-meta">
-                    {fieldErrors.pin ? <span id="signin-pin-error" className="field-feedback error" role="alert">{fieldErrors.pin}</span> : <span id="signin-pin-hint" className="auth-hint">{signInPin.length}/{PIN_LENGTH} digits — recoverable via device key</span>}
-                    {signInPin.length === PIN_LENGTH && !fieldErrors.pin && <span className="field-feedback success">{Icons.check} Ready</span>}
+
+                  <div className="auth-switch-prompt">
+                    New to Zoop?{' '}
+                    <button type="button" className="auth-switch-btn" onClick={() => switchTab('signup')}>
+                      Create Zoop ID
+                    </button>
                   </div>
-                </div>
-              ) : (
-                <div className="auth-field">
-                  <label htmlFor="auth-key">Device credential (PKCS8)</label>
-                  <textarea
-                    id="auth-key"
-                    className="auth-key-textarea"
-                    placeholder="MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg..."
-                    value={rawKeyInput}
-                    onChange={(e) => setRawKeyInput(e.target.value)}
-                  />
-                  <span className="auth-hint">Advanced: restore a device directly via its secure credential.</span>
                 </div>
               )}
 
-              <div className="auth-options-row">
-                <label className="auth-checkbox-label">
-                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                  <span>Keep me signed in on this device</span>
-                </label>
-                <button type="button" className="auth-key-import-toggle" onClick={() => setShowKeyImport(!showKeyImport)}>
-                  {Icons.key}
-                  <span>{showKeyImport ? 'Use PIN' : 'Use device key'}</span>
-                </button>
-              </div>
+              {/* Step 2: PIN / Credential */}
+              {signInStep === 2 && (
+                <div className="auth-step-content">
+                  {/* Identifier Preview Badge with Change Button */}
+                  <div className="auth-identity-chip">
+                    <div className="auth-identity-avatar">
+                      {signInIdentifier.replace(/^@/, '').charAt(0).toUpperCase() || 'Z'}
+                    </div>
+                    <div className="auth-identity-info">
+                      <span className="auth-identity-id">{signInIdentifier}</span>
+                      <span className="auth-identity-sub">Zoop ID</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="auth-identity-change-btn"
+                      onClick={() => { setSignInStep(1); setErrorMsg(null); setFieldErrors({}); }}
+                      title="Change Zoop ID"
+                    >
+                      Change
+                    </button>
+                  </div>
 
-              <button type="submit" className="auth-submit-btn" disabled={loading || isRegistering} id="auth-signin-btn">
-                {loading || isRegistering ? (
-                  <><span className="spinner" style={{ width: 16, height: 16 }} /><span>Signing in…</span></>
-                ) : (
-                  <><>{Icons.shield}</><span>Sign In</span></>
-                )}
-              </button>
+                  {!showKeyImport ? (
+                    <div className="auth-field">
+                      <div className="pin-label-row">
+                        <label>Zoop PIN</label>
+                        <button type="button" className="auth-link-btn" onClick={() => setShowPin(v => !v)} aria-label={showPin ? 'Hide PIN' : 'Show PIN'}>
+                          {showPin ? Icons.eyeOff : Icons.eye} {showPin ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                      <PinBoxes
+                        value={signInPin}
+                        onChange={(v) => { setSignInPin(v); setFieldErrors({}); }}
+                        showDigits={showPin}
+                        error={!!fieldErrors.pin}
+                        idPrefix="signin-pin"
+                        describedBy={fieldErrors.pin ? 'signin-pin-error' : undefined}
+                      />
+                      <div className="pin-meta">
+                        {fieldErrors.pin ? (
+                          <span id="signin-pin-error" className="field-feedback error" role="alert">{fieldErrors.pin}</span>
+                        ) : signInPin.length === PIN_LENGTH ? (
+                          <span className="field-feedback success">{Icons.check} Ready</span>
+                        ) : (
+                          <span className="auth-hint">{signInPin.length}/{PIN_LENGTH} digits</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="auth-field">
+                      <label htmlFor="auth-key">Device credential (PKCS8)</label>
+                      <textarea
+                        id="auth-key"
+                        className="auth-key-textarea"
+                        placeholder="MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg..."
+                        value={rawKeyInput}
+                        onChange={(e) => { setRawKeyInput(e.target.value); setFieldErrors({}); }}
+                      />
+                      <span className="auth-hint">Advanced: restore device directly via secure key</span>
+                    </div>
+                  )}
 
-              <div className="auth-switch-prompt">
-                No Zoop identity yet?{' '}
-                <button type="button" className="auth-switch-btn" onClick={() => { setTab('signup'); setErrorMsg(null); setSuccessMsg(null); }}>
-                  Create Zoop ID
-                </button>
-              </div>
+                  <div className="auth-options-row">
+                    <label className="auth-checkbox-label">
+                      <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                      <span>Keep me signed in on this device</span>
+                    </label>
+                    <button type="button" className="auth-key-import-toggle" onClick={() => setShowKeyImport(!showKeyImport)}>
+                      {Icons.key}
+                      <span>{showKeyImport ? 'Use PIN' : 'Use key'}</span>
+                    </button>
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" disabled={loading || isRegistering} id="auth-signin-btn">
+                    {loading || isRegistering ? (
+                      <>
+                        <AwsSpinner size={18} variant="inverted" />
+                        <span>Signing in…</span>
+                      </>
+                    ) : (
+                      <>
+                        {Icons.shield}
+                        <span>Sign In</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="auth-step-back-row">
+                    <button type="button" className="auth-step-back-btn" onClick={() => { setSignInStep(1); setErrorMsg(null); setFieldErrors({}); }}>
+                      {Icons.arrowLeft} Back
+                    </button>
+                    <button type="button" className="auth-text-link" onClick={handleDemoAccess}>
+                      Try Demo
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           )}
 
+          {/* ─── SIGN UP FLOW (3 Steps) ───────────────────────────────── */}
           {tab === 'signup' && (
-            <form id="auth-panel-signup" role="tabpanel" aria-labelledby="auth-tab-signup" className="auth-form" onSubmit={handleSignUp} noValidate>
-              <div className="auth-field">
-                <label htmlFor="signup-username">Username</label>
-                <div className="auth-input-wrap">
-                  <span className="input-prefix">@</span>
-                  <input
-                    id="signup-username"
-                    type="text"
-                    className={`auth-input has-prefix ${fieldErrors.username ? 'input-error' : usernameFeedback?.type === 'success' ? 'input-success' : ''}`}
-                    placeholder="alex"
-                    value={signUpUsername}
-                    onChange={(e) => { setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24)); setFieldErrors(f => ({ ...f, username: '' })); }}
-                    autoComplete="username"
-                    autoFocus
-                    required
-                    aria-invalid={!!fieldErrors.username}
-                  />
+            <form id="auth-panel-signup" role="tabpanel" aria-labelledby="auth-tab-signup" className="auth-form auth-step-enter" onSubmit={handleSignUpSubmit} noValidate>
+              
+              {/* Step 1: Choose Username */}
+              {signUpStep === 1 && (
+                <div className="auth-step-content">
+                  <div className="auth-field">
+                    <label htmlFor="signup-username">Username</label>
+                    <div className="auth-input-wrap">
+                      <span className="input-prefix">@</span>
+                      <input
+                        id="signup-username"
+                        type="text"
+                        className={`auth-input has-prefix ${fieldErrors.username ? 'input-error' : usernameFeedback?.type === 'success' ? 'input-success' : ''}`}
+                        placeholder="alex"
+                        value={signUpUsername}
+                        onChange={(e) => {
+                          setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24));
+                          setFieldErrors(f => ({ ...f, username: '' }));
+                        }}
+                        autoComplete="username"
+                        autoFocus
+                        required
+                        aria-invalid={!!fieldErrors.username}
+                      />
+                    </div>
+                    {fieldErrors.username ? (
+                      <span className="field-feedback error">{fieldErrors.username}</span>
+                    ) : usernameFeedback ? (
+                      <span className={`field-feedback ${usernameFeedback.type}`}>{usernameFeedback.type === 'success' ? Icons.check : null} {usernameFeedback.text}</span>
+                    ) : (
+                      <span className="auth-hint">Letters, numbers, . _ - · 2–24 chars</span>
+                    )}
+                  </div>
+
+                  <div className="auth-field">
+                    <label htmlFor="signup-display">Display Name <span className="optional">(optional)</span></label>
+                    <input
+                      id="signup-display"
+                      type="text"
+                      className="auth-input"
+                      placeholder="Alex Morgan"
+                      value={signUpDisplayName}
+                      onChange={(e) => setSignUpDisplayName(e.target.value)}
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" id="auth-signup-next-1">
+                    <span>Next: Set Security PIN</span>
+                    {Icons.arrowRight}
+                  </button>
+
+                  <div className="auth-switch-prompt">
+                    Already have a Zoop ID?{' '}
+                    <button type="button" className="auth-switch-btn" onClick={() => switchTab('signin')}>
+                      Sign in
+                    </button>
+                  </div>
                 </div>
-                {fieldErrors.username ? <span className="field-feedback error">{fieldErrors.username}</span> : usernameFeedback ? <span className={`field-feedback ${usernameFeedback.type}`}>{usernameFeedback.type === 'success' ? Icons.check : null} {usernameFeedback.text}</span> : <span className="auth-hint">Letters, numbers, . _ - · 2–24 chars</span>}
-              </div>
+              )}
 
-              <div className="auth-field">
-                <label htmlFor="signup-display">Display Name <span className="optional">(optional)</span></label>
-                <input
-                  id="signup-display"
-                  type="text"
-                  className="auth-input"
-                  placeholder="Alex Morgan"
-                  value={signUpDisplayName}
-                  onChange={(e) => setSignUpDisplayName(e.target.value)}
-                  autoComplete="name"
-                />
-                <span className="auth-hint">{signUpDisplayName ? `${signUpDisplayName.length}/32` : 'Shown to peers you share with'}</span>
-              </div>
+              {/* Step 2: Set Security PIN */}
+              {signUpStep === 2 && (
+                <div className="auth-step-content">
+                  <div className="auth-field">
+                    <div className="pin-label-row">
+                      <label>Create 6-Digit PIN</label>
+                      <button type="button" className="auth-link-btn" onClick={() => setShowPin(v => !v)}>
+                        {showPin ? Icons.eyeOff : Icons.eye} {showPin ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    <PinBoxes
+                      value={signUpPin}
+                      onChange={(v) => { setSignUpPin(v); setFieldErrors(f => ({ ...f, pin: '' })); }}
+                      showDigits={showPin}
+                      error={!!fieldErrors.pin}
+                      idPrefix="signup-pin"
+                    />
+                    <div className="pin-meta">
+                      {fieldErrors.pin ? (
+                        <span className="field-feedback error" role="alert">{fieldErrors.pin}</span>
+                      ) : signUpPin.length === PIN_LENGTH ? (
+                        <span className="field-feedback success">{Icons.check} PIN set</span>
+                      ) : (
+                        <span className="auth-hint">{signUpPin.length}/{PIN_LENGTH} digits</span>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="auth-field">
-                <div className="pin-label-row">
-                  <label>Create Zoop PIN</label>
-                  <button type="button" className="auth-link-btn" onClick={() => setShowPin(v => !v)}>{showPin ? Icons.eyeOff : Icons.eye} {showPin ? 'Hide' : 'Show'}</button>
+                  <div className="auth-field">
+                    <label>Confirm PIN</label>
+                    <PinBoxes
+                      value={signUpPinConfirm}
+                      onChange={(v) => { setSignUpPinConfirm(v); setFieldErrors(f => ({ ...f, pinConfirm: '' })); }}
+                      showDigits={showPin}
+                      error={!!fieldErrors.pinConfirm || (signUpPinConfirm.length === PIN_LENGTH && signUpPin !== signUpPinConfirm)}
+                      idPrefix="signup-pin-confirm"
+                    />
+                    <div className="pin-meta">
+                      {fieldErrors.pinConfirm ? (
+                        <span className="field-feedback error" role="alert">{fieldErrors.pinConfirm}</span>
+                      ) : signUpPinConfirm.length === PIN_LENGTH ? (
+                        signUpPin === signUpPinConfirm ? (
+                          <span className="field-feedback success">{Icons.check} PINs match</span>
+                        ) : (
+                          <span className="field-feedback error" role="alert">PINs do not match</span>
+                        )
+                      ) : (
+                        <span className="auth-hint">Re-enter your 6-digit PIN</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" id="auth-signup-next-2">
+                    <span>Next: Name Device</span>
+                    {Icons.arrowRight}
+                  </button>
+
+                  <div className="auth-step-back-row">
+                    <button type="button" className="auth-step-back-btn" onClick={() => { setSignUpStep(1); setErrorMsg(null); setFieldErrors({}); }}>
+                      {Icons.arrowLeft} Back
+                    </button>
+                  </div>
                 </div>
-                <PinBoxes value={signUpPin} onChange={v => { setSignUpPin(v); setFieldErrors(f => ({ ...f, pin: '' })); }} showDigits={showPin} error={!!fieldErrors.pin} idPrefix="signup-pin" describedBy={fieldErrors.pin ? 'signup-pin-error' : 'signup-pin-hint'} />
-                <div className="pin-meta">
-                  {fieldErrors.pin ? <span id="signup-pin-error" className="field-feedback error" role="alert">{fieldErrors.pin}</span> : <span id="signup-pin-hint" className="auth-hint">{signUpPin.length}/{PIN_LENGTH} digits — your Zoop ID stays safe even if PIN is reset</span>}
-                  {signUpPin.length === PIN_LENGTH && !fieldErrors.pin && <span className="field-feedback success">{Icons.check} PIN set</span>}
+              )}
+
+              {/* Step 3: Name This Device & Ready */}
+              {signUpStep === 3 && (
+                <div className="auth-step-content">
+                  <div className="auth-field">
+                    <label htmlFor="signup-device">Device Name</label>
+                    <input
+                      id="signup-device"
+                      type="text"
+                      className={`auth-input ${fieldErrors.device ? 'input-error' : signUpDeviceName ? 'input-success' : ''}`}
+                      placeholder="e.g. Work Laptop"
+                      value={signUpDeviceName}
+                      onChange={(e) => { setSignUpDeviceName(e.target.value); setFieldErrors(f => ({ ...f, device: '' })); }}
+                      required
+                      aria-invalid={!!fieldErrors.device}
+                      autoFocus
+                    />
+                    {fieldErrors.device ? (
+                      <span className="field-feedback error">{fieldErrors.device}</span>
+                    ) : (
+                      <span className="auth-hint">Auto-detected from this browser</span>
+                    )}
+                  </div>
+
+                  <div className="auth-provider-toggle-box">
+                    <div className="auth-provider-info">
+                      <span className="auth-provider-title">Enable Internet Sharing</span>
+                      <span className="auth-provider-desc">Allow authorized peer devices to route through this device</span>
+                    </div>
+                    <label className="toggle" aria-label="Enable provider mode">
+                      <input type="checkbox" checked={isProvider} onChange={(e) => setIsProvider(e.target.checked)} />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" disabled={loading || isRegistering} id="auth-signup-btn">
+                    {loading || isRegistering ? (
+                      <>
+                        <AwsSpinner size={18} variant="inverted" />
+                        <span>Creating Zoop ID…</span>
+                      </>
+                    ) : (
+                      <>
+                        {Icons.zap}
+                        <span>Create Zoop ID — Free</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="auth-step-back-row">
+                    <button type="button" className="auth-step-back-btn" onClick={() => { setSignUpStep(2); setErrorMsg(null); setFieldErrors({}); }}>
+                      {Icons.arrowLeft} Back
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div className="auth-field">
-                <label>Confirm PIN</label>
-                <PinBoxes value={signUpPinConfirm} onChange={v => { setSignUpPinConfirm(v); setFieldErrors(f => ({ ...f, pinConfirm: '' })); }} showDigits={showPin} error={!!fieldErrors.pinConfirm || (signUpPinConfirm.length === PIN_LENGTH && signUpPin !== signUpPinConfirm)} idPrefix="signup-pin-confirm" describedBy={fieldErrors.pinConfirm ? 'signup-pin-confirm-error' : 'signup-pin-confirm-hint'} />
-                <div className="pin-meta">
-                  {fieldErrors.pinConfirm ? <span id="signup-pin-confirm-error" className="field-feedback error" role="alert">{fieldErrors.pinConfirm}</span> : signUpPinConfirm.length === PIN_LENGTH ? (signUpPin === signUpPinConfirm ? <span className="field-feedback success">{Icons.check} PINs match</span> : <span id="signup-pin-confirm-error" className="field-feedback error" role="alert">PINs do not match</span>) : <span id="signup-pin-confirm-hint" className="auth-hint">Repeat your PIN exactly</span>}
-                </div>
-              </div>
-
-              <div className="auth-field">
-                <label htmlFor="signup-device">Device Name</label>
-                <input
-                  id="signup-device"
-                  type="text"
-                  className={`auth-input ${fieldErrors.device ? 'input-error' : signUpDeviceName ? 'input-success' : ''}`}
-                  placeholder="e.g. Work Laptop"
-                  value={signUpDeviceName}
-                  onChange={(e) => setSignUpDeviceName(e.target.value)}
-                  required
-                  aria-invalid={!!fieldErrors.device}
-                />
-                {fieldErrors.device ? <span className="field-feedback error">{fieldErrors.device}</span> : <span className="auth-hint">Revocable per-device credential — losing it won’t lose your Zoop ID</span>}
-              </div>
-
-              <div className="auth-provider-toggle-box">
-                <div className="auth-provider-info">
-                  <span className="auth-provider-title">Enable Internet Sharing</span>
-                  <span className="auth-provider-desc">This device can provide connectivity to your other devices</span>
-                </div>
-                <label className="toggle" aria-label="Enable provider mode">
-                  <input type="checkbox" checked={isProvider} onChange={(e) => setIsProvider(e.target.checked)} />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-
-              <button type="submit" className="auth-submit-btn" disabled={loading || isRegistering} id="auth-signup-btn">
-                {loading || isRegistering ? (
-                  <><span className="spinner" style={{ width: 16, height: 16 }} /><span>Creating Zoop identity…</span></>
-                ) : (
-                  <><>{Icons.zap}</><span>Create Zoop ID — Free</span></>
-                )}
-              </button>
-
-              <div className="auth-switch-prompt">
-                Already have a Zoop ID?{' '}
-                <button type="button" className="auth-switch-btn" onClick={() => { setTab('signin'); setErrorMsg(null); setSuccessMsg(null); }}>
-                  Sign in
-                </button>
-              </div>
+              )}
             </form>
           )}
+
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 18 }} aria-label="Trust signals">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#34d399', display: 'inline-block' }} />WireGuard® encrypted</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#38bdf8', display: 'inline-block' }} />Ed25519 auth</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#a3e635', display: 'inline-block' }} />No tracking · MIT</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.72rem', color: '#8b9bb0' }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 50, background: '#f59e0b', display: 'inline-block' }} />PIN is 6 digits · Revocable</span>
+        {/* Minimalist Trust Indicator Bar */}
+        <div className="auth-trust-strip" aria-label="Security guarantees">
+          <span><span className="trust-dot green" /> WireGuard® encrypted</span>
+          <span><span className="trust-dot cyan" /> Ed25519 identity</span>
+          <span><span className="trust-dot orange" /> 6-digit PIN</span>
+          <span><span className="trust-dot lime" /> Zero tracking logs</span>
         </div>
 
         <footer className="auth-footer">
-          <p>End-to-end encrypted with WireGuard &amp; Ed25519 · Zero tracking logs</p>
           <div className="auth-footer-links">
-            <a href="#terms" onClick={(e) => { e.preventDefault(); onNavigate('/security'); }}>Security</a>
+            <a href="/security" onClick={(e) => { e.preventDefault(); onNavigate('/security'); }}>Security</a>
             <span>·</span>
-            <a href="#privacy" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>How It Works</a>
+            <a href="/how-it-works" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>How It Works</a>
             <span>·</span>
-            <a href="#downloads" onClick={(e) => { e.preventDefault(); onNavigate('/downloads'); }}>Downloads</a>
+            <a href="/downloads" onClick={(e) => { e.preventDefault(); onNavigate('/downloads'); }}>Downloads</a>
             <span>·</span>
             <a href="https://github.com/zoop-internet/zoop" target="_blank" rel="noreferrer">GitHub</a>
           </div>
