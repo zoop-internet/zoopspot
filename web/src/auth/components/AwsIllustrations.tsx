@@ -142,3 +142,75 @@ export const AwsRocketIllustration: React.FC<{ className?: string }> = ({ classN
     <line x1="123" y1="150" x2="115" y2="157" stroke="#38bdf8" strokeWidth="1.8" strokeLinecap="round" />
   </svg>
 );
+
+export const AwsLockMeshIllustration: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 280 200"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ width: '100%', maxWidth: '280px', height: 'auto', display: 'block' }}
+    aria-hidden="true"
+  >
+    {/* Ambient Cloud */}
+    <path
+      d="M40 70C40 62 46 55 54 55C56 46 64 40 74 40C85 40 94 47 95 58C101 58 105 62 105 69C105 75 99 80 93 80H49C43 80 40 76 40 70Z"
+      stroke="#38bdf8"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="rgba(56, 189, 248, 0.05)"
+    />
+    <path
+      d="M190 65C190 58 196 53 203 53C205 45 212 39 221 39C231 39 239 46 240 56C244 56 249 60 249 66C249 71 244 76 238 76H198C193 76 190 71 190 65Z"
+      stroke="#38bdf8"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="rgba(56, 189, 248, 0.05)"
+    />
+
+    {/* Center Shield / Lock Outline */}
+    <g stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {/* Shield Body */}
+      <path
+        d="M140 35L178 50V90C178 118 158 140 140 148C122 140 102 118 102 90V50L140 35Z"
+        fill="rgba(15, 23, 42, 0.9)"
+      />
+      {/* Inner Lock Shackle */}
+      <path
+        d="M130 75V66C130 60 134 56 140 56C146 56 150 60 150 66V75"
+        stroke="#34d399"
+        strokeWidth="2"
+      />
+      {/* Inner Lock Body */}
+      <rect x="124" y="75" width="32" height="26" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" strokeWidth="1.8" />
+      {/* Keyhole */}
+      <circle cx="140" cy="85" r="3" fill="#38bdf8" />
+      <path d="M139 88L138 94H142L141 88" fill="#38bdf8" />
+    </g>
+
+    {/* Connected Mesh Nodes around the Shield */}
+    <g stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="3 3">
+      <line x1="75" y1="85" x2="102" y2="90" />
+      <line x1="205" y1="85" x2="178" y2="90" />
+      <line x1="140" y1="148" x2="140" y2="170" />
+      <line x1="85" y1="140" x2="115" y2="132" />
+      <line x1="195" y1="140" x2="165" y2="132" />
+    </g>
+
+    {/* Outer Nodes */}
+    <circle cx="75" cy="85" r="5" fill="#0f172a" stroke="#34d399" strokeWidth="2" />
+    <circle cx="205" cy="85" r="5" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+    <circle cx="85" cy="140" r="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+    <circle cx="195" cy="140" r="4" fill="#0f172a" stroke="#34d399" strokeWidth="2" />
+    <circle cx="140" cy="170" r="5" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+
+    {/* Subtle Perspective Lines at Bottom */}
+    <path
+      d="M10 185L60 155M70 185L120 155M130 185L180 155M190 185L240 155M250 185L280 167"
+      stroke="rgba(56, 189, 248, 0.15)"
+      strokeWidth="1.4"
+    />
+  </svg>
+);

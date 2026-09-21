@@ -1,10 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { AwsSpinner } from '../components/AwsSpinner';
-import { AwsCubeHandIllustration, AwsRocketIllustration } from './components/AwsIllustrations';
+import {
+  AwsCubeHandIllustration,
+  AwsRocketIllustration,
+  AwsLockMeshIllustration,
+} from './components/AwsIllustrations';
 import './AuthPage.css';
 
 const PIN_LENGTH = 6;
+
+/* ─── 6-Box PIN Entry Component ───────────────────────────────────── */
+const PinBoxes: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  length?: number;
+  showDigits?: boolean;
+  error?: boolean;
+  disabled?: boolean;
+  idPrefix?: string;
+  describedBy?: string;
+}> = ({
+  value,
+  onChange,
+  length = PIN_LENGTH,
+  showDigits = false,
+  error = false,
+  disabled = false,
+  idPrefix = 'pin',
+  describedBy,
+}) => {
+  const hiddenRef = useRef<HTMLInputElement>(null);
+  const isComplete = value.replace(/\D/g, '').length === length;
+  const digits = value.padEnd(length, ' ').split('').slice(0, length);
+
+  const handleHiddenChange = (raw: string) => {
+    const cleaned = raw.replace(/\D/g, '').slice(0, length);
+    onChange(cleaned);
+  };
+
+  const handleBoxClick = () => hiddenRef.current?.focus();
+
+  return (
+    <div
+      className={`pin-boxes ${error ? 'pin-error' : ''} ${isComplete ? 'pin-complete' : ''}`}
+      role="group"
+      aria-label={`Zoop PIN, ${length} digits`}
+      onClick={handleBoxClick}
+    >
+      <input
+        ref={hiddenRef}
+        id={`${idPrefix}-hidden`}
+        type={showDigits ? 'text' : 'password'}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="one-time-code"
+        maxLength={length}
+        value={value}
+        onChange={(e) => handleHiddenChange(e.target.value)}
+        disabled={disabled}
+        aria-label={`Zoop PIN, ${length} digits`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className="pin-hidden-input"
+        style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
+      />
+      {Array.from({ length }).map((_, i) => {
+        const d = digits[i]?.trim() || '';
+        const isFilled = Boolean(d);
+        const isActive = value.length === i && !disabled;
+        return (
+          <div
+            key={i}
+            id={`${idPrefix}-${i}`}
+            className={`pin-box ${isFilled ? 'filled' : ''} ${isActive ? 'active' : ''} ${error ? 'error' : ''}`}
+            onClick={handleBoxClick}
+            aria-hidden="true"
+          >
+            {d ? (showDigits ? d : '•') : ''}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 interface AuthPageProps {
   initialTab?: 'signin' | 'signup';
@@ -24,6 +103,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   // Sign In Step: 1 (Identifier) -> 2 (PIN)
   const [signInStep, setSignInStep] = useState<1 | 2>(1);
+
+  // Sign Up Step: 1 (Username & Device) -> 2 (Set PIN)
+  const [signUpStep, setSignUpStep] = useState<1 | 2>(1);
 
   // Sign In fields
   const [signInIdentifier, setSignInIdentifier] = useState('');
@@ -70,7 +152,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   };
 
   /* ─── Sign In Handlers ─────────────────────────────────────────── */
-  const handleSignInNext = (e?: React.FormEvent) => {
+  const handleSignInStep1Next = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     clearErrors();
     const identifier = signInIdentifier.trim();
@@ -84,7 +166,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (signInStep === 1) {
-      handleSignInNext(e);
+      handleSignInStep1Next(e);
       return;
     }
 
@@ -108,8 +190,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   };
 
   /* ─── Sign Up Handlers ─────────────────────────────────────────── */
-  const handleSignUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignUpStep1Next = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     clearErrors();
     const errs: Record<string, string> = {};
 
@@ -120,6 +202,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       errs.username = 'Letters, numbers, . _ - only';
     }
 
+    if (!signUpDeviceName.trim()) {
+      errs.device = 'Device name is required';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setSignUpStep(2);
+  };
+
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signUpStep === 1) {
+      handleSignUpStep1Next(e);
+      return;
+    }
+
+    clearErrors();
+    const errs: Record<string, string> = {};
+
+    const username = signUpUsername.trim().replace(/^@/, '');
     const pin = signUpPin.replace(/\D/g, '');
     if (pin.length !== PIN_LENGTH) {
       errs.pin = `PIN must be ${PIN_LENGTH} digits`;
@@ -127,10 +232,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     if (signUpPin !== signUpPinConfirm) {
       errs.pinConfirm = 'PINs do not match';
-    }
-
-    if (!signUpDeviceName.trim()) {
-      errs.device = 'Device name is required';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -232,318 +333,345 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           )}
 
           {/* ═══════════════════════════════════════════════════════════════
-              VIEW 1: SIGN UP (Zoop Dark 2-Column with Minimal Illustration)
+              VIEW 1: SIGN UP (2-Column with Line Divider & Multi-Step)
              ═══════════════════════════════════════════════════════════════ */}
           {mode === 'signup' && (
-            <div className="auth-signup-layout">
+            <div className="auth-layout">
               {/* Left Column: Headline, Subtitle, Line Illustration */}
-              <div className="auth-signup-aside">
+              <div className="auth-aside">
                 <h2 className="auth-aside-headline">
-                  Share your internet directly with a new Zoop ID.
+                  Explore free peer-to-peer networking with a new Zoop ID.
                 </h2>
                 <p className="auth-aside-sub">
-                  Free for personal use with up to 5 devices. To learn more, visit{' '}
-                  <a href="/how-it-works" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>
-                    how it works
-                  </a>.
+                  Instant direct tunnels between your devices with zero middlemen. Free forever for up to 5 devices.
                 </p>
                 <div className="auth-illustration-wrap">
                   <AwsCubeHandIllustration />
                 </div>
               </div>
 
-              {/* Right Column: Clean Form */}
-              <div className="auth-signup-form-col">
-                <h1 className="auth-form-title">Sign up for Zoop</h1>
+              {/* Vertical Divider (Like AWS) */}
+              <div className="auth-divider" aria-hidden="true" />
+
+              {/* Right Column: Multi-Step Form */}
+              <div className="auth-form-col">
+                <h1 className="auth-form-title">
+                  {signUpStep === 1 ? 'Sign up for Zoop' : 'Set your security PIN'}
+                </h1>
 
                 <form onSubmit={handleSignUpSubmit} noValidate className="auth-form">
-                  {/* Username */}
-                  <div className="auth-field">
-                    <label htmlFor="auth-username">Username</label>
-                    <span className="auth-field-help">You will use this username to sign in to your new Zoop ID.</span>
-                    <input
-                      id="auth-username"
-                      type="text"
-                      className={`auth-input ${fieldErrors.username ? 'auth-input-error' : ''}`}
-                      placeholder="e.g. alex"
-                      value={signUpUsername}
-                      onChange={(e) => {
-                        setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ''));
-                        setFieldErrors((f) => ({ ...f, username: '' }));
-                      }}
-                      autoComplete="username"
-                      autoFocus
-                      required
-                    />
-                    {fieldErrors.username && (
-                      <span className="auth-error-text">{fieldErrors.username}</span>
-                    )}
-                  </div>
+                  {/* Step 1: Username & Device Name */}
+                  {signUpStep === 1 && (
+                    <>
+                      <div className="auth-field">
+                        <label htmlFor="auth-username">Username</label>
+                        <span className="auth-field-help">Choose a permanent handle for your direct mesh.</span>
+                        <input
+                          id="auth-username"
+                          type="text"
+                          className={`auth-input ${fieldErrors.username ? 'auth-input-error' : ''}`}
+                          placeholder="e.g. alex"
+                          value={signUpUsername}
+                          onChange={(e) => {
+                            setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ''));
+                            setFieldErrors((f) => ({ ...f, username: '' }));
+                          }}
+                          autoComplete="username"
+                          autoFocus
+                          required
+                        />
+                        {fieldErrors.username && (
+                          <span className="auth-error-text">{fieldErrors.username}</span>
+                        )}
+                      </div>
 
-                  {/* Password / PIN */}
-                  <div className="auth-field">
-                    <div className="auth-label-row">
-                      <label htmlFor="auth-pin">Security PIN (6 digits)</label>
-                      <button
-                        type="button"
-                        className="auth-link-toggle"
-                        onClick={() => setShowSignUpPin(!showSignUpPin)}
-                      >
-                        {showSignUpPin ? 'Hide' : 'Show'}
+                      <div className="auth-field">
+                        <label htmlFor="auth-device-name">Device name</label>
+                        <span className="auth-field-help">Choose a name for this device.</span>
+                        <input
+                          id="auth-device-name"
+                          type="text"
+                          className={`auth-input ${fieldErrors.device ? 'auth-input-error' : ''}`}
+                          value={signUpDeviceName}
+                          onChange={(e) => {
+                            setSignUpDeviceName(e.target.value);
+                            setFieldErrors((f) => ({ ...f, device: '' }));
+                          }}
+                          required
+                        />
+                        {fieldErrors.device && (
+                          <span className="auth-error-text">{fieldErrors.device}</span>
+                        )}
+                      </div>
+
+                      <button type="submit" className="auth-btn-primary">
+                        Continue (step 1 of 2)
                       </button>
-                    </div>
-                    <span className="auth-field-help">Choose a 6-digit numeric PIN to protect this device.</span>
-                    <input
-                      id="auth-pin"
-                      type={showSignUpPin ? 'text' : 'password'}
-                      inputMode="numeric"
-                      maxLength={PIN_LENGTH}
-                      className={`auth-input ${fieldErrors.pin ? 'auth-input-error' : ''}`}
-                      placeholder="••••••"
-                      value={signUpPin}
-                      onChange={(e) => {
-                        setSignUpPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                        setFieldErrors((f) => ({ ...f, pin: '' }));
-                      }}
-                      autoComplete="new-password"
-                      required
-                    />
-                    {fieldErrors.pin && <span className="auth-error-text">{fieldErrors.pin}</span>}
-                  </div>
 
-                  {/* Confirm Password / PIN */}
-                  <div className="auth-field">
-                    <label htmlFor="auth-pin-confirm">Confirm PIN</label>
-                    <input
-                      id="auth-pin-confirm"
-                      type={showSignUpPin ? 'text' : 'password'}
-                      inputMode="numeric"
-                      maxLength={PIN_LENGTH}
-                      className={`auth-input ${fieldErrors.pinConfirm ? 'auth-input-error' : ''}`}
-                      placeholder="••••••"
-                      value={signUpPinConfirm}
-                      onChange={(e) => {
-                        setSignUpPinConfirm(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                        setFieldErrors((f) => ({ ...f, pinConfirm: '' }));
-                      }}
-                      autoComplete="new-password"
-                      required
-                    />
-                    {fieldErrors.pinConfirm && (
-                      <span className="auth-error-text">{fieldErrors.pinConfirm}</span>
-                    )}
-                  </div>
+                      <div className="auth-bottom-link-row">
+                        <button
+                          type="button"
+                          className="auth-text-link"
+                          onClick={() => {
+                            clearErrors();
+                            setMode('signin');
+                            setSignInStep(1);
+                          }}
+                        >
+                          Sign in to an existing Zoop ID
+                        </button>
+                      </div>
+                    </>
+                  )}
 
-                  {/* Device Name */}
-                  <div className="auth-field">
-                    <label htmlFor="auth-device-name">Device name</label>
-                    <span className="auth-field-help">
-                      Choose a name for your device. You can change this in settings later.
-                    </span>
-                    <input
-                      id="auth-device-name"
-                      type="text"
-                      className={`auth-input ${fieldErrors.device ? 'auth-input-error' : ''}`}
-                      value={signUpDeviceName}
-                      onChange={(e) => {
-                        setSignUpDeviceName(e.target.value);
-                        setFieldErrors((f) => ({ ...f, device: '' }));
-                      }}
-                      required
-                    />
-                    {fieldErrors.device && (
-                      <span className="auth-error-text">{fieldErrors.device}</span>
-                    )}
-                  </div>
+                  {/* Step 2: 6-Digit PIN Boxes */}
+                  {signUpStep === 2 && (
+                    <>
+                      <div className="auth-field">
+                        <div className="auth-label-row">
+                          <label>Security PIN (6 digits)</label>
+                          <button
+                            type="button"
+                            className="auth-link-toggle"
+                            onClick={() => setShowSignUpPin(!showSignUpPin)}
+                          >
+                            {showSignUpPin ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                        <span className="auth-field-help">Choose a 6-digit numeric PIN to protect this device.</span>
+                        <PinBoxes
+                          value={signUpPin}
+                          onChange={(v) => {
+                            setSignUpPin(v);
+                            setFieldErrors((f) => ({ ...f, pin: '' }));
+                          }}
+                          showDigits={showSignUpPin}
+                          error={!!fieldErrors.pin}
+                          idPrefix="signup-pin"
+                        />
+                        {fieldErrors.pin && <span className="auth-error-text">{fieldErrors.pin}</span>}
+                      </div>
 
-                  {/* Action Button */}
-                  <button
-                    type="submit"
-                    className="auth-btn-primary"
-                    disabled={loading || isRegistering}
-                  >
-                    {loading || isRegistering ? (
-                      <>
-                        <AwsSpinner size={16} variant="inverted" />
-                        <span>Creating Zoop ID…</span>
-                      </>
-                    ) : (
-                      <span>Create Zoop ID — Free</span>
-                    )}
-                  </button>
+                      <div className="auth-field">
+                        <label>Confirm PIN</label>
+                        <PinBoxes
+                          value={signUpPinConfirm}
+                          onChange={(v) => {
+                            setSignUpPinConfirm(v);
+                            setFieldErrors((f) => ({ ...f, pinConfirm: '' }));
+                          }}
+                          showDigits={showSignUpPin}
+                          error={!!fieldErrors.pinConfirm}
+                          idPrefix="signup-pin-confirm"
+                        />
+                        {fieldErrors.pinConfirm && (
+                          <span className="auth-error-text">{fieldErrors.pinConfirm}</span>
+                        )}
+                      </div>
 
-                  {/* Bottom Switch Link */}
-                  <div className="auth-bottom-link-row">
-                    <button
-                      type="button"
-                      className="auth-text-link"
-                      onClick={() => {
-                        clearErrors();
-                        setMode('signin');
-                        setSignInStep(1);
-                      }}
-                    >
-                      Sign in to an existing Zoop ID
-                    </button>
-                  </div>
+                      <button
+                        type="submit"
+                        className="auth-btn-primary"
+                        disabled={loading || isRegistering}
+                      >
+                        {loading || isRegistering ? (
+                          <>
+                            <AwsSpinner size={16} variant="inverted" />
+                            <span>Creating Zoop ID…</span>
+                          </>
+                        ) : (
+                          <span>Create Zoop ID — Free</span>
+                        )}
+                      </button>
+
+                      <div className="auth-bottom-link-row">
+                        <button
+                          type="button"
+                          className="auth-text-link"
+                          onClick={() => {
+                            clearErrors();
+                            setSignUpStep(1);
+                          }}
+                        >
+                          ← Back to username
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </form>
               </div>
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════════════════
-              VIEW 2: SIGN IN (Zoop Centered Layout)
+              VIEW 2: SIGN IN (2-Column with Line Divider & PinBoxes)
              ═══════════════════════════════════════════════════════════════ */}
           {mode === 'signin' && (
-            <div className="auth-signin-layout">
-              <h1 className="auth-form-title">Sign in to Zoop</h1>
+            <div className="auth-layout">
+              {/* Left Column: Sign In Headline & Lock Illustration */}
+              <div className="auth-aside">
+                <h2 className="auth-aside-headline">
+                  Sign in to your private mesh.
+                </h2>
+                <p className="auth-aside-sub">
+                  Access your connected devices, shared bandwidth, and peer network from any browser.
+                </p>
+                <div className="auth-illustration-wrap">
+                  <AwsLockMeshIllustration />
+                </div>
+              </div>
 
-              <form onSubmit={handleSignInSubmit} noValidate className="auth-form">
-                {/* Step 1: Identifier */}
-                {signInStep === 1 && (
-                  <>
-                    <div className="auth-field">
-                      <label htmlFor="auth-signin-id">Zoop ID or Username</label>
-                      <span className="auth-field-help">Enter your @username or Zoop ID.</span>
-                      <input
-                        id="auth-signin-id"
-                        type="text"
-                        className={`auth-input ${fieldErrors.identifier ? 'auth-input-error' : ''}`}
-                        placeholder="e.g. alex or ZP-7K4M9X"
-                        value={signInIdentifier}
-                        onChange={(e) => {
-                          setSignInIdentifier(e.target.value);
-                          setFieldErrors({});
-                        }}
-                        autoComplete="username"
-                        autoFocus
-                        required
-                      />
-                      {fieldErrors.identifier && (
-                        <span className="auth-error-text">{fieldErrors.identifier}</span>
-                      )}
-                    </div>
+              {/* Vertical Divider (Like AWS) */}
+              <div className="auth-divider" aria-hidden="true" />
 
-                    <button type="submit" className="auth-btn-primary">
-                      Continue
-                    </button>
+              {/* Right Column: Sign In Form */}
+              <div className="auth-form-col">
+                <h1 className="auth-form-title">
+                  {signInStep === 1 ? 'Sign in to Zoop' : 'Enter your PIN'}
+                </h1>
 
-                    <div className="auth-bottom-link-row">
-                      <button
-                        type="button"
-                        className="auth-text-link"
-                        onClick={() => {
-                          clearErrors();
-                          setMode('signup');
-                        }}
-                      >
-                        New to Zoop? Create a Zoop ID
+                <form onSubmit={handleSignInSubmit} noValidate className="auth-form">
+                  {/* Step 1: Identifier */}
+                  {signInStep === 1 && (
+                    <>
+                      <div className="auth-field">
+                        <label htmlFor="auth-signin-id">Zoop ID or Username</label>
+                        <span className="auth-field-help">Enter your @username or Zoop ID.</span>
+                        <input
+                          id="auth-signin-id"
+                          type="text"
+                          className={`auth-input ${fieldErrors.identifier ? 'auth-input-error' : ''}`}
+                          placeholder="e.g. alex or ZP-7K4M9X"
+                          value={signInIdentifier}
+                          onChange={(e) => {
+                            setSignInIdentifier(e.target.value);
+                            setFieldErrors({});
+                          }}
+                          autoComplete="username"
+                          autoFocus
+                          required
+                        />
+                        {fieldErrors.identifier && (
+                          <span className="auth-error-text">{fieldErrors.identifier}</span>
+                        )}
+                      </div>
+
+                      <button type="submit" className="auth-btn-primary">
+                        Continue
                       </button>
-                    </div>
 
-                    <div className="auth-bottom-secondary-row">
-                      <button
-                        type="button"
-                        className="auth-sub-link"
-                        onClick={handleDemoAccess}
-                      >
-                        Try demo access
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Step 2: PIN */}
-                {signInStep === 2 && (
-                  <>
-                    {/* Identity Chip */}
-                    <div className="auth-identity-chip">
-                      <span className="auth-identity-text">{signInIdentifier}</span>
-                      <button
-                        type="button"
-                        className="auth-identity-change"
-                        onClick={() => {
-                          clearErrors();
-                          setSignInStep(1);
-                        }}
-                      >
-                        Change
-                      </button>
-                    </div>
-
-                    <div className="auth-field">
-                      <div className="auth-label-row">
-                        <label htmlFor="auth-signin-pin">Security PIN</label>
+                      <div className="auth-bottom-link-row">
                         <button
                           type="button"
-                          className="auth-link-toggle"
-                          onClick={() => setShowSignInPin(!showSignInPin)}
+                          className="auth-text-link"
+                          onClick={() => {
+                            clearErrors();
+                            setMode('signup');
+                            setSignUpStep(1);
+                          }}
                         >
-                          {showSignInPin ? 'Hide' : 'Show'}
+                          New to Zoop? Create a Zoop ID
                         </button>
                       </div>
-                      <input
-                        id="auth-signin-pin"
-                        type={showSignInPin ? 'text' : 'password'}
-                        inputMode="numeric"
-                        maxLength={PIN_LENGTH}
-                        className={`auth-input ${fieldErrors.pin ? 'auth-input-error' : ''}`}
-                        placeholder="••••••"
-                        value={signInPin}
-                        onChange={(e) => {
-                          setSignInPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                          setFieldErrors({});
-                        }}
-                        autoComplete="current-password"
-                        autoFocus
-                        required
-                      />
-                      {fieldErrors.pin && (
-                        <span className="auth-error-text">{fieldErrors.pin}</span>
-                      )}
-                    </div>
 
-                    <div className="auth-checkbox-row">
-                      <label className="auth-checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
+                      <div className="auth-bottom-secondary-row">
+                        <button
+                          type="button"
+                          className="auth-sub-link"
+                          onClick={handleDemoAccess}
+                        >
+                          Try demo access
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Step 2: 6-Digit PIN Boxes */}
+                  {signInStep === 2 && (
+                    <>
+                      {/* Identity Chip */}
+                      <div className="auth-identity-chip">
+                        <span className="auth-identity-text">{signInIdentifier}</span>
+                        <button
+                          type="button"
+                          className="auth-identity-change"
+                          onClick={() => {
+                            clearErrors();
+                            setSignInStep(1);
+                          }}
+                        >
+                          Change
+                        </button>
+                      </div>
+
+                      <div className="auth-field">
+                        <div className="auth-label-row">
+                          <label>Security PIN (6 digits)</label>
+                          <button
+                            type="button"
+                            className="auth-link-toggle"
+                            onClick={() => setShowSignInPin(!showSignInPin)}
+                          >
+                            {showSignInPin ? 'Hide' : 'Show'}
+                          </button>
+                        </div>
+                        <PinBoxes
+                          value={signInPin}
+                          onChange={(v) => {
+                            setSignInPin(v);
+                            setFieldErrors({});
+                          }}
+                          showDigits={showSignInPin}
+                          error={!!fieldErrors.pin}
+                          idPrefix="signin-pin"
                         />
-                        <span>Keep me signed in</span>
-                      </label>
-                    </div>
+                        {fieldErrors.pin && (
+                          <span className="auth-error-text">{fieldErrors.pin}</span>
+                        )}
+                      </div>
 
-                    <button
-                      type="submit"
-                      className="auth-btn-primary"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                          <AwsSpinner size={16} variant="inverted" />
-                          <span>Signing in…</span>
-                        </>
-                      ) : (
-                        <span>Sign In</span>
-                      )}
-                    </button>
+                      <div className="auth-checkbox-row">
+                        <label className="auth-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                          />
+                          <span>Keep me signed in</span>
+                        </label>
+                      </div>
 
-                    <div className="auth-bottom-link-row">
                       <button
-                        type="button"
-                        className="auth-text-link"
-                        onClick={() => {
-                          clearErrors();
-                          setSignInStep(1);
-                        }}
+                        type="submit"
+                        className="auth-btn-primary"
+                        disabled={loading}
                       >
-                        Back
+                        {loading ? (
+                          <>
+                            <AwsSpinner size={16} variant="inverted" />
+                            <span>Signing in…</span>
+                          </>
+                        ) : (
+                          <span>Sign In</span>
+                        )}
                       </button>
-                    </div>
-                  </>
-                )}
-              </form>
+
+                      <div className="auth-bottom-link-row">
+                        <button
+                          type="button"
+                          className="auth-text-link"
+                          onClick={() => {
+                            clearErrors();
+                            setSignInStep(1);
+                          }}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </form>
+              </div>
             </div>
           )}
 
