@@ -40,6 +40,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   // Status & errors
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +65,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const clearErrors = () => {
     setErrorMsg(null);
+    setSuccessMsg(null);
     setFieldErrors({});
   };
 
@@ -96,7 +98,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setLoading(true);
     try {
       await login(signInIdentifier.trim(), pin, rememberMe);
-      onNavigate(redirectUrl);
+      setSuccessMsg('Signed in! Redirecting…');
+      setTimeout(() => onNavigate(redirectUrl), 350);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign in failed. Check your ID and PIN.');
     } finally {
@@ -138,7 +141,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setLoading(true);
     try {
       await signup(username, pin, undefined, signUpDeviceName.trim(), false);
-      setMode('congratulations');
+      setSuccessMsg('Zoop ID created! Redirecting…');
+      setTimeout(() => onNavigate(redirectUrl), 400);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign up failed. Please try another username.');
     } finally {
@@ -153,7 +157,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       const demoPin = '123456';
       const demoUser = `demo${Math.floor(1000 + Math.random() * 9000)}`;
       await signup(demoUser, demoPin, 'Demo User', 'Demo Device', false);
-      onNavigate(redirectUrl);
+      setSuccessMsg('Demo access ready! Redirecting…');
+      setTimeout(() => onNavigate(redirectUrl), 350);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Demo sign in failed.');
     } finally {
@@ -162,80 +167,104 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   };
 
   return (
-    <div className="aws-auth-page">
+    <div className="auth-shell">
       <a href="#main-content" className="skip-link">Skip to main content</a>
 
-      <div className="aws-auth-container">
-        {/* Top Header with Centered Logo */}
-        <header className="aws-auth-header">
-        <a
-          href="/"
-          className="aws-brand-link"
-          onClick={(e) => {
-            e.preventDefault();
-            onNavigate('/');
-          }}
-          aria-label="Zoop Network — Homepage"
-        >
-          <img
-            src="/zoopicon-32.webp"
-            srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x"
-            alt="Zoop"
-            width={36}
-            height={36}
-            className="aws-brand-icon"
-          />
-          <span className="aws-brand-text">zoop</span>
-        </a>
-      </header>
-
-      {/* Main Content Area — Completely open canvas (no card box!) */}
-      <main id="main-content" className="aws-auth-main">
-        
-        {/* Error Alert Box if any */}
-        {errorMsg && (
-          <div className="aws-alert aws-alert-error" role="alert">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════
-            VIEW 1: SIGN UP (AWS 2-Column with Minimal Line-Art Illustration)
-           ═══════════════════════════════════════════════════════════════ */}
-        {mode === 'signup' && (
-          <div className="aws-signup-layout">
-            {/* Left Column: Headline, Subtitle, Line Illustration */}
-            <div className="aws-signup-aside">
-              <h2 className="aws-aside-headline">
-                Explore free peer-to-peer mesh networking with a new Zoop ID.
-              </h2>
-              <p className="aws-aside-sub">
-                To learn more, visit <a href="/how-it-works" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>zoopnetwork.app/how-it-works</a>.
-              </p>
-              <div className="aws-illustration-wrap">
-                <AwsCubeHandIllustration />
-              </div>
+      <div className="auth-container">
+        {/* Zoop Authentic Brand Header */}
+        <header className="auth-topbar">
+          <a
+            href="/"
+            className="auth-brand"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('/');
+            }}
+            aria-label="Zoop Network — Homepage"
+          >
+            <div className="auth-brand-logo">
+              <img
+                src="/zoopicon-32.webp"
+                srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x"
+                alt="Zoop"
+                width={28}
+                height={28}
+              />
             </div>
+            <span className="auth-brand-name">Zoop</span>
+            <span className="auth-brand-tag">Network</span>
+          </a>
 
-            {/* Right Column: Clean Form (directly on page, no card border) */}
-            <div className="aws-signup-form-col">
-              <h1 className="aws-form-title">Sign up for Zoop</h1>
+          <a
+            href="/"
+            className="auth-back-link"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('/');
+            }}
+          >
+            <span>← Back to Overview</span>
+          </a>
+        </header>
 
-              <form onSubmit={handleSignUpSubmit} noValidate className="aws-form">
-                {/* Username */}
-                <div className="aws-field">
-                  <label htmlFor="aws-username">Username</label>
-                  <span className="aws-field-help">You will use this username to sign in to your new Zoop ID.</span>
-                  <div className="aws-input-wrap">
+        {/* Main Content Area — Balanced in the middle */}
+        <main id="main-content" className="auth-main">
+          
+          {/* Status Alert Boxes */}
+          {errorMsg && (
+            <div className="auth-alert auth-alert-error" role="alert">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="auth-alert auth-alert-success" role="status">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+              VIEW 1: SIGN UP (Zoop Dark 2-Column with Minimal Illustration)
+             ═══════════════════════════════════════════════════════════════ */}
+          {mode === 'signup' && (
+            <div className="auth-signup-layout">
+              {/* Left Column: Headline, Subtitle, Line Illustration */}
+              <div className="auth-signup-aside">
+                <h2 className="auth-aside-headline">
+                  Share your internet directly with a new Zoop ID.
+                </h2>
+                <p className="auth-aside-sub">
+                  Free for personal use with up to 5 devices. To learn more, visit{' '}
+                  <a href="/how-it-works" onClick={(e) => { e.preventDefault(); onNavigate('/how-it-works'); }}>
+                    how it works
+                  </a>.
+                </p>
+                <div className="auth-illustration-wrap">
+                  <AwsCubeHandIllustration />
+                </div>
+              </div>
+
+              {/* Right Column: Clean Form */}
+              <div className="auth-signup-form-col">
+                <h1 className="auth-form-title">Sign up for Zoop</h1>
+
+                <form onSubmit={handleSignUpSubmit} noValidate className="auth-form">
+                  {/* Username */}
+                  <div className="auth-field">
+                    <label htmlFor="auth-username">Username</label>
+                    <span className="auth-field-help">You will use this username to sign in to your new Zoop ID.</span>
                     <input
-                      id="aws-username"
+                      id="auth-username"
                       type="text"
-                      className={`aws-input ${fieldErrors.username ? 'aws-input-error' : ''}`}
+                      className={`auth-input ${fieldErrors.username ? 'auth-input-error' : ''}`}
                       placeholder="e.g. alex"
                       value={signUpUsername}
                       onChange={(e) => {
@@ -246,316 +275,315 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       autoFocus
                       required
                     />
-                  </div>
-                  {fieldErrors.username && (
-                    <span className="aws-error-text">{fieldErrors.username}</span>
-                  )}
-                </div>
-
-                {/* Password / PIN */}
-                <div className="aws-field">
-                  <div className="aws-label-row">
-                    <label htmlFor="aws-pin">Security PIN (6 digits)</label>
-                    <button
-                      type="button"
-                      className="aws-link-toggle"
-                      onClick={() => setShowSignUpPin(!showSignUpPin)}
-                    >
-                      {showSignUpPin ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                  <span className="aws-field-help">Choose a 6-digit numeric PIN to protect this device.</span>
-                  <input
-                    id="aws-pin"
-                    type={showSignUpPin ? 'text' : 'password'}
-                    inputMode="numeric"
-                    maxLength={PIN_LENGTH}
-                    className={`aws-input ${fieldErrors.pin ? 'aws-input-error' : ''}`}
-                    placeholder="••••••"
-                    value={signUpPin}
-                    onChange={(e) => {
-                      setSignUpPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                      setFieldErrors((f) => ({ ...f, pin: '' }));
-                    }}
-                    autoComplete="new-password"
-                    required
-                  />
-                  {fieldErrors.pin && <span className="aws-error-text">{fieldErrors.pin}</span>}
-                </div>
-
-                {/* Confirm Password / PIN */}
-                <div className="aws-field">
-                  <label htmlFor="aws-pin-confirm">Confirm PIN</label>
-                  <input
-                    id="aws-pin-confirm"
-                    type={showSignUpPin ? 'text' : 'password'}
-                    inputMode="numeric"
-                    maxLength={PIN_LENGTH}
-                    className={`aws-input ${fieldErrors.pinConfirm ? 'aws-input-error' : ''}`}
-                    placeholder="••••••"
-                    value={signUpPinConfirm}
-                    onChange={(e) => {
-                      setSignUpPinConfirm(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                      setFieldErrors((f) => ({ ...f, pinConfirm: '' }));
-                    }}
-                    autoComplete="new-password"
-                    required
-                  />
-                  {fieldErrors.pinConfirm && (
-                    <span className="aws-error-text">{fieldErrors.pinConfirm}</span>
-                  )}
-                </div>
-
-                {/* Device Name */}
-                <div className="aws-field">
-                  <label htmlFor="aws-device-name">Device name</label>
-                  <span className="aws-field-help">
-                    Choose a name for your device. You can change this name in your device settings after you sign up.
-                  </span>
-                  <input
-                    id="aws-device-name"
-                    type="text"
-                    className={`aws-input ${fieldErrors.device ? 'aws-input-error' : ''}`}
-                    value={signUpDeviceName}
-                    onChange={(e) => {
-                      setSignUpDeviceName(e.target.value);
-                      setFieldErrors((f) => ({ ...f, device: '' }));
-                    }}
-                    required
-                  />
-                  {fieldErrors.device && (
-                    <span className="aws-error-text">{fieldErrors.device}</span>
-                  )}
-                </div>
-
-                {/* Signature AWS Orange CTA Button */}
-                <button
-                  type="submit"
-                  className="aws-btn-orange"
-                  disabled={loading || isRegistering}
-                >
-                  {loading || isRegistering ? (
-                    <>
-                      <AwsSpinner size={16} variant="inverted" />
-                      <span>Creating account…</span>
-                    </>
-                  ) : (
-                    <span>Continue (step 1 of 2)</span>
-                  )}
-                </button>
-
-                {/* Bottom Switch Link */}
-                <div className="aws-bottom-link-row">
-                  <button
-                    type="button"
-                    className="aws-text-link"
-                    onClick={() => {
-                      clearErrors();
-                      setMode('signin');
-                      setSignInStep(1);
-                    }}
-                  >
-                    Sign in to an existing Zoop ID
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════
-            VIEW 2: SIGN IN (AWS Centered Layout, No Card Box)
-           ═══════════════════════════════════════════════════════════════ */}
-        {mode === 'signin' && (
-          <div className="aws-signin-layout">
-            <h1 className="aws-form-title">Sign in</h1>
-
-            <form onSubmit={handleSignInSubmit} noValidate className="aws-form">
-              {/* Step 1: Identifier */}
-              {signInStep === 1 && (
-                <>
-                  <div className="aws-field">
-                    <label htmlFor="aws-signin-id">Zoop ID or Username</label>
-                    <span className="aws-field-help">Enter your @username or Zoop ID.</span>
-                    <input
-                      id="aws-signin-id"
-                      type="text"
-                      className={`aws-input ${fieldErrors.identifier ? 'aws-input-error' : ''}`}
-                      placeholder="e.g. alex or ZP-7K4M9X"
-                      value={signInIdentifier}
-                      onChange={(e) => {
-                        setSignInIdentifier(e.target.value);
-                        setFieldErrors({});
-                      }}
-                      autoComplete="username"
-                      autoFocus
-                      required
-                    />
-                    {fieldErrors.identifier && (
-                      <span className="aws-error-text">{fieldErrors.identifier}</span>
+                    {fieldErrors.username && (
+                      <span className="auth-error-text">{fieldErrors.username}</span>
                     )}
                   </div>
 
-                  <button type="submit" className="aws-btn-orange">
-                    Continue
-                  </button>
-
-                  <div className="aws-bottom-link-row">
-                    <button
-                      type="button"
-                      className="aws-text-link"
-                      onClick={() => {
-                        clearErrors();
-                        setMode('signup');
-                      }}
-                    >
-                      New to Zoop? Create a Zoop ID
-                    </button>
-                  </div>
-
-                  <div className="aws-bottom-secondary-row">
-                    <button
-                      type="button"
-                      className="aws-sub-link"
-                      onClick={handleDemoAccess}
-                    >
-                      Try demo access
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Step 2: PIN */}
-              {signInStep === 2 && (
-                <>
-                  {/* Identity Chip */}
-                  <div className="aws-identity-chip">
-                    <span className="aws-identity-text">{signInIdentifier}</span>
-                    <button
-                      type="button"
-                      className="aws-identity-change"
-                      onClick={() => {
-                        clearErrors();
-                        setSignInStep(1);
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-
-                  <div className="aws-field">
-                    <div className="aws-label-row">
-                      <label htmlFor="aws-signin-pin">Security PIN</label>
+                  {/* Password / PIN */}
+                  <div className="auth-field">
+                    <div className="auth-label-row">
+                      <label htmlFor="auth-pin">Security PIN (6 digits)</label>
                       <button
                         type="button"
-                        className="aws-link-toggle"
-                        onClick={() => setShowSignInPin(!showSignInPin)}
+                        className="auth-link-toggle"
+                        onClick={() => setShowSignUpPin(!showSignUpPin)}
                       >
-                        {showSignInPin ? 'Hide' : 'Show'}
+                        {showSignUpPin ? 'Hide' : 'Show'}
                       </button>
                     </div>
+                    <span className="auth-field-help">Choose a 6-digit numeric PIN to protect this device.</span>
                     <input
-                      id="aws-signin-pin"
-                      type={showSignInPin ? 'text' : 'password'}
+                      id="auth-pin"
+                      type={showSignUpPin ? 'text' : 'password'}
                       inputMode="numeric"
                       maxLength={PIN_LENGTH}
-                      className={`aws-input ${fieldErrors.pin ? 'aws-input-error' : ''}`}
+                      className={`auth-input ${fieldErrors.pin ? 'auth-input-error' : ''}`}
                       placeholder="••••••"
-                      value={signInPin}
+                      value={signUpPin}
                       onChange={(e) => {
-                        setSignInPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
-                        setFieldErrors({});
+                        setSignUpPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
+                        setFieldErrors((f) => ({ ...f, pin: '' }));
                       }}
-                      autoComplete="current-password"
-                      autoFocus
+                      autoComplete="new-password"
                       required
                     />
-                    {fieldErrors.pin && (
-                      <span className="aws-error-text">{fieldErrors.pin}</span>
+                    {fieldErrors.pin && <span className="auth-error-text">{fieldErrors.pin}</span>}
+                  </div>
+
+                  {/* Confirm Password / PIN */}
+                  <div className="auth-field">
+                    <label htmlFor="auth-pin-confirm">Confirm PIN</label>
+                    <input
+                      id="auth-pin-confirm"
+                      type={showSignUpPin ? 'text' : 'password'}
+                      inputMode="numeric"
+                      maxLength={PIN_LENGTH}
+                      className={`auth-input ${fieldErrors.pinConfirm ? 'auth-input-error' : ''}`}
+                      placeholder="••••••"
+                      value={signUpPinConfirm}
+                      onChange={(e) => {
+                        setSignUpPinConfirm(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
+                        setFieldErrors((f) => ({ ...f, pinConfirm: '' }));
+                      }}
+                      autoComplete="new-password"
+                      required
+                    />
+                    {fieldErrors.pinConfirm && (
+                      <span className="auth-error-text">{fieldErrors.pinConfirm}</span>
                     )}
                   </div>
 
-                  <div className="aws-checkbox-row">
-                    <label className="aws-checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                      />
-                      <span>Keep me signed in</span>
-                    </label>
+                  {/* Device Name */}
+                  <div className="auth-field">
+                    <label htmlFor="auth-device-name">Device name</label>
+                    <span className="auth-field-help">
+                      Choose a name for your device. You can change this in settings later.
+                    </span>
+                    <input
+                      id="auth-device-name"
+                      type="text"
+                      className={`auth-input ${fieldErrors.device ? 'auth-input-error' : ''}`}
+                      value={signUpDeviceName}
+                      onChange={(e) => {
+                        setSignUpDeviceName(e.target.value);
+                        setFieldErrors((f) => ({ ...f, device: '' }));
+                      }}
+                      required
+                    />
+                    {fieldErrors.device && (
+                      <span className="auth-error-text">{fieldErrors.device}</span>
+                    )}
                   </div>
 
+                  {/* Action Button */}
                   <button
                     type="submit"
-                    className="aws-btn-orange"
-                    disabled={loading}
+                    className="auth-btn-primary"
+                    disabled={loading || isRegistering}
                   >
-                    {loading ? (
+                    {loading || isRegistering ? (
                       <>
                         <AwsSpinner size={16} variant="inverted" />
-                        <span>Signing in…</span>
+                        <span>Creating Zoop ID…</span>
                       </>
                     ) : (
-                      <span>Sign in</span>
+                      <span>Create Zoop ID — Free</span>
                     )}
                   </button>
 
-                  <div className="aws-bottom-link-row">
+                  {/* Bottom Switch Link */}
+                  <div className="auth-bottom-link-row">
                     <button
                       type="button"
-                      className="aws-text-link"
+                      className="auth-text-link"
                       onClick={() => {
                         clearErrors();
+                        setMode('signin');
                         setSignInStep(1);
                       }}
                     >
-                      Back
+                      Sign in to an existing Zoop ID
                     </button>
                   </div>
-                </>
-              )}
-            </form>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════
-            VIEW 3: CONGRATULATIONS / SUCCESS (Matches AWS Screenshot 2)
-           ═══════════════════════════════════════════════════════════════ */}
-        {mode === 'congratulations' && (
-          <div className="aws-congrats-layout">
-            <div className="aws-congrats-illustration">
-              <AwsRocketIllustration />
+                </form>
+              </div>
             </div>
+          )}
 
-            <h1 className="aws-congrats-title">Congratulations</h1>
-            <p className="aws-congrats-sub">
-              Thank you for signing up for Zoop. Your peer-to-peer mesh identity is active and ready.
-            </p>
+          {/* ═══════════════════════════════════════════════════════════════
+              VIEW 2: SIGN IN (Zoop Centered Layout)
+             ═══════════════════════════════════════════════════════════════ */}
+          {mode === 'signin' && (
+            <div className="auth-signin-layout">
+              <h1 className="auth-form-title">Sign in to Zoop</h1>
 
-            <button
-              type="button"
-              className="aws-btn-orange aws-btn-congrats"
-              onClick={() => onNavigate(redirectUrl)}
-            >
-              Go to Zoop Console
-            </button>
+              <form onSubmit={handleSignInSubmit} noValidate className="auth-form">
+                {/* Step 1: Identifier */}
+                {signInStep === 1 && (
+                  <>
+                    <div className="auth-field">
+                      <label htmlFor="auth-signin-id">Zoop ID or Username</label>
+                      <span className="auth-field-help">Enter your @username or Zoop ID.</span>
+                      <input
+                        id="auth-signin-id"
+                        type="text"
+                        className={`auth-input ${fieldErrors.identifier ? 'auth-input-error' : ''}`}
+                        placeholder="e.g. alex or ZP-7K4M9X"
+                        value={signInIdentifier}
+                        onChange={(e) => {
+                          setSignInIdentifier(e.target.value);
+                          setFieldErrors({});
+                        }}
+                        autoComplete="username"
+                        autoFocus
+                        required
+                      />
+                      {fieldErrors.identifier && (
+                        <span className="auth-error-text">{fieldErrors.identifier}</span>
+                      )}
+                    </div>
 
-            <div className="aws-bottom-link-row">
+                    <button type="submit" className="auth-btn-primary">
+                      Continue
+                    </button>
+
+                    <div className="auth-bottom-link-row">
+                      <button
+                        type="button"
+                        className="auth-text-link"
+                        onClick={() => {
+                          clearErrors();
+                          setMode('signup');
+                        }}
+                      >
+                        New to Zoop? Create a Zoop ID
+                      </button>
+                    </div>
+
+                    <div className="auth-bottom-secondary-row">
+                      <button
+                        type="button"
+                        className="auth-sub-link"
+                        onClick={handleDemoAccess}
+                      >
+                        Try demo access
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Step 2: PIN */}
+                {signInStep === 2 && (
+                  <>
+                    {/* Identity Chip */}
+                    <div className="auth-identity-chip">
+                      <span className="auth-identity-text">{signInIdentifier}</span>
+                      <button
+                        type="button"
+                        className="auth-identity-change"
+                        onClick={() => {
+                          clearErrors();
+                          setSignInStep(1);
+                        }}
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <div className="auth-field">
+                      <div className="auth-label-row">
+                        <label htmlFor="auth-signin-pin">Security PIN</label>
+                        <button
+                          type="button"
+                          className="auth-link-toggle"
+                          onClick={() => setShowSignInPin(!showSignInPin)}
+                        >
+                          {showSignInPin ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                      <input
+                        id="auth-signin-pin"
+                        type={showSignInPin ? 'text' : 'password'}
+                        inputMode="numeric"
+                        maxLength={PIN_LENGTH}
+                        className={`auth-input ${fieldErrors.pin ? 'auth-input-error' : ''}`}
+                        placeholder="••••••"
+                        value={signInPin}
+                        onChange={(e) => {
+                          setSignInPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH));
+                          setFieldErrors({});
+                        }}
+                        autoComplete="current-password"
+                        autoFocus
+                        required
+                      />
+                      {fieldErrors.pin && (
+                        <span className="auth-error-text">{fieldErrors.pin}</span>
+                      )}
+                    </div>
+
+                    <div className="auth-checkbox-row">
+                      <label className="auth-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                        />
+                        <span>Keep me signed in</span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="auth-btn-primary"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                          <AwsSpinner size={16} variant="inverted" />
+                          <span>Signing in…</span>
+                        </>
+                      ) : (
+                        <span>Sign In</span>
+                      )}
+                    </button>
+
+                    <div className="auth-bottom-link-row">
+                      <button
+                        type="button"
+                        className="auth-text-link"
+                        onClick={() => {
+                          clearErrors();
+                          setSignInStep(1);
+                        }}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </>
+                )}
+              </form>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════
+              VIEW 3: CONGRATULATIONS
+             ═══════════════════════════════════════════════════════════════ */}
+          {mode === 'congratulations' && (
+            <div className="auth-congrats-layout">
+              <div className="auth-congrats-illustration">
+                <AwsRocketIllustration />
+              </div>
+
+              <h1 className="auth-congrats-title">Congratulations</h1>
+              <p className="auth-congrats-sub">
+                Your Zoop identity has been created and your device is ready.
+              </p>
+
               <button
                 type="button"
-                className="aws-text-link"
-                onClick={() => {
-                  clearErrors();
-                  setMode('signin');
-                  setSignInStep(1);
-                }}
+                className="auth-btn-primary auth-btn-congrats"
+                onClick={() => onNavigate(redirectUrl)}
               >
-                Sign in to another account
+                Go to Zoop Console
               </button>
+
+              <div className="auth-bottom-link-row">
+                <button
+                  type="button"
+                  className="auth-text-link"
+                  onClick={() => {
+                    clearErrors();
+                    setMode('signin');
+                    setSignInStep(1);
+                  }}
+                >
+                  Sign in to another account
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         </main>
       </div>

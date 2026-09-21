@@ -200,7 +200,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (!deviceId) {
         const devName = `${displayName}'s Web Client`;
-        await register(devName, 'web', false);
+        try {
+          await register(devName, 'web', false);
+        } catch (regErr) {
+          console.warn('Backend registration failed, continuing with local session:', regErr);
+          const fallbackDevId = `dev_${Date.now()}`;
+          saveDeviceId(fallbackDevId, devName);
+          setDeviceId(fallbackDevId);
+          setDeviceName(devName);
+        }
       }
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Login failed');
@@ -234,7 +242,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveUserProfile(profile);
       setUser(profile);
 
-      await register(cleanDevName, 'web', isProvider);
+      try {
+        await register(cleanDevName, 'web', isProvider);
+      } catch (regErr) {
+        console.warn('Backend registration failed, continuing with local session:', regErr);
+        const fallbackDevId = `dev_${Date.now()}`;
+        saveDeviceId(fallbackDevId, cleanDevName);
+        setDeviceId(fallbackDevId);
+        setDeviceName(cleanDevName);
+      }
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Registration failed');
       throw err;

@@ -1,27 +1,32 @@
 /* ═══════════════════════════════════════════════════════════════
-   AWS Console-Exact Authentication Styling (Zoop Network - Dark Mode)
-   Clean, flat, zero-gradient, zero-card aesthetic matching AWS.
-   Balanced in the center of the screen on Zoop's dark palette.
+   Zoop Network - Authentic Dark Theme Authentication Styles
+   Clean, minimal, zero-card, balanced in the center of the screen.
    ═══════════════════════════════════════════════════════════════ */
 
-.aws-auth-page {
+.auth-shell {
   min-height: 100vh;
   width: 100vw;
-  background-color: #0c0e14;
-  color: #f1f5f9;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #000000;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    radial-gradient(circle at 80% 8%, rgba(56, 189, 248, 0.08), transparent 38rem),
+    radial-gradient(circle at 18% 70%, rgba(52, 211, 153, 0.05), transparent 42rem);
+  background-size: 24px 24px, 100% 100%, 100% 100%;
+  background-attachment: fixed;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 40px 24px;
-  position: relative;
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
   box-sizing: border-box;
+  position: relative;
 }
 
-/* ─── Accessibility: Skip Link & Focus Visible ─────────────────── */
-.aws-auth-page .skip-link {
+/* ─── Accessibility: Skip Link & Focus Visible (WCAG 2.4.1) ───── */
+.auth-shell .skip-link {
   position: absolute;
   top: -120px;
   left: 16px;
@@ -29,52 +34,54 @@
   padding: 10px 18px;
   background: #38bdf8;
   color: #020904;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 0.875rem;
-  border-radius: 4px;
+  border-radius: 6px;
   text-decoration: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   transition: top 0.15s ease-in-out;
 }
 
-.aws-auth-page .skip-link:focus,
-.aws-auth-page .skip-link:focus-visible {
+.auth-shell .skip-link:focus,
+.auth-shell .skip-link:focus-visible {
   top: 16px;
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
 
-.aws-brand-link:focus-visible,
-.aws-input:focus-visible,
-.aws-btn-orange:focus-visible,
-.aws-text-link:focus-visible,
-.aws-link-toggle:focus-visible,
-.aws-identity-change:focus-visible {
+.auth-brand:focus-visible,
+.auth-back-link:focus-visible,
+.auth-input:focus-visible,
+.auth-btn-primary:focus-visible,
+.auth-text-link:focus-visible,
+.auth-link-toggle:focus-visible,
+.auth-identity-change:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
 }
 
 /* ─── Centered Container (Balanced in the middle) ──────────────── */
-.aws-auth-container {
+.auth-container {
   width: 100%;
-  max-width: 920px;
+  max-width: 960px;
+  margin: auto 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: auto 0;
   box-sizing: border-box;
 }
 
-/* ─── Header: Centered Logo ────────────────────────────────────── */
-.aws-auth-header {
+/* ─── Topbar: Zoop Glowing Brand Header ────────────────────────── */
+.auth-topbar {
   width: 100%;
-  padding-bottom: 28px;
+  padding-bottom: 32px;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
 }
 
-.aws-brand-link {
+.auth-brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -82,22 +89,65 @@
   cursor: pointer;
 }
 
-.aws-brand-icon {
+.auth-brand-logo {
   width: 36px;
   height: 36px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid rgba(8, 242, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 16px rgba(8, 242, 255, 0.22);
+}
+
+.auth-brand-logo img {
+  width: 26px;
+  height: 26px;
   object-fit: contain;
 }
 
-.aws-brand-text {
-  font-size: 1.85rem;
+.auth-brand-name {
+  font-size: 1.25rem;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: #ffffff;
-  line-height: 1;
+}
+
+.auth-brand-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(8, 242, 255, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(8, 242, 255, 0.28);
+}
+
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.15s ease;
+}
+
+.auth-back-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* ─── Main Content Canvas (No Box / Card wrapping!) ────────────── */
-.aws-auth-main {
+.auth-main {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -105,13 +155,13 @@
   box-sizing: border-box;
 }
 
-/* ─── Alert Box ────────────────────────────────────────────────── */
-.aws-alert {
+/* ─── Alert Boxes ──────────────────────────────────────────────── */
+.auth-alert {
   width: 100%;
-  max-width: 420px;
-  padding: 12px 14px;
-  margin-bottom: 20px;
-  border-radius: 4px;
+  max-width: 440px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  border-radius: 6px;
   font-size: 0.875rem;
   display: flex;
   align-items: flex-start;
@@ -119,13 +169,24 @@
   box-sizing: border-box;
 }
 
-.aws-alert-error {
+.auth-alert-error {
   background-color: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.35);
   color: #fca5a5;
 }
 
-.aws-alert-error svg {
+.auth-alert-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.auth-alert-success {
+  background-color: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+.auth-alert-success svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -133,54 +194,53 @@
 /* ═══════════════════════════════════════════════════════════════
    VIEW 1: SIGN UP (2 Columns: Left Aside + Right Form)
    ═══════════════════════════════════════════════════════════════ */
-.aws-signup-layout {
+.auth-signup-layout {
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 56px;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 64px;
   align-items: center;
 }
 
 /* Left Aside */
-.aws-signup-aside {
+.auth-signup-aside {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.aws-aside-headline {
-  font-size: 1.35rem;
+.auth-aside-headline {
+  font-size: 1.5rem;
   font-weight: 700;
   color: #ffffff;
   line-height: 1.35;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 
-.aws-aside-sub {
-  font-size: 0.875rem;
+.auth-aside-sub {
+  font-size: 0.9375rem;
   color: #94a3b8;
-  margin: 0 0 24px;
-  line-height: 1.5;
+  margin: 0 0 28px;
+  line-height: 1.55;
 }
 
-.aws-aside-sub a {
+.auth-aside-sub a {
   color: #38bdf8;
   text-decoration: none;
 }
 
-.aws-aside-sub a:hover {
+.auth-aside-sub a:hover {
   text-decoration: underline;
 }
 
-.aws-illustration-wrap {
+.auth-illustration-wrap {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  margin-top: 4px;
 }
 
 /* Right Form Column */
-.aws-signup-form-col {
+.auth-signup-form-col {
   display: flex;
   flex-direction: column;
   max-width: 420px;
@@ -191,49 +251,49 @@
 /* ═══════════════════════════════════════════════════════════════
    VIEW 2: SIGN IN (Centered Single Column, No Box Card)
    ═══════════════════════════════════════════════════════════════ */
-.aws-signin-layout {
+.auth-signin-layout {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   margin: 0 auto;
 }
 
 /* ─── Form Typography & Fields ─────────────────────────────────── */
-.aws-form-title {
-  font-size: 1.55rem;
+.auth-form-title {
+  font-size: 1.65rem;
   font-weight: 700;
   color: #ffffff;
-  margin: 0 0 20px;
+  margin: 0 0 24px;
   line-height: 1.2;
 }
 
-.aws-form {
+.auth-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   width: 100%;
 }
 
-.aws-field {
+.auth-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
-.aws-field label {
+.auth-field label {
   font-size: 0.875rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #f1f5f9;
 }
 
-.aws-label-row {
+.auth-label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.aws-link-toggle {
+.auth-link-toggle {
   background: none;
   border: none;
   color: #38bdf8;
@@ -242,72 +302,67 @@
   padding: 0;
 }
 
-.aws-link-toggle:hover {
+.auth-link-toggle:hover {
   text-decoration: underline;
 }
 
-.aws-field-help {
+.auth-field-help {
   font-size: 0.8125rem;
   color: #94a3b8;
   line-height: 1.35;
   margin-bottom: 2px;
 }
 
-.aws-input-wrap {
+.auth-input {
   width: 100%;
-  position: relative;
-}
-
-.aws-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-  background-color: #111622;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 4px;
+  height: 42px;
+  padding: 0 14px;
+  background-color: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
   font-size: 0.9375rem;
   color: #ffffff;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.aws-input:focus {
+.auth-input:focus {
   border-color: #38bdf8;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
-  background-color: #141b2b;
+  background-color: rgba(15, 23, 42, 0.95);
 }
 
-.aws-input-error {
+.auth-input-error {
   border-color: #f87171 !important;
-  background-color: rgba(248, 113, 113, 0.06);
+  background-color: rgba(248, 113, 113, 0.08);
 }
 
-.aws-error-text {
+.auth-error-text {
   font-size: 0.75rem;
   color: #f87171;
   margin-top: 2px;
 }
 
 /* ─── Identity Chip (Sign In Step 2) ───────────────────────────── */
-.aws-identity-chip {
+.auth-identity-chip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background-color: #171e2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background-color: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
   margin-bottom: 4px;
 }
 
-.aws-identity-text {
+.auth-identity-text {
   font-size: 0.9rem;
   font-weight: 700;
   color: #ffffff;
 }
 
-.aws-identity-change {
+.auth-identity-change {
   background: none;
   border: none;
   color: #38bdf8;
@@ -317,18 +372,18 @@
   padding: 0;
 }
 
-.aws-identity-change:hover {
+.auth-identity-change:hover {
   text-decoration: underline;
 }
 
 /* ─── Checkbox ─────────────────────────────────────────────────── */
-.aws-checkbox-row {
+.auth-checkbox-row {
   display: flex;
   align-items: center;
   margin: 2px 0 4px;
 }
 
-.aws-checkbox-label {
+.auth-checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -338,22 +393,22 @@
   user-select: none;
 }
 
-.aws-checkbox-label input[type="checkbox"] {
+.auth-checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #ec7211;
+  accent-color: #38bdf8;
   cursor: pointer;
 }
 
-/* ─── AWS Signature Orange Button ──────────────────────────────── */
-.aws-btn-orange {
+/* ─── Zoop Action Button ───────────────────────────────────────── */
+.auth-btn-primary {
   width: 100%;
-  height: 40px;
-  background-color: #ec7211;
-  border: 1px solid #eb5f07;
-  border-radius: 4px;
-  color: #ffffff;
-  font-size: 0.9rem;
+  height: 42px;
+  background-color: #38bdf8;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #020904;
+  font-size: 0.9375rem;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -361,31 +416,33 @@
   justify-content: center;
   gap: 8px;
   margin-top: 6px;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+  transition: all 0.15s ease;
 }
 
-.aws-btn-orange:hover:not(:disabled) {
-  background-color: #eb5f07;
-  border-color: #dd5400;
+.auth-btn-primary:hover:not(:disabled) {
+  background-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
 }
 
-.aws-btn-orange:active:not(:disabled) {
-  background-color: #dd5400;
+.auth-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
-.aws-btn-orange:disabled {
+.auth-btn-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
 
-/* ─── Bottom Navigation Links (AWS Style) ──────────────────────── */
-.aws-bottom-link-row {
+/* ─── Bottom Navigation Links ──────────────────────────────────── */
+.auth-bottom-link-row {
   display: flex;
   justify-content: center;
   margin-top: 14px;
 }
 
-.aws-text-link {
+.auth-text-link {
   background: none;
   border: none;
   color: #38bdf8;
@@ -395,17 +452,17 @@
   text-align: center;
 }
 
-.aws-text-link:hover {
+.auth-text-link:hover {
   text-decoration: underline;
 }
 
-.aws-bottom-secondary-row {
+.auth-bottom-secondary-row {
   display: flex;
   justify-content: center;
   margin-top: 4px;
 }
 
-.aws-sub-link {
+.auth-sub-link {
   background: none;
   border: none;
   color: #64748b;
@@ -414,15 +471,15 @@
   padding: 2px;
 }
 
-.aws-sub-link:hover {
+.auth-sub-link:hover {
   color: #94a3b8;
   text-decoration: underline;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   VIEW 3: CONGRATULATIONS (AWS Screenshot 2 Match)
+   VIEW 3: CONGRATULATIONS
    ═══════════════════════════════════════════════════════════════ */
-.aws-congrats-layout {
+.auth-congrats-layout {
   width: 100%;
   max-width: 440px;
   display: flex;
@@ -432,55 +489,55 @@
   margin: 0 auto;
 }
 
-.aws-congrats-illustration {
+.auth-congrats-illustration {
   margin-bottom: 24px;
 }
 
-.aws-congrats-title {
+.auth-congrats-title {
   font-size: 1.85rem;
   font-weight: 700;
   color: #ffffff;
   margin: 0 0 12px;
 }
 
-.aws-congrats-sub {
+.auth-congrats-sub {
   font-size: 0.9375rem;
   color: #94a3b8;
   line-height: 1.55;
   margin: 0 0 28px;
 }
 
-.aws-btn-congrats {
+.auth-btn-congrats {
   max-width: 320px;
 }
 
 /* ─── Responsive: Mobile Viewports (<= 768px) ──────────────────── */
 @media (max-width: 768px) {
-  .aws-auth-page {
+  .auth-shell {
     padding: 28px 16px;
     justify-content: flex-start;
   }
 
-  .aws-auth-container {
+  .auth-container {
     margin: 0;
   }
 
-  .aws-signup-layout {
+  .auth-signup-layout {
     grid-template-columns: 1fr;
     gap: 28px;
   }
 
-  .aws-signup-aside {
+  .auth-signup-aside {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 24px;
     text-align: center;
   }
 
-  .aws-illustration-wrap {
+  .auth-illustration-wrap {
     justify-content: center;
   }
 
-  .aws-signup-form-col {
+  .auth-signup-form-col {
     max-width: 100%;
     justify-self: stretch;
   }
