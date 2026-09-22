@@ -7,6 +7,7 @@ import {
   unregisterDevice,
   createOrganization, listOrganizations, addOrgMember, listOrgMembers, removeOrgMember,
   subscribeToEvents,
+  apiAuthSignup, apiAuthLogin,
 } from '../api/client';
 import {
   getSavedDeviceId, getSavedDeviceName, saveDeviceId, clearSavedDevice,
@@ -172,92 +173,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [refreshAllDevices]);
 
-  const login = useCallback(async (identifier: string, _pin?: string, remember: boolean = true) => {
+  const login = useCallback(async (identifier: string, pin?: string, remember: boolean = true) => {
     setIsRegistering(true);
     setRegisterError(null);
     try {
       const raw = identifier.trim();
-      const isZoopId = /^ZP-[A-Z0-9]{4,}$/i.test(raw);
-      // Support legacy email login by extracting username part
-      const handleRaw = raw.includes('@') && raw.includes('.') ? raw.split('@')[0] : raw;
-      const username = normalizeUsername(handleRaw);
-      const zoopId = isZoopId ? raw.toUpperCase() : (getSavedUserProfile()?.zoopId || generateZoopId());
-      const displayName = username.charAt(0).toUpperCase() + username.slice(1);
-      if (_pin && !/^\d{6}$/.test(_pin)) throw new Error('Zoop PIN must be exactly 6 digits');
+      if (!pin || !/^\d{6}$/.test(pin)) {
+        throw new Error('Zoop PIN must be exactly 6 digits');
+      }
+
+      // Generate device identity keypair for this web session
+      const devName = `${raw}'s Web Client`;
+      const { publicKeyB64 } = await generateAndSaveIdentity(devName);
+
+      const resp = await apiAuthLogin({
+        identifier: raw,
+        pin,
+        device_name: devName,
+        platform: 'web',
+        public_key: publicKeyB64,
+      });
 
       const profile: UserProfile = {
-        id: zoopId,
-        zoopId,
-        username,
-        name: displayName,
+        id: resp.user.zoop_id || resp.user.id,
+        zoopId: resp.user.zoop_id,
+        username: resp.user.username,
+        name: resp.user.name,
         plan: 'free',
         role: 'owner',
-        createdAt: new Date().toISOString(),
+        createdAt: resp.user.created_at || new Date().toISOString(),
       };
 
       if (remember) saveUserProfile(profile);
       setUser(profile);
 
-      if (!deviceId) {
-        const devName = `${displayName}'s Web Client`;
-        try {
-          await register(devName, 'web', false);
-        } catch (regErr) {
-          console.warn('Backend registration failed, continuing with local session:', regErr);
-          const fallbackDevId = `dev_${Date.now()}`;
-          saveDeviceId(fallbackDevId, devName);
-          setDeviceId(fallbackDevId);
-          setDeviceName(devName);
-        }
-      }
+      saveDeviceId(resp.device.id.toString(), devName, resp.device.endpoint_id);
+      setDeviceId(resp.device.id.toString());
+      setDeviceName(devName);
+      setDeviceInfo(resp.device);
+      refreshAllDevices();
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Login failed');
       throw err;
     } finally {
       setIsRegistering(false);
     }
-  }, [deviceId, register]);
+  }, [refreshAllDevices]);
 
-  const signup = useCallback(async (username: string, pin: string, displayName?: string, deviceName?: string, isProvider: boolean = false) => {
+  const signup = useCallback(async (username: string, pin: string, displayName?: string, deviceName?: string, _isProvider: boolean = false) => {
     setIsRegistering(true);
     setRegisterError(null);
     try {
       if (!/^\d{6}$/.test(pin)) throw new Error('Zoop PIN must be exactly 6 digits');
       const cleanUsername = normalizeUsername(username);
       if (cleanUsername.length < 2) throw new Error('Username must be at least 2 characters');
-      const zoopId = generateZoopId();
       const cleanName = displayName?.trim() || cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1);
       const cleanDevName = deviceName?.trim() || `${cleanName}'s Web Client`;
 
-      const profile: UserProfile = {
-        id: zoopId,
-        zoopId,
+      const { publicKeyB64 } = await generateAndSaveIdentity(cleanDevName);
+
+      const resp = await apiAuthSignup({
         username: cleanUsername,
+        pin,
         name: cleanName,
+        device_name: cleanDevName,
+        platform: 'web',
+        public_key: publicKeyB64,
+      });
+
+      const profile: UserProfile = {
+        id: resp.user.zoop_id || resp.user.id,
+        zoopId: resp.user.zoop_id,
+        username: resp.user.username,
+        name: resp.user.name,
         plan: 'free',
         role: 'owner',
-        createdAt: new Date().toISOString(),
+        createdAt: resp.user.created_at || new Date().toISOString(),
       };
 
       saveUserProfile(profile);
       setUser(profile);
 
-      try {
-        await register(cleanDevName, 'web', isProvider);
-      } catch (regErr) {
-        console.warn('Backend registration failed, continuing with local session:', regErr);
-        const fallbackDevId = `dev_${Date.now()}`;
-        saveDeviceId(fallbackDevId, cleanDevName);
-        setDeviceId(fallbackDevId);
-        setDeviceName(cleanDevName);
-      }
+      saveDeviceId(resp.device.id.toString(), cleanDevName, resp.device.endpoint_id);
+      setDeviceId(resp.device.id.toString());
+      setDeviceName(cleanDevName);
+      setDeviceInfo(resp.device);
+      refreshAllDevices();
     } catch (err: unknown) {
       setRegisterError(err instanceof Error ? err.message : 'Registration failed');
       throw err;
     } finally {
       setIsRegistering(false);
     }
-  }, [register]);
+  }, [refreshAllDevices]);
 
   const loginWithKey = useCallback(async (_keyData: string, name?: string) => {
     setIsRegistering(true);

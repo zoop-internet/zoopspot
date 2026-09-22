@@ -19,6 +19,34 @@ type RegisterDeviceRequest struct {
 	PublicKey          string   `json:"public_key"`           // Base64 Ed25519 Control Plane Identity
 	WireGuardPublicKey string   `json:"wireguard_public_key"` // Base64 WireGuard Public Key
 	Capabilities       []string `json:"capabilities,omitempty"`
+	AccountID          types.ID `json:"account_id,omitempty"`
+}
+
+// AuthSignupRequest is the payload for POST /v1/auth/signup
+type AuthSignupRequest struct {
+	Username           string `json:"username"`
+	PIN                string `json:"pin"`
+	Name               string `json:"name,omitempty"`
+	DeviceName         string `json:"device_name"`
+	Platform           string `json:"platform,omitempty"`
+	PublicKey          string `json:"public_key"`
+	WireGuardPublicKey string `json:"wireguard_public_key,omitempty"`
+}
+
+// AuthLoginRequest is the payload for POST /v1/auth/login
+type AuthLoginRequest struct {
+	Identifier         string `json:"identifier"` // Username or ZoopID
+	PIN                string `json:"pin"`
+	DeviceName         string `json:"device_name,omitempty"`
+	Platform           string `json:"platform,omitempty"`
+	PublicKey          string `json:"public_key"`
+	WireGuardPublicKey string `json:"wireguard_public_key,omitempty"`
+}
+
+// AuthResponse is returned on successful signup or login
+type AuthResponse struct {
+	User   *types.Account  `json:"user"`
+	Device *DeviceResponse `json:"device"`
 }
 
 // DeviceResponse is returned for device lookups and registrations.

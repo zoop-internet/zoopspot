@@ -35,6 +35,7 @@ type Account struct {
 	ZoopID    string    `json:"zoop_id,omitempty"`
 	Username  string    `json:"username,omitempty"`
 	Name      string    `json:"name"`
+	PinHash   string    `json:"-"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 }
 

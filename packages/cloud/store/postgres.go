@@ -23,6 +23,9 @@ var userIdentitySQL string
 //go:embed migrations/003_payments_and_wallets.sql
 var paymentsAndWalletsSQL string
 
+//go:embed migrations/004_auth_updates.sql
+var authUpdatesSQL string
+
 // CleanPostgresURL sanitizes PostgreSQL connection strings for lib/pq compatibility.
 // Drivers like lib/pq do not support parameters like channel_binding, which modern
 // cloud providers (e.g. Neon) append by default.
@@ -86,6 +89,9 @@ func (s *PostgresStore) Migrate(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, paymentsAndWalletsSQL); err != nil {
 		return fmt.Errorf("migration 003_payments_and_wallets: %w", err)
 	}
+	if _, err := s.db.ExecContext(ctx, authUpdatesSQL); err != nil {
+		return fmt.Errorf("migration 004_auth_updates: %w", err)
+	}
 	return nil
 }
 
@@ -98,33 +104,40 @@ func (s *PostgresStore) Close() error {
 
 func (s *PostgresStore) SaveDevice(ctx context.Context, device *types.Device) error {
 	query := `
-		INSERT INTO devices (id, name, os, description, state, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
+		INSERT INTO devices (id, name, os, description, state, owner_id, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			os = EXCLUDED.os,
 			description = EXCLUDED.description,
 			state = EXCLUDED.state,
+			owner_id = COALESCE(EXCLUDED.owner_id, devices.owner_id),
 			updated_at = NOW();
 	`
+	var ownerID any
+	if device.AccountID != (types.ID{}) && device.AccountID.String() != "00000000-0000-0000-0000-000000000000" {
+		ownerID = device.AccountID.String()
+	}
 	_, err := s.db.ExecContext(ctx, query,
 		device.ID.String(),
 		device.Name,
 		device.OS,
 		device.Description,
 		string(device.State),
+		ownerID,
 	)
 	return err
 }
 
 func (s *PostgresStore) GetDevice(ctx context.Context, id types.ID) (*types.Device, error) {
-	query := `SELECT id, name, os, description, state, created_at, updated_at FROM devices WHERE id = $1`
+	query := `SELECT id, name, os, description, state, owner_id, created_at, updated_at FROM devices WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var d types.Device
 	var stateStr string
 	var idStr string
-	err := row.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &d.CreatedAt, &d.UpdatedAt)
+	var ownerID sql.NullString
+	err := row.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &ownerID, &d.CreatedAt, &d.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -138,11 +151,16 @@ func (s *PostgresStore) GetDevice(ctx context.Context, id types.ID) (*types.Devi
 	}
 	d.ID = parsedID
 	d.State = types.DeviceState(stateStr)
+	if ownerID.Valid && ownerID.String != "" {
+		if oID, err := types.ParseID(ownerID.String); err == nil {
+			d.AccountID = oID
+		}
+	}
 	return &d, nil
 }
 
 func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error) {
-	query := `SELECT id, name, os, description, state, created_at, updated_at FROM devices ORDER BY created_at DESC`
+	query := `SELECT id, name, os, description, state, owner_id, created_at, updated_at FROM devices ORDER BY created_at DESC`
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -154,7 +172,8 @@ func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error
 		var d types.Device
 		var stateStr string
 		var idStr string
-		if err := rows.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		var ownerID sql.NullString
+		if err := rows.Scan(&idStr, &d.Name, &d.OS, &d.Description, &stateStr, &ownerID, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, err
 		}
 		parsedID, err := types.ParseID(idStr)
@@ -163,6 +182,11 @@ func (s *PostgresStore) ListDevices(ctx context.Context) ([]*types.Device, error
 		}
 		d.ID = parsedID
 		d.State = types.DeviceState(stateStr)
+		if ownerID.Valid && ownerID.String != "" {
+			if oID, err := types.ParseID(ownerID.String); err == nil {
+				d.AccountID = oID
+			}
+		}
 		devices = append(devices, &d)
 	}
 	if devices == nil {
@@ -269,24 +293,25 @@ func (s *PostgresStore) DeleteIdentity(ctx context.Context, endpointID types.ID)
 
 func (s *PostgresStore) SaveUser(ctx context.Context, account *types.Account) error {
 	query := `
-		INSERT INTO users (id, name, zoop_id, username)
-		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''))
+		INSERT INTO users (id, name, zoop_id, username, pin_hash)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''))
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			zoop_id = COALESCE(EXCLUDED.zoop_id, users.zoop_id),
-			username = COALESCE(EXCLUDED.username, users.username);
+			username = COALESCE(EXCLUDED.username, users.username),
+			pin_hash = COALESCE(EXCLUDED.pin_hash, users.pin_hash);
 	`
-	_, err := s.db.ExecContext(ctx, query, account.ID.String(), account.Name, account.ZoopID, account.Username)
+	_, err := s.db.ExecContext(ctx, query, account.ID.String(), account.Name, account.ZoopID, account.Username, account.PinHash)
 	return err
 }
 
 func (s *PostgresStore) GetUser(ctx context.Context, id types.ID) (*types.Account, error) {
-	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE id = $1`
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, ''), COALESCE(pin_hash, '') FROM users WHERE id = $1`
 	row := s.db.QueryRowContext(ctx, query, id.String())
 
 	var u types.Account
 	var idStr string
-	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username, &u.PinHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -303,12 +328,12 @@ func (s *PostgresStore) GetUser(ctx context.Context, id types.ID) (*types.Accoun
 }
 
 func (s *PostgresStore) GetUserByZoopID(ctx context.Context, zoopID string) (*types.Account, error) {
-	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE zoop_id = $1`
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, ''), COALESCE(pin_hash, '') FROM users WHERE zoop_id = $1`
 	row := s.db.QueryRowContext(ctx, query, zoopID)
 
 	var u types.Account
 	var idStr string
-	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username, &u.PinHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -325,12 +350,12 @@ func (s *PostgresStore) GetUserByZoopID(ctx context.Context, zoopID string) (*ty
 }
 
 func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) (*types.Account, error) {
-	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, '') FROM users WHERE username = $1`
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, ''), COALESCE(pin_hash, '') FROM users WHERE username = $1`
 	row := s.db.QueryRowContext(ctx, query, username)
 
 	var u types.Account
 	var idStr string
-	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username)
+	err := row.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username, &u.PinHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound

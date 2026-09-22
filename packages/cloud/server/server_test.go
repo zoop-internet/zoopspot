@@ -935,3 +935,106 @@ func TestServer_WalletEndpoints(t *testing.T) {
 	}
 }
 
+func TestServer_Auth_SignupAndLogin(t *testing.T) {
+	st := store.NewInMemoryStore()
+	ds := services.NewDeviceService(st)
+	us := services.NewUserService(st)
+	orgs := services.NewOrganizationService(st)
+	ss := services.NewShareService(st)
+	hub := services.NewSignalingHub()
+	cs := services.NewConnectionService(st, hub)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	_, pub1, _ := ed25519.GenerateKey(rand.Reader)
+	pub1Str := base64.StdEncoding.EncodeToString(pub1)
+
+	// 1. Signup with valid credentials
+	signupBody, _ := json.Marshal(api.AuthSignupRequest{
+		Username:   "testuser",
+		PIN:        "123456",
+		Name:       "Test User",
+		DeviceName: "MacBook Pro",
+		Platform:   "web",
+		PublicKey:  pub1Str,
+	})
+
+	wSignup := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wSignup, httptest.NewRequest(http.MethodPost, "/v1/auth/signup", bytes.NewReader(signupBody)))
+
+	if wSignup.Result().StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 Created on signup, got %d (body: %s)", wSignup.Result().StatusCode, wSignup.Body.String())
+	}
+
+	var signupResp api.AuthResponse
+	if err := json.NewDecoder(wSignup.Body).Decode(&signupResp); err != nil {
+		t.Fatalf("failed to decode signup response: %v", err)
+	}
+	if signupResp.User.Username != "testuser" {
+		t.Errorf("expected username 'testuser', got %q", signupResp.User.Username)
+	}
+	if signupResp.User.ZoopID == "" {
+		t.Errorf("expected non-empty ZoopID")
+	}
+
+	// 2. Signup duplicate username -> Conflict 409
+	wSignupDup := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wSignupDup, httptest.NewRequest(http.MethodPost, "/v1/auth/signup", bytes.NewReader(signupBody)))
+	if wSignupDup.Result().StatusCode != http.StatusConflict {
+		t.Errorf("expected 409 Conflict for duplicate username, got %d", wSignupDup.Result().StatusCode)
+	}
+
+	// 3. Login with wrong PIN -> 401 Unauthorized
+	_, pub2, _ := ed25519.GenerateKey(rand.Reader)
+	pub2Str := base64.StdEncoding.EncodeToString(pub2)
+
+	badLoginBody, _ := json.Marshal(api.AuthLoginRequest{
+		Identifier: "testuser",
+		PIN:        "999999",
+		DeviceName: "Another Device",
+		Platform:   "web",
+		PublicKey:  pub2Str,
+	})
+	wBadLogin := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wBadLogin, httptest.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewReader(badLoginBody)))
+	if wBadLogin.Result().StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized for wrong PIN, got %d", wBadLogin.Result().StatusCode)
+	}
+
+	// 4. Login with correct PIN and username -> 200 OK
+	goodLoginBody, _ := json.Marshal(api.AuthLoginRequest{
+		Identifier: "testuser",
+		PIN:        "123456",
+		DeviceName: "Another Device",
+		Platform:   "web",
+		PublicKey:  pub2Str,
+	})
+	wGoodLogin := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wGoodLogin, httptest.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewReader(goodLoginBody)))
+	if wGoodLogin.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for valid login, got %d (body: %s)", wGoodLogin.Result().StatusCode, wGoodLogin.Body.String())
+	}
+
+	var loginResp api.AuthResponse
+	if err := json.NewDecoder(wGoodLogin.Body).Decode(&loginResp); err != nil {
+		t.Fatalf("failed to decode login response: %v", err)
+	}
+	if loginResp.User.ID != signupResp.User.ID {
+		t.Errorf("expected user ID %s, got %s", signupResp.User.ID, loginResp.User.ID)
+	}
+
+	// 5. Login using Zoop ID -> 200 OK
+	goodZoopIDLogin, _ := json.Marshal(api.AuthLoginRequest{
+		Identifier: signupResp.User.ZoopID,
+		PIN:        "123456",
+		DeviceName: "Third Device",
+		Platform:   "web",
+		PublicKey:  pub2Str,
+	})
+	wZoopLogin := httptest.NewRecorder()
+	srv.mux.ServeHTTP(wZoopLogin, httptest.NewRequest(http.MethodPost, "/v1/auth/login", bytes.NewReader(goodZoopIDLogin)))
+	if wZoopLogin.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for ZoopID login, got %d", wZoopLogin.Result().StatusCode)
+	}
+}
+

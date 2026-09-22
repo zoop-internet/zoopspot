@@ -160,7 +160,9 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 			}
 
 			// 2. Verify Device is not Revoked or Suspended
+			var currentDevice *types.Device
 			if device, err := s.GetDevice(r.Context(), endpointID); err == nil {
+				currentDevice = device
 				if device.State == types.DeviceStateRevoked {
 					WriteError(w, "forbidden", "device identity has been revoked", http.StatusForbidden)
 					return
@@ -225,6 +227,9 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 
 			// Attach identity to context
 			ctx := context.WithValue(r.Context(), CallerIdentityKey, identity.EndpointID)
+			if currentDevice != nil && currentDevice.AccountID != (types.ID{}) && currentDevice.AccountID.String() != "00000000-0000-0000-0000-000000000000" {
+				ctx = context.WithValue(ctx, CallerUserIDKey, currentDevice.AccountID)
+			}
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -232,11 +237,22 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 
 type ContextKey string
 
-const CallerIdentityKey ContextKey = "caller_identity"
+const (
+	CallerIdentityKey ContextKey = "caller_identity"
+	CallerUserIDKey   ContextKey = "caller_user_id"
+)
 
 // IdentityFromContext returns the authenticated caller's endpoint ID.
 func IdentityFromContext(ctx context.Context) types.ID {
 	if v, ok := ctx.Value(CallerIdentityKey).(types.ID); ok {
+		return v
+	}
+	return types.ID{}
+}
+
+// UserIDFromContext returns the authenticated user's ID (if linked to the caller's device).
+func UserIDFromContext(ctx context.Context) types.ID {
+	if v, ok := ctx.Value(CallerUserIDKey).(types.ID); ok {
 		return v
 	}
 	return types.ID{}

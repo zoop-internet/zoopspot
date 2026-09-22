@@ -211,8 +211,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /v1/health", api.HealthHandler(s.startTime, s))
 	s.mux.Handle("GET /metrics", promhttp.Handler())
 
-	// Registration does not require Zoop Auth because the device doesn't exist yet (global RateLimitMiddleware applies)
+	// Registration and Authentication do not require Zoop Auth because the device doesn't exist yet (global RateLimitMiddleware applies)
 	s.mux.HandleFunc("POST /v1/devices", s.handleRegisterDevice())
+	s.mux.HandleFunc("POST /v1/auth/signup", s.handleAuthSignup())
+	s.mux.HandleFunc("POST /v1/auth/login", s.handleAuthLogin())
 	s.mux.Handle("GET /v1/devices", authMw(http.HandlerFunc(s.handleListDevices())))
 
 	// Authenticated routes

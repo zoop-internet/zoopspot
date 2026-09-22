@@ -81,6 +81,36 @@ export interface RegisterDeviceRequest {
   capabilities: string[];
 }
 
+export interface AuthSignupRequest {
+  username: string;
+  pin: string;
+  name?: string;
+  device_name: string;
+  platform?: string;
+  public_key: string;
+  wireguard_public_key?: string;
+}
+
+export interface AuthLoginRequest {
+  identifier: string;
+  pin: string;
+  device_name?: string;
+  platform?: string;
+  public_key: string;
+  wireguard_public_key?: string;
+}
+
+export interface AuthResponse {
+  user: {
+    id: string;
+    zoop_id: string;
+    username: string;
+    name: string;
+    created_at?: string;
+  };
+  device: ApiDevice;
+}
+
 // ─── Http helpers ─────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -107,6 +137,22 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const text = await res.text();
   if (!text) return undefined as unknown as T;
   return JSON.parse(text) as T;
+}
+
+// ─── Authentication operations ───────────────────────────────────
+
+export async function apiAuthSignup(req: AuthSignupRequest): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/v1/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+}
+
+export async function apiAuthLogin(req: AuthLoginRequest): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
 }
 
 // ─── Device operations ────────────────────────────────────────

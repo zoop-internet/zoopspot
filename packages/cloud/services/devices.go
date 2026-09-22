@@ -55,6 +55,7 @@ func (s *DeviceService) Register(ctx context.Context, req api.RegisterDeviceRequ
 	now := time.Now().UTC()
 	device := &types.Device{
 		ID:          endpointID,
+		AccountID:   req.AccountID,
 		Name:        req.Name,
 		OS:          req.Platform,
 		Description: "",
