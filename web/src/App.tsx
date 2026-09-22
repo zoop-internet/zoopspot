@@ -124,7 +124,8 @@ const AppContent: React.FC = () => {
       }
       navigateTo('/org');
     } else if (mode === 'admin') {
-      if (!isAdminHost && isApexOrWww) {
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.sslip.io');
+      if (!isAdminHost && !isLocal) {
         const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
         window.location.href = `https://${adminSub}/admin`;
         return;
@@ -167,14 +168,20 @@ const AppContent: React.FC = () => {
 
     // 2. On dash.zoopnetwork.app:
     if (isDashHost) {
-      // 2a. If URL is /app or /app/*, cleanly strip /app to keep clean URLs
+      // 2a. If URL is /admin or /admin/*, redirect to admin.zoopnetwork.app
+      if (normalized === '/admin' || normalized.startsWith('/admin/')) {
+        const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
+        window.location.href = `https://${adminSub}${pathname}`;
+        return;
+      }
+      // 2b. If URL is /app or /app/*, cleanly strip /app to keep clean URLs
       if (normalized === '/app' || normalized.startsWith('/app/')) {
         const clean = normalized === '/app' ? '/' : normalized.replace(/^\/app/, '');
         window.history.replaceState({}, '', clean + window.location.search + window.location.hash);
         setCurrentUrl(clean + window.location.search + window.location.hash);
         return;
       }
-      // 2b. If not authenticated and visiting root or a dashboard route, redirect to auth
+      // 2c. If not authenticated and visiting root or a dashboard route, redirect to auth
       if ((normalized === '/' || normalized === '' || DASH_ROUTES.has(normalized)) && !isAuthenticated) {
         const redirect = normalized === '/' ? '/' : normalized;
         navigateTo(`/auth?redirect_url=${encodeURIComponent(redirect)}`);

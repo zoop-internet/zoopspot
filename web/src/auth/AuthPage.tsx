@@ -204,9 +204,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setSuccessMsg('Signed in! Redirecting…');
       const cleanIdent = signInIdentifier.trim().toLowerCase();
       const isAdminUser = cleanIdent === 'admin' || cleanIdent === 'zp-9uzu8c' || cleanIdent === '@admin';
-      const targetUrl = (isAdminUser && (!redirectUrl || redirectUrl === '/' || redirectUrl === '/app'))
-        ? '/admin'
-        : (redirectUrl || '/');
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('.sslip.io');
+      const onAdminDomain = window.location.hostname === 'admin.zoopnetwork.app' || window.location.hostname === 'dmin.zoopnetwork.app';
+
+      if (isAdminUser) {
+        if (!isLocal && !onAdminDomain) {
+          setTimeout(() => {
+            window.location.href = 'https://admin.zoopnetwork.app/admin';
+          }, 650);
+          return;
+        }
+        setTimeout(() => onNavigate('/admin'), 650);
+        return;
+      }
+
+      const targetUrl = redirectUrl || '/';
       setTimeout(() => onNavigate(targetUrl), 650);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign in failed. Check your ID and PIN.');
