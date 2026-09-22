@@ -432,6 +432,16 @@ func (g *MarzPayGateway) GetBalance(ctx context.Context, country, currency strin
 
 	var jsonResp struct {
 		Data struct {
+			Account struct {
+				AvailableBalance struct {
+					Raw      float64 `json:"raw"`
+					Currency string  `json:"currency"`
+				} `json:"available_balance"`
+				TotalBalance struct {
+					Raw      float64 `json:"raw"`
+					Currency string  `json:"currency"`
+				} `json:"total_balance"`
+			} `json:"account"`
 			AvailableBalance struct {
 				Raw float64 `json:"raw"`
 			} `json:"available_balance"`
@@ -446,10 +456,26 @@ func (g *MarzPayGateway) GetBalance(ctx context.Context, country, currency strin
 		return nil, err
 	}
 
+	avail := jsonResp.Data.AvailableBalance.Raw
+	if avail == 0 && jsonResp.Data.Account.AvailableBalance.Raw != 0 {
+		avail = jsonResp.Data.Account.AvailableBalance.Raw
+	}
+	total := jsonResp.Data.TotalBalance.Raw
+	if total == 0 && jsonResp.Data.Account.TotalBalance.Raw != 0 {
+		total = jsonResp.Data.Account.TotalBalance.Raw
+	}
+	curr := jsonResp.Data.Currency
+	if curr == "" {
+		curr = jsonResp.Data.Account.AvailableBalance.Currency
+	}
+	if curr == "" {
+		curr = currency
+	}
+
 	return &GatewayBalanceResp{
-		AvailableBalance: jsonResp.Data.AvailableBalance.Raw,
-		TotalBalance:     jsonResp.Data.TotalBalance.Raw,
-		Currency:         jsonResp.Data.Currency,
+		AvailableBalance: avail,
+		TotalBalance:     total,
+		Currency:         curr,
 	}, nil
 }
 
