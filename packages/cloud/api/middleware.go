@@ -312,16 +312,29 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 // with no Origin header (same-origin / CLI) pass through untouched, and any
 // cross-origin request is rejected. Supports wildcard patterns like https://*.pages.dev
 func CORSMiddleware(allowed []string) func(http.Handler) http.Handler {
-	allowedSet := make(map[string]bool, len(allowed))
+	builtInAllowed := []string{
+		"https://zoopnetwork.app",
+		"https://*.zoopnetwork.app",
+		"https://zoopinternet.app",
+		"https://*.zoopinternet.app",
+		"https://zoop.network",
+		"https://*.zoop.network",
+		"https://*.pages.dev",
+		"http://localhost:5173",
+		"http://localhost:3000",
+	}
+	combined := append(builtInAllowed, allowed...)
+
+	allowedSet := make(map[string]bool, len(combined))
 	var wildcards []string
-	for _, o := range allowed {
+	for _, o := range combined {
 		if strings.Contains(o, "*") {
 			wildcards = append(wildcards, o)
 		} else {
 			allowedSet[o] = true
 		}
 	}
-	allowAll := len(allowed) == 0
+	allowAll := len(allowed) == 0 && len(builtInAllowed) == 0
 
 	isOriginAllowed := func(origin string) bool {
 		if allowAll || allowedSet[origin] {
