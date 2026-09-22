@@ -194,13 +194,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         public_key: publicKeyB64,
       });
 
+      const isOperatorOrAdmin = raw.toLowerCase() === 'admin' || (resp.user as unknown as { role?: string }).role === 'admin' || (resp.user as unknown as { role?: string }).role === 'operator';
       const profile: UserProfile = {
         id: resp.user.zoop_id || resp.user.id,
         zoopId: resp.user.zoop_id,
         username: resp.user.username,
         name: resp.user.name,
         plan: 'free',
-        role: 'owner',
+        role: isOperatorOrAdmin ? 'admin' : ((resp.user as unknown as { role?: string }).role || 'owner'),
         createdAt: resp.user.created_at || new Date().toISOString(),
       };
 
@@ -241,13 +242,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         public_key: publicKeyB64,
       });
 
+      const isOperatorOrAdmin = cleanUsername === 'admin';
       const profile: UserProfile = {
         id: resp.user.zoop_id || resp.user.id,
         zoopId: resp.user.zoop_id,
         username: resp.user.username,
         name: resp.user.name,
         plan: 'free',
-        role: 'owner',
+        role: isOperatorOrAdmin ? 'admin' : 'owner',
         createdAt: resp.user.created_at || new Date().toISOString(),
       };
 
