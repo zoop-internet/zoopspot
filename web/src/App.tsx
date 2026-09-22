@@ -28,7 +28,24 @@ const ROUTE_META: Record<string, { title: string; desc: string }> = {
   '/admin': { title: 'Platform Admin — Overview & Operations | Zoop', desc: 'Operator console for Zoop cloud — health, relays, IPAM & audit.' },
   '/privacy': { title: 'Privacy Policy — Zero Logging & Cryptographic Mesh | Zoop', desc: 'Zoop Privacy Policy: Zero logging of payload traffic, browsing history, DNS or destination IPs. End-to-end WireGuard encrypted, open source.' },
   '/terms': { title: 'Terms of Service & EULA — Peer-to-Peer Mesh | Zoop', desc: 'Zoop Terms of Service and End User License Agreement: Peer-to-peer network usage, acceptable use policy, and licensing.' },
-  '/blog': { title: 'Blog & Stories — Peer-to-Peer Freedom & Guides | Zoop', desc: 'Read stories, guides, and insights on peer-to-peer sharing, travel connectivity, and lag-free private device networking.' },
+  '/blog': { title: 'The Zoop Blog — Stories, Guides & Peer-to-Peer Freedom', desc: 'Thoughts on peer-to-peer freedom, travel connectivity, and how to get the fastest, most private internet on earth.' },
+  '/blog/why-peer-to-peer-is-the-future': { title: 'Why We Built Zoop: The Internet Was Meant to Be Peer-to-Peer | Blog', desc: 'How corporate VPNs convinced millions to rent their own internet back, and why direct device sharing is taking it back.' },
+  '/blog/share-internet-with-friends-traveling': { title: 'How to Share Internet with Friends While Traveling | Blog', desc: 'The easiest, safest way to keep your travel group connected across laptops and phones without paying for extra SIMs or sketchy hotel Wi-Fi.' },
+  '/blog/goodbye-vpn-lag-gaming-remote-work': { title: 'Goodbye Lag: Why Gamers & Remote Workers Switch to Direct Tunnels | Blog', desc: 'What actually happens when you cut out the VPN middleman? Sub-millisecond latency, zero dropped calls, and instant file sync.' },
+  '/blog/what-is-direct-mesh-networking': { title: 'Direct Mesh vs. Traditional VPNs: A Simple, Human Guide | Blog', desc: 'No networking degree required. Here is how device-to-device encryption works without the headache of networking textbooks.' },
+  '/docs/quickstart': { title: 'Quick Start — Docs | Zoop', desc: 'Zoop documentation — Quick Start: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/installation': { title: 'Installation — Docs | Zoop', desc: 'Zoop documentation — Installation: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/configuration': { title: 'Configuration — Docs | Zoop', desc: 'Zoop documentation — Configuration: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/web-console': { title: 'Web Console — Docs | Zoop', desc: 'Zoop documentation — Web Console: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/connect-share': { title: 'Connect Share — Docs | Zoop', desc: 'Zoop documentation — Connect Share: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/devices': { title: 'Devices — Docs | Zoop', desc: 'Zoop documentation — Devices: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/mobile-router': { title: 'Mobile Router — Docs | Zoop', desc: 'Zoop documentation — Mobile Router: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/identity': { title: 'Identity — Docs | Zoop', desc: 'Zoop documentation — Identity: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/organizations': { title: 'Organizations — Docs | Zoop', desc: 'Zoop documentation — Organizations: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/permissions': { title: 'Permissions — Docs | Zoop', desc: 'Zoop documentation — Permissions: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/troubleshooting': { title: 'Troubleshooting — Docs | Zoop', desc: 'Zoop documentation — Troubleshooting: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/security-architecture': { title: 'Security Architecture — Docs | Zoop', desc: 'Zoop documentation — Security Architecture: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
+  '/docs/faq': { title: 'Faq — Docs | Zoop', desc: 'Zoop documentation — Faq: open-source WireGuard mesh, NAT traversal, and self-hosted control plane.' },
 };
 
 function normalizePath(raw: string): string {
@@ -200,24 +217,6 @@ const AppContent: React.FC = () => {
     }
   }, [normalized]);
 
-  // Per-route title/description/canonical sync for SEO
-  useEffect(() => {
-    const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
-      : (normalized === '/app' || normalized.startsWith('/app') || ['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : (normalized.startsWith('/blog') ? '/blog' : normalized))));
-    const meta = ROUTE_META[key] || ROUTE_META['/'];
-    document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
-    const descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
-    if (descTag) descTag.content = isValidRoute ? meta.desc : 'Page not found — return to Zoop Internet homepage.';
-    const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement | null;
-    if (ogTitle) ogTitle.content = document.title;
-    const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
-    if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
-    const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (canonical) canonical.href = `https://zoopnetwork.app${normalized === '/' ? '/' : normalized}`;
-    const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
-    if (ogUrl) ogUrl.content = `https://zoopnetwork.app${normalized === '/' ? '/' : normalized}`;
-  }, [normalized, isValidRoute]);
-
   const isAuth =
     normalized === '/auth' ||
     normalized.startsWith('/auth/') ||
@@ -241,6 +240,37 @@ const AppContent: React.FC = () => {
   // Standard visitors receive a 404 Not Found to prevent probing.
   const isAdmin = normalized === '/admin' || normalized.startsWith('/admin/');
   const isAuthorizedAdmin = isAuthenticated && (user?.role === 'admin' || user?.role === 'operator');
+
+  // Per-route title/description/canonical/robots sync for SEO
+  useEffect(() => {
+    const key = ROUTE_META[normalized]
+      ? normalized
+      : (normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
+      : (normalized === '/app' || normalized.startsWith('/app') || ['/app','/user'].includes(normalized) ? '/app'
+      : (normalized === '/privacy-policy' ? '/privacy'
+      : (['/terms-of-service','/eula'].includes(normalized) ? '/terms'
+      : (normalized.startsWith('/blog') ? '/blog'
+      : (normalized.startsWith('/docs') ? '/docs' : normalized))))));
+    const meta = ROUTE_META[key] || ROUTE_META['/'];
+    document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
+    const descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (descTag) descTag.content = isValidRoute ? meta.desc : 'Page not found — return to Zoop Internet homepage.';
+    const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement | null;
+    if (ogTitle) ogTitle.content = document.title;
+    const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
+    if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
+    const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (canonical) canonical.href = `https://zoopnetwork.app${normalized === '/' ? '/' : normalized}`;
+    const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
+    if (ogUrl) ogUrl.content = `https://zoopnetwork.app${normalized === '/' ? '/' : normalized}`;
+
+    // Subdomains and private app routes MUST NOT be indexed by search engines
+    const robotsTag = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+    if (robotsTag) {
+      const isPrivate = isDashHost || isAdminHost || isApp || isOrg || isAdmin || !isValidRoute;
+      robotsTag.content = isPrivate ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
+    }
+  }, [normalized, isValidRoute, isDashHost, isAdminHost, isApp, isOrg, isAdmin]);
 
   const initialAuthTab =
     normalized.includes('signup') ||

@@ -102,6 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="lp-topbar-actions">
           <a
             href="/auth?tab=signin"
+            rel="nofollow"
             className="lp-btn-secondary"
             onClick={(e) => {
               e.preventDefault();
@@ -155,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="/blog" onClick={(e) => { e.preventDefault(); handleNav('/blog'); setMenuOpen(false); }}>Blog</a>
             <div className="lp-mobile-drawer-divider" />
             <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
-            <a href="/auth?tab=signin" onClick={(e) => { e.preventDefault(); onLaunchConsole('auth'); setMenuOpen(false); }}>Sign In</a>
+            <a href="/auth?tab=signin" rel="nofollow" onClick={(e) => { e.preventDefault(); onLaunchConsole('auth'); setMenuOpen(false); }}>Sign In</a>
           </div>
         </>
       )}

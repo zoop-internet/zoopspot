@@ -41,9 +41,8 @@ export const Footer: React.FC<FooterProps> = ({ handleNav, onLaunchConsole }) =>
           <div className="lp-footer-col">
             <h4>Consoles</h4>
             <ul>
-              <li><a href="/app" onClick={(e) => { e.preventDefault(); onLaunchConsole('user'); }}>Personal Device</a></li>
-              <li><a href="/org" onClick={(e) => { e.preventDefault(); onLaunchConsole('org'); }}>Organization Fleet</a></li>
-              <li><a href="/admin" onClick={(e) => { e.preventDefault(); onLaunchConsole('admin'); }}>Admin Center</a></li>
+              <li><a href="https://dash.zoopnetwork.app/" rel="nofollow" onClick={(e) => { e.preventDefault(); onLaunchConsole('user'); }}>Personal Device</a></li>
+              <li><a href="https://dash.zoopnetwork.app/org" rel="nofollow" onClick={(e) => { e.preventDefault(); onLaunchConsole('org'); }}>Organization Fleet</a></li>
               <li><a href="/downloads" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>Get Zoop Free</a></li>
             </ul>
           </div>

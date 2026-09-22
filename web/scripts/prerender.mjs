@@ -490,9 +490,19 @@ ${urls}
   const robots = `User-agent: *
 Allow: /
 Disallow: /app/
+Disallow: /app
 Disallow: /org/
+Disallow: /org
 Disallow: /admin/
+Disallow: /admin
 Disallow: /api/
+Disallow: /api
+Disallow: /overview
+Disallow: /devices
+Disallow: /connections
+Disallow: /sharing
+Disallow: /wallet
+Disallow: /settings
 
 # AI crawlers — explicitly allowed for LLM discoverability
 User-agent: GPTBot
