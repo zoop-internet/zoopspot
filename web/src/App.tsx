@@ -55,6 +55,12 @@ const AppContent: React.FC = () => {
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isDashHost = hostname.startsWith('dash.') || hostname.startsWith('app.');
+  const isAdminHost = hostname.startsWith('admin.') || hostname.startsWith('dmin.') || hostname.startsWith('ops.');
+  const isApexOrWww =
+    hostname === 'zoopnetwork.app' ||
+    hostname === 'www.zoopnetwork.app' ||
+    hostname === 'zoopinternet.app' ||
+    hostname === 'www.zoopinternet.app';
 
   useEffect(() => {
     if ('scrollRestoration' in history) {
@@ -87,11 +93,38 @@ const AppContent: React.FC = () => {
   };
 
   const handleSwitchMode = (mode: PortalMode) => {
-    if (mode === 'user') navigateTo('/app');
-    else if (mode === 'org') navigateTo('/org');
-    else if (mode === 'admin') navigateTo('/admin');
-    else if (mode === 'auth') navigateTo('/auth');
-    else navigateTo('/');
+    if (mode === 'user') {
+      if (isApexOrWww) {
+        window.location.href = 'https://dash.zoopnetwork.app/app';
+        return;
+      }
+      navigateTo('/app');
+    } else if (mode === 'org') {
+      if (isApexOrWww) {
+        window.location.href = 'https://dash.zoopnetwork.app/org';
+        return;
+      }
+      navigateTo('/org');
+    } else if (mode === 'admin') {
+      if (!isAdminHost && isApexOrWww) {
+        const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
+        window.location.href = `https://${adminSub}/admin`;
+        return;
+      }
+      navigateTo('/admin');
+    } else if (mode === 'auth') {
+      if (isApexOrWww) {
+        window.location.href = 'https://dash.zoopnetwork.app/auth';
+        return;
+      }
+      navigateTo('/auth');
+    } else {
+      if (isDashHost || isAdminHost) {
+        window.location.href = 'https://zoopnetwork.app/';
+        return;
+      }
+      navigateTo('/');
+    }
   };
 
   // Robust split: keep full query string handling via URL
@@ -100,16 +133,38 @@ const AppContent: React.FC = () => {
   const normalized = normalizePath(pathname);
   const searchParams = urlForParse.searchParams;
 
-  // On dash.zoopinternet.app, visiting root '/' directs straight into dashboard / auth
+  // Subdomain routing rules
   useEffect(() => {
+    // 1. On admin subdomain: root directs to admin console (or auth if not logged in)
+    if (isAdminHost && (normalized === '/' || normalized === '')) {
+      if (isAuthenticated && (user?.role === 'admin' || user?.role === 'operator')) {
+        navigateTo('/admin');
+      } else {
+        navigateTo('/auth?tab=signin&redirect_url=/admin');
+      }
+      return;
+    }
+
+    // 2. On dash.zoopnetwork.app: root directs to /app (or /auth if not signed in)
     if (isDashHost && (normalized === '/' || normalized === '')) {
       if (isAuthenticated) {
         navigateTo('/app');
       } else {
         navigateTo('/auth');
       }
+      return;
     }
-  }, [isDashHost, normalized, isAuthenticated]);
+
+    // 3. On apex marketing domain: redirect direct app/org/admin visits to their respective subdomains
+    if (isApexOrWww) {
+      if (normalized === '/app' || normalized.startsWith('/app/') || normalized === '/org' || normalized.startsWith('/org/')) {
+        window.location.href = `https://dash.zoopnetwork.app${pathname}${window.location.search}${window.location.hash}`;
+      } else if (normalized === '/admin' || normalized.startsWith('/admin/')) {
+        const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
+        window.location.href = `https://${adminSub}/admin`;
+      }
+    }
+  }, [isDashHost, isAdminHost, isApexOrWww, normalized, isAuthenticated, user, pathname]);
 
   const isValidRoute =
     VALID_ROUTES.has(normalized) ||
