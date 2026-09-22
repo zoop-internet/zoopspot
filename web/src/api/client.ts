@@ -779,3 +779,59 @@ export async function getOrgAudit(orgId: string): Promise<ApiAuditEvent[]> {
   return apiFetch<ApiAuditEvent[]>(path, { headers: authHeaders });
 }
 
+// ─── Integrations (Admin) ────────────────────────────────────────────────────
+
+export interface IntegrationConfig {
+  payment_gateway_url: string;
+  payment_api_key: string;      // masked on server
+  payment_api_secret: string;   // masked on server
+  payment_webhook_secret: string; // masked on server
+  payment_currency: string;
+  payment_mode: 'live' | 'mock';
+  turn_secret: string;          // masked on server
+  turn_realm: string;
+  stun_server: string;
+  database_host: string;
+  database_status: 'connected' | 'disconnected';
+}
+
+export interface IntegrationUpdatePayload {
+  payment_gateway_url?: string;
+  payment_api_key?: string;
+  payment_api_secret?: string;
+  payment_webhook_secret?: string;
+  payment_currency?: string;
+  turn_secret?: string;
+  turn_realm?: string;
+  stun_server?: string;
+}
+
+export interface IntegrationTestResult {
+  service: string;
+  status: 'ok' | 'mock' | 'error';
+  message: string;
+  latency_ms?: string;
+}
+
+export async function adminGetIntegrations(): Promise<IntegrationConfig> {
+  const path = '/v1/admin/integrations';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<IntegrationConfig>(path, { headers: authHeaders });
+}
+
+export async function adminUpdateIntegrations(
+  payload: IntegrationUpdatePayload
+): Promise<{ ok: boolean; updated: number; message: string }> {
+  const path = '/v1/admin/integrations';
+  const body = JSON.stringify(payload);
+  const authHeaders = await buildSignedAuthHeaders('PUT', path, body);
+  return apiFetch(path, { method: 'PUT', headers: authHeaders, body });
+}
+
+export async function adminTestIntegration(
+  service: 'payment' | 'database' | 'turn'
+): Promise<IntegrationTestResult> {
+  const path = `/v1/admin/integrations/test?service=${service}`;
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch<IntegrationTestResult>(path, { method: 'POST', headers: authHeaders });
+}

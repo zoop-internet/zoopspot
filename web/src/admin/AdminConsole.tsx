@@ -6,12 +6,13 @@ import {
   adminUsers, adminNetwork, adminAudit, adminUsage, adminUsageCsv, adminRelays,
   adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice,
   listDevices, createOrganization, adminBilling, adminBillingCsv, adminSystem,
-  adminFlushCache, adminRestartStore, adminCreateIncident
+  adminFlushCache, adminRestartStore, adminCreateIncident,
+  adminGetIntegrations, adminUpdateIntegrations, adminTestIntegration
 } from '../api/client';
 import type {
   ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser,
   ApiNetworkUsage, ApiAuditEvent, ApiUsage, ApiBillingOverview,
-  ApiSystemTelemetry
+  ApiSystemTelemetry, IntegrationConfig, IntegrationUpdatePayload, IntegrationTestResult
 } from '../api/client';
 import type { ApiPaymentTransaction } from '../types';
 import { AwsSpinner } from '../components/AwsSpinner';
@@ -51,6 +52,7 @@ const I = {
   check:      () => <Ico size={14}><polyline points="20 6 9 17 4 12"/></Ico>,
   menu:       () => <Ico><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></Ico>,
   close:      () => <Ico><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ico>,
+  key:        () => <Ico><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></Ico>,
 };
 
 /* ─── Navigation Types & Structure ────────────────────────────────── */
@@ -59,7 +61,7 @@ type AdminTab =
   | 'users' | 'organizations' | 'devices'
   | 'connections' | 'network' | 'relays'
   | 'security' | 'abuse'
-  | 'system';
+  | 'system' | 'integrations';
 
 interface NavSection {
   label: string;
@@ -102,7 +104,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Infrastructure',
     items: [
-      { id: 'system', label: 'System', icon: <I.cpu /> },
+      { id: 'system',       label: 'System',       icon: <I.cpu /> },
+      { id: 'integrations', label: 'Integrations', icon: <I.key /> },
     ],
   },
 ];
@@ -172,6 +175,8 @@ const CommandPalette: React.FC<{
     out.push({ id: 'nav-operations', label: 'Go to Operations', sub: 'Incidents & health', icon: <I.activity />, tab: 'operations' as AdminTab, kind: 'Navigate' });
     out.push({ id: 'nav-usage', label: 'Go to Usage', sub: 'Analytics & bandwidth', icon: <I.barChart />, tab: 'usage' as AdminTab, kind: 'Navigate' });
     out.push({ id: 'nav-network', label: 'Go to Network / IPAM', sub: '100.64.0.0/10', icon: <I.layers />, tab: 'network' as AdminTab, kind: 'Navigate' });
+    out.push({ id: 'nav-system', label: 'Go to System', sub: 'Neon DB, Go telemetry, pool', icon: <I.cpu />, tab: 'system' as AdminTab, kind: 'Navigate' });
+    out.push({ id: 'nav-integrations', label: 'Go to Integrations & API Keys', sub: 'MarzPay, MTN, Airtel, Mastercard, DB', icon: <I.key />, tab: 'integrations' as AdminTab, kind: 'Navigate' });
     return out;
   }, [data]);
 
@@ -3239,6 +3244,579 @@ const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }
   );
 };
 
+/* ─── Brand Logos ─────────────────────────────────────────────────── */
+const MtnLogo: React.FC<{ size?: number }> = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ borderRadius: 6, flexShrink: 0 }}>
+    <rect width="48" height="48" rx="8" fill="#FFCC00" />
+    <ellipse cx="24" cy="24" rx="19" ry="11.5" stroke="#000000" strokeWidth="2.75" fill="none" />
+    <text x="24" y="28.5" textAnchor="middle" fill="#000000" fontSize="13" fontWeight="900" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.5">MTN</text>
+  </svg>
+);
+
+const AirtelLogo: React.FC<{ size?: number }> = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ borderRadius: 6, flexShrink: 0 }}>
+    <rect width="48" height="48" rx="8" fill="#ED1C24" />
+    <path d="M15 33 C15 25 21 20 27 20 C33 20 34 25 34 33 M34 21 L34 33 M25 26 C29 26 31 29 31 33" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <text x="24" y="15" textAnchor="middle" fill="#FFFFFF" fontSize="9" fontWeight="800" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.2">airtel</text>
+  </svg>
+);
+
+const MastercardLogo: React.FC<{ size?: number }> = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ borderRadius: 6, flexShrink: 0 }}>
+    <rect width="48" height="48" rx="8" fill="#141414" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+    <circle cx="19" cy="24" r="10" fill="#EB001B" />
+    <circle cx="29" cy="24" r="10" fill="#F79E1B" fillOpacity="0.92" />
+    <path d="M24 16.35 A 10 10 0 0 0 24 31.65 A 10 10 0 0 0 24 16.35" fill="#FF5F00" />
+  </svg>
+);
+
+const EyeToggleIcon: React.FC<{ show: boolean }> = ({ show }) => (
+  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    {show ? (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    ) : (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )}
+  </svg>
+);
+
+/* ─── Integrations Tab ────────────────────────────────────────────── */
+const IntegrationsTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
+  const [config, setConfig] = useState<IntegrationConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testingService, setTestingService] = useState<'payment' | 'database' | 'turn' | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
+
+  // Form state
+  const [paymentGatewayUrl, setPaymentGatewayUrl] = useState('');
+  const [paymentApiKey, setPaymentApiKey] = useState('');
+  const [paymentApiSecret, setPaymentApiSecret] = useState('');
+  const [paymentWebhookSecret, setPaymentWebhookSecret] = useState('');
+  const [paymentCurrency, setPaymentCurrency] = useState('UGX');
+  const [turnSecret, setTurnSecret] = useState('');
+  const [turnRealm, setTurnRealm] = useState('');
+  const [stunServer, setStunServer] = useState('');
+
+  // Visibility toggles
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showApiSecret, setShowApiSecret] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
+
+  const loadConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cfg = await adminGetIntegrations();
+      setConfig(cfg);
+      setPaymentGatewayUrl(cfg.payment_gateway_url || 'https://wallet.wearemarz.com/api/v1');
+      setPaymentApiKey(cfg.payment_api_key || '');
+      setPaymentApiSecret(cfg.payment_api_secret || '');
+      setPaymentWebhookSecret(cfg.payment_webhook_secret || '');
+      setPaymentCurrency(cfg.payment_currency || 'UGX');
+      setTurnSecret(cfg.turn_secret || '');
+      setTurnRealm(cfg.turn_realm || 'zoop.network');
+      setStunServer(cfg.stun_server || 'stun.l.google.com:19302');
+    } catch (err) {
+      console.error('Failed to load integrations:', err);
+      onToast(err instanceof Error ? err.message : 'Failed to load integration settings', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [onToast]);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  const handleTest = async (service: 'payment' | 'database' | 'turn') => {
+    setTestingService(service);
+    try {
+      const res = await adminTestIntegration(service);
+      setTestResults(prev => ({ ...prev, [service]: res }));
+      if (res.status === 'ok') {
+        onToast(res.message || `${service.toUpperCase()} connection test passed!`, 'success');
+      } else if (res.status === 'mock') {
+        onToast(res.message, 'info');
+      } else {
+        onToast(res.message || `${service.toUpperCase()} connection failed`, 'error');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `Failed to test ${service}`;
+      setTestResults(prev => ({ ...prev, [service]: { service, status: 'error', message: msg } }));
+      onToast(msg, 'error');
+    } finally {
+      setTestingService(null);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload: IntegrationUpdatePayload = {};
+      if (paymentGatewayUrl && paymentGatewayUrl !== config?.payment_gateway_url) {
+        payload.payment_gateway_url = paymentGatewayUrl;
+      }
+      if (paymentApiKey && paymentApiKey !== config?.payment_api_key && !paymentApiKey.includes('•')) {
+        payload.payment_api_key = paymentApiKey;
+      }
+      if (paymentApiSecret && paymentApiSecret !== config?.payment_api_secret && !paymentApiSecret.includes('•')) {
+        payload.payment_api_secret = paymentApiSecret;
+      }
+      if (paymentWebhookSecret && paymentWebhookSecret !== config?.payment_webhook_secret && !paymentWebhookSecret.includes('•')) {
+        payload.payment_webhook_secret = paymentWebhookSecret;
+      }
+      if (paymentCurrency && paymentCurrency !== config?.payment_currency) {
+        payload.payment_currency = paymentCurrency;
+      }
+      if (turnSecret && turnSecret !== config?.turn_secret && !turnSecret.includes('•')) {
+        payload.turn_secret = turnSecret;
+      }
+      if (turnRealm && turnRealm !== config?.turn_realm) {
+        payload.turn_realm = turnRealm;
+      }
+      if (stunServer && stunServer !== config?.stun_server) {
+        payload.stun_server = stunServer;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        onToast('No changes detected to save.', 'info');
+        setSaving(false);
+        return;
+      }
+
+      const res = await adminUpdateIntegrations(payload);
+      onToast(res.message || 'Credentials updated and applied live.', 'success');
+      await loadConfig();
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Failed to update credentials', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isLive = config?.payment_mode === 'live';
+
+  return (
+    <>
+      {/* Top Status Metrics */}
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Payment Gateway</div>
+          <div className="metric-value" style={{ color: isLive ? '#22c55e' : '#f59e0b', fontSize: '1.25rem' }}>
+            {config ? (isLive ? 'MarzPay Live' : 'Mock / Sandbox') : '—'}
+          </div>
+          <div className="metric-sub">
+            {isLive ? 'Real transactions enabled' : 'Dummy responses (no real charges)'}
+          </div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Settlement Currency</div>
+          <div className="metric-value" style={{ color: '#38bdf8' }}>
+            {config?.payment_currency || 'UGX'}
+          </div>
+          <div className="metric-sub">East & Central Africa rails</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Database Status</div>
+          <div className="metric-value" style={{ color: config?.database_status === 'connected' ? '#22c55e' : '#ef4444' }}>
+            {config?.database_status === 'connected' ? 'Connected' : 'Disconnected'}
+          </div>
+          <div className="metric-sub">{config?.database_host || 'Neon PostgreSQL'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Active Payment Rails</div>
+          <div className="metric-value" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <MtnLogo size={24} />
+            <AirtelLogo size={24} />
+            <MastercardLogo size={24} />
+          </div>
+          <div className="metric-sub">MTN · Airtel · Mastercard</div>
+        </div>
+      </div>
+
+      {/* MarzPay Payment Gateway Section */}
+      <div className="section">
+        <div className="section-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="section-title">MarzPay Payment Gateway</span>
+            {isLive ? (
+              <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} /> Live Gateway
+              </span>
+            ) : (
+              <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} /> Sandbox Mode
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              onClick={() => handleTest('payment')}
+              disabled={testingService === 'payment' || loading}
+            >
+              {testingService === 'payment' ? <AwsSpinner size={12} /> : 'Test Connection'}
+            </button>
+            <a
+              href="https://wallet.wearemarz.com/documentation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost btn-xs"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              MarzPay Docs <I.chevronR />
+            </a>
+          </div>
+        </div>
+
+        {/* Brand rails banner */}
+        <div style={{ padding: '14px 16px', background: 'var(--bg-surface-2)', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.2)' }}>
+            <MtnLogo size={36} />
+            <div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#FFCC00' }}>MTN Mobile Money</div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>UG, RW, ZM, CM, BJ, CI (+256...)</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(237,28,36,0.06)', border: '1px solid rgba(237,28,36,0.2)' }}>
+            <AirtelLogo size={36} />
+            <div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#ED1C24' }}>Airtel Money</div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>UG, RW, CD, ZM, CG, GA (+256...)</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(235,0,27,0.06)', border: '1px solid rgba(235,0,27,0.2)' }}>
+            <MastercardLogo size={36} />
+            <div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#f59e0b' }}>Mastercard / Cards</div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Debit & Credit 3D-Secure cards</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Test Result Banner */}
+        {testResults.payment && (
+          <div style={{
+            padding: '10px 16px',
+            background: testResults.payment.status === 'ok' ? 'rgba(34,197,94,0.08)' : testResults.payment.status === 'mock' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: '0.78rem'
+          }}>
+            <span style={{ fontWeight: 700, color: testResults.payment.status === 'ok' ? '#22c55e' : testResults.payment.status === 'mock' ? '#f59e0b' : '#ef4444' }}>
+              {testResults.payment.status === 'ok' ? '✓ REACHABLE' : testResults.payment.status === 'mock' ? 'ℹ MOCK GATEWAY' : '✕ FAILED'}
+            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>{testResults.payment.message}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSave} style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {/* Gateway URL */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                Gateway API Base URL
+              </label>
+              <input
+                type="text"
+                value={paymentGatewayUrl}
+                onChange={e => setPaymentGatewayUrl(e.target.value)}
+                placeholder="https://wallet.wearemarz.com/api/v1"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 8,
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  fontFamily: 'var(--font-mono)'
+                }}
+              />
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Default: <code>https://wallet.wearemarz.com/api/v1</code>
+              </span>
+            </div>
+
+            {/* Currency */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                Settlement Currency
+              </label>
+              <select
+                value={paymentCurrency}
+                onChange={e => setPaymentCurrency(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 8,
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  fontFamily: 'var(--font-mono)'
+                }}
+              >
+                <option value="UGX">UGX - Uganda Shilling</option>
+                <option value="KES">KES - Kenya Shilling</option>
+                <option value="RWF">RWF - Rwanda Franc</option>
+                <option value="USD">USD - US Dollar (DRC)</option>
+                <option value="CDF">CDF - Congolese Franc</option>
+                <option value="ZMW">ZMW - Zambia Kwacha</option>
+                <option value="XAF">XAF - Central African CFA (CM, GA, CG)</option>
+                <option value="XOF">XOF - West African CFA (BJ, CI, SN)</option>
+              </select>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Configures primary settlement currency for customer billing
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {/* API Key */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                MarzPay API Key
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={paymentApiKey}
+                  onChange={e => setPaymentApiKey(e.target.value)}
+                  placeholder="Paste MarzPay API Key from dashboard"
+                  style={{
+                    width: '100%',
+                    padding: '9px 36px 9px 12px',
+                    borderRadius: 8,
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8125rem',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(v => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 4
+                  }}
+                  title={showApiKey ? 'Hide' : 'Show'}
+                >
+                  <EyeToggleIcon show={showApiKey} />
+                </button>
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Obtained from <a href="https://wallet.wearemarz.com/developer/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8' }}>wallet.wearemarz.com/developer/api-keys</a>
+              </span>
+            </div>
+
+            {/* API Secret */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                MarzPay API Secret
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showApiSecret ? 'text' : 'password'}
+                  value={paymentApiSecret}
+                  onChange={e => setPaymentApiSecret(e.target.value)}
+                  placeholder="Paste MarzPay API Secret"
+                  style={{
+                    width: '100%',
+                    padding: '9px 36px 9px 12px',
+                    borderRadius: 8,
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8125rem',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiSecret(v => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 4
+                  }}
+                  title={showApiSecret ? 'Hide' : 'Show'}
+                >
+                  <EyeToggleIcon show={showApiSecret} />
+                </button>
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Paired secret for Basic Auth (Base64 encoded with API key)
+              </span>
+            </div>
+
+            {/* Webhook Secret */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                Webhook Secret (HMAC-SHA256)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showWebhookSecret ? 'text' : 'password'}
+                  value={paymentWebhookSecret}
+                  onChange={e => setPaymentWebhookSecret(e.target.value)}
+                  placeholder="Webhook signature signing secret"
+                  style={{
+                    width: '100%',
+                    padding: '9px 36px 9px 12px',
+                    borderRadius: 8,
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8125rem',
+                    fontFamily: 'var(--font-mono)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowWebhookSecret(v => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 4
+                  }}
+                  title={showWebhookSecret ? 'Hide' : 'Show'}
+                >
+                  <EyeToggleIcon show={showWebhookSecret} />
+                </button>
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                Used to verify incoming <code>X-MarzPay-Signature</code> webhooks
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={loadConfig}
+              disabled={loading || saving}
+            >
+              Reset to Current
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              style={{ background: '#f59e0b', color: '#000', fontWeight: 700, borderColor: '#f59e0b' }}
+              disabled={saving || loading}
+            >
+              {saving ? <AwsSpinner size={14} /> : 'Save & Reload Credentials'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Cloud Infrastructure Integrations (Neon DB & TURN/STUN) */}
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Cloud Infrastructure Integrations</span>
+        </div>
+
+        {/* Neon PostgreSQL Row */}
+        <div className="info-row" style={{ alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+            <div style={{ padding: 8, borderRadius: 8, background: 'rgba(56,189,248,0.08)', color: '#38bdf8' }}>
+              <I.database />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.8125rem' }}>Neon Serverless PostgreSQL</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                Host: {config?.database_host || 'Configured via DATABASE_URL'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {testResults.database && (
+              <span style={{ fontSize: '0.72rem', color: testResults.database.status === 'ok' ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                {testResults.database.status === 'ok' ? '✓ Healthy' : testResults.database.message}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              onClick={() => handleTest('database')}
+              disabled={testingService === 'database'}
+            >
+              {testingService === 'database' ? <AwsSpinner size={12} /> : 'Ping DB'}
+            </button>
+          </div>
+        </div>
+
+        {/* STUN / TURN Relay Row */}
+        <div className="info-row" style={{ alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+            <div style={{ padding: 8, borderRadius: 8, background: 'rgba(245,158,11,0.08)', color: '#f59e0b' }}>
+              <I.globe />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.8125rem' }}>STUN / TURN NAT Traversal</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                STUN: {config?.stun_server || 'stun.l.google.com:19302'} · Realm: {config?.turn_realm || 'zoop.network'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {testResults.turn && (
+              <span style={{ fontSize: '0.72rem', color: testResults.turn.status === 'ok' ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                {testResults.turn.status === 'ok' ? '✓ Active' : testResults.turn.message}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary btn-xs"
+              onClick={() => handleTest('turn')}
+              disabled={testingService === 'turn'}
+            >
+              {testingService === 'turn' ? <AwsSpinner size={12} /> : 'Test Relay'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 /* ─── Screen Registry ─────────────────────────────────────────────── */
 type ScreenDef = { title: string; subtitle: string; render: (data: ReturnType<typeof useAdminData>, navigate: (t: AdminTab) => void, onToast: (msg: string, type?: 'success' | 'error' | 'info') => void) => React.ReactNode; action?: React.ReactNode };
 
@@ -3256,6 +3834,7 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: d => <SecurityTab data={d} /> },
   abuse:         { title: 'Abuse',               subtitle: 'Quarantine controls, key revocation, and security audit trail', render: (d, _nav, onToast) => <AbuseTab data={d} onToast={onToast} /> },
   system:        { title: 'System',              subtitle: 'Live Neon PostgreSQL pool, Go runtime telemetry, and topology', render: d => <SystemTab data={d} /> },
+  integrations:  { title: 'Integrations & API Keys', subtitle: 'Manage MarzPay gateway credentials, payment methods, and cloud services', render: (_d, _nav, onToast) => <IntegrationsTab onToast={onToast} /> },
 };
 
 export interface AdminConsoleProps {
@@ -3274,7 +3853,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ mode, onSwitch, curr
       'overview', 'operations', 'usage', 'billing',
       'users', 'organizations', 'devices',
       'connections', 'network', 'relays',
-      'security', 'abuse', 'system'
+      'security', 'abuse', 'system', 'integrations'
     ];
     if (seg && VALID_TABS.includes(seg as AdminTab)) {
       return seg as AdminTab;
@@ -3351,6 +3930,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ mode, onSwitch, curr
     security: securityAttention > 3 ? securityAttention : null,
     abuse: null,
     system: null,
+    integrations: null,
   };
 
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {

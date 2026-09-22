@@ -106,6 +106,11 @@ func (s *PostgresStore) Close() error {
 	return s.db.Close()
 }
 
+// Ping verifies the database connection is alive.
+func (s *PostgresStore) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
 // ─── Devices ──────────────────────────────────────────────────
 
 func (s *PostgresStore) SaveDevice(ctx context.Context, device *types.Device) error {

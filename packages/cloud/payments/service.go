@@ -44,6 +44,13 @@ func NewPaymentService(st store.Store, gateway GatewayClient, logger *slog.Logge
 	}
 }
 
+// SetGateway hot-swaps the payment gateway (used when credentials are updated via Admin Console).
+func (s *PaymentService) SetGateway(g GatewayClient) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gateway = g
+}
+
 // GetOrCreateWallet retrieves an owner's wallet or initializes an empty one with default currency.
 func (s *PaymentService) GetOrCreateWallet(ctx context.Context, ownerID types.ID) (*Wallet, error) {
 	w, err := s.store.GetWallet(ctx, ownerID)

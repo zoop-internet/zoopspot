@@ -18,6 +18,7 @@ var (
 
 // Store defines the data access interface for the Zoop Control Plane.
 type Store interface {
+	Ping(ctx context.Context) error
 	SaveDevice(ctx context.Context, device *types.Device) error
 	GetDevice(ctx context.Context, id types.ID) (*types.Device, error)
 	ListDevices(ctx context.Context) ([]*types.Device, error)
@@ -196,6 +197,10 @@ func (s *InMemoryStore) IPAMUsage(_ context.Context) (allocated, capacity uint32
 	defer s.ipam.mu.Unlock()
 	allocated = s.ipam.counter - uint32(len(s.ipam.free))
 	return allocated, ipamMaxPairs, nil
+}
+
+func (s *InMemoryStore) Ping(_ context.Context) error {
+	return nil
 }
 
 func (s *InMemoryStore) SaveDevice(ctx context.Context, device *types.Device) error {

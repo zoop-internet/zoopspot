@@ -287,6 +287,9 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /v1/admin/services/store/restart", adminMw(http.HandlerFunc(s.handleAdminStoreRestart())))
 	s.mux.Handle("POST /v1/admin/incidents", adminMw(http.HandlerFunc(s.handleAdminCreateIncident())))
 	s.mux.Handle("GET /v1/admin/system", adminMw(http.HandlerFunc(s.handleAdminSystem())))
+	s.mux.Handle("GET /v1/admin/integrations", adminMw(http.HandlerFunc(s.handleAdminGetIntegrations())))
+	s.mux.Handle("PUT /v1/admin/integrations", adminMw(http.HandlerFunc(s.handleAdminUpdateIntegrations())))
+	s.mux.Handle("POST /v1/admin/integrations/test", adminMw(http.HandlerFunc(s.handleAdminTestIntegration())))
 
 	s.mux.Handle("GET /v1/organizations/{id}/audit", authMw(http.HandlerFunc(s.handleOrgAudit())))
 
