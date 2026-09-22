@@ -10,10 +10,7 @@ interface NavbarProps {
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
   handleNav: (path: string) => void;
-  isAuthenticated: boolean;
-  user: { name?: string; plan?: string } | null;
   onLaunchConsole: (mode: PortalMode) => void;
-  logout: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,10 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   menuOpen,
   setMenuOpen,
   handleNav,
-  isAuthenticated,
-  user,
   onLaunchConsole,
-  logout,
 }) => {
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -106,37 +100,25 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         <div className="lp-topbar-actions">
-          {isAuthenticated ? (
-            <div className="lp-user-badge-container">
-              <button
-                className="lp-user-badge-btn"
-                onClick={() => onLaunchConsole('user')}
-                title="Go to Console"
-              >
-                <div className="lp-user-avatar">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : 'Z'}
-                </div>
-                <span className="lp-user-name">{user?.name || 'Account'}</span>
-                <span className="lp-user-plan-badge">{user?.plan || 'Free'}</span>
-              </button>
-              <button className="lp-btn-secondary" onClick={() => onLaunchConsole('user')} title="Open Web Management Console">
-                Console
-              </button>
-              <button className="lp-btn-ghost-logout" onClick={() => logout()} title="Sign Out">
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <>
-              <a href="/auth?tab=signin" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signin'); }} title="Sign In">
-                Sign In
-              </a>
-              <a href="/auth?tab=signup" className="lp-btn-primary" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }}>
-                <Ico d={Icons.arrowRight} size={14} />
-                Sign Up
-              </a>
-            </>
-          )}
+          <a
+            href="/auth?tab=signin"
+            className="lp-btn-secondary"
+            onClick={(e) => {
+              e.preventDefault();
+              onLaunchConsole('auth');
+            }}
+            title="Sign In"
+          >
+            Sign In
+          </a>
+          <button
+            className="lp-btn-primary"
+            onClick={() => onLaunchConsole('user')}
+            title="Open Console"
+          >
+            <Ico d={Icons.arrowRight} size={14} />
+            Open Console
+          </button>
           <button
             ref={menuBtnRef}
             className="lp-menu-btn"
@@ -172,17 +154,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); setMenuOpen(false); }}>Security</a>
             <a href="/blog" onClick={(e) => { e.preventDefault(); handleNav('/blog'); setMenuOpen(false); }}>Blog</a>
             <div className="lp-mobile-drawer-divider" />
-            {isAuthenticated ? (
-              <>
-                <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
-                <button onClick={() => { logout(); setMenuOpen(false); }}>Sign Out</button>
-              </>
-            ) : (
-              <>
-                <a href="/auth?tab=signin" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signin'); setMenuOpen(false); }}>Sign In</a>
-                <a href="/auth?tab=signup" className="primary" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); setMenuOpen(false); }}>Create Account</a>
-              </>
-            )}
+            <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
+            <a href="/auth?tab=signin" onClick={(e) => { e.preventDefault(); onLaunchConsole('auth'); setMenuOpen(false); }}>Sign In</a>
           </div>
         </>
       )}

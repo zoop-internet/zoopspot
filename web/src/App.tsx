@@ -47,6 +47,7 @@ const VALID_ROUTES = new Set([
   '/privacy', '/privacy-policy', '/terms', '/terms-of-service', '/eula',
   '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
   '/app', '/user', '/org', '/admin',
+  '/overview', '/devices', '/connections', '/sharing', '/wallet', '/settings',
 ]);
 
 const AppContent: React.FC = () => {
@@ -95,10 +96,10 @@ const AppContent: React.FC = () => {
   const handleSwitchMode = (mode: PortalMode) => {
     if (mode === 'user') {
       if (isApexOrWww) {
-        window.location.href = 'https://dash.zoopnetwork.app/app';
+        window.location.href = 'https://dash.zoopnetwork.app/';
         return;
       }
-      navigateTo('/app');
+      navigateTo(isDashHost ? '/' : '/app');
     } else if (mode === 'org') {
       if (isApexOrWww) {
         window.location.href = 'https://dash.zoopnetwork.app/org';
@@ -133,6 +134,8 @@ const AppContent: React.FC = () => {
   const normalized = normalizePath(pathname);
   const searchParams = urlForParse.searchParams;
 
+  const DASH_ROUTES = new Set(['/overview', '/devices', '/connections', '/sharing', '/wallet', '/settings']);
+
   // Subdomain routing rules
   useEffect(() => {
     // 1. On admin subdomain: root directs to admin console (or auth if not logged in)
@@ -145,20 +148,32 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    // 2. On dash.zoopnetwork.app: root directs to /app (or /auth if not signed in)
-    if (isDashHost && (normalized === '/' || normalized === '')) {
-      if (isAuthenticated) {
-        navigateTo('/app');
-      } else {
-        navigateTo('/auth');
+    // 2. On dash.zoopnetwork.app:
+    if (isDashHost) {
+      // 2a. If URL is /app or /app/*, cleanly strip /app to keep clean URLs
+      if (normalized === '/app' || normalized.startsWith('/app/')) {
+        const clean = normalized === '/app' ? '/' : normalized.replace(/^\/app/, '');
+        window.history.replaceState({}, '', clean + window.location.search + window.location.hash);
+        setCurrentUrl(clean + window.location.search + window.location.hash);
+        return;
       }
-      return;
+      // 2b. If not authenticated and visiting root or a dashboard route, redirect to auth
+      if ((normalized === '/' || normalized === '' || DASH_ROUTES.has(normalized)) && !isAuthenticated) {
+        const redirect = normalized === '/' ? '/' : normalized;
+        navigateTo(`/auth?redirect_url=${encodeURIComponent(redirect)}`);
+        return;
+      }
     }
 
     // 3. On apex marketing domain: redirect direct app/org/admin visits to their respective subdomains
     if (isApexOrWww) {
-      if (normalized === '/app' || normalized.startsWith('/app/') || normalized === '/org' || normalized.startsWith('/org/')) {
+      if (normalized === '/app' || normalized.startsWith('/app/')) {
+        const clean = normalized === '/app' ? '/' : normalized.replace(/^\/app/, '');
+        window.location.href = `https://dash.zoopnetwork.app${clean}${window.location.search}${window.location.hash}`;
+      } else if (normalized === '/org' || normalized.startsWith('/org/')) {
         window.location.href = `https://dash.zoopnetwork.app${pathname}${window.location.search}${window.location.hash}`;
+      } else if (DASH_ROUTES.has(normalized)) {
+        window.location.href = `https://dash.zoopnetwork.app${normalized}${window.location.search}${window.location.hash}`;
       } else if (normalized === '/admin' || normalized.startsWith('/admin/')) {
         const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
         window.location.href = `https://${adminSub}/admin`;
@@ -213,7 +228,13 @@ const AppContent: React.FC = () => {
     normalized === '/sign-up' ||
     normalized === '/register';
 
-  const isApp = normalized === '/app' || normalized.startsWith('/app/') || normalized === '/user' || normalized.startsWith('/user/');
+  const isApp =
+    normalized === '/app' ||
+    normalized.startsWith('/app/') ||
+    normalized === '/user' ||
+    normalized.startsWith('/user/') ||
+    (isDashHost && (normalized === '/' || DASH_ROUTES.has(normalized))) ||
+    (!isApexOrWww && DASH_ROUTES.has(normalized));
   const isOrg = normalized === '/org' || normalized.startsWith('/org/');
   
   // Admin is strictly protected and non-public.
@@ -229,7 +250,7 @@ const AppContent: React.FC = () => {
       ? 'signup'
       : 'signin';
 
-  const redirectUrl = searchParams.get('redirect_url') || '/app';
+  const redirectUrl = searchParams.get('redirect_url') || (isDashHost ? '/' : '/app');
 
   return (
     <ErrorBoundary>

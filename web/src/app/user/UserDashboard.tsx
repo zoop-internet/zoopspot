@@ -1664,7 +1664,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
 
   const handleTabChange = (newTab: UserTab) => {
     setTab(newTab);
-    const targetPath = newTab === 'overview' ? '/app' : `/app/${newTab}`;
+    const isDashHost = typeof window !== 'undefined' && (
+      window.location.hostname.startsWith('dash.') ||
+      window.location.hostname.startsWith('app.')
+    );
+    const targetPath = isDashHost
+      ? (newTab === 'overview' ? '/' : `/${newTab}`)
+      : (newTab === 'overview' ? '/app' : `/app/${newTab}`);
+
     if (onNavigate) {
       onNavigate(targetPath);
     } else {

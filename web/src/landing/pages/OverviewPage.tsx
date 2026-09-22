@@ -6,13 +6,11 @@ import { AnimatedCounter } from '../components/AnimatedCounter';
 
 interface OverviewPageProps {
   handleNav: (path: string) => void;
-  isAuthenticated: boolean;
   onLaunchConsole: (mode: PortalMode) => void;
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   handleNav,
-  isAuthenticated,
   onLaunchConsole,
 }) => {
   return (
@@ -30,28 +28,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 Lend your home broadband or mobile data to your laptop, friends, or family directly between devices. Zero middleman bottlenecks, no complex router configurations, and no subscription fees. Ready in 30 seconds.
               </p>
               <div className="lp-hero-actions">
-                {isAuthenticated ? (
-                  <>
-                    <a href="/app" className="lp-btn-primary large" onClick={(e) => { e.preventDefault(); onLaunchConsole('user'); }}>
-                      Open Web Console
-                      <Ico d={Icons.arrowRight} size={16} />
-                    </a>
-                    <a href="/downloads" className="lp-btn-secondary large" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>
-                      <Ico d={Icons.download} size={18} />
-                      Download Apps
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    <a href="/auth?tab=signup" className="lp-btn-primary large" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }} aria-label="Get Zoop Free — create Zoop ID">
-                      Get Zoop Free
-                      <Ico d={Icons.arrowRight} size={16} />
-                    </a>
-                    <a href="/how-it-works" className="lp-btn-secondary large" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }} aria-label="See how Zoop works in 30 seconds">
-                      See how it works (30s)
-                    </a>
-                  </>
-                )}
+                <a href="/auth?tab=signup" className="lp-btn-primary large" onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }} aria-label="Get Zoop Free — create Zoop ID">
+                  Get Zoop Free
+                  <Ico d={Icons.arrowRight} size={16} />
+                </a>
+                <a href="/how-it-works" className="lp-btn-secondary large" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }} aria-label="See how Zoop works in 30 seconds">
+                  See how it works (30s)
+                </a>
               </div>
               <div className="lp-hero-trust-bar" aria-label="Key guarantees">
                 <span className="lp-trust-item"><Ico d={Icons.check} size={14} /> 5 devices free</span>

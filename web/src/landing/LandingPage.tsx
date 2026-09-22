@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PortalMode } from '../types';
-import { useApp } from '../context/AppContext';
 import './LandingPage.css';
 
 import { Ico } from './components/Icons';
@@ -28,7 +27,6 @@ export const LandingPage: React.FC<{
   onLaunchConsole: (mode: PortalMode) => void;
 }> = ({ currentPath = '/', onNavigate, onLaunchConsole }) => {
   const activeRoute = currentPath.toLowerCase();
-  const { user, isAuthenticated, logout } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [downloadToast, setDownloadToast] = useState<{ platform: string; file: string } | null>(null);
@@ -182,10 +180,7 @@ export const LandingPage: React.FC<{
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
         handleNav={handleNav}
-        isAuthenticated={isAuthenticated}
-        user={user}
         onLaunchConsole={onLaunchConsole}
-        logout={logout}
       />
 
       {/* ─── Animated Page Content Container ────────────────────────── */}
@@ -260,7 +255,6 @@ export const LandingPage: React.FC<{
           {activeRoute === '/' && (
             <OverviewPage
               handleNav={handleNav}
-              isAuthenticated={isAuthenticated}
               onLaunchConsole={onLaunchConsole}
             />
           )}

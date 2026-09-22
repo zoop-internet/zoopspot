@@ -23,6 +23,12 @@
 /org/*                /org/index.html       200
 /admin                /admin/index.html     200
 /admin/*              /admin/index.html     200
+/overview             /app/index.html       200
+/devices              /app/index.html       200
+/connections          /app/index.html       200
+/sharing              /app/index.html       200
+/wallet               /app/index.html       200
+/settings             /app/index.html       200
 
 # Note: All public marketing and docs routes are served directly from static
 # prerendered HTML directories (e.g. /how-it-works/index.html).
