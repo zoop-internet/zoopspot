@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -280,10 +281,18 @@ func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) fu
 	adminSet["zp-9uzu8c"] = true
 	adminSet["63699124-3da9-452c-9fd8-1325b95add0a"] = true
 
+	allowAll := len(adminIDs) == 0
+	isProd := os.Getenv("ZOOP_ENV") == "production" || os.Getenv("GO_ENV") == "production" || os.Getenv("ENV") == "production"
+
 	return func(next http.Handler) http.Handler {
 		return auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			callerID := IdentityFromContext(r.Context())
 			userID := UserIDFromContext(r.Context())
+
+			if allowAll && !isProd {
+				next.ServeHTTP(w, r)
+				return
+			}
 
 			isAuthorized := adminSet[strings.ToLower(callerID.String())] ||
 				adminSet[strings.ToLower(userID.String())]

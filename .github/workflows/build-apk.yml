@@ -6,7 +6,6 @@ on:
     paths:
       - 'mobile/**'
       - 'cmd/zoop-mobile/**'
-      - 'packages/**'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
