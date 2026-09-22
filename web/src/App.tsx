@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AppProvider } from './context/NetworkContext';
+import { useApp } from './context/AppContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import type { PortalMode } from './types';
 
@@ -48,8 +49,12 @@ const VALID_ROUTES = new Set([
   '/app', '/user', '/org', '/admin',
 ]);
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { user, isAuthenticated } = useApp();
   const [currentUrl, setCurrentUrl] = useState<string>(() => window.location.pathname + window.location.search + window.location.hash);
+
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isDashHost = hostname.startsWith('dash.') || hostname.startsWith('app.');
 
   useEffect(() => {
     if ('scrollRestoration' in history) {
@@ -94,6 +99,18 @@ const App: React.FC = () => {
   const pathname = urlForParse.pathname;
   const normalized = normalizePath(pathname);
   const searchParams = urlForParse.searchParams;
+
+  // On dash.zoopinternet.app, visiting root '/' directs straight into dashboard / auth
+  useEffect(() => {
+    if (isDashHost && (normalized === '/' || normalized === '')) {
+      if (isAuthenticated) {
+        navigateTo('/app');
+      } else {
+        navigateTo('/auth');
+      }
+    }
+  }, [isDashHost, normalized, isAuthenticated]);
+
   const isValidRoute =
     VALID_ROUTES.has(normalized) ||
     normalized.startsWith('/docs') ||
@@ -113,20 +130,18 @@ const App: React.FC = () => {
     }
   }, [normalized]);
 
-  // Per-route title/description/canonical sync for SEO (covers S4-05 + canonical)
+  // Per-route title/description/canonical sync for SEO
   useEffect(() => {
     const key = normalized === '/auth' || normalized.startsWith('/auth') || ['/login','/signin','/sign-in','/signup','/sign-up','/register'].includes(normalized) ? '/auth'
       : (normalized === '/app' || normalized.startsWith('/app') || ['/app','/user'].includes(normalized) ? '/app' : (normalized === '/privacy-policy' ? '/privacy' : (['/terms-of-service','/eula'].includes(normalized) ? '/terms' : (normalized.startsWith('/blog') ? '/blog' : normalized))));
     const meta = ROUTE_META[key] || ROUTE_META['/'];
     document.title = isValidRoute ? meta.title : 'Not Found — Zoop';
-    if (!isValidRoute) console.warn('[zoop] unknown route:', normalized, '→ falling back to landing');
     const descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (descTag) descTag.content = isValidRoute ? meta.desc : 'Page not found — return to Zoop Internet homepage.';
     const ogTitle = document.querySelector('meta[property="og:title"]') as HTMLMetaElement | null;
     if (ogTitle) ogTitle.content = document.title;
     const ogDesc = document.querySelector('meta[property="og:description"]') as HTMLMetaElement | null;
     if (ogDesc) ogDesc.content = descTag?.content ?? meta.desc;
-    // Canonical per route — prevents duplicate content (SEO)
     const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (canonical) canonical.href = `https://zoopnetwork.app${normalized === '/' ? '/' : normalized}`;
     const ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement | null;
@@ -145,7 +160,11 @@ const App: React.FC = () => {
 
   const isApp = normalized === '/app' || normalized.startsWith('/app/') || normalized === '/user' || normalized.startsWith('/user/');
   const isOrg = normalized === '/org' || normalized.startsWith('/org/');
+  
+  // Admin is strictly protected and non-public.
+  // Standard visitors receive a 404 Not Found to prevent probing.
   const isAdmin = normalized === '/admin' || normalized.startsWith('/admin/');
+  const isAuthorizedAdmin = isAuthenticated && (user?.role === 'admin' || user?.role === 'operator');
 
   const initialAuthTab =
     normalized.includes('signup') ||
@@ -156,6 +175,31 @@ const App: React.FC = () => {
       : 'signin';
 
   const redirectUrl = searchParams.get('redirect_url') || '/app';
+
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Fallback />}>
+        {!isValidRoute ? (
+          <NotFound path={pathname} onNavigate={navigateTo} />
+        ) : isAuth ? (
+          <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
+        ) : isApp ? (
+          <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
+        ) : isOrg ? (
+          <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
+        ) : isAdmin ? (
+          isAuthorizedAdmin ? (
+            <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
+          ) : (
+            <NotFound path={pathname} onNavigate={navigateTo} />
+          )
+        ) : (
+          <LandingPage currentPath={pathnameForLanding} onNavigate={navigateTo} onLaunchConsole={handleSwitchMode} />
+        )}
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
 
 const Fallback: React.FC = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#000000' }} role="status" aria-live="polite" aria-busy="true">
@@ -193,25 +237,10 @@ const NotFound: React.FC<{ path: string; onNavigate: (p: string) => void }> = ({
   </div>
 );
 
+const App: React.FC = () => {
   return (
     <AppProvider>
-      <ErrorBoundary>
-        <Suspense fallback={<Fallback />}>
-          {!isValidRoute ? (
-            <NotFound path={pathname} onNavigate={navigateTo} />
-          ) : isAuth ? (
-            <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
-          ) : isApp ? (
-            <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
-          ) : isOrg ? (
-            <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
-          ) : isAdmin ? (
-            <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
-          ) : (
-            <LandingPage currentPath={pathnameForLanding} onNavigate={navigateTo} onLaunchConsole={handleSwitchMode} />
-          )}
-        </Suspense>
-      </ErrorBoundary>
+      <AppContent />
     </AppProvider>
   );
 };
