@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { AwsSpinner } from '../components/AwsSpinner';
+import { getSavedUserProfile, getSharedSessionPayload, utf8ToBase64 } from '../api/identity';
 import {
   AwsCubeHandIllustration,
   AwsRocketIllustration,
@@ -203,14 +204,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       await login(signInIdentifier.trim(), pin, rememberMe);
       setSuccessMsg('Signed in! Redirecting…');
       const cleanIdent = signInIdentifier.trim().toLowerCase();
-      const isAdminUser = cleanIdent === 'admin' || cleanIdent === 'zp-9uzu8c' || cleanIdent === '@admin';
+      const isAdminUser = cleanIdent === 'admin' || cleanIdent === 'zp-9uzu8c' || cleanIdent === '@admin' || getSavedUserProfile()?.role === 'admin';
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('.sslip.io');
       const onAdminDomain = window.location.hostname === 'admin.zoopnetwork.app' || window.location.hostname === 'dmin.zoopnetwork.app';
 
       if (isAdminUser) {
         if (!isLocal && !onAdminDomain) {
+          const syncPayload = getSharedSessionPayload();
+          const hashParam = syncPayload ? `#auth_sync=${encodeURIComponent(utf8ToBase64(JSON.stringify(syncPayload)))}` : '';
           setTimeout(() => {
-            window.location.href = 'https://admin.zoopnetwork.app/admin';
+            window.location.href = `https://admin.zoopnetwork.app/admin${hashParam}`;
           }, 650);
           return;
         }

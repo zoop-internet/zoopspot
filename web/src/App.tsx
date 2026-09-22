@@ -12,6 +12,7 @@ const OrgDashboard = lazy(() => import('./app/org/OrgDashboard').then(m => ({ de
 const AdminConsole = lazy(() => import('./admin/AdminConsole').then(m => ({ default: m.AdminConsole })));
 const AuthPage = lazy(() => import('./auth/AuthPage').then(m => ({ default: m.AuthPage })));
 import { AwsSpinner } from './components/AwsSpinner';
+import { getSharedSessionPayload, utf8ToBase64 } from './api/identity';
 
 // Route-specific meta for SEO (S4-05) — keep in sync with scripts/prerender.mjs
 const ROUTE_META: Record<string, { title: string; desc: string }> = {
@@ -110,16 +111,35 @@ const AppContent: React.FC = () => {
     document.body.scrollTop = 0;
   };
 
+  // Robust split: keep full query string handling via URL
+  const urlForParse = new URL(currentUrl, window.location.origin);
+  const pathname = urlForParse.pathname;
+  const normalized = normalizePath(pathname);
+  const searchParams = urlForParse.searchParams;
+
+  const isAuth =
+    normalized === '/auth' ||
+    normalized.startsWith('/auth/') ||
+    normalized === '/login' ||
+    normalized === '/signin' ||
+    normalized === '/sign-in' ||
+    normalized === '/signup' ||
+    normalized === '/sign-up' ||
+    normalized === '/register';
+
   const handleSwitchMode = (mode: PortalMode) => {
+    const syncPayload = getSharedSessionPayload();
+    const hashParam = syncPayload ? `#auth_sync=${encodeURIComponent(utf8ToBase64(JSON.stringify(syncPayload)))}` : '';
+
     if (mode === 'user') {
-      if (isApexOrWww) {
-        window.location.href = 'https://dash.zoopnetwork.app/';
+      if (isApexOrWww || isAdminHost) {
+        window.location.href = `https://dash.zoopnetwork.app/${hashParam}`;
         return;
       }
       navigateTo(isDashHost ? '/' : '/app');
     } else if (mode === 'org') {
-      if (isApexOrWww) {
-        window.location.href = 'https://dash.zoopnetwork.app/org';
+      if (isApexOrWww || isAdminHost) {
+        window.location.href = `https://dash.zoopnetwork.app/org${hashParam}`;
         return;
       }
       navigateTo('/org');
@@ -127,7 +147,7 @@ const AppContent: React.FC = () => {
       const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.sslip.io');
       if (!isAdminHost && !isLocal) {
         const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
-        window.location.href = `https://${adminSub}/admin`;
+        window.location.href = `https://${adminSub}/admin${hashParam}`;
         return;
       }
       navigateTo('/admin');
@@ -146,12 +166,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Robust split: keep full query string handling via URL
-  const urlForParse = new URL(currentUrl, window.location.origin);
-  const pathname = urlForParse.pathname;
-  const normalized = normalizePath(pathname);
-  const searchParams = urlForParse.searchParams;
-
   const DASH_ROUTES = new Set(['/overview', '/devices', '/connections', '/sharing', '/wallet', '/settings']);
 
   // Subdomain routing rules
@@ -168,10 +182,12 @@ const AppContent: React.FC = () => {
 
     // 2. On dash.zoopnetwork.app:
     if (isDashHost) {
-      // 2a. If URL is /admin or /admin/*, redirect to admin.zoopnetwork.app
+      // 2a. If URL is /admin or /admin/*, redirect to admin.zoopnetwork.app with session sync
       if (normalized === '/admin' || normalized.startsWith('/admin/')) {
         const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
-        window.location.href = `https://${adminSub}${pathname}`;
+        const syncPayload = getSharedSessionPayload();
+        const hashParam = syncPayload ? `#auth_sync=${encodeURIComponent(utf8ToBase64(JSON.stringify(syncPayload)))}` : '';
+        window.location.href = `https://${adminSub}${pathname}${window.location.search}${hashParam}`;
         return;
       }
       // 2b. If URL is /app or /app/*, cleanly strip /app to keep clean URLs
@@ -189,7 +205,7 @@ const AppContent: React.FC = () => {
       }
     }
 
-    // 3. On apex marketing domain: redirect direct app/org/admin visits to their respective subdomains
+    // 3. On apex marketing domain: redirect direct app/org/admin/auth visits to their respective subdomains
     if (isApexOrWww) {
       if (normalized === '/app' || normalized.startsWith('/app/')) {
         const clean = normalized === '/app' ? '/' : normalized.replace(/^\/app/, '');
@@ -200,10 +216,14 @@ const AppContent: React.FC = () => {
         window.location.href = `https://dash.zoopnetwork.app${normalized}${window.location.search}${window.location.hash}`;
       } else if (normalized === '/admin' || normalized.startsWith('/admin/')) {
         const adminSub = hostname.startsWith('dmin.') ? 'dmin.zoopnetwork.app' : 'admin.zoopnetwork.app';
-        window.location.href = `https://${adminSub}/admin`;
+        const syncPayload = getSharedSessionPayload();
+        const hashParam = syncPayload ? `#auth_sync=${encodeURIComponent(utf8ToBase64(JSON.stringify(syncPayload)))}` : '';
+        window.location.href = `https://${adminSub}/admin${hashParam}`;
+      } else if (isAuth) {
+        window.location.href = `https://dash.zoopnetwork.app${pathname}${window.location.search}${window.location.hash}`;
       }
     }
-  }, [isDashHost, isAdminHost, isApexOrWww, normalized, isAuthenticated, user, pathname]);
+  }, [isDashHost, isAdminHost, isApexOrWww, normalized, isAuthenticated, user, pathname, isAuth]);
 
   const isValidRoute =
     VALID_ROUTES.has(normalized) ||
@@ -223,16 +243,6 @@ const AppContent: React.FC = () => {
       setCurrentUrl('/how-it-works');
     }
   }, [normalized]);
-
-  const isAuth =
-    normalized === '/auth' ||
-    normalized.startsWith('/auth/') ||
-    normalized === '/login' ||
-    normalized === '/signin' ||
-    normalized === '/sign-in' ||
-    normalized === '/signup' ||
-    normalized === '/sign-up' ||
-    normalized === '/register';
 
   const isApp =
     normalized === '/app' ||

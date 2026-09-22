@@ -14,8 +14,140 @@ const ENDPOINT_KEY = 'zoop:web:endpoint_id';
 const NAME_KEY = 'zoop:web:device_name';
 const PRIV_KEY = 'zoop:web:priv_key';
 const PUB_KEY = 'zoop:web:pub_key';
+const SHARED_COOKIE_NAME = 'zoop_session';
 
 let cachedPrivateKey: CryptoKey | null = null;
+
+export function utf8ToBase64(str: string): string {
+  try {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
+  } catch {
+    return btoa(str);
+  }
+}
+
+export function base64ToUtf8(b64: string): string {
+  try {
+    return decodeURIComponent(Array.from(atob(b64)).map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+  } catch {
+    return atob(b64);
+  }
+}
+
+function setSharedCookie(name: string, value: string, days = 30): void {
+  if (typeof document === 'undefined') return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  const host = window.location.hostname;
+  const isZoopDomain = host.endsWith('zoopnetwork.app') || host.endsWith('zoopinternet.app');
+  const domainPart = isZoopDomain ? `; domain=.${host.split('.').slice(-2).join('.')}` : '';
+  const securePart = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${domainPart}${securePart}`;
+}
+
+function getSharedCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+function clearSharedCookie(name: string): void {
+  if (typeof document === 'undefined') return;
+  const host = window.location.hostname;
+  const isZoopDomain = host.endsWith('zoopnetwork.app') || host.endsWith('zoopinternet.app');
+  const domainPart = isZoopDomain ? `; domain=.${host.split('.').slice(-2).join('.')}` : '';
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domainPart}`;
+}
+
+export interface SharedSessionPayload {
+  user: UserProfile;
+  deviceId?: string | null;
+  deviceName?: string | null;
+  endpointId?: string | null;
+  pubKey?: string | null;
+  privKey?: string | null;
+}
+
+export function getSharedSessionPayload(): SharedSessionPayload | null {
+  const user = getSavedUserProfile();
+  if (!user) return null;
+  return {
+    user,
+    deviceId: getSavedDeviceId(),
+    deviceName: getSavedDeviceName(),
+    endpointId: getSavedEndpointId(),
+    pubKey: localStorage.getItem(PUB_KEY),
+    privKey: localStorage.getItem(PRIV_KEY),
+  };
+}
+
+export function syncSessionToCookie(payload?: SharedSessionPayload | null): void {
+  const p = payload || getSharedSessionPayload();
+  if (!p || !p.user) return;
+  try {
+    setSharedCookie(SHARED_COOKIE_NAME, JSON.stringify(p));
+  } catch (err) {
+    console.warn('Failed to sync session to shared cookie:', err);
+  }
+}
+
+export function restoreSharedSession(payload: SharedSessionPayload): void {
+  if (!payload || !payload.user) return;
+  localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(payload.user));
+  if (payload.deviceId) localStorage.setItem(IDENTITY_KEY, payload.deviceId);
+  if (payload.deviceName) localStorage.setItem(NAME_KEY, payload.deviceName);
+  if (payload.endpointId) localStorage.setItem(ENDPOINT_KEY, payload.endpointId);
+  if (payload.pubKey) localStorage.setItem(PUB_KEY, payload.pubKey);
+  if (payload.privKey) {
+    localStorage.setItem(PRIV_KEY, payload.privKey);
+    try { sessionStorage.setItem(PRIV_KEY, payload.privKey); } catch {}
+  }
+  syncSessionToCookie(payload);
+}
+
+export function initSharedIdentity(): void {
+  if (typeof window === 'undefined') return;
+
+  // 1. Check URL hash for #auth_sync= (handoff between subdomains)
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.includes('auth_sync=')) {
+      const match = hash.match(/auth_sync=([^&]+)/);
+      if (match && match[1]) {
+        const decoded = base64ToUtf8(decodeURIComponent(match[1]));
+        const payload = JSON.parse(decoded) as SharedSessionPayload;
+        if (payload?.user) {
+          restoreSharedSession(payload);
+        }
+      }
+      // Clean auth_sync parameter from hash
+      const newHash = hash.replace(/#?auth_sync=[^&]+&?/, '').replace(/^#$/, '');
+      const newUrl = window.location.pathname + window.location.search + (newHash ? '#' + newHash : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  } catch (err) {
+    console.warn('Failed to parse auth_sync from hash:', err);
+  }
+
+  // 2. If no local user profile, try shared cookie from .zoopnetwork.app
+  try {
+    if (!localStorage.getItem(USER_PROFILE_KEY)) {
+      const cookieVal = getSharedCookie(SHARED_COOKIE_NAME);
+      if (cookieVal) {
+        const payload = JSON.parse(cookieVal) as SharedSessionPayload;
+        if (payload?.user) {
+          restoreSharedSession(payload);
+        }
+      }
+    } else {
+      syncSessionToCookie();
+    }
+  } catch (err) {
+    console.warn('Failed to sync session from shared cookie:', err);
+  }
+}
+
+// Run immediately on module evaluation so storage is ready before any React state initializes
+initSharedIdentity();
 
 export function getSavedUserProfile(): UserProfile | null {
   try {
@@ -28,10 +160,12 @@ export function getSavedUserProfile(): UserProfile | null {
 
 export function saveUserProfile(profile: UserProfile): void {
   localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
+  syncSessionToCookie();
 }
 
 export function clearUserProfile() {
   localStorage.removeItem(USER_PROFILE_KEY);
+  clearSharedCookie(SHARED_COOKIE_NAME);
 }
 
 export function getSavedDeviceId(): string | null {
@@ -52,6 +186,7 @@ export function saveDeviceId(id: string, name: string, endpointId?: string) {
   if (endpointId) {
     localStorage.setItem(ENDPOINT_KEY, endpointId);
   }
+  syncSessionToCookie();
 }
 
 export function clearSavedDevice() {
@@ -62,6 +197,7 @@ export function clearSavedDevice() {
   localStorage.removeItem(PUB_KEY);
   sessionStorage.removeItem(PRIV_KEY);
   sessionStorage.removeItem(PUB_KEY);
+  clearSharedCookie(SHARED_COOKIE_NAME);
   cachedPrivateKey = null;
 }
 
@@ -87,15 +223,11 @@ export async function generateAndSaveIdentity(name: string): Promise<{ publicKey
 
   localStorage.setItem(NAME_KEY, name);
   localStorage.setItem(PUB_KEY, pubB64);
-  // Private key in sessionStorage (tab-scoped, cleared on close) for reduced XSS persistence.
-  // Fallback to localStorage is handled in getPrivateKey for migration.
+  localStorage.setItem(PRIV_KEY, privB64);
   try {
     sessionStorage.setItem(PRIV_KEY, privB64);
-    // Remove legacy localStorage copy if present
-    localStorage.removeItem(PRIV_KEY);
   } catch {
-    // sessionStorage unavailable (e.g. in some private modes) — fallback to localStorage
-    localStorage.setItem(PRIV_KEY, privB64);
+    /* ignore */
   }
 
   return { publicKeyB64: pubB64 };
@@ -109,16 +241,9 @@ export async function getPrivateKey(): Promise<CryptoKey | null> {
     return cachedPrivateKey;
   }
 
-  const privB64 = sessionStorage.getItem(PRIV_KEY) || localStorage.getItem(PRIV_KEY);
+  const privB64 = localStorage.getItem(PRIV_KEY) || sessionStorage.getItem(PRIV_KEY);
   if (!privB64) {
     return null;
-  }
-  // One-time migration: promote localStorage key to sessionStorage
-  if (!sessionStorage.getItem(PRIV_KEY) && localStorage.getItem(PRIV_KEY)) {
-    try {
-      sessionStorage.setItem(PRIV_KEY, privB64);
-      localStorage.removeItem(PRIV_KEY);
-    } catch { /* ignore */ }
   }
 
   try {

@@ -179,7 +179,7 @@ const DaemonStatusCard: React.FC<{ onToast?: (msg: string, type?: 'success' | 'e
 
 /* ─── Overview tab ────────────────────────────────────────────── */
 const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onRegister, onToast }) => {
-  const { deviceId, deviceName, deviceInfo, connections, connectionsLoading } = useApp();
+  const { user, deviceId, deviceName, deviceInfo, connections, connectionsLoading, isRegistering } = useApp();
   const pending = connections.filter(c => c.state === 'REQUESTED');
 
   if (!deviceId) {
@@ -187,10 +187,20 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
       <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="empty-state" style={{ padding: '48px 24px 32px' }}>
           <div className="empty-icon"><Ico d={I.wifi} size={22} /></div>
-          <h3 style={{ marginTop: 6 }}>Connect this device in 30 seconds</h3>
-          <p style={{ maxWidth: 520 }}>Register to create your encrypted WireGuard identity. Zoop links your devices directly — no VPN server in the middle.</p>
-          <button className="btn btn-primary" id="overview-register-btn" onClick={onRegister} style={{ marginTop: 8 }}>
-            <Ico d={I.plus} />Create device identity — free
+          <h3 style={{ marginTop: 6 }}>{user ? 'Connect this device' : 'Connect this device in 30 seconds'}</h3>
+          <p style={{ maxWidth: 520 }}>
+            {user ? (
+              <>Signed in as <strong style={{ color: 'var(--text-primary)' }}>@{user.username || user.name}</strong>. Connect this browser to create your cryptographic identity and link to your private mesh.</>
+            ) : (
+              'Register to create your encrypted WireGuard identity. Zoop links your devices directly — no VPN server in the middle.'
+            )}
+          </p>
+          <button className="btn btn-primary" id="overview-register-btn" onClick={onRegister} disabled={isRegistering} style={{ marginTop: 8 }}>
+            {isRegistering ? (
+              <><AwsSpinner size={14} variant="inverted" /><span>Connecting device…</span></>
+            ) : (
+              <><Ico d={I.plus} />Connect this device — free</>
+            )}
           </button>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>WireGuard® · Ed25519 · Open source MIT · No tracking</span>
         </div>
@@ -925,7 +935,7 @@ const SettingsTab: React.FC<{
         </div>
         <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 12 }}>
           <button className="btn btn-secondary btn-sm" onClick={() => onSwitch('auth')}>
-            Switch Account / Sign In
+            {user ? 'Switch Account' : 'Sign In / Register'}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={handleSignOut} style={{ color: 'var(--red)' }}>
             <Ico d={I.logOut} />Sign Out
@@ -1628,7 +1638,7 @@ export interface UserDashboardProps {
 
 /* ─── Main UserDashboard — modern nav ─────────────────────────── */
 export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, currentPath, onNavigate }) => {
-  const { user, deviceId, deviceName, allDevices, connections } = useApp();
+  const { user, deviceId, deviceName, allDevices, connections, register, isRegistering } = useApp();
 
   const getTabFromPath = (path?: string): UserTab => {
     const p = (path || window.location.pathname).replace(/\/+$/, '');
@@ -1716,7 +1726,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   };
 
   const handleRegisterDirect = () => {
-    onSwitch('auth');
+    if (!user) {
+      onSwitch('auth');
+      return;
+    }
+    const devName = `${user.name || user.username || 'My'}'s Web Client`;
+    register(devName, 'web', false).catch((err) => {
+      addToast(err instanceof Error ? err.message : 'Failed to register device', 'error');
+    });
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1813,9 +1830,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.02em', alignSelf: 'center' }} className="hide-mobile">{deviceName ? `· ${deviceName}` : ''}</span>
           </div>
           <div className="page-header-actions">
-            {!deviceId ? (
-              <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={handleRegisterDirect}>
+            {user && (
+              <div className="user-profile-badge hide-mobile" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-primary)', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '4px 10px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px #22c55e' }} />
+                <span style={{ fontWeight: 600 }}>{user.username ? `@${user.username}` : user.name}</span>
+                {user.role === 'admin' && <span className="badge badge-info" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>ADMIN</span>}
+              </div>
+            )}
+            {!user ? (
+              <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={() => onSwitch('auth')}>
                 <Ico d={I.plus} />Sign In / Register
+              </button>
+            ) : !deviceId ? (
+              <button className="btn btn-primary btn-sm" id="header-register-btn" onClick={handleRegisterDirect} disabled={isRegistering}>
+                {isRegistering ? <AwsSpinner size={13} /> : <><Ico d={I.plus} />Connect Device</>}
               </button>
             ) : (
               <span className="badge badge-info" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>{connections.filter(c=>c.state==='CONNECTED').length} tunnels</span>

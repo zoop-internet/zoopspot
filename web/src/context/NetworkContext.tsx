@@ -179,6 +179,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [refreshAllDevices]);
 
+  // Auto-connect device if user is signed in but deviceId is missing in storage
+  useEffect(() => {
+    if (user && !deviceId && !isRegistering) {
+      const devName = `${user.name || user.username || 'My'}'s Web Client`;
+      register(devName, 'web', false).catch((err) => {
+        console.warn('Auto device registration deferred:', err);
+      });
+    }
+  }, [user, deviceId, isRegistering, register]);
+
   const login = useCallback(async (identifier: string, pin?: string, remember: boolean = true) => {
     setIsRegistering(true);
     setRegisterError(null);
