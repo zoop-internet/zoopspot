@@ -104,7 +104,7 @@ func (s *PaymentService) InitiateMobileMoneyDeposit(ctx context.Context, ownerID
 		return nil, err
 	}
 
-	ref := fmt.Sprintf("ZP-DEP-%s", strings.ToUpper(uuid.New().String()[:8]))
+	ref := uuid.New().String()
 	now := time.Now()
 
 	txn := &PaymentTransaction{
@@ -169,7 +169,7 @@ func (s *PaymentService) InitiateCardDeposit(ctx context.Context, ownerID types.
 		return nil, err
 	}
 
-	ref := fmt.Sprintf("ZP-CRD-%s", strings.ToUpper(uuid.New().String()[:8]))
+	ref := uuid.New().String()
 	now := time.Now()
 
 	txn := &PaymentTransaction{
@@ -254,7 +254,7 @@ func (s *PaymentService) InitiateWithdrawal(ctx context.Context, ownerID types.I
 	}
 	s.mu.Unlock()
 
-	ref := fmt.Sprintf("ZP-WDR-%s", strings.ToUpper(uuid.New().String()[:8]))
+	ref := uuid.New().String()
 	now := time.Now()
 
 	txn := &PaymentTransaction{

@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // MobileMoneyCollectionReq contains inputs for mobile money collection.
@@ -136,17 +138,30 @@ func FormatUgandaPhone(raw string) string {
 	return cleaned
 }
 
+// ensureUUID validates that ref is a valid RFC 4122 UUID.
+// If ref is not a UUID, it creates a deterministic UUID v5 from the input.
+func ensureUUID(ref string) string {
+	if _, err := uuid.Parse(ref); err == nil {
+		return ref
+	}
+	if ref == "" {
+		return uuid.New().String()
+	}
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte(ref)).String()
+}
+
 func (g *MarzPayGateway) CollectMobileMoney(ctx context.Context, req MobileMoneyCollectionReq) (*CollectionResp, error) {
 	country := req.Country
 	if country == "" {
 		country = "UG"
 	}
 	phone := FormatUgandaPhone(req.PhoneNumber)
+	ref := ensureUUID(req.Reference)
 
 	payload := map[string]interface{}{
 		"amount":       int64(req.Amount),
 		"phone_number": phone,
-		"reference":    req.Reference,
+		"reference":    ref,
 		"country":      country,
 		"method":       "mobile_money",
 		"description":  req.Description,
@@ -229,10 +244,11 @@ func (g *MarzPayGateway) CollectCard(ctx context.Context, req CardCollectionReq)
 		country = "UG"
 	}
 
+	ref := ensureUUID(req.Reference)
 	payload := map[string]interface{}{
 		"amount":      int64(req.Amount),
 		"method":      "card",
-		"reference":   req.Reference,
+		"reference":   ref,
 		"country":     country,
 		"description": req.Description,
 	}
@@ -313,11 +329,12 @@ func (g *MarzPayGateway) SendMoney(ctx context.Context, req DisbursementReq) (*D
 		country = "UG"
 	}
 	phone := FormatUgandaPhone(req.PhoneNumber)
+	ref := ensureUUID(req.Reference)
 
 	payload := map[string]interface{}{
 		"amount":       int64(req.Amount),
 		"phone_number": phone,
-		"reference":    req.Reference,
+		"reference":    ref,
 		"country":      country,
 		"description":  req.Description,
 	}
