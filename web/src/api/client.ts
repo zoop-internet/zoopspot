@@ -697,3 +697,85 @@ export async function getWalletEarnings(
     throw err;
   }
 }
+
+// ─── Admin Billing & System Operations ────────────────────────
+
+export interface ApiBillingOverview {
+  total_volume_ugx: number;
+  total_deposits_ugx: number;
+  total_withdrawals_ugx: number;
+  active_wallets: number;
+  total_transactions: number;
+}
+
+export interface ApiAdminBillingResponse {
+  overview: ApiBillingOverview;
+  transactions: ApiPaymentTransaction[];
+  total: number;
+}
+
+export interface ApiSystemTelemetry {
+  uptime_seconds: number;
+  go_version: string;
+  num_goroutines: number;
+  memory_alloc_mb: number;
+  memory_sys_mb: number;
+  database: {
+    max_open_connections: number;
+    open_connections: number;
+    in_use: number;
+    idle: number;
+    wait_count: number;
+    wait_duration_ms: number;
+  };
+  services: Record<string, string>;
+  active_connections: number;
+  timestamp: string;
+}
+
+export async function adminBilling(limit: number = 50, offset: number = 0): Promise<ApiAdminBillingResponse> {
+  const basePath = '/v1/admin/billing';
+  const qs = `?limit=${limit}&offset=${offset}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+  return apiFetch<ApiAdminBillingResponse>(`${basePath}${qs}`, { headers: authHeaders });
+}
+
+export async function adminBillingCsv(): Promise<Blob> {
+  const basePath = '/v1/admin/billing/csv';
+  const authHeaders = await buildSignedAuthHeaders('GET', basePath);
+  const res = await fetch(`${API_BASE}${basePath}`, { headers: authHeaders as Record<string, string> });
+  if (!res.ok) throw new Error(`CSV export failed (${res.status})`);
+  return await res.blob();
+}
+
+export async function adminSystem(): Promise<ApiSystemTelemetry> {
+  const path = '/v1/admin/system';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiSystemTelemetry>(path, { headers: authHeaders });
+}
+
+export async function adminFlushCache(): Promise<{ status: string; message: string; flushed_at: string }> {
+  const path = '/v1/admin/cache/flush';
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch(path, { method: 'POST', headers: authHeaders });
+}
+
+export async function adminRestartStore(): Promise<{ status: string; message: string; verified_at: string; open_connections: number }> {
+  const path = '/v1/admin/services/store/restart';
+  const authHeaders = await buildSignedAuthHeaders('POST', path);
+  return apiFetch(path, { method: 'POST', headers: authHeaders });
+}
+
+export async function adminCreateIncident(req: { title: string; severity: string; description: string }): Promise<{ status: string; message: string; incident_id: string; logged_at: string }> {
+  const path = '/v1/admin/incidents';
+  const body = JSON.stringify(req);
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch(path, { method: 'POST', headers: authHeaders, body });
+}
+
+export async function getOrgAudit(orgId: string): Promise<ApiAuditEvent[]> {
+  const path = `/v1/organizations/${orgId}/audit`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiAuditEvent[]>(path, { headers: authHeaders });
+}
+

@@ -1025,7 +1025,6 @@ function formatBytes(bytes: number): string {
 const WalletTab: React.FC<{
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }> = ({ onToast }) => {
-  const { deviceId } = useApp();
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
   const [transactions, setTransactions] = useState<ApiPaymentTransaction[]>([]);
   const [earnings, setEarnings] = useState<ApiEarningRecord[]>([]);
@@ -1061,28 +1060,19 @@ const WalletTab: React.FC<{
         getWalletTransactions(50, 0),
         getWalletEarnings(50, 0),
       ]);
-      if (w) setWallet(w);
+      setWallet(w);
       setTransactions(txs);
       setEarnings(earn);
       if (w && withdrawAmount === 0 && w.unwithdrawn_earnings > 0) {
         setWithdrawAmount(w.unwithdrawn_earnings);
       }
-    } catch {
-      // Fallback state for display when not yet initialized on backend
-      setWallet(prev => prev ?? {
-        id: 'wallet-local',
-        endpoint_id: deviceId || '',
-        currency: 'UGX',
-        available_balance: 85000,
-        pending_balance: 5000,
-        total_earned: 182500,
-        unwithdrawn_earnings: 62000,
-      });
+    } catch (err: any) {
+      console.error('Failed to load wallet ledger:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [deviceId, withdrawAmount]);
+  }, [withdrawAmount]);
 
   React.useEffect(() => {
     loadData();

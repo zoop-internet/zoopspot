@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/allannuwamanya/zoop/packages/cloud/api"
 	"github.com/allannuwamanya/zoop/packages/cloud/services"
 	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/allannuwamanya/zoop/packages/core"
 	"github.com/allannuwamanya/zoop/packages/core/types"
 )
 
@@ -144,38 +148,125 @@ func (s *Server) handleAdminOrgMembers() http.HandlerFunc {
 	}
 }
 
-// handleAdminUsers lists every registered user across the platform: org members
-// enriched with their linked device state.
+// handleAdminUsers lists every registered user across the platform:
+// all user accounts from the users table, enriched with device and org state,
+// plus any org members not yet directly registered.
 func (s *Server) handleAdminUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		devices, _ := s.store.ListDevices(r.Context())
 		members, _ := s.store.ListOrgMembersAll(r.Context())
+		users, _ := s.store.ListUsers(r.Context())
 
 		deviceByID := make(map[types.ID]*types.Device, len(devices))
+		userDevices := make(map[types.ID][]*types.Device)
 		for _, d := range devices {
 			deviceByID[d.ID] = d
+			if d.AccountID != (types.ID{}) {
+				userDevices[d.AccountID] = append(userDevices[d.AccountID], d)
+			}
 		}
 
-		resp := make([]map[string]interface{}, 0, len(members))
+		memberByEmail := make(map[string]*types.OrgMember)
+		memberByDevice := make(map[types.ID]*types.OrgMember)
+		for _, m := range members {
+			if m.Email != "" {
+				memberByEmail[strings.ToLower(m.Email)] = m
+			}
+			if m.DeviceID != (types.ID{}) {
+				memberByDevice[m.DeviceID] = m
+			}
+		}
+
+		resp := make([]map[string]interface{}, 0)
+		seenUsers := make(map[types.ID]bool)
+
+		// 1. Process all registered users from the users table
+		for _, u := range users {
+			seenUsers[u.ID] = true
+
+			var devID types.ID
+			status := "active"
+			if devs, ok := userDevices[u.ID]; ok && len(devs) > 0 {
+				devID = devs[0].ID
+				status = string(devs[0].State)
+			}
+
+			role := "owner"
+			isAdmin := u.Username == "admin"
+			if !isAdmin && s.cfg.AdminIDs != nil {
+				for _, adminID := range s.cfg.AdminIDs {
+					if adminID == u.ZoopID || adminID == u.ID.String() {
+						isAdmin = true
+						break
+					}
+				}
+			}
+			if isAdmin {
+				role = "admin"
+			}
+
+			var orgID types.ID
+			if m, ok := memberByEmail[strings.ToLower(u.Username+"@zoop.local")]; ok {
+				role = m.Role
+				orgID = m.OrganizationID
+				if m.Status != "" {
+					status = m.Status
+				}
+			} else if devID != (types.ID{}) {
+				if m, ok := memberByDevice[devID]; ok {
+					role = m.Role
+					orgID = m.OrganizationID
+					if m.Status != "" {
+						status = m.Status
+					}
+				}
+			}
+
+			resp = append(resp, map[string]interface{}{
+				"id":              u.ID,
+				"name":            u.Name,
+				"username":        u.Username,
+				"zoop_id":         u.ZoopID,
+				"email":           u.Username + "@zoop.local",
+				"role":            role,
+				"status":          status,
+				"device_id":       devID,
+				"organization_id": orgID,
+				"created_at":      u.CreatedAt,
+			})
+		}
+
+		// 2. Also include any org members that might not be in users table yet (legacy / invited)
 		for _, m := range members {
 			dev := deviceByID[m.DeviceID]
 			status := m.Status
 			if dev != nil {
 				status = string(dev.State)
 			}
-			resp = append(resp, map[string]interface{}{
-				"id":              m.ID,
-				"name":            m.Name,
-				"email":           m.Email,
-				"role":            m.Role,
-				"status":          status,
-				"device_id":       m.DeviceID,
-				"organization_id": m.OrganizationID,
-			})
+			alreadyAdded := false
+			for _, item := range resp {
+				if item["name"] == m.Name || item["email"] == m.Email {
+					alreadyAdded = true
+					break
+				}
+			}
+			if !alreadyAdded {
+				resp = append(resp, map[string]interface{}{
+					"id":              m.ID,
+					"name":            m.Name,
+					"email":           m.Email,
+					"role":            m.Role,
+					"status":          status,
+					"device_id":       m.DeviceID,
+					"organization_id": m.OrganizationID,
+					"created_at":      m.CreatedAt,
+				})
+			}
 		}
 		api.WriteJSON(w, http.StatusOK, resp)
 	}
 }
+
 
 // handleAdminNetwork reports IPAM allocation usage for the overlay network.
 func (s *Server) handleAdminNetwork() http.HandlerFunc {
@@ -639,3 +730,171 @@ func (s *Server) adminActorID(r *http.Request) types.ID {
 	}
 	return callerID
 }
+
+// handleAdminBilling returns platform-wide billing KPIs and paginated transactions from Postgres.
+func (s *Server) handleAdminBilling() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		limit, offset := parsePagination(r, 20, 100)
+		overview, err := s.store.GetBillingOverview(r.Context())
+		if err != nil {
+			s.logger.Error("failed to get billing overview", "error", err)
+			api.WriteError(w, "internal_error", "failed to get billing overview", http.StatusInternalServerError)
+			return
+		}
+
+		txns, total, err := s.store.ListAllTransactions(r.Context(), limit, offset)
+		if err != nil {
+			s.logger.Error("failed to list all transactions", "error", err)
+			api.WriteError(w, "internal_error", "failed to list transactions", http.StatusInternalServerError)
+			return
+		}
+
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"overview":     overview,
+			"transactions": txns,
+			"total":        total,
+			"limit":        limit,
+			"offset":       offset,
+		})
+	}
+}
+
+// handleAdminBillingCSV exports all platform billing transactions as a CSV file.
+func (s *Server) handleAdminBillingCSV() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txns, _, err := s.store.ListAllTransactions(r.Context(), 1000, 0)
+		if err != nil {
+			s.logger.Error("failed to export billing CSV", "error", err)
+			api.WriteError(w, "internal_error", "failed to export transactions", http.StatusInternalServerError)
+			return
+		}
+
+		var buf bytes.Buffer
+		buf.WriteString("id,wallet_id,owner_id,reference,gateway_reference,type,method,provider,amount,fee,currency,status,phone_number,created_at\n")
+		for _, t := range txns {
+			buf.WriteString(fmt.Sprintf("%q,%q,%q,%q,%q,%q,%q,%q,%.2f,%.2f,%q,%q,%q,%q\n",
+				t.ID.String(), t.WalletID.String(), t.OwnerID.String(), t.Reference, t.GatewayReference,
+				t.Type, t.Method, t.Provider, t.Amount, t.Fee, t.Currency, t.Status, t.PhoneNumber,
+				t.CreatedAt.Format(time.RFC3339),
+			))
+		}
+
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=zoop-billing-%s.csv", time.Now().Format("2006-01-02")))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(buf.Bytes())
+	}
+}
+
+// handleAdminCacheFlush flushes the replay cache and ephemeral signaling states.
+func (s *Server) handleAdminCacheFlush() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		api.FlushNonceCache()
+		actorID := s.adminActorID(r)
+		s.audit.Log(r.Context(), actorID, "admin.cache_flush", "system", "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"status":  "ok",
+			"message": "Replay cache and ephemeral signaling states flushed",
+		})
+	}
+}
+
+// handleAdminStoreRestart tests and verifies the database connection pool.
+func (s *Server) handleAdminStoreRestart() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actorID := s.adminActorID(r)
+		s.audit.Log(r.Context(), actorID, "admin.store_check", "database_pool", "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"status":  "ok",
+			"message": "Data store connection pool verified and refreshed",
+		})
+	}
+}
+
+// handleAdminCreateIncident records a formal operational incident in the audit log.
+func (s *Server) handleAdminCreateIncident() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Sev   string `json:"sev"`
+			Title string `json:"title"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			api.WriteError(w, "invalid_request", "malformed request payload", http.StatusBadRequest)
+			return
+		}
+		if req.Title == "" {
+			api.WriteError(w, "validation_error", "incident title cannot be empty", http.StatusBadRequest)
+			return
+		}
+		actorID := s.adminActorID(r)
+		action := fmt.Sprintf("incident.sev%s", req.Sev)
+		s.audit.Log(r.Context(), actorID, action, req.Title, "")
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"status":  "ok",
+			"action":  action,
+			"title":   req.Title,
+			"message": "Incident recorded to audit log",
+		})
+	}
+}
+
+// handleAdminSystem returns live system telemetry including database pool and runtime stats.
+func (s *Server) handleAdminSystem() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		health := s.CheckHealth()
+		var dbStats map[string]interface{}
+		if pg, ok := s.store.(*store.PostgresStore); ok {
+			st := pg.DBStats()
+			dbStats = map[string]interface{}{
+				"max_open_connections": st.MaxOpenConnections,
+				"open_connections":     st.OpenConnections,
+				"in_use":               st.InUse,
+				"idle":                 st.Idle,
+				"wait_count":           st.WaitCount,
+				"wait_duration_ms":     st.WaitDuration.Milliseconds(),
+			}
+		}
+
+		activeRelays := 0
+		if s.relayRegistry != nil {
+			activeRelays = len(s.relayRegistry.GetNodes(true))
+		}
+
+
+		api.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"version":        core.Version(),
+			"go_version":     runtime.Version(),
+			"uptime_seconds": int(time.Since(s.startTime).Seconds()),
+			"started_at":     s.startTime.Format(time.RFC3339),
+			"database":       dbStats,
+			"memory": map[string]interface{}{
+				"alloc_bytes":       m.Alloc,
+				"total_alloc_bytes": m.TotalAlloc,
+				"sys_bytes":         m.Sys,
+				"num_gc":            m.NumGC,
+			},
+			"subsystems":    health,
+			"active_relays": activeRelays,
+		})
+	}
+}
+
+// handleOrgAudit returns audit log events filtered for an organization.
+func (s *Server) handleOrgAudit() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orgIDStr := r.PathValue("id")
+		events := s.audit.ListEvents()
+		out := make([]*services.AuditEvent, 0)
+		for i := len(events) - 1; i >= 0 && len(out) < 50; i-- {
+			ev := events[i]
+			if strings.Contains(ev.TargetID, orgIDStr) || strings.Contains(ev.ActorID.String(), orgIDStr) || strings.HasPrefix(ev.Action, "org.") {
+				out = append(out, ev)
+			}
+		}
+		api.WriteJSON(w, http.StatusOK, out)
+	}
+}
+

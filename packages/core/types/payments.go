@@ -89,3 +89,15 @@ type EarningRecord struct {
 	Currency     string        `json:"currency"`
 	CreatedAt    time.Time     `json:"created_at"`
 }
+
+// BillingOverview aggregates platform-wide financial and ledger metrics.
+type BillingOverview struct {
+	TotalVolume       float64 `json:"total_volume"`
+	TotalDeposits     float64 `json:"total_deposits"`
+	TotalWithdrawals  float64 `json:"total_withdrawals"`
+	TotalEarnings     float64 `json:"total_earnings"`
+	ActiveWallets     int     `json:"active_wallets"`
+	TotalTransactions int     `json:"total_transactions"`
+	Currency          string  `json:"currency"`
+}
+

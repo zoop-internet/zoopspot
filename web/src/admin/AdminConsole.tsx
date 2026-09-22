@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { PortalMode } from '../types';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
-import { adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices, adminUsers, adminNetwork, adminAudit, adminUsage, adminUsageCsv, adminRelays, adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice, listDevices, createOrganization } from '../api/client';
-import type { ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser, ApiNetworkUsage, ApiAuditEvent, ApiUsage } from '../api/client';
+import {
+  adminListOrganizations, adminListOrgMembers, adminListConnections, adminServices,
+  adminUsers, adminNetwork, adminAudit, adminUsage, adminUsageCsv, adminRelays,
+  adminAddRelay, adminRemoveRelay, adminRevokeDevice, adminSuspendDevice, adminRestoreDevice,
+  listDevices, createOrganization, adminBilling, adminBillingCsv, adminSystem,
+  adminFlushCache, adminRestartStore, adminCreateIncident
+} from '../api/client';
+import type {
+  ApiConnection, ApiDevice, ApiOrg, ApiOrgMember, ApiServiceHealth, ApiAdminUser,
+  ApiNetworkUsage, ApiAuditEvent, ApiUsage, ApiBillingOverview,
+  ApiSystemTelemetry
+} from '../api/client';
+import type { ApiPaymentTransaction } from '../types';
 import { AwsSpinner } from '../components/AwsSpinner';
 import './AdminConsole.css';
 
@@ -460,12 +471,6 @@ const RelayTable: React.FC<{ nodes: Array<Record<string, any>> }> = ({ nodes }) 
   const copy = async (text: string, key: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1400); } catch {}
   };
-  const latencyFor = (id: string, region: string): number => {
-    const m: Record<string, number> = { 'us-east': 12, 'us-west': 18, 'eu-central': 24, 'ap-south': 31, 'us-central': 16 };
-    if (m[region]) return m[region];
-    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 18;
-    return 14 + h;
-  };
   return (
     <div className="table-wrap" style={{ borderRadius: 0, maxHeight: 'none', overflow: 'visible' }}>
       <table className="data-table" style={{ minWidth: 640 }}>
@@ -494,8 +499,9 @@ const RelayTable: React.FC<{ nodes: Array<Record<string, any>> }> = ({ nodes }) 
             const statusColor = status === 'online' ? '#22c55e' : status === 'draining' ? '#f59e0b' : '#6b7280';
             const heartbeat = r.last_heartbeat ?? r.LastHeartbeat;
             const isExpanded = expanded === id;
-            const latency = latencyFor(id, region);
-            const latencyColor = latency < 50 ? '#22c55e' : latency < 100 ? '#f59e0b' : '#ef4444';
+            const rawLat = r.latency_ms ?? r.LatencyMs ?? r.ping_ms ?? null;
+            const latency = rawLat != null ? Number(rawLat) : null;
+            const latencyColor = latency != null ? (latency < 50 ? '#22c55e' : latency < 100 ? '#f59e0b' : '#ef4444') : 'var(--text-muted)';
             return (
               <React.Fragment key={id}>
                 <tr
@@ -536,7 +542,7 @@ const RelayTable: React.FC<{ nodes: Array<Record<string, any>> }> = ({ nodes }) 
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{pct}%</span>
                     </span>
                   </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: latencyColor, fontWeight: 600 }}>{latency} ms</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: latencyColor, fontWeight: 600 }}>{latency != null ? `${latency} ms` : '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{heartbeat ? timeAgo(new Date(String(heartbeat)) as any) : '—'}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', transform: isExpanded ? 'rotate(90deg)' : undefined, display: 'inline-block', transition: 'transform 0.15s' }} aria-hidden><I.chevronR /></span>
@@ -560,7 +566,7 @@ const RelayTable: React.FC<{ nodes: Array<Record<string, any>> }> = ({ nodes }) 
                         <div>
                           <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Ports & Capacity</div>
                           <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                            STUN {r.stun_port ?? r.STUNPort ?? '—'} · TURN {r.turn_port ?? r.TURNPort ?? '—'} · RTT {latency} ms
+                            STUN {r.stun_port ?? r.STUNPort ?? '—'} · TURN {r.turn_port ?? r.TURNPort ?? '—'} · RTT {latency != null ? `${latency} ms` : '—'}
                             <br />
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                               Capacity
@@ -938,20 +944,6 @@ const OverviewTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate:
               lastTime = t;
               if (deduped.length >= 12) break;
             }
-            // If we collapsed a burst, inject a synthetic cluster event at top for realism — use distinct relay count (4), not audit event count (200)
-            const distinctRelayCount = (data.relays as any[]).length || 4;
-            const distinctRegions = [...new Set((data.relays as any[]).map((r: any) => r.region).filter(Boolean))].join(', ') || 'US-East, US-West, EU-Central, AP-South';
-            const originalRelayAdds = data.audit.filter((e: any) => e.action === 'relay.add').length;
-            if (originalRelayAdds >= 3 && relayBurstCount < originalRelayAdds) {
-              deduped.unshift({
-                id: 'cluster-healthy' as any,
-                timestamp: data.audit[0]?.timestamp ?? new Date().toISOString(),
-                action: 'relay.cluster_healthy',
-                target_id: `${distinctRelayCount} relays · ${distinctRegions}` as any,
-                actor_id: 'system' as any,
-                signature: '' as any,
-              } as any);
-            }
             const display = deduped.slice(0, 5);
             return (
               <>
@@ -1087,24 +1079,59 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
     setBusy('scale'); try { await adminAddRelay({ id:`relay-${Date.now()}`, region:'auto', host:`relay-${Date.now()%1000}.zoop.local`, port:3478 }); toast('Relay add queued — check Relays tab','success'); data.reload(); } catch(e){ toast(e instanceof Error? e.message:'Scale failed','error'); } finally{ setBusy(null); }
   };
   const runFlushRedis = async ()=>{
-    setBusy('redis'); toast('Redis flush — ephemeral signaling will re-heal (stub POST /v1/admin/cache/flush)','info'); setTimeout(()=>{ setBusy(null); data.reload(); }, 600);
+    setBusy('redis');
+    try {
+      const res = await adminFlushCache();
+      toast(`Cache flushed: ${res.message} (${new Date(res.flushed_at).toLocaleTimeString()})`, 'success');
+      await data.reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Cache flush failed', 'error');
+    } finally {
+      setBusy(null);
+    }
   };
   const runRestartStore = async ()=>{
-    setBusy('store'); toast('Store pool restart queued (stub POST /v1/admin/services/store/restart)','info'); setTimeout(()=>setBusy(null), 800);
+    setBusy('store');
+    try {
+      const res = await adminRestartStore();
+      toast(`Store verified: ${res.message} (${res.open_connections} open conns)`, 'success');
+      await data.reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Store pool check failed', 'error');
+    } finally {
+      setBusy(null);
+    }
   };
   const createIncident = async (e:React.FormEvent)=>{
-    e.preventDefault(); if(!incTitle.trim()) return;
-    toast(`Incident SEV-${sev}: ${incTitle.trim()} — stub POST /v1/admin/incidents`,'success');
-    setShowIncident(false); setIncTitle('');
+    e.preventDefault();
+    if(!incTitle.trim()) return;
+    try {
+      const res = await adminCreateIncident({
+        title: incTitle.trim(),
+        severity: `SEV-${sev}`,
+        description: `Operational incident created via Admin Console by operator`,
+      });
+      toast(`Incident created (${res.incident_id}): ${incTitle.trim()}`, 'success');
+      setShowIncident(false);
+      setIncTitle('');
+      await data.reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Failed to create incident', 'error');
+    }
   };
   // capacity forecast
   const forecastDays = (()=>{ if(!data.network) return null; const cap=data.network.capacity; const alloc=data.network.subnets_allocated; const remaining=cap-alloc; const perDay=Math.max(1, Math.round(alloc/30)); return Math.round(remaining/perDay); })();
 
-  const Spark: React.FC<{ color: string; values?: number[] }> = ({ color, values = [4,6,3,7,5,8,4,6] }) => {
+  const Spark: React.FC<{ color: string; values?: number[] }> = ({ color, values }) => {
+    if (!values || values.length < 2) return null;
     const w=60, h=18, max=Math.max(...values), min=Math.min(...values), range=max-min||1;
     const d = values.map((v,i)=> `${i/(values.length-1)*w},${h - ((v-min)/range)*h}`).join(' ');
     return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display:'block', marginTop:6, opacity:0.9 }} aria-hidden><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" points={d} /></svg>;
   };
+
+  const tsConnections = data.usage?.timeseries?.map(t => t.new_connections);
+  const tsCumConns = data.usage?.timeseries?.map(t => t.cum_connections);
+  const relaySessions = relays.map(r => Number(r.active_sessions ?? r.ActiveSessions ?? 0));
 
   return (
     <>
@@ -1113,19 +1140,19 @@ const OperationsTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?:
           <div className="metric-label">API Health</div>
           <div className="metric-value" style={{ color: svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : 'var(--text-primary)' }}>{svcOk ? 'Healthy' : hasDegraded ? 'Degraded' : 'Checking'}</div>
           <div className="metric-sub">{svcEntries.length ? svcEntries.map(([k,s])=>`${k}:${s.status}`).join(' · ') : 'no data'}</div>
-          <Spark color={svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280'} />
+          <Spark color={svcOk ? '#22c55e' : hasDegraded ? '#f59e0b' : '#6b7280'} values={tsConnections} />
         </div>
         <div className="metric-item">
           <div className="metric-label">Relays Saturated</div>
           <div className="metric-value" style={{ color: saturated? '#ef4444' : '#22c55e' }}>{saturated}/{relays.length || 0}</div>
           <div className="metric-sub">{saturated? 'needs scale' : 'all under 85%'}</div>
-          <Spark color={saturated? '#ef4444' : '#22c55e'} values={relays.length? relays.slice(0,8).map(r=> Number(r.active_sessions ?? r.ActiveSessions ?? 0)) : [2,3,2,4,3,5,3,4]} />
+          <Spark color={saturated? '#ef4444' : '#22c55e'} values={relaySessions} />
         </div>
         <div className="metric-item">
           <div className="metric-label">DB Pool</div>
           <div className="metric-value">{data.services.store?.status==='ok' ? 'OK' : data.services.store?.status ?? '—'}</div>
           <div className="metric-sub">store · {data.network ? `${data.network.subnets_allocated}/${data.network.capacity}` : 'IPAM n/a'}</div>
-          <Spark color={data.services.store?.status==='ok' ? '#38bdf8' : '#6b7280'} />
+          <Spark color={data.services.store?.status==='ok' ? '#38bdf8' : '#6b7280'} values={tsCumConns} />
         </div>
       </div>
 
@@ -1616,32 +1643,165 @@ const UsageTab: React.FC<{ data: ReturnType<typeof useAdminData>; onNavigate?: (
   );
 };
 
-const BillingTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">MRR</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Paid Accounts</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Overdue</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
+const BillingTab: React.FC<{ onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [overview, setOverview] = useState<ApiBillingOverview | null>(null);
+  const [transactions, setTransactions] = useState<ApiPaymentTransaction[]>([]);
+  const [total, setTotal] = useState(0);
+  const [filter, setFilter] = useState<'all' | 'deposit' | 'withdrawal' | 'earning'>('all');
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Billing & Subscriptions</span>
-        <button className="btn btn-secondary btn-sm" id="billing-export-btn">Export Invoices</button>
+  const toast = (m: string, t: 'success' | 'error' | 'info' = 'info') => onToast ? onToast(m, t) : console.log(m);
+
+  const loadBilling = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminBilling(100, 0);
+      setOverview(res.overview);
+      setTransactions(res.transactions || []);
+      setTotal(res.total || 0);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Failed to load billing overview', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBilling();
+  }, [loadBilling]);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const blob = await adminBillingCsv();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zoop-billing-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Billing transactions exported to CSV', 'success');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'CSV export failed', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const formatUgx = (n: number) => `UGX ${n.toLocaleString('en-UG')}`;
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return transactions;
+    return transactions.filter(t => t.type === filter);
+  }, [transactions, filter]);
+
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Total Platform Volume</div>
+          <div className="metric-value">{overview ? formatUgx(overview.total_volume_ugx) : '—'}</div>
+          <div className="metric-sub">{total} lifetime transactions</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Total Deposits</div>
+          <div className="metric-value" style={{ color: '#22c55e' }}>{overview ? formatUgx(overview.total_deposits_ugx) : '—'}</div>
+          <div className="metric-sub">MTN, Airtel & card top-ups</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Total Withdrawals</div>
+          <div className="metric-value" style={{ color: '#38bdf8' }}>{overview ? formatUgx(overview.total_withdrawals_ugx) : '—'}</div>
+          <div className="metric-sub">Egress provider payouts</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Active Wallets</div>
+          <div className="metric-value">{overview ? overview.active_wallets : '—'}</div>
+          <div className="metric-sub">Funded peer nodes</div>
+        </div>
       </div>
-      <EmptyState icon={<I.creditCard />} title="No billing records" desc="Subscription history and Stripe / payment gateway transactions will appear here." />
-    </div>
-  </>
-);
+
+      <div className="section">
+        <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="section-title">Transactions Ledger</span>
+            <div style={{ display: 'flex', gap: 4, background: 'var(--bg-surface-2)', padding: '2px 4px', borderRadius: 6 }}>
+              {(['all', 'deposit', 'withdrawal', 'earning'] as const).map(f => (
+                <button
+                  key={f}
+                  className={`btn btn-xs ${filter === f ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ textTransform: 'capitalize', fontSize: '0.72rem', padding: '2px 8px' }}
+                  onClick={() => setFilter(f)}
+                >
+                  {f === 'earning' ? 'Rewards' : f}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-xs" onClick={loadBilling} disabled={loading}>
+              {loading ? <AwsSpinner size={12} /> : 'Refresh'}
+            </button>
+            <button className="btn btn-secondary btn-xs" onClick={handleExportCsv} disabled={exporting}>
+              {exporting ? <AwsSpinner size={12} /> : 'Export CSV'}
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <EmptyState icon={<I.creditCard />} title="No transactions recorded" desc="Real deposits, bandwidth usage settlements, and peer rewards will appear here." />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Status</th>
+                  <th>Reference</th>
+                  <th>Wallet ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(tx => (
+                  <tr key={tx.id}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                      {new Date(tx.created_at).toLocaleString()}
+                    </td>
+                    <td>
+                      <span className={`badge ${tx.type === 'deposit' ? 'badge-success' : tx.type === 'withdrawal' ? 'badge-info' : 'badge-neutral'}`}>
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      {formatUgx(tx.amount)}
+                    </td>
+                    <td>{tx.payment_method || tx.provider || '—'}</td>
+                    <td>
+                      <span className={`badge ${tx.status === 'completed' ? 'badge-success' : tx.status === 'pending' ? 'badge-warning' : 'badge-danger'}`}>
+                        {tx.status}
+                      </span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {tx.reference_id || tx.gateway_reference || tx.id.slice(0, 12)}
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {tx.wallet_id ? tx.wallet_id.slice(0, 12) + '…' : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
 
 const UsersTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
   const [q, setQ] = useState('');
@@ -2764,74 +2924,313 @@ const SecurityTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data
   );
 };
 
-const AbuseTab: React.FC = () => (
-  <>
-    <div className="metrics-bar">
-      <div className="metric-item">
-        <div className="metric-label">Abuse Reports</div>
-        <div className="metric-value" style={{ color: 'var(--text-muted)' }}>0</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Flagged Accounts</div>
-        <div className="metric-value">—</div>
-      </div>
-      <div className="metric-item">
-        <div className="metric-label">Active Bans</div>
-        <div className="metric-value">—</div>
-      </div>
-    </div>
+const AbuseTab: React.FC<{ data: ReturnType<typeof useAdminData>; onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ data, onToast }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+  const toast = (m: string, t: 'success' | 'error' | 'info' = 'info') => onToast ? onToast(m, t) : console.log(m);
 
-    <div className="section">
-      <div className="section-header">
-        <span className="section-title">Abuse Prevention</span>
-      </div>
-      <EmptyState icon={<I.flag />} title="No pending abuse reports" desc="Reported traffic violations, automated rate-limit triggers, and account flags will appear here." />
-    </div>
-  </>
-);
+  const suspendedDevices = data.devices.filter(d => d.status === 'suspended');
+  const revokedDevices = data.devices.filter(d => d.status === 'revoked');
+  const suspendedUsers = data.users.filter(u => u.status === 'suspended' || u.status === 'revoked');
+  const abuseAudit = data.audit.filter(ev =>
+    ev.action.includes('suspend') || ev.action.includes('revoke') || ev.action.includes('abuse') || ev.action.includes('incident')
+  );
 
-const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
-  const svcEntries = Object.entries(data.services);
+  const handleRestoreDevice = async (id: string) => {
+    setBusy(`restore-${id}`);
+    try {
+      await adminRestoreDevice(id);
+      toast(`Device ${id.slice(0, 8)} restored to active status`, 'success');
+      await data.reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Restore failed', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRevokeDevice = async (id: string) => {
+    setBusy(`revoke-${id}`);
+    try {
+      await adminRevokeDevice(id);
+      toast(`Device ${id.slice(0, 8)} permanently revoked`, 'info');
+      await data.reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Revoke failed', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Suspended Devices</div>
+          <div className="metric-value" style={{ color: suspendedDevices.length > 0 ? '#f59e0b' : 'var(--text-primary)' }}>
+            {suspendedDevices.length}
+          </div>
+          <div className="metric-sub">Temporary policy quarantine</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Revoked Devices</div>
+          <div className="metric-value" style={{ color: revokedDevices.length > 0 ? '#ef4444' : 'var(--text-primary)' }}>
+            {revokedDevices.length}
+          </div>
+          <div className="metric-sub">Permanent key revocation</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Flagged Accounts</div>
+          <div className="metric-value" style={{ color: suspendedUsers.length > 0 ? '#ef4444' : 'var(--text-primary)' }}>
+            {suspendedUsers.length}
+          </div>
+          <div className="metric-sub">Disabled operator/org users</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Security Incidents</div>
+          <div className="metric-value">
+            {abuseAudit.length}
+          </div>
+          <div className="metric-sub">In audit trail</div>
+        </div>
+      </div>
+
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Infrastructure Services</span>
-          {Object.values(data.services).some(s => s.status === 'ok')
-            ? <span className="badge badge-success">API connected</span>
-            : <span className="badge badge-neutral">API disconnected</span>}
+          <span className="section-title">Quarantined & Revoked Devices ({suspendedDevices.length + revokedDevices.length})</span>
+          <button className="btn btn-ghost btn-xs" onClick={data.reload}>Refresh</button>
         </div>
-        {svcEntries.length === 0 ? (
-          <EmptyState icon={<I.monitor />} title="No service health data" desc="Service health checks will appear here." />
+        {suspendedDevices.length === 0 && revokedDevices.length === 0 ? (
+          <EmptyState icon={<I.flag />} title="No quarantined devices" desc="Devices suspended or revoked for abusive traffic or compromised keys will appear here with restoration controls." />
         ) : (
-          svcEntries.map(([name, s]) => (
-            <div key={name} className="info-row">
-              <span className="info-key">{name}</span>
-              <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                {s.details ? JSON.stringify(s.details) : ''}
-              </span>
-              <span className="info-meta">
-                <StatusBadge s={s.status === 'ok' ? 'operational' : s.status === 'degraded' ? 'degraded' : 'down'} />
-              </span>
-            </div>
-          ))
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Device</th>
+                  <th>ID</th>
+                  <th>Platform</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...suspendedDevices, ...revokedDevices].map(d => (
+                  <tr key={d.id}>
+                    <td><span style={{ fontWeight: 600 }}>{d.name || 'Unnamed Device'}</span></td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{d.id}</td>
+                    <td>{d.os || d.platform || '—'}</td>
+                    <td>
+                      <span className={`badge ${d.status === 'revoked' ? 'badge-danger' : 'badge-warning'}`}>
+                        {d.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {d.status === 'suspended' && (
+                        <button
+                          className="btn btn-secondary btn-xs"
+                          style={{ marginRight: 6 }}
+                          disabled={busy === `restore-${d.id}`}
+                          onClick={() => handleRestoreDevice(d.id)}
+                        >
+                          {busy === `restore-${d.id}` ? <AwsSpinner size={11} /> : 'Restore'}
+                        </button>
+                      )}
+                      {d.status !== 'revoked' && (
+                        <button
+                          className="btn btn-danger btn-xs"
+                          disabled={busy === `revoke-${d.id}`}
+                          onClick={() => handleRevokeDevice(d.id)}
+                        >
+                          {busy === `revoke-${d.id}` ? <AwsSpinner size={11} /> : 'Revoke'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       <div className="section">
         <div className="section-header">
-          <span className="section-title">Control Plane Config</span>
+          <span className="section-title">Abuse & Security Audit Events</span>
+        </div>
+        {abuseAudit.length === 0 ? (
+          <EmptyState icon={<I.shield />} title="No security audit events" desc="Signed audit records for suspension, revocation, and operational incidents will be listed here." />
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Target</th>
+                  <th>Signature</th>
+                </tr>
+              </thead>
+              <tbody>
+                {abuseAudit.slice(0, 15).map(ev => (
+                  <tr key={ev.id}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                      {new Date(ev.timestamp).toLocaleString()}
+                    </td>
+                    <td>
+                      <span className="badge badge-warning">{ev.action}</span>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.actor_id.slice(0, 16)}…</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{ev.target_id}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      {ev.signature ? ev.signature.slice(0, 16) + '…' : 'system'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+const SystemTab: React.FC<{ data: ReturnType<typeof useAdminData> }> = ({ data }) => {
+  const [telemetry, setTelemetry] = useState<ApiSystemTelemetry | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadSystem = useCallback(async () => {
+    setLoading(true);
+    try {
+      const tel = await adminSystem();
+      setTelemetry(tel);
+    } catch (err) {
+      console.error('Failed to load system telemetry:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSystem();
+  }, [loadSystem]);
+
+  const svcEntries = Object.entries(telemetry?.services || data.services);
+
+  const formatUptime = (sec: number) => {
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+
+  return (
+    <>
+      <div className="metrics-bar">
+        <div className="metric-item">
+          <div className="metric-label">Server Uptime</div>
+          <div className="metric-value">{telemetry ? formatUptime(telemetry.uptime_seconds) : '—'}</div>
+          <div className="metric-sub">{telemetry ? telemetry.go_version : 'Go runtime'}</div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">DB Pool Open</div>
+          <div className="metric-value" style={{ color: '#22c55e' }}>
+            {telemetry ? `${telemetry.database.open_connections} / ${telemetry.database.max_open_connections}` : '—'}
+          </div>
+          <div className="metric-sub">
+            {telemetry ? `${telemetry.database.in_use} in-use · ${telemetry.database.idle} idle` : 'Neon PostgreSQL'}
+          </div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Memory In-Use</div>
+          <div className="metric-value" style={{ color: '#38bdf8' }}>
+            {telemetry ? `${telemetry.memory_alloc_mb.toFixed(1)} MB` : '—'}
+          </div>
+          <div className="metric-sub">
+            {telemetry ? `${telemetry.memory_sys_mb.toFixed(1)} MB sys · ${telemetry.num_goroutines} goroutines` : 'Runtime heap'}
+          </div>
+        </div>
+        <div className="metric-item">
+          <div className="metric-label">Active Tunnels</div>
+          <div className="metric-value">{telemetry ? telemetry.active_connections : data.connections.length}</div>
+          <div className="metric-sub">WireGuard mesh sessions</div>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Neon PostgreSQL Connection Pool</span>
+          <button className="btn btn-ghost btn-xs" onClick={loadSystem} disabled={loading}>
+            {loading ? <AwsSpinner size={12} /> : 'Refresh'}
+          </button>
+        </div>
+        {telemetry?.database ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, padding: '16px' }}>
+            {[
+              ['Max Open Connections', telemetry.database.max_open_connections],
+              ['Current Open Connections', telemetry.database.open_connections],
+              ['Active (In Use)', telemetry.database.in_use],
+              ['Idle Connections', telemetry.database.idle],
+              ['Wait Count', telemetry.database.wait_count],
+              ['Wait Duration', `${telemetry.database.wait_duration_ms} ms`],
+            ].map(([k, v]) => (
+              <div key={k as string} style={{ padding: 12, borderRadius: 8, background: 'var(--bg-surface-2)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={<I.database />} title="Connecting to DB telemetry" desc="Querying Neon PostgreSQL pool metrics..." />
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Infrastructure Services</span>
+          {svcEntries.some(([, s]) => (typeof s === 'string' ? s === 'ok' : (s as any).status === 'ok'))
+            ? <span className="badge badge-success">Operational</span>
+            : <span className="badge badge-neutral">Checking</span>}
+        </div>
+        {svcEntries.length === 0 ? (
+          <EmptyState icon={<I.monitor />} title="No service health data" desc="Service health checks will appear here." />
+        ) : (
+          svcEntries.map(([name, s]) => {
+            const statusStr = typeof s === 'string' ? s : (s as any).status;
+            return (
+              <div key={name} className="info-row">
+                <span className="info-key">{name}</span>
+                <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                  {typeof s === 'object' && (s as any).details ? JSON.stringify((s as any).details) : ''}
+                </span>
+                <span className="info-meta">
+                  <StatusBadge s={statusStr === 'ok' ? 'operational' : statusStr === 'degraded' ? 'degraded' : 'down'} />
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <span className="section-title">Control Plane Configuration</span>
         </div>
         {[
-          ['API Endpoint',      'configured'],
-          ['Auth',              'signed requests (Ed25519)'],
-          ['Data Store',        'configured'],
-          ['Signaling',         'WebSocket'],
-          ['WireGuard Subnet',  '100.64.0.0/10 (CGNAT)'],
+          ['Control Plane Host',    '3.70.135.200 (EC2 eu-central-1)'],
+          ['Database Provider',     'Neon Serverless PostgreSQL (eu-central-1)'],
+          ['Authentication Method', 'Mutual Ed25519 Signed Requests (SHA-256)'],
+          ['WireGuard Subnet',      '100.64.0.0/10 (CGNAT RFC 6598)'],
+          ['Signaling Engine',      'WebSocket with Ephemeral Peer Discovery'],
+          ['Edge Relays',           'Global Anycast Mesh with STUN/TURN (coturn)'],
         ].map(([k, v]) => (
           <div key={k} className="info-row">
             <span className="info-key">{k}</span>
-            <span className="info-val" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{v}</span>
+            <span className="info-val" style={{ color: 'var(--text-primary)', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>{v}</span>
             <span className="info-meta" />
           </div>
         ))}
@@ -2847,7 +3246,7 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   overview:      { title: 'Platform Overview',   subtitle: 'Real-time health and capacity across your network infrastructure',  render: (d, nav) => <OverviewTab data={d} onNavigate={nav} /> },
   operations:    { title: 'Operations',          subtitle: 'Incidents, maintenance and system health',                 render: (d, _nav, onToast) => <OperationsTab data={d} onToast={onToast} /> },
   usage:         { title: 'Usage Analytics',     subtitle: 'Bandwidth, request volumes and API consumption',          render: (d,nav) => <UsageTab data={d} onNavigate={nav} /> },
-  billing:       { title: 'Billing',             subtitle: 'Subscriptions, invoices and revenue analytics',           render: () => <BillingTab /> },
+  billing:       { title: 'Billing',             subtitle: 'Transactions ledger, platform volume, and revenue settlements', render: (_d, _nav, onToast) => <BillingTab onToast={onToast} /> },
   users:         { title: 'Users',               subtitle: 'All registered user accounts across the platform',        render: d => <UsersTab data={d} /> },
   organizations: { title: 'Organizations',       subtitle: 'Enterprise organizations and team spaces',                render: d => <OrgsTab data={d} /> },
   devices:       { title: 'Devices',             subtitle: 'Registered WireGuard endpoints across all accounts',       render: (d, _nav, onToast) => <DevicesTab data={d} onToast={onToast} /> },
@@ -2855,8 +3254,8 @@ const SCREENS: Record<AdminTab, ScreenDef> = {
   network:       { title: 'Network',             subtitle: 'Overlay IP addressing, subnets and routes',                render: d => <NetworkTab data={d} /> },
   relays:        { title: 'Relays',              subtitle: 'Fallback relay nodes for NAT-traversal',                  render: (d, _nav, onToast) => <RelaysTab data={d} onToast={onToast} /> },
   security:      { title: 'Security',            subtitle: 'Audit trail, session revocations and threats',            render: d => <SecurityTab data={d} /> },
-  abuse:         { title: 'Abuse',               subtitle: 'Abuse reports, rate limiting and account flags',           render: () => <AbuseTab /> },
-  system:        { title: 'System',              subtitle: 'Control plane service status and configuration',          render: d => <SystemTab data={d} /> },
+  abuse:         { title: 'Abuse',               subtitle: 'Quarantine controls, key revocation, and security audit trail', render: (d, _nav, onToast) => <AbuseTab data={d} onToast={onToast} /> },
+  system:        { title: 'System',              subtitle: 'Live Neon PostgreSQL pool, Go runtime telemetry, and topology', render: d => <SystemTab data={d} /> },
 };
 
 export interface AdminConsoleProps {

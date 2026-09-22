@@ -95,6 +95,12 @@ func (s *PostgresStore) Migrate(ctx context.Context) error {
 	return nil
 }
 
+// DBStats returns the database connection pool statistics.
+func (s *PostgresStore) DBStats() sql.DBStats {
+	return s.db.Stats()
+}
+
+
 // Close closes the underlying database connection pool.
 func (s *PostgresStore) Close() error {
 	return s.db.Close()
@@ -370,6 +376,35 @@ func (s *PostgresStore) GetUserByUsername(ctx context.Context, username string) 
 	u.ID = parsedID
 	return &u, nil
 }
+
+func (s *PostgresStore) ListUsers(ctx context.Context) ([]*types.Account, error) {
+	query := `SELECT id, name, COALESCE(zoop_id, ''), COALESCE(username, ''), COALESCE(pin_hash, ''), created_at FROM users ORDER BY created_at DESC;`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*types.Account
+	for rows.Next() {
+		var u types.Account
+		var idStr string
+		if err := rows.Scan(&idStr, &u.Name, &u.ZoopID, &u.Username, &u.PinHash, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		parsedID, err := types.ParseID(idStr)
+		if err != nil {
+			return nil, err
+		}
+		u.ID = parsedID
+		users = append(users, &u)
+	}
+	if users == nil {
+		users = []*types.Account{}
+	}
+	return users, nil
+}
+
 
 // ─── Organizations ────────────────────────────────────────────
 
@@ -1280,3 +1315,67 @@ func (s *PostgresStore) ListEarnings(ctx context.Context, ownerID types.ID, limi
 	}
 	return earnings, total, nil
 }
+
+func (s *PostgresStore) ListAllTransactions(ctx context.Context, limit, offset int) ([]*types.PaymentTransaction, int, error) {
+	var total int
+	countQuery := `SELECT COUNT(*) FROM payment_transactions;`
+	if err := s.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, wallet_id, owner_id, reference, gateway_reference, type, method, provider,
+		       amount, fee, currency, status, phone_number, checkout_url, description, metadata, created_at, updated_at
+		FROM payment_transactions
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2;
+	`
+	rows, err := s.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var txns []*types.PaymentTransaction
+	for rows.Next() {
+		t, err := s.scanTransaction(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		txns = append(txns, t)
+	}
+	if txns == nil {
+		txns = []*types.PaymentTransaction{}
+	}
+	return txns, total, nil
+}
+
+func (s *PostgresStore) GetBillingOverview(ctx context.Context) (*types.BillingOverview, error) {
+	overview := &types.BillingOverview{
+		Currency: "UGX",
+	}
+
+	// 1. Wallets summary
+	walletQuery := `
+		SELECT COUNT(*), COALESCE(SUM(available_balance + total_withdrawn), 0), COALESCE(SUM(total_earned), 0)
+		FROM wallets;
+	`
+	if err := s.db.QueryRowContext(ctx, walletQuery).Scan(&overview.ActiveWallets, &overview.TotalVolume, &overview.TotalEarnings); err != nil {
+		return nil, err
+	}
+
+	// 2. Transactions summary
+	txQuery := `
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(CASE WHEN type = 'deposit' AND status = 'completed' THEN amount ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN type = 'withdrawal' AND status = 'completed' THEN amount ELSE 0 END), 0)
+		FROM payment_transactions;
+	`
+	if err := s.db.QueryRowContext(ctx, txQuery).Scan(&overview.TotalTransactions, &overview.TotalDeposits, &overview.TotalWithdrawals); err != nil {
+		return nil, err
+	}
+
+	return overview, nil
+}
+

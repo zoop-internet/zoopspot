@@ -116,6 +116,14 @@ func (nc *NonceCache) CheckAndSet(nonce string, ttl time.Duration) bool {
 
 var globalNonceCache = NewNonceCache()
 
+// FlushNonceCache clears all cached nonces.
+func FlushNonceCache() {
+	globalNonceCache.mu.Lock()
+	defer globalNonceCache.mu.Unlock()
+	globalNonceCache.nonces = make(map[string]time.Time)
+}
+
+
 // BuildCanonicalPayload constructs a tamper-proof signature payload.
 func BuildCanonicalPayload(method, path, timestampStr, nonce, bodyHash string) []byte {
 	return []byte(fmt.Sprintf("zoop-auth-v2|%s|%s|%s|%s|%s", method, path, timestampStr, nonce, bodyHash))

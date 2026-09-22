@@ -8,14 +8,23 @@ import (
 
 	"github.com/allannuwamanya/zoop/packages/cloud/api"
 	"github.com/allannuwamanya/zoop/packages/cloud/payments"
+	"github.com/allannuwamanya/zoop/packages/core/types"
 )
+
+
+func (s *Server) resolveOwnerID(r *http.Request) types.ID {
+	if uid := api.UserIDFromContext(r.Context()); uid != (types.ID{}) && uid.String() != "00000000-0000-0000-0000-000000000000" {
+		return uid
+	}
+	return api.IdentityFromContext(r.Context())
+}
 
 func (s *Server) handleGetWallet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
-		wallet, err := s.payments.GetOrCreateWallet(r.Context(), callerID)
+		ownerID := s.resolveOwnerID(r)
+		wallet, err := s.payments.GetOrCreateWallet(r.Context(), ownerID)
 		if err != nil {
-			s.logger.Error("failed to get or create wallet", "error", err, "caller", callerID)
+			s.logger.Error("failed to get or create wallet", "error", err, "owner", ownerID)
 			api.WriteError(w, "internal_error", "failed to retrieve wallet", http.StatusInternalServerError)
 			return
 		}
@@ -25,19 +34,19 @@ func (s *Server) handleGetWallet() http.HandlerFunc {
 
 func (s *Server) handleDepositMobileMoney() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
+		ownerID := s.resolveOwnerID(r)
 		var req payments.DepositMobileMoneyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			api.WriteError(w, "invalid_request", "malformed request payload", http.StatusBadRequest)
 			return
 		}
-		resp, err := s.payments.InitiateMobileMoneyDeposit(r.Context(), callerID, req)
+		resp, err := s.payments.InitiateMobileMoneyDeposit(r.Context(), ownerID, req)
 		if err != nil {
 			if errors.Is(err, payments.ErrInvalidAmount) || errors.Is(err, payments.ErrInvalidPhone) {
 				api.WriteError(w, "validation_error", err.Error(), http.StatusBadRequest)
 				return
 			}
-			s.logger.Error("failed to initiate mobile money deposit", "error", err, "caller", callerID)
+			s.logger.Error("failed to initiate mobile money deposit", "error", err, "owner", ownerID)
 			api.WriteError(w, "payment_failed", err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -47,19 +56,19 @@ func (s *Server) handleDepositMobileMoney() http.HandlerFunc {
 
 func (s *Server) handleDepositCard() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
+		ownerID := s.resolveOwnerID(r)
 		var req payments.DepositCardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			api.WriteError(w, "invalid_request", "malformed request payload", http.StatusBadRequest)
 			return
 		}
-		resp, err := s.payments.InitiateCardDeposit(r.Context(), callerID, req)
+		resp, err := s.payments.InitiateCardDeposit(r.Context(), ownerID, req)
 		if err != nil {
 			if errors.Is(err, payments.ErrInvalidAmount) {
 				api.WriteError(w, "validation_error", err.Error(), http.StatusBadRequest)
 				return
 			}
-			s.logger.Error("failed to initiate card deposit", "error", err, "caller", callerID)
+			s.logger.Error("failed to initiate card deposit", "error", err, "owner", ownerID)
 			api.WriteError(w, "payment_failed", err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -69,13 +78,13 @@ func (s *Server) handleDepositCard() http.HandlerFunc {
 
 func (s *Server) handleWithdrawal() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
+		ownerID := s.resolveOwnerID(r)
 		var req payments.WithdrawalRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			api.WriteError(w, "invalid_request", "malformed request payload", http.StatusBadRequest)
 			return
 		}
-		resp, err := s.payments.InitiateWithdrawal(r.Context(), callerID, req)
+		resp, err := s.payments.InitiateWithdrawal(r.Context(), ownerID, req)
 		if err != nil {
 			if errors.Is(err, payments.ErrInsufficientFunds) {
 				api.WriteError(w, "insufficient_funds", err.Error(), http.StatusBadRequest)
@@ -85,7 +94,7 @@ func (s *Server) handleWithdrawal() http.HandlerFunc {
 				api.WriteError(w, "validation_error", err.Error(), http.StatusBadRequest)
 				return
 			}
-			s.logger.Error("failed to initiate withdrawal", "error", err, "caller", callerID)
+			s.logger.Error("failed to initiate withdrawal", "error", err, "owner", ownerID)
 			api.WriteError(w, "payout_failed", err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -95,11 +104,11 @@ func (s *Server) handleWithdrawal() http.HandlerFunc {
 
 func (s *Server) handleListTransactions() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
+		ownerID := s.resolveOwnerID(r)
 		limit, offset := parsePagination(r, 20, 100)
-		resp, err := s.payments.ListTransactions(r.Context(), callerID, limit, offset)
+		resp, err := s.payments.ListTransactions(r.Context(), ownerID, limit, offset)
 		if err != nil {
-			s.logger.Error("failed to list transactions", "error", err, "caller", callerID)
+			s.logger.Error("failed to list transactions", "error", err, "owner", ownerID)
 			api.WriteError(w, "internal_error", "failed to list transactions", http.StatusInternalServerError)
 			return
 		}
@@ -109,17 +118,18 @@ func (s *Server) handleListTransactions() http.HandlerFunc {
 
 func (s *Server) handleListEarnings() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callerID := api.IdentityFromContext(r.Context())
+		ownerID := s.resolveOwnerID(r)
 		limit, offset := parsePagination(r, 20, 100)
-		resp, err := s.payments.ListEarnings(r.Context(), callerID, limit, offset)
+		resp, err := s.payments.ListEarnings(r.Context(), ownerID, limit, offset)
 		if err != nil {
-			s.logger.Error("failed to list earnings", "error", err, "caller", callerID)
+			s.logger.Error("failed to list earnings", "error", err, "owner", ownerID)
 			api.WriteError(w, "internal_error", "failed to list earnings", http.StatusInternalServerError)
 			return
 		}
 		api.WriteJSON(w, http.StatusOK, resp)
 	}
 }
+
 
 func (s *Server) handlePaymentWebhook() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

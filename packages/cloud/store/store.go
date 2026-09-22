@@ -32,6 +32,7 @@ type Store interface {
 	GetUser(ctx context.Context, id types.ID) (*types.Account, error)
 	GetUserByZoopID(ctx context.Context, zoopID string) (*types.Account, error)
 	GetUserByUsername(ctx context.Context, username string) (*types.Account, error)
+	ListUsers(ctx context.Context) ([]*types.Account, error)
 
 	SaveOrganization(ctx context.Context, org *types.Organization) error
 	GetOrganization(ctx context.Context, id types.ID) (*types.Organization, error)
@@ -63,6 +64,8 @@ type Store interface {
 	GetTransaction(ctx context.Context, id types.ID) (*types.PaymentTransaction, error)
 	GetTransactionByReference(ctx context.Context, ref string) (*types.PaymentTransaction, error)
 	ListTransactions(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.PaymentTransaction, int, error)
+	ListAllTransactions(ctx context.Context, limit, offset int) ([]*types.PaymentTransaction, int, error)
+	GetBillingOverview(ctx context.Context) (*types.BillingOverview, error)
 	SaveEarningRecord(ctx context.Context, earning *types.EarningRecord) error
 	ListEarnings(ctx context.Context, ownerID types.ID, limit, offset int) ([]*types.EarningRecord, int, error)
 
@@ -324,6 +327,28 @@ func (s *InMemoryStore) GetUserByUsername(ctx context.Context, username string) 
 	}
 	return s.users[id], nil
 }
+
+func (s *InMemoryStore) ListUsers(_ context.Context) ([]*types.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []*types.Account
+	for _, u := range s.users {
+		cp := *u
+		out = append(out, &cp)
+	}
+	for i := 0; i < len(out)-1; i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[i].CreatedAt.Before(out[j].CreatedAt) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	if out == nil {
+		out = []*types.Account{}
+	}
+	return out, nil
+}
+
 
 func (s *InMemoryStore) SaveSharingRelationship(ctx context.Context, share *types.SharingRelationship) error {
 	s.mu.Lock()
@@ -710,4 +735,62 @@ func (s *InMemoryStore) ListEarnings(_ context.Context, ownerID types.ID, limit,
 	}
 	return matches[offset:end], total, nil
 }
+
+func (s *InMemoryStore) ListAllTransactions(_ context.Context, limit, offset int) ([]*types.PaymentTransaction, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var matches []*types.PaymentTransaction
+	for _, t := range s.transactions {
+		cp := *t
+		matches = append(matches, &cp)
+	}
+
+	for i := 0; i < len(matches)-1; i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if matches[i].CreatedAt.Before(matches[j].CreatedAt) {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+
+	total := len(matches)
+	if offset >= total {
+		return []*types.PaymentTransaction{}, total, nil
+	}
+	end := offset + limit
+	if end > total || limit <= 0 {
+		end = total
+	}
+	return matches[offset:end], total, nil
+}
+
+func (s *InMemoryStore) GetBillingOverview(_ context.Context) (*types.BillingOverview, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	overview := &types.BillingOverview{
+		Currency:      "UGX",
+		ActiveWallets: len(s.wallets),
+	}
+
+	for _, w := range s.wallets {
+		overview.TotalVolume += w.AvailableBalance + w.TotalWithdrawn
+		overview.TotalEarnings += w.TotalEarned
+	}
+
+	for _, t := range s.transactions {
+		overview.TotalTransactions++
+		if t.Status == types.StatusCompleted {
+			if t.Type == types.TypeDeposit {
+				overview.TotalDeposits += t.Amount
+			} else if t.Type == types.TypeWithdrawal {
+				overview.TotalWithdrawals += t.Amount
+			}
+		}
+	}
+
+	return overview, nil
+}
+
 
