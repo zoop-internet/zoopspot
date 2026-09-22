@@ -294,7 +294,9 @@ const AppContent: React.FC = () => {
         ) : isOrg ? (
           <ErrorBoundary><OrgDashboard mode="org" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
         ) : isAdmin ? (
-          isAuthorizedAdmin ? (
+          !isAuthenticated ? (
+            <AuthPage initialTab="signin" redirectUrl="/admin" onNavigate={navigateTo} />
+          ) : isAuthorizedAdmin ? (
             <ErrorBoundary><AdminConsole mode="admin" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
           ) : (
             <NotFound path={pathname} onNavigate={navigateTo} />

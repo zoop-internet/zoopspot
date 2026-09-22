@@ -39,7 +39,8 @@ const WORKSPACE_COLORS: Record<PortalMode, string> = {
 };
 
 export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
-  const { organizations, currentOrg, selectOrg } = useApp();
+  const { user, organizations, currentOrg, selectOrg } = useApp();
+  const isAdmin = user?.role === 'admin' || user?.role === 'operator';
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -113,9 +114,11 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                 </button>
               </div>
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Platform view</span>
+                <button onClick={() => { setOpen(false); onSwitch('user'); }} style={{ background: 'transparent', border: 'none', color: '#34d399', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  ← Personal Workspace
+                </button>
                 <button onClick={() => { setOpen(false); onSwitch('landing'); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  Back to Website <Ico d={I.arrowUpRight} size={12} />
+                  Website <Ico d={I.arrowUpRight} size={12} />
                 </button>
               </div>
             </>
@@ -170,6 +173,20 @@ export const WorkspaceSwitcher: React.FC<Props> = ({ mode, onSwitch }) => {
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Create a team workspace</span>
                   </span>
                 </button>
+                {isAdmin && (
+                  <button id="switch-to-admin" className="portal-switcher-option" role="option" tabIndex={0}
+                    onClick={() => { onSwitch('admin'); setOpen(false); }}
+                    style={{ borderRadius: 10, padding: '10px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.22)', marginTop: 8 }}>
+                    <span className="ps-blank" aria-hidden />
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0 }} aria-hidden>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </span>
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.875rem' }}>Platform Admin</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Operator console & controls</span>
+                    </span>
+                  </button>
+                )}
               </div>
               <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Need help?</span>

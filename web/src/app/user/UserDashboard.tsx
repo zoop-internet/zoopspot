@@ -1755,6 +1755,32 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
         </nav>
 
         <div className="sidebar-footer">
+          {(user?.role === 'admin' || user?.role === 'operator') && (
+            <button
+              id="sidebar-admin-console-btn"
+              onClick={() => onSwitch('admin')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 10px',
+                marginBottom: 8,
+                borderRadius: 8,
+                background: 'rgba(245,158,11,0.10)',
+                border: '1px solid rgba(245,158,11,0.25)',
+                color: '#f59e0b',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span style={{ flex: 1, textAlign: 'left' }}>Admin Console</span>
+              <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>→</span>
+            </button>
+          )}
           <div
             className="sidebar-user"
             id="user-profile-area"

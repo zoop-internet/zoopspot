@@ -202,7 +202,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     try {
       await login(signInIdentifier.trim(), pin, rememberMe);
       setSuccessMsg('Signed in! Redirecting…');
-      setTimeout(() => onNavigate(redirectUrl), 650);
+      const cleanIdent = signInIdentifier.trim().toLowerCase();
+      const isAdminUser = cleanIdent === 'admin' || cleanIdent === 'zp-9uzu8c' || cleanIdent === '@admin';
+      const targetUrl = (isAdminUser && (!redirectUrl || redirectUrl === '/' || redirectUrl === '/app'))
+        ? '/admin'
+        : (redirectUrl || '/');
+      setTimeout(() => onNavigate(targetUrl), 650);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Sign in failed. Check your ID and PIN.');
     } finally {
