@@ -123,6 +123,24 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   // Status & errors
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isSubdomain =
+    hostname.startsWith('dash.') ||
+    hostname.startsWith('admin.') ||
+    hostname.startsWith('dmin.') ||
+    hostname.startsWith('app.') ||
+    hostname.startsWith('ops.');
+  const homeHref = isSubdomain ? 'https://zoopnetwork.app/' : '/';
+
+  const handleGoHome = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isSubdomain) {
+      window.location.href = 'https://zoopnetwork.app/';
+      return;
+    }
+    onNavigate('/');
+  };
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [transitioningStep, setTransitioningStep] = useState(false);
@@ -282,12 +300,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         {/* Zoop Authentic Brand Header */}
         <header className="auth-topbar">
           <a
-            href="/"
+            href={homeHref}
             className="auth-brand"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate('/');
-            }}
+            onClick={handleGoHome}
             aria-label="Zoop Network — Homepage"
           >
             <div className="auth-brand-logo">
@@ -304,12 +319,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </a>
 
           <a
-            href="/"
+            href={homeHref}
             className="auth-back-link"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate('/');
-            }}
+            onClick={handleGoHome}
           >
             <span>← Back to Overview</span>
           </a>
