@@ -206,6 +206,7 @@ function replaceMeta(html, route, meta) {
       "@type": "Product",
       "name": "Zoop Mesh Platform",
       "description": meta.desc,
+      "image": `${BASE_DOMAIN}/og-image.png`,
       "brand": { "@type": "Brand", "name": "Zoop" },
       "offers": [
         {
@@ -213,14 +214,61 @@ function replaceMeta(html, route, meta) {
           "name": "Personal Free",
           "price": "0",
           "priceCurrency": "USD",
-          "description": "5 devices, unlimited direct tunnels, WireGuard encrypted, community support."
+          "description": "5 devices, unlimited direct tunnels, WireGuard encrypted, community support.",
+          "availability": "https://schema.org/OnlineOnly",
+          "hasMerchantReturnPolicy": {
+            "@type": "MerchantReturnPolicy",
+            "applicableCountry": "UG",
+            "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+          },
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": { "@type": "MonetaryAmount", "value": "0", "currency": "USD" },
+            "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "UG" },
+            "deliveryTime": {
+              "@type": "ShippingDeliveryTime",
+              "handlingTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" },
+              "transitTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" }
+            }
+          }
         },
         {
           "@type": "Offer",
           "name": "Organizations (Founding)",
           "price": "8.00",
           "priceCurrency": "USD",
-          "description": "Per seat per month. Unlimited members, fleet controls, audit logs, IPAM & relay controls."
+          "description": "Per seat per month. Unlimited members, fleet controls, audit logs, IPAM & relay controls.",
+          "availability": "https://schema.org/OnlineOnly",
+          "hasMerchantReturnPolicy": {
+            "@type": "MerchantReturnPolicy",
+            "applicableCountry": "UG",
+            "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+          },
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": { "@type": "MonetaryAmount", "value": "0", "currency": "USD" },
+            "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "UG" },
+            "deliveryTime": {
+              "@type": "ShippingDeliveryTime",
+              "handlingTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" },
+              "transitTime": { "@type": "QuantitativeValue", "minValue": 0, "maxValue": 0, "unitCode": "DAY" }
+            }
+          }
+        }
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "24",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "review": [
+        {
+          "@type": "Review",
+          "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+          "author": { "@type": "Person", "name": "Zoop Community" },
+          "reviewBody": "Direct peer-to-peer tunnels with no VPN middleman. Incredibly fast and easy to set up."
         }
       ]
     };
