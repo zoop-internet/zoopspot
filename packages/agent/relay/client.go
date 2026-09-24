@@ -27,10 +27,11 @@ type RelayClient struct {
 	privKey   ed25519.PrivateKey
 	logger    *slog.Logger
 
-	mu      sync.RWMutex
-	conn    *websocket.Conn
-	handler FrameHandler
-	stopCh  chan struct{}
+	mu           sync.RWMutex
+	conn         *websocket.Conn
+	handler      FrameHandler
+	stopCh       chan struct{}
+	customDialer *websocket.Dialer // nil = use default plain TLS dialer
 }
 
 // NewClient creates a new RelayClient instance with a single relay URL.
@@ -55,6 +56,18 @@ func NewMultiClient(relayURLs []string, identity types.Identity, privKey ed25519
 		logger:    logger,
 		stopCh:    make(chan struct{}),
 	}
+}
+
+// WithCustomDialer sets a custom websocket.Dialer that replaces the default
+// plain TLS connection. Use sni.NewWebSocketDialer to enable carrier
+// zero-balance mode (SNI masking / domain fronting).
+//
+// Must be called before Connect or Start.
+func (c *RelayClient) WithCustomDialer(d websocket.Dialer) *RelayClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.customDialer = &d
+	return c
 }
 
 // SetRelayURLs updates the candidate relay URLs list.
@@ -104,9 +117,12 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 	headers.Set("X-Zoop-Timestamp", ts)
 	headers.Set("X-Zoop-Nonce", nonce)
 
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 5 * time.Second,
+	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
+	c.mu.RLock()
+	if c.customDialer != nil {
+		dialer = *c.customDialer
 	}
+	c.mu.RUnlock()
 
 	conn, _, err := dialer.DialContext(ctx, targetURL, headers)
 	if err != nil {

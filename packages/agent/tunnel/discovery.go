@@ -397,40 +397,42 @@ func SelectFallbackCandidateWithLocalIP(candidates []types.EndpointCandidate, lo
 		return "", 0
 	}
 
-	// 1. Gather all local non-virtual subnets
+	// 1. Gather local subnets.
+	// When localIPStr is provided (e.g. Android ConnectivityManager), use only that
+	// IP's /24 subnet — not the OS interfaces — so caller-supplied topology takes
+	// precedence over whatever the host machine happens to have configured.
 	var localSubnets []*net.IPNet
-	if ifaces, err := net.Interfaces(); err == nil {
-		for _, iface := range ifaces {
-			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagPointToPoint != 0 {
-				continue
-			}
-			name := strings.ToLower(iface.Name)
-			isVirtual := false
-			for _, prefix := range []string{"zoop", "tun", "tap", "wg", "utun", "docker", "veth", "br-", "virbr"} {
-				if strings.HasPrefix(name, prefix) {
-					isVirtual = true
-					break
-				}
-			}
-			if isVirtual {
-				continue
-			}
-			if addrs, err := iface.Addrs(); err == nil {
-				for _, addr := range addrs {
-					if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-						localSubnets = append(localSubnets, ipNet)
-					}
-				}
-			}
-		}
-	}
-
-	// Add subnet derived from explicitly provided local IP (e.g. from Android ConnectivityManager)
 	if localIPStr != "" {
 		if parsed := net.ParseIP(localIPStr); parsed != nil && !parsed.IsLoopback() {
 			if ip4 := parsed.To4(); ip4 != nil {
 				mask24 := net.CIDRMask(24, 32)
 				localSubnets = append(localSubnets, &net.IPNet{IP: ip4.Mask(mask24), Mask: mask24})
+			}
+		}
+	} else {
+		if ifaces, err := net.Interfaces(); err == nil {
+			for _, iface := range ifaces {
+				if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagPointToPoint != 0 {
+					continue
+				}
+				name := strings.ToLower(iface.Name)
+				isVirtual := false
+				for _, prefix := range []string{"zoop", "tun", "tap", "wg", "utun", "docker", "veth", "br-", "virbr"} {
+					if strings.HasPrefix(name, prefix) {
+						isVirtual = true
+						break
+					}
+				}
+				if isVirtual {
+					continue
+				}
+				if addrs, err := iface.Addrs(); err == nil {
+					for _, addr := range addrs {
+						if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+							localSubnets = append(localSubnets, ipNet)
+						}
+					}
+				}
 			}
 		}
 	}
