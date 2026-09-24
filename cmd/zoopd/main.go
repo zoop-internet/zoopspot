@@ -342,9 +342,20 @@ func handleIPC(
 	switch cmd.Action {
 	case "status":
 		port, _ := devMgr.GetListenPort()
+		uapi, _ := devMgr.IpcGet()
 		resp = DaemonResponse{
 			Success: true,
 			Message: fmt.Sprintf("zoopd running. WireGuard Port=%d PubKey=%s", port, devMgr.PublicKey().String()),
+			Data:    uapi,
+		}
+
+	case "sync", "resync":
+		if sigClient != nil {
+			go sigClient.Resync(ctx)
+		}
+		resp = DaemonResponse{
+			Success: true,
+			Message: "signaling resync triggered",
 		}
 
 	case "connect":

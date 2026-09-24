@@ -94,7 +94,7 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 		// Reset backoff on successful connect
 		backoff = 1 * time.Second
 
-		s.resync(ctx)
+		s.Resync(ctx)
 
 		// Run the read/write loop until it breaks
 		s.pump(ctx)
@@ -127,7 +127,7 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	return nil
 }
 
-func (s *SignalingClient) resync(ctx context.Context) {
+func (s *SignalingClient) Resync(ctx context.Context) {
 	s.Logger.Info("signaling resyncing missed connection states")
 
 	pending, err := s.apiClient.GetPendingConnections(ctx, s.apiClient.Identity.EndpointID)
@@ -151,6 +151,44 @@ func (s *SignalingClient) resync(ctx context.Context) {
 				ProviderIP:         conn.ProviderIP,
 				RecipientIP:        conn.RecipientIP,
 				WireGuardPublicKey: wgKey,
+			})
+
+			msg := types.SignalingMessage{
+				Type:        types.SignalingTypeConnectionRequest,
+				SenderID:    conn.RecipientID,
+				RecipientID: s.apiClient.Identity.EndpointID,
+				Payload:     payloadBytes,
+			}
+			s.handleMessage(ctx, msg)
+		}
+	}
+
+	// 2. Fetch and restore active or authorized connections
+	allConns, err := s.apiClient.ListConnections(ctx)
+	if err != nil {
+		s.Logger.Error("failed to fetch all connections during resync", "error", err)
+		return
+	}
+
+	for _, conn := range allConns {
+		if conn.ProviderID == s.apiClient.Identity.EndpointID &&
+			(conn.State == types.ConnectionStateAuthorized || conn.State == types.ConnectionStateConnected) {
+			s.Logger.Info("found active connection during resync, restoring tunnel", "connection_id", conn.ID, "recipient_id", conn.RecipientID)
+
+			endpoints, err := s.apiClient.DiscoverEndpoints(ctx, conn.RecipientID)
+			wgKey := conn.WireGuardPublicKey
+			if wgKey == "" && err == nil && endpoints != nil {
+				wgKey = endpoints.WireGuardPublicKey
+			}
+
+			payloadBytes, _ := json.Marshal(types.ConnectionPayload{
+				ConnectionID:       conn.ID,
+				ProviderIP:         conn.ProviderIP,
+				RecipientIP:        conn.RecipientIP,
+				WireGuardPublicKey: wgKey,
+				EndpointIP:         conn.EndpointIP,
+				EndpointPort:       conn.EndpointPort,
+				Candidates:         conn.Candidates,
 			})
 
 			msg := types.SignalingMessage{
@@ -270,9 +308,13 @@ func (s *SignalingClient) handleMessage(ctx context.Context, msg types.Signaling
 					if err == nil {
 						allowedIPs := []string{}
 						if payload.RecipientIP != "" {
-							allowedIPs = append(allowedIPs, payload.RecipientIP+"/32")
+							if strings.Contains(payload.RecipientIP, "/") {
+								allowedIPs = append(allowedIPs, payload.RecipientIP)
+							} else {
+								allowedIPs = append(allowedIPs, payload.RecipientIP+"/32")
+							}
 						}
-						allowedIPs = append(allowedIPs, "fd00:7a6f:6f70::/64")
+						allowedIPs = append(allowedIPs, "100.64.0.0/10", "100.64.0.2/32", "fd00:7a6f:6f70::/64")
 
 						targetIP := payload.EndpointIP
 						targetPort := payload.EndpointPort

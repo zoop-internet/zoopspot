@@ -75,8 +75,12 @@ if [ "$TEARDOWN" = true ]; then
   echo "Removing iptables rules for ${TUN_IF}..."
   iptables -t nat -D POSTROUTING -s 100.64.0.0/10 ! -o "$TUN_IF" -j MASQUERADE 2>/dev/null || true
   iptables -D FORWARD -i "$TUN_IF" ! -o "$TUN_IF" -j ACCEPT 2>/dev/null || true
+  iptables -D FORWARD -o "$TUN_IF" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
   iptables -D FORWARD -o "$TUN_IF" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
   iptables -D FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu 2>/dev/null || true
+  iptables -t mangle -D PREROUTING -i "$WAN_IF" -j TTL --ttl-set 64 2>/dev/null || true
+  iptables -t mangle -D PREROUTING -i "$TUN_IF" -j TTL --ttl-set 64 2>/dev/null || true
+  ip route del 100.64.0.0/10 dev "$TUN_IF" 2>/dev/null || true
   echo "✓ Gateway iptables rules removed."
   exit 0
 fi
@@ -100,7 +104,9 @@ echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
 # Disable reverse path filtering to allow multi-interface asymmetric routing
 sysctl -w net.ipv4.conf.all.rp_filter=0 >/dev/null
 sysctl -w net.ipv4.conf.default.rp_filter=0 >/dev/null
+sysctl -w "net.ipv4.conf.${TUN_IF}.rp_filter=0" >/dev/null 2>&1 || true
 sysctl -w "net.ipv4.conf.${WAN_IF}.rp_filter=0" >/dev/null 2>&1 || true
+for f in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > "$f" 2>/dev/null || true; done
 
 echo "✓ Kernel IP forwarding active: $(cat /proc/sys/net/ipv4/ip_forward)"
 
@@ -124,9 +130,26 @@ if ! iptables -C FORWARD -i "$TUN_IF" ! -o "$TUN_IF" -j ACCEPT 2>/dev/null; then
 fi
 
 # Allow established/related return traffic from WAN to TUN
-if ! iptables -C FORWARD -o "$TUN_IF" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
-  iptables -I FORWARD 1 -o "$TUN_IF" -m state --state RELATED,ESTABLISHED -j ACCEPT
+if ! iptables -C FORWARD -o "$TUN_IF" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+  if ! iptables -I FORWARD 1 -o "$TUN_IF" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+    if ! iptables -C FORWARD -o "$TUN_IF" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null; then
+      iptables -I FORWARD 1 -o "$TUN_IF" -m state --state RELATED,ESTABLISHED
+    fi
+  fi
 fi
+
+# Normalize incoming TTL to prevent upstream ISP TTL=1 packet drops on forwarded traffic
+if ! iptables -t mangle -C PREROUTING -i "$WAN_IF" -j TTL --ttl-set 64 2>/dev/null; then
+  iptables -t mangle -A PREROUTING -i "$WAN_IF" -j TTL --ttl-set 64
+fi
+if ! iptables -t mangle -C PREROUTING -i "$TUN_IF" -j TTL --ttl-set 64 2>/dev/null; then
+  iptables -t mangle -A PREROUTING -i "$TUN_IF" -j TTL --ttl-set 64
+fi
+
+# Ensure TUN interface has 100.64.0.1/10 assigned and is UP
+ip addr add 100.64.0.1/10 dev "$TUN_IF" 2>/dev/null || true
+ip link set "$TUN_IF" up 2>/dev/null || true
+ip route add 100.64.0.0/10 dev "$TUN_IF" 2>/dev/null || true
 
 echo "✓ iptables NAT rules configured."
 

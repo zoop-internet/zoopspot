@@ -50,15 +50,37 @@ object ZoopMobileBridge {
 
     fun getActiveLocalIp(context: Context): String {
         try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return ""
-            val activeNetwork = cm.activeNetwork ?: return ""
-            val linkProps = cm.getLinkProperties(activeNetwork) ?: return ""
-            for (linkAddr in linkProps.linkAddresses) {
-                val addr = linkAddr.address
-                if (addr is java.net.Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
-                    val host = addr.hostAddress
-                    if (!host.isNullOrEmpty() && !host.startsWith("127.") && !host.startsWith("100.64.")) {
-                        return host
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            if (cm != null) {
+                // Check physical networks, avoiding VPN interface
+                for (network in cm.allNetworks) {
+                    val caps = cm.getNetworkCapabilities(network) ?: continue
+                    if (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)) continue
+                    val linkProps = cm.getLinkProperties(network) ?: continue
+                    for (linkAddr in linkProps.linkAddresses) {
+                        val addr = linkAddr.address
+                        if (addr is java.net.Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                            val host = addr.hostAddress
+                            if (!host.isNullOrEmpty() && !host.startsWith("127.") && !host.startsWith("100.64.")) {
+                                return host
+                            }
+                        }
+                    }
+                }
+            }
+            // Fallback: standard NetworkInterface enumeration
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                val iface = interfaces.nextElement()
+                if (iface.isLoopback || !iface.isUp || iface.name.contains("tun") || iface.name.contains("zoop")) continue
+                val addrs = iface.inetAddresses
+                while (addrs.hasMoreElements()) {
+                    val addr = addrs.nextElement()
+                    if (addr is java.net.Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
+                        val host = addr.hostAddress
+                        if (!host.isNullOrEmpty() && !host.startsWith("127.") && !host.startsWith("100.64.")) {
+                            return host
+                        }
                     }
                 }
             }
@@ -71,6 +93,7 @@ object ZoopMobileBridge {
 
 class ZoopVpnService : VpnService(), ZoopStateCallback {
 
+    private val vpnExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private var vpnInterface: ParcelFileDescriptor? = null
     private var networkMonitor: NetworkMonitor? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -212,24 +235,18 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             val clientIp = intent?.getStringExtra(EXTRA_CLIENT_IP)?.takeIf { it.isNotEmpty() } ?: "100.64.0.2"
             val builder = Builder()
                 .setSession("ZoopVPN")
-                .addAddress(clientIp, 32)
+                .addAddress(clientIp, 24)
                 .setMtu(1420)
                 .setBlocking(true)
 
-            // Exclude Zoop app from its own VPN tunnel so control plane HTTPS,
-            // signaling WebSockets, and health checks are never blackholed.
-            try {
-                builder.addDisallowedApplication(packageName)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not exclude package from VPN tunnel: ${e.message}")
-            }
+            // Internal overlay subnet and IPv6 mesh address/route for Zoop communication
+            builder.addRoute("100.64.0.0", 10)
+            builder.addAddress("fd00:7a6f:6f70::2", 128)
+            builder.addRoute("fd00:7a6f:6f70::", 64)
 
             if (routingMode == "full") {
                 // Full Internet Egress: Route all IPv4 traffic through Zoop exit node
                 builder.addRoute("0.0.0.0", 0)
-                // Internal overlay address and route for mesh communication
-                builder.addAddress("fd00:7a6f:6f70::2", 128)
-                builder.addRoute("fd00:7a6f:6f70::", 64)
 
                 // High-performance resilient DNS resolvers (Cloudflare, Google, Quad9)
                 // Providing multiple IPv4 resolvers ensures Android Private DNS (DoT 853)
@@ -240,10 +257,6 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                 builder.addDnsServer("8.8.4.4")
                 builder.addDnsServer("9.9.9.9")
             } else {
-                // Split Tunnel: Route only Zoop mesh overlay
-                builder.addRoute("100.64.0.0", 10)
-                builder.addAddress("fd00:7a6f:6f70::2", 128)
-                builder.addRoute("fd00:7a6f:6f70::", 64)
                 builder.addDnsServer("1.1.1.1")
                 builder.addDnsServer("8.8.8.8")
             }
@@ -273,34 +286,39 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             emitState("connecting", clientIp, false)
             updateNotification("Connecting to peers...", false)
 
-            // Initialize Go mobile runtime with this service as event listener
-            try {
-                val wgPrivKey = intent?.getStringExtra(EXTRA_WG_PRIV_KEY) ?: ""
-                val configJson = org.json.JSONObject().apply {
-                    put("device_id", "android-device")
-                    put("cloud_url", "https://3.70.135.200.sslip.io")
-                    if (wgPrivKey.isNotEmpty()) {
-                        put("wireguard_private_key", wgPrivKey)
+            // Initialize Go mobile runtime with this service as event listener on background executor
+            vpnExecutor.execute {
+                try {
+                    val wgPrivKey = intent?.getStringExtra(EXTRA_WG_PRIV_KEY) ?: ""
+                    val configJson = org.json.JSONObject().apply {
+                        put("device_id", "android-device")
+                        put("cloud_url", "https://3.70.135.200.sslip.io")
+                        if (wgPrivKey.isNotEmpty()) {
+                            put("wireguard_private_key", wgPrivKey)
+                        }
+                    }.toString()
+
+                    ZoopMobileBridge.initMobile(configJson, this)
+                    ZoopMobileBridge.startTunnel(fd, "zoop0")
+
+                    val peerPubKey = intent?.getStringExtra(EXTRA_PEER_KEY)
+                    val candidatesJson = intent?.getStringExtra(EXTRA_CANDIDATES) ?: "[]"
+                    val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
+                    val localIp = ZoopMobileBridge.getActiveLocalIp(this)
+
+                    Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl localIp=$localIp")
+                    if (!peerPubKey.isNullOrEmpty()) {
+                        Log.i(TAG, "Calling ZoopMobileBridge.connectPeer")
+                        ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
+                    } else {
+                        Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")
                     }
-                }.toString()
-
-                ZoopMobileBridge.initMobile(configJson, this)
-                ZoopMobileBridge.startTunnel(fd, "zoop0")
-
-                val peerPubKey = intent?.getStringExtra(EXTRA_PEER_KEY)
-                val candidatesJson = intent?.getStringExtra(EXTRA_CANDIDATES) ?: "[]"
-                val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
-                val localIp = ZoopMobileBridge.getActiveLocalIp(this)
-
-                Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl localIp=$localIp")
-                if (!peerPubKey.isNullOrEmpty()) {
-                    Log.i(TAG, "Calling ZoopMobileBridge.connectPeer")
-                    ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
-                } else {
-                    Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")
+                } catch (e: UnsatisfiedLinkError) {
+                    Log.w(TAG, "Native bridge call bypassed (development test mode)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed in native tunnel background thread: ${e.message}", e)
+                    emitError("TUNNEL_START_ERROR", e.message ?: "Tunnel failed to start")
                 }
-            } catch (e: UnsatisfiedLinkError) {
-                Log.w(TAG, "Native bridge call bypassed (development test mode)")
             }
 
             // Register ConnectivityManager network callbacks for instant roaming

@@ -94,8 +94,18 @@ if [ "$REBUILD_CORE" = true ] || [ ! -f "$LIB_PATH" ]; then
     GOARCH="arm"
   fi
 
-  # Check if NDK clang is available
-  NDK_CLANG=$(find "${ANDROID_HOME:-/home/a-n/Android/Sdk}" -name "*android*clang" 2>/dev/null | grep -E "android(24|26|28|30|33)-clang" | head -n 1 || true)
+  # Check if NDK clang is available for target ABI
+  CLANG_PREFIX="aarch64-linux-android"
+  if [ "$DEV_ABI" = "x86_64" ]; then
+    CLANG_PREFIX="x86_64-linux-android"
+  elif [ "$DEV_ABI" = "armeabi-v7a" ]; then
+    CLANG_PREFIX="armv7a-linux-androideabi"
+  fi
+
+  NDK_CLANG=$(find "${ANDROID_HOME:-/home/a-n/Android/Sdk}" -name "${CLANG_PREFIX}*clang" 2>/dev/null | grep -E "(24|26|28|30|33)-clang" | head -n 1 || true)
+  if [ -z "$NDK_CLANG" ]; then
+    NDK_CLANG=$(find "${ANDROID_HOME:-/home/a-n/Android/Sdk}" -name "${CLANG_PREFIX}*clang" 2>/dev/null | head -n 1 || true)
+  fi
 
   if [ -n "$NDK_CLANG" ]; then
     echo "Using NDK Clang: $NDK_CLANG"

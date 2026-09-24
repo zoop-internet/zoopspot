@@ -93,3 +93,73 @@ func TestDeadPeerDetector_LivelinessFlow(t *testing.T) {
 		t.Errorf("expected initial timeout 50ms after reset, got %v", timeout)
 	}
 }
+
+func TestDeadPeerDetector_RecordActivity(t *testing.T) {
+	cfg := tunnel.DPDConfig{
+		CheckInterval:     10 * time.Millisecond,
+		InitialTimeout:    50 * time.Millisecond,
+		MaxBackoffTimeout: 200 * time.Millisecond,
+		BackoffMultiplier: 2.0,
+		MaxRetries:        2,
+	}
+
+	dpd := tunnel.NewDeadPeerDetector(cfg, nil, nil, nil, nil)
+
+	// Initial handshake and byte observation
+	staleTime := time.Now().Add(-100 * time.Millisecond) // Older than 50ms
+	rxBytes := int64(1024)
+
+	// First call establishes baseline rxBytes
+	dpd.RecordActivity(time.Now(), rxBytes)
+
+	// Stale handshake but RX bytes increased -> must remain ALIVE
+	rxBytes += 500
+	if !dpd.RecordActivity(staleTime, rxBytes) {
+		t.Errorf("expected alive when rxBytes increments despite stale handshake")
+	}
+	st, retries, _ := dpd.GetStatus()
+	if st != tunnel.DPDStateAlive || retries != 0 {
+		t.Errorf("expected alive with 0 retries, got state=%s, retries=%d", st, retries)
+	}
+
+	// Stale handshake AND static rxBytes -> must become SUSPECT (retry 1)
+	if dpd.RecordActivity(staleTime, rxBytes) {
+		t.Errorf("expected false when handshake is stale and rxBytes is static")
+	}
+	st, retries, _ = dpd.GetStatus()
+	if st != tunnel.DPDStateSuspect || retries != 1 {
+		t.Errorf("expected suspect with retry 1, got state=%s, retries=%d", st, retries)
+	}
+
+	// Another stale check -> max retries reached -> DEAD
+	if dpd.RecordActivity(staleTime, rxBytes) {
+		t.Errorf("expected false on second failure")
+	}
+	st, retries, _ = dpd.GetStatus()
+	if st != tunnel.DPDStateDead || retries != 2 {
+		t.Errorf("expected dead with retry 2, got state=%s, retries=%d", st, retries)
+	}
+
+	// New traffic arrives -> should revive back to ALIVE
+	rxBytes += 256
+	if !dpd.RecordActivity(staleTime, rxBytes) {
+		t.Errorf("expected revived to alive when new rxBytes arrives")
+	}
+	st, retries, _ = dpd.GetStatus()
+	if st != tunnel.DPDStateAlive || retries != 0 {
+		t.Errorf("expected revived alive with 0 retries, got state=%s, retries=%d", st, retries)
+	}
+}
+
+func TestDefaultDPDConfig(t *testing.T) {
+	cfg := tunnel.DefaultDPDConfig()
+	if cfg.InitialTimeout != 135*time.Second {
+		t.Errorf("expected InitialTimeout 135s matching WireGuard rekey margin, got %v", cfg.InitialTimeout)
+	}
+	if cfg.MaxBackoffTimeout != 180*time.Second {
+		t.Errorf("expected MaxBackoffTimeout 180s matching WireGuard reject time, got %v", cfg.MaxBackoffTimeout)
+	}
+	if cfg.MaxRetries != 3 {
+		t.Errorf("expected MaxRetries 3, got %d", cfg.MaxRetries)
+	}
+}

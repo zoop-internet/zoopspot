@@ -232,14 +232,13 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 		}
 	}
 
-	if targetIP != "" && targetPort != 0 {
-		allowedIPs := []string{"0.0.0.0/0", "::/0"}
-		if err := devMgr.AddPeer(peerKey, targetIP, targetPort, allowedIPs); err != nil {
-			slog.Warn("failed to configure initial peer", "error", err)
-		} else {
-			slog.Info("initial peer configured on wireguard", "ip", targetIP, "port", targetPort)
-		}
+	allowedIPs := []string{"0.0.0.0/0", "::/0"}
+	if err := devMgr.AddPeer(peerKey, targetIP, targetPort, allowedIPs); err != nil {
+		slog.Warn("failed to configure initial peer", "error", err)
 	} else {
+		slog.Info("initial peer configured on wireguard", "ip", targetIP, "port", targetPort)
+	}
+	if targetIP == "" || targetPort == 0 {
 		slog.Warn("ConnectPeer: no direct candidate available yet, waiting for recovery manager", "relayURL", relayURL)
 	}
 

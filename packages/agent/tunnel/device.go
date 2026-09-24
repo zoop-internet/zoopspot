@@ -174,6 +174,14 @@ func (m *DeviceManager) RotateKeyPair(newPrivKey wgtypes.Key) error {
 	return m.ConfigureDevice(newPrivKey, port)
 }
 
+// IpcGet returns the current WireGuard device UAPI status string.
+func (m *DeviceManager) IpcGet() (string, error) {
+	if m == nil || m.wgDev == nil {
+		return "", fmt.Errorf("device not initialized")
+	}
+	return m.wgDev.IpcGet()
+}
+
 // DisableForwarding disables IP forwarding and tears down iptables NAT rules.
 func (m *DeviceManager) DisableForwarding() error {
 	if m.mockMode {

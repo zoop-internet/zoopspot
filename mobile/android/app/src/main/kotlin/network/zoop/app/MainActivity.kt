@@ -108,17 +108,25 @@ class MainActivity : FlutterActivity() {
                     result.success(isMetered)
                 }
                 "getCandidates" -> {
-                    try {
-                        val localIp = ZoopMobileBridge.getActiveLocalIp(this)
-                        val candidates = ZoopMobileBridge.getCandidatesJSON(localIp)
-                        result.success(candidates)
-                    } catch (e: UnsatisfiedLinkError) {
-                        Log.w("MainActivity", "Native getCandidates bypassed")
-                        result.success("[]")
-                    } catch (e: Exception) {
-                        Log.e("MainActivity", "Failed to get candidates: ${e.message}")
-                        result.success("[]")
-                    }
+                    Thread {
+                        try {
+                            val localIp = ZoopMobileBridge.getActiveLocalIp(this)
+                            val candidates = ZoopMobileBridge.getCandidatesJSON(localIp)
+                            runOnUiThread {
+                                result.success(candidates)
+                            }
+                        } catch (e: UnsatisfiedLinkError) {
+                            Log.w("MainActivity", "Native getCandidates bypassed")
+                            runOnUiThread {
+                                result.success("[]")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Failed to get candidates: ${e.message}")
+                            runOnUiThread {
+                                result.success("[]")
+                            }
+                        }
+                    }.start()
                 }
                 else -> {
                     result.notImplemented()

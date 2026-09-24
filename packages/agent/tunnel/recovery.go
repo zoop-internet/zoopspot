@@ -240,7 +240,7 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 			}
 
 			if state == StateDirect {
-				if !pathState.LastHandshake.IsZero() && time.Since(pathState.LastHandshake) < 60*time.Second {
+				if !pathState.LastHandshake.IsZero() && time.Since(pathState.LastHandshake) < 135*time.Second {
 					crm.mu.Lock()
 					notified := crm.hasNotifiedConnected
 					if !notified {
@@ -260,7 +260,7 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 					}
 				}
 				if timeSinceUpgrade > 5*time.Second && crm.dpd != nil {
-					crm.dpd.RecordHandshake(pathState.LastHandshake)
+					crm.dpd.RecordActivity(pathState.LastHandshake, pathState.RxBytes)
 				}
 			} else if state == StateRelayed || state == StateDegraded {
 				// Probe for direct path recovery
@@ -305,6 +305,13 @@ func (crm *ConnectionRecoveryManager) loop(ctx context.Context) {
 
 func (crm *ConnectionRecoveryManager) transitionToRelay(ctx context.Context) {
 	crm.mu.Lock()
+	hasRelay := len(crm.relayURLs) > 0 && (len(crm.relayURLs) > 1 || crm.relayURLs[0] != "")
+	if !hasRelay {
+		crm.mu.Unlock()
+		crm.logger.Warn("DPD reported peer dead, but no relay fallback configured; maintaining direct interface and probing candidates")
+		return
+	}
+
 	crm.currentState = StateRelayed
 	if len(crm.relayURLs) > 1 {
 		crm.relayIdx = (crm.relayIdx + 1) % len(crm.relayURLs)

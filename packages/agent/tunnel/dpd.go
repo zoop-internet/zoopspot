@@ -25,25 +25,29 @@ type DPDConfig struct {
 }
 
 // DefaultDPDConfig returns production-tuned defaults for peer liveliness monitoring.
+// WireGuard renegotiates cryptographic session keys at REKEY_AFTER_TIME (120s)
+// and rejects packets beyond REJECT_AFTER_TIME (180s). InitialTimeout is set to
+// 135s to grant a 15s rekey margin without triggering false-positive suspect states.
 func DefaultDPDConfig() DPDConfig {
 	return DPDConfig{
 		CheckInterval:     1 * time.Second,
-		InitialTimeout:    3 * time.Second,
-		MaxBackoffTimeout: 30 * time.Second,
-		BackoffMultiplier: 2.0,
+		InitialTimeout:    135 * time.Second,
+		MaxBackoffTimeout: 180 * time.Second,
+		BackoffMultiplier: 1.2,
 		MaxRetries:        3,
 	}
 }
 
 // DeadPeerDetector manages liveliness tracking with exponential backoff retries.
 type DeadPeerDetector struct {
-	cfg        DPDConfig
-	logger     *slog.Logger
-	mu         sync.RWMutex
-	state      DPDState
-	retries    int
-	curTimeout time.Duration
-	lastFresh  time.Time
+	cfg         DPDConfig
+	logger      *slog.Logger
+	mu          sync.RWMutex
+	state       DPDState
+	retries     int
+	curTimeout  time.Duration
+	lastFresh   time.Time
+	lastRxBytes int64
 
 	onDead    func()
 	onSuspect func(retries int, nextBackoff time.Duration)
@@ -110,13 +114,33 @@ func (d *DeadPeerDetector) Reset() {
 	}
 }
 
-// RecordHandshake evaluates the latest handshake timestamp against DPD thresholds.
-// It returns true if the peer is still considered alive, or false if suspect/dead.
-func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
+// RecordActivity evaluates the peer's latest handshake timestamp and received byte count.
+// If rxBytes has incremented since the last observation, or if the handshake is within
+// curTimeout, the peer is considered actively alive.
+func (d *DeadPeerDetector) RecordActivity(lastHandshake time.Time, rxBytes int64) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	now := time.Now()
+
+	// If rxBytes increased, active decrypted data is being received from the peer.
+	if rxBytes > d.lastRxBytes && d.lastRxBytes > 0 {
+		d.lastRxBytes = rxBytes
+		d.lastFresh = now
+		if d.state != DPDStateAlive {
+			d.state = DPDStateAlive
+			d.retries = 0
+			d.curTimeout = d.cfg.InitialTimeout
+			if d.onAlive != nil {
+				go d.onAlive()
+			}
+		}
+		return true
+	}
+	if rxBytes > d.lastRxBytes {
+		d.lastRxBytes = rxBytes
+	}
+
 	var elapsed time.Duration
 	if !lastHandshake.IsZero() {
 		elapsed = now.Sub(lastHandshake)
@@ -138,7 +162,7 @@ func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
 		return true
 	}
 
-	// Handshake is stale
+	// Handshake is stale and no RX traffic progression
 	d.retries++
 	if d.retries >= d.cfg.MaxRetries {
 		if d.state != DPDStateDead {
@@ -146,6 +170,7 @@ func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
 			d.logger.Warn("peer declared DEAD by DPD, max retries reached",
 				"retries", d.retries,
 				"elapsed_sec", elapsed.Seconds(),
+				"rx_bytes", rxBytes,
 			)
 			if d.onDead != nil {
 				go d.onDead()
@@ -166,6 +191,7 @@ func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
 		"retries", d.retries,
 		"max_retries", d.cfg.MaxRetries,
 		"next_backoff", nextBackoff,
+		"elapsed_sec", elapsed.Seconds(),
 	)
 
 	if d.onSuspect != nil {
@@ -173,4 +199,10 @@ func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
 	}
 
 	return false
+}
+
+// RecordHandshake evaluates the latest handshake timestamp against DPD thresholds.
+// It returns true if the peer is still considered alive, or false if suspect/dead.
+func (d *DeadPeerDetector) RecordHandshake(lastHandshake time.Time) bool {
+	return d.RecordActivity(lastHandshake, d.lastRxBytes)
 }

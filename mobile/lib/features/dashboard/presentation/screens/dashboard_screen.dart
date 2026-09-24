@@ -199,11 +199,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       List<dynamic> candidatesList = [];
       if (conn?['candidates'] is List && (conn!['candidates'] as List).isNotEmpty) {
         candidatesList = conn['candidates'] as List;
-      } else if (conn?['endpoint_ip'] != null && conn?['endpoint_port'] != null) {
+      } else if (conn?['endpoint_ip'] != null &&
+          conn!['endpoint_ip'].toString().isNotEmpty &&
+          conn['endpoint_ip'] != '127.0.0.1' &&
+          conn?['endpoint_port'] != null &&
+          conn['endpoint_port'] != 0) {
         candidatesList = ['${conn!['endpoint_ip']}:${conn['endpoint_port']}'];
-      } else if (resolved?.endpoints.isNotEmpty == true) {
+      }
+      if (candidatesList.isEmpty && resolved?.endpoints.isNotEmpty == true) {
         candidatesList = resolved!.endpoints;
-      } else if (targetPeer.endpoints.isNotEmpty) {
+      }
+      if (candidatesList.isEmpty && targetPeer.endpoints.isNotEmpty) {
         candidatesList = targetPeer.endpoints;
       }
       final candidatesJson = json.encode(candidatesList);

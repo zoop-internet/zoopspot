@@ -51,7 +51,11 @@ func DiscoverPublicEndpoint(localPort int) (string, int, error) {
 	}
 
 	var lastErr error
+	deadline := time.Now().Add(2500 * time.Millisecond)
 	for _, server := range getSTUNServers() {
+		if time.Now().After(deadline) {
+			break
+		}
 		ip, port, err := discoverViaSTUN(server, localPort)
 		if err == nil {
 			return ip, port, nil
@@ -140,7 +144,7 @@ func discoverViaSTUN(stunServer string, localPort int) (string, int, error) {
 	select {
 	case res := <-resChan:
 		return res.ip, res.port, res.err
-	case <-time.After(3 * time.Second):
+	case <-time.After(1200 * time.Millisecond):
 		return "", 0, fmt.Errorf("stun discovery timed out for %s", stunServer)
 	}
 }
@@ -165,7 +169,11 @@ func DiscoverPublicEndpointMux(mb *muxbind.MuxBind) (string, int, error) {
 	}
 
 	servers := getSTUNServers()
+	deadline := time.Now().Add(2500 * time.Millisecond)
 	for _, server := range servers {
+		if time.Now().After(deadline) {
+			break
+		}
 		stunAddr, err := net.ResolveUDPAddr("udp", server)
 		if err != nil {
 			continue
@@ -209,7 +217,7 @@ func DiscoverPublicEndpointMux(mb *muxbind.MuxBind) (string, int, error) {
 			if res.err == nil && res.ip != "" {
 				return res.ip, res.port, nil
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(1200 * time.Millisecond):
 			mb.RemoveHandler(stunHandler)
 		}
 	}
