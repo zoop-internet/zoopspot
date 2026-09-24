@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/di/core_providers.dart';
 import '../../../../core/models/connection_state.dart';
 import '../../../../core/models/routing_mode.dart';
@@ -45,11 +47,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   Animation<double>? _pulseAnimation;
   StreamSubscription? _vpnEventSubscription;
 
-  Animation<double> get pulseAnimation =>
-      _pulseAnimation ??= CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      );
+  Animation<double> get pulseAnimation => _pulseAnimation ??= CurvedAnimation(
+    parent: _pulseController,
+    curve: Curves.easeInOut,
+  );
 
   @override
   void initState() {
@@ -98,7 +99,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         final state = event['state'] as String?;
         final isDirect = event['isDirect'] as bool? ?? true;
         setState(() {
-          if (state == 'connected' || state == 'direct' || state == 'relayed' || state == 'recovered') {
+          if (state == 'connected' ||
+              state == 'direct' ||
+              state == 'relayed' ||
+              state == 'recovered') {
             _status = isDirect
                 ? ConnectionStatus.connectedDirect
                 : ConnectionStatus.connectedRelay;
@@ -135,7 +139,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final peersState = ref.read(peersNotifierProvider);
 
     if (!_status.isConnected && _status != ConnectionStatus.connecting) {
-      final targetPeer = peersState.selectedPeer ??
+      final targetPeer =
+          peersState.selectedPeer ??
           (peersState.peers.isNotEmpty ? peersState.peers.first : null);
 
       if (targetPeer == null) {
@@ -192,19 +197,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           .read(peersNotifierProvider.notifier)
           .initiatePeerConnection(targetPeer, candidates: myCandidates);
 
-      final peerKey = (conn?['wireguard_public_key'] as String?)?.isNotEmpty == true
+      final peerKey =
+          (conn?['wireguard_public_key'] as String?)?.isNotEmpty == true
           ? conn!['wireguard_public_key'] as String
           : (resolved?.wireguardPublicKey ?? '');
 
       List<dynamic> candidatesList = [];
-      if (conn?['candidates'] is List && (conn!['candidates'] as List).isNotEmpty) {
+      if (conn?['candidates'] is List &&
+          (conn!['candidates'] as List).isNotEmpty) {
         candidatesList = conn['candidates'] as List;
       } else if (conn?['endpoint_ip'] != null &&
           conn!['endpoint_ip'].toString().isNotEmpty &&
           conn['endpoint_ip'] != '127.0.0.1' &&
-          conn?['endpoint_port'] != null &&
+          conn['endpoint_port'] != null &&
           conn['endpoint_port'] != 0) {
-        candidatesList = ['${conn!['endpoint_ip']}:${conn['endpoint_port']}'];
+        candidatesList = ['${conn['endpoint_ip']}:${conn['endpoint_port']}'];
       }
       if (candidatesList.isEmpty && resolved?.endpoints.isNotEmpty == true) {
         candidatesList = resolved!.endpoints;
@@ -257,12 +264,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       }
     } else {
       if (_status.isConnected) {
-        final activePeer = peersState.selectedPeer ??
+        final activePeer =
+            peersState.selectedPeer ??
             (peersState.peers.isNotEmpty ? peersState.peers.first : null);
         final confirm = await ZoopConfirmDialog.show(
           context: context,
           title: 'Disconnect VPN Tunnel?',
-          message: 'Your active encrypted tunnel session${activePeer != null ? ' to "${activePeer.name}"' : ''} will be terminated.',
+          message:
+              'Your active encrypted tunnel session${activePeer != null ? ' to "${activePeer.name}"' : ''} will be terminated.',
           confirmLabel: 'Disconnect',
           cancelLabel: 'Keep Connected',
           isDestructive: true,
@@ -293,16 +302,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isRegistered =
-        ref.watch(identityNotifierProvider.select((i) => i.isRegistered));
-    final cloudStatus =
-        ref.watch(identityNotifierProvider.select((i) => i.cloudStatus));
-    final zoopId =
-        ref.watch(identityNotifierProvider.select((i) => i.zoopId));
-    final isSharingActive =
-        ref.watch(sharingProvider.select((s) => s.isSharingActive));
-    final activePeer = ref.watch(peersNotifierProvider.select((p) =>
-        p.selectedPeer ?? (p.peers.isNotEmpty ? p.peers.first : null)));
+    final isRegistered = ref.watch(
+      identityNotifierProvider.select((i) => i.isRegistered),
+    );
+    final cloudStatus = ref.watch(
+      identityNotifierProvider.select((i) => i.cloudStatus),
+    );
+    final zoopId = ref.watch(identityNotifierProvider.select((i) => i.zoopId));
+    final isSharingActive = ref.watch(
+      sharingProvider.select((s) => s.isSharingActive),
+    );
+    final activePeer = ref.watch(
+      peersNotifierProvider.select(
+        (p) => p.selectedPeer ?? (p.peers.isNotEmpty ? p.peers.first : null),
+      ),
+    );
 
     final isConnected = _status.isConnected;
     final isConnecting = _status == ConnectionStatus.connecting;
@@ -345,9 +359,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 letterSpacing: 0.5,
               ),
             ),
-            isRegistered
-                ? const ZoopBadge.online()
-                : const ZoopBadge.syncing(),
+            isRegistered ? const ZoopBadge.online() : const ZoopBadge.syncing(),
           ],
         ),
         actions: [
@@ -358,8 +370,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               child: GestureDetector(
                 onTap: () => context.push('/identity'),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 2,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: ZoopColors.surfaceElevated,
                     borderRadius: ZoopSpacing.radiusSm,
@@ -447,18 +465,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             await Future.wait([
               ref.read(peersNotifierProvider.notifier).loadPeers(),
               ref.read(walletProvider.notifier).refreshAll(),
-              ref.read(identityNotifierProvider.notifier).verifyCloudConnection(),
+              ref
+                  .read(identityNotifierProvider.notifier)
+                  .verifyCloudConnection(),
             ]);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 12.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (!isRegistered || cloudStatus == 'offline') ...[
                   ZoopOfflineBanner(
-                    onReconnect: () => ref.read(identityNotifierProvider.notifier).verifyCloudConnection(),
+                    onReconnect: () => ref
+                        .read(identityNotifierProvider.notifier)
+                        .verifyCloudConnection(),
                   ),
                 ],
                 if (_status == ConnectionStatus.error) ...[
@@ -544,7 +569,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         onPressed: _toggleConnection,
         isFullWidth: true,
         height: 52,
-        semanticsLabel: 'Cancel connection attempt to ${targetPeerName ?? "peer"}',
+        semanticsLabel:
+            'Cancel connection attempt to ${targetPeerName ?? "peer"}',
       );
     }
 

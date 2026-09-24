@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/di/core_providers.dart';
 import '../../../../core/network/cloud_api_client.dart';
 import '../../../../core/network/i_cloud_api_client.dart';
@@ -25,8 +26,9 @@ class DevicesState {
   List<FleetDeviceItem> get offlineDevices =>
       devices.where((d) => !d.isOnline).toList();
 
-  List<FleetDeviceItem> get gateways =>
-      devices.where((d) => d.isExitNode || d.role == DeviceRole.provider).toList();
+  List<FleetDeviceItem> get gateways => devices
+      .where((d) => d.isExitNode || d.role == DeviceRole.provider)
+      .toList();
 
   FleetDeviceItem? get activeExitNode {
     if (activeExitNodeId == null) return null;
@@ -59,12 +61,11 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
   final ISecureStorageService? _storage;
 
   DevicesNotifier({
-    ICloudApiClient? client,
+    this._client,
     ISecureStorageService? storage,
     bool autoLoad = true,
-  })  : _client = client,
-        _storage = storage,
-        super(const DevicesState()) {
+  }) : _storage = storage,
+       super(const DevicesState()) {
     if (_client != null && _storage != null && autoLoad) {
       loadDevices();
     } else {
@@ -99,21 +100,24 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
 
       // 2. Add Current Device
       final currentZoopId = await _storage.getZoopId() ?? 'Local Node';
-      items.add(FleetDeviceItem(
-        id: endpointId,
-        name: 'My Device ($currentZoopId)',
-        platform: 'Android',
-        endpointId: endpointId,
-        publicKeyFingerprint: 'ed25519:${endpointId.length > 8 ? endpointId.substring(0, 8) : endpointId}',
-        isCurrentDevice: true,
-        isOnline: true,
-        lastSeen: DateTime.now(),
-        role: DeviceRole.dual,
-        ipAddress: '100.64.0.1',
-        pingMs: 0,
-        connectionType: 'Direct P2P',
-        source: 'This Device',
-      ));
+      items.add(
+        FleetDeviceItem(
+          id: endpointId,
+          name: 'My Device ($currentZoopId)',
+          platform: 'Android',
+          endpointId: endpointId,
+          publicKeyFingerprint:
+              'ed25519:${endpointId.length > 8 ? endpointId.substring(0, 8) : endpointId}',
+          isCurrentDevice: true,
+          isOnline: true,
+          lastSeen: DateTime.now(),
+          role: DeviceRole.dual,
+          ipAddress: '100.64.0.1',
+          pingMs: 0,
+          connectionType: 'Direct P2P',
+          source: 'This Device',
+        ),
+      );
 
       // 3. Fetch Shares (/v1/shares)
       try {
@@ -127,7 +131,8 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
         List<dynamic> sharesList = [];
         if (sharesResult is List) {
           sharesList = sharesResult;
-        } else if (sharesResult is Map<String, dynamic> && sharesResult['shares'] is List) {
+        } else if (sharesResult is Map<String, dynamic> &&
+            sharesResult['shares'] is List) {
           sharesList = sharesResult['shares'] as List;
         }
 
@@ -137,28 +142,35 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
             final isActive = item['is_active'] as bool? ?? true;
             if (providerId.isNotEmpty && providerId != endpointId && isActive) {
               final dev = deviceLookup[providerId];
-              final name = dev?.name ?? 'Shared Node (${providerId.substring(0, providerId.length > 8 ? 8 : providerId.length)})';
+              final name =
+                  dev?.name ??
+                  'Shared Node (${providerId.substring(0, providerId.length > 8 ? 8 : providerId.length)})';
               final platform = dev?.platform ?? 'Linux';
               final wgKey = dev?.wireguardPublicKey;
               final fp = (wgKey != null && wgKey.isNotEmpty)
                   ? 'wg:${wgKey.substring(0, wgKey.length > 8 ? 8 : wgKey.length)}...'
                   : 'ed25519:${providerId.substring(0, providerId.length > 8 ? 8 : providerId.length)}';
-              items.add(FleetDeviceItem(
-                id: providerId,
-                name: name,
-                platform: platform,
-                endpointId: providerId,
-                publicKeyFingerprint: fp,
-                isCurrentDevice: false,
-                isOnline: dev?.status == 'active',
-                lastSeen: DateTime.now(),
-                role: DeviceRole.provider,
-                ipAddress: (dev?.endpoints != null && dev!.endpoints.isNotEmpty) ? dev.endpoints.first : 'Dynamic',
-                pingMs: 16,
-                isExitNode: true,
-                connectionType: 'Direct P2P',
-                source: 'Friend Share',
-              ));
+              items.add(
+                FleetDeviceItem(
+                  id: providerId,
+                  name: name,
+                  platform: platform,
+                  endpointId: providerId,
+                  publicKeyFingerprint: fp,
+                  isCurrentDevice: false,
+                  isOnline: dev?.status == 'active',
+                  lastSeen: DateTime.now(),
+                  role: DeviceRole.provider,
+                  ipAddress:
+                      (dev?.endpoints != null && dev!.endpoints.isNotEmpty)
+                      ? dev.endpoints.first
+                      : 'Dynamic',
+                  pingMs: 16,
+                  isExitNode: true,
+                  connectionType: 'Direct P2P',
+                  source: 'Friend Share',
+                ),
+              );
             }
           }
         }
@@ -172,31 +184,40 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
         );
 
         for (final item in fleet) {
-          final devId = (item['id'] as String? ?? item['endpoint_id'] as String? ?? '').trim();
+          final devId =
+              (item['id'] as String? ?? item['endpoint_id'] as String? ?? '')
+                  .trim();
           if (devId.isNotEmpty && devId != endpointId) {
             final dev = deviceLookup[devId];
             final name = item['name'] as String? ?? dev?.name ?? 'Fleet Node';
-            final platform = (item['platform'] ?? item['os']) as String? ?? dev?.platform ?? 'Linux';
+            final platform =
+                (item['platform'] ?? item['os']) as String? ??
+                dev?.platform ??
+                'Linux';
             final wgKey = dev?.wireguardPublicKey;
             final fp = (wgKey != null && wgKey.isNotEmpty)
                 ? 'wg:${wgKey.substring(0, wgKey.length > 8 ? 8 : wgKey.length)}...'
                 : 'ed25519:${devId.substring(0, devId.length > 8 ? 8 : devId.length)}';
-            items.add(FleetDeviceItem(
-              id: devId,
-              name: name,
-              platform: platform,
-              endpointId: devId,
-              publicKeyFingerprint: fp,
-              isCurrentDevice: false,
-              isOnline: true,
-              lastSeen: DateTime.now(),
-              role: DeviceRole.dual,
-              ipAddress: (dev?.endpoints != null && dev!.endpoints.isNotEmpty) ? dev.endpoints.first : 'Dynamic',
-              pingMs: 12,
-              isExitNode: true,
-              connectionType: 'Direct P2P',
-              source: 'My Fleet',
-            ));
+            items.add(
+              FleetDeviceItem(
+                id: devId,
+                name: name,
+                platform: platform,
+                endpointId: devId,
+                publicKeyFingerprint: fp,
+                isCurrentDevice: false,
+                isOnline: true,
+                lastSeen: DateTime.now(),
+                role: DeviceRole.dual,
+                ipAddress: (dev?.endpoints != null && dev!.endpoints.isNotEmpty)
+                    ? dev.endpoints.first
+                    : 'Dynamic',
+                pingMs: 12,
+                isExitNode: true,
+                connectionType: 'Direct P2P',
+                source: 'My Fleet',
+              ),
+            );
           }
         }
       } catch (_) {}
@@ -296,10 +317,7 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
   void revokeDevice(String id) {
     final updated = state.devices.where((d) => d.id != id).toList();
     final wasActive = state.activeExitNodeId == id;
-    state = state.copyWith(
-      devices: updated,
-      clearActiveExitNode: wasActive,
-    );
+    state = state.copyWith(devices: updated, clearActiveExitNode: wasActive);
   }
 
   void removeDevice(String id) {
@@ -320,8 +338,9 @@ class DevicesNotifier extends StateNotifier<DevicesState> {
   }
 }
 
-final devicesProvider =
-    StateNotifierProvider<DevicesNotifier, DevicesState>((ref) {
+final devicesProvider = StateNotifierProvider<DevicesNotifier, DevicesState>((
+  ref,
+) {
   final client = ref.watch(cloudApiClientProvider);
   final storage = ref.watch(secureStorageServiceProvider);
   return DevicesNotifier(client: client, storage: storage);
