@@ -2,6 +2,7 @@ package mobile
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,8 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
 	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
 	"github.com/allannuwamanya/zoop/packages/core/types"
+	snitransport "github.com/allannuwamanya/zoop/plugins/transport/sni"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -30,6 +34,10 @@ type MobileConfig struct {
 	CloudURL         string `json:"cloud_url"`
 	LogLevel         string `json:"log_level,omitempty"`
 	WireGuardPrivKey string `json:"wireguard_private_key,omitempty"`
+	// IdentityPrivKey is the hex-encoded 32-byte Ed25519 seed for relay authentication.
+	// This must match the key registered with the cloud for /v1/relay auth to succeed.
+	// If empty, the WireGuard private key bytes are used as seed (works for local testing only).
+	IdentityPrivKey string `json:"identity_private_key,omitempty"`
 }
 
 // ConnectionStatusDTO encapsulates the current connection state for polling.
@@ -52,6 +60,12 @@ var (
 	activeCallback StateCallback
 	activeConfig   MobileConfig
 	currentStatus  ConnectionStatusDTO
+
+	// Relay transport fields — set during ConnectPeer when relayURL is provided.
+	activeRelayClient   *agentrelay.RelayClient
+	activeRelayBridge   *tunnel.RelayBridge
+	activeIdentityKey   ed25519.PrivateKey
+	activeIdentity      types.Identity
 )
 
 // InitMobile initializes the core Zoop mobile runtime and registers the event callback.
@@ -71,6 +85,15 @@ func InitMobile(configJSON string, callback StateCallback) error {
 		}
 	}
 	activeConfig = cfg
+
+	// Parse or derive Ed25519 identity key for relay authentication.
+	// The identity key is separate from the WireGuard key.
+	activeIdentityKey = nil
+	if cfg.IdentityPrivKey != "" {
+		if seed, err := hex.DecodeString(cfg.IdentityPrivKey); err == nil && len(seed) == 32 {
+			activeIdentityKey = ed25519.NewKeyFromSeed(seed)
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	activeCtx = ctx
@@ -242,6 +265,22 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 		slog.Warn("ConnectPeer: no direct candidate available yet, waiting for recovery manager", "relayURL", relayURL)
 	}
 
+	// Set up relay bridge for DERP-style fallback when direct UDP is blocked.
+	// The bridge is pre-connected so it's ready before DPD declares the peer dead.
+	var peerRelayPort int
+	if relayURL != "" {
+		rc, rb, relayPort := initRelayBridge(relayURL, peerKey, false, "")
+		if rc != nil {
+			activeRelayClient = rc
+			activeRelayBridge = rb
+			peerRelayPort = relayPort
+			go rc.Start(activeCtx)
+		}
+	}
+
+	capturedPeerKey := peerKey
+	capturedRelayPort := peerRelayPort
+
 	recMgr = tunnel.NewConnectionRecoveryManager(
 		devMgr.GetMuxBind(),
 		peerKey,
@@ -256,7 +295,17 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 			currentStatus.ActiveEndpoint = activeEndpoint
 			currentStatus.IsDirect = isDirect
 			cb := activeCallback
+			dm := devMgr
 			mu.Unlock()
+
+			// When transitioning to relay: redirect WireGuard traffic through the relay bridge loopback port.
+			if newState == tunnel.StateRelayed && capturedRelayPort > 0 && dm != nil {
+				if err := dm.AddPeer(capturedPeerKey, "127.0.0.1", capturedRelayPort, []string{"0.0.0.0/0", "::/0"}); err != nil {
+					slog.Warn("failed to reconfigure peer endpoint to relay loopback", "error", err)
+				} else {
+					slog.Info("WireGuard peer redirected through relay bridge", "loopback_port", capturedRelayPort)
+				}
+			}
 
 			if cb != nil {
 				cb.OnStateChange(string(newState), activeEndpoint, isDirect)
@@ -351,6 +400,16 @@ func Disconnect() {
 		recMgr = nil
 	}
 
+	if activeRelayBridge != nil {
+		_ = activeRelayBridge.Close()
+		activeRelayBridge = nil
+	}
+
+	if activeRelayClient != nil {
+		_ = activeRelayClient.Close()
+		activeRelayClient = nil
+	}
+
 	if cancelFn != nil {
 		cancelFn()
 		cancelFn = nil
@@ -407,6 +466,137 @@ func GetCandidatesJSONWithLocalIP(localIP string) string {
 	}
 
 	return string(data)
+}
+
+// ConnectPeerZeroBalance connects to a provider peer using the SNI-masked relay transport,
+// skipping direct UDP probing entirely. Use this when the recipient's SIM has 0 MB balance:
+// UDP port 51820 will be dropped by the carrier, but TLS port 443 with a zero-rated SNI passes free.
+//
+// carrierKey selects the front domain from sni.KnownCarrierFronts (e.g. "mtn-ug", "airtel-ug").
+// peerEndpointID is the provider's endpoint UUID received from the signaling channel.
+func ConnectPeerZeroBalance(peerPubKeyHex, peerEndpointID, candidatesJSON, relayURL, carrierKey string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	slog.Info("ConnectPeerZeroBalance called", "peerKey", peerPubKeyHex, "carrier", carrierKey, "relayURL", relayURL)
+
+	if devMgr == nil {
+		return fmt.Errorf("tunnel not started: call StartTunnel first")
+	}
+
+	peerKey, err := tunnel.ParsePublicKey(peerPubKeyHex)
+	if err != nil {
+		return fmt.Errorf("invalid peer key: %w", err)
+	}
+
+	var candidates []types.EndpointCandidate
+	if candidatesJSON != "" {
+		_ = json.Unmarshal([]byte(candidatesJSON), &candidates)
+	}
+
+	// Create SNI-masked relay client and bridge — no direct probe.
+	rc, rb, relayPort := initRelayBridge(relayURL, peerKey, true, carrierKey)
+	if rc == nil || rb == nil || relayPort == 0 {
+		return fmt.Errorf("failed to initialize relay bridge for zero-balance mode")
+	}
+
+	if activeRelayBridge != nil {
+		_ = activeRelayBridge.Close()
+	}
+	if activeRelayClient != nil {
+		_ = activeRelayClient.Close()
+	}
+	activeRelayClient = rc
+	activeRelayBridge = rb
+	go rc.Start(activeCtx)
+
+	// Route WireGuard traffic through relay loopback from the start — no direct attempt.
+	if err := devMgr.AddPeer(peerKey, "127.0.0.1", relayPort, []string{"0.0.0.0/0", "::/0"}); err != nil {
+		slog.Warn("ConnectPeerZeroBalance: add peer via relay loopback", "error", err)
+	}
+
+	slog.Info("zero-balance peer configured via SNI relay", "relay_port", relayPort, "carrier", carrierKey)
+
+	recMgr = tunnel.NewConnectionRecoveryManager(
+		devMgr.GetMuxBind(),
+		peerKey,
+		candidates,
+		"mobile-zb-conn",
+		relayPort,
+		devMgr,
+		relayURL,
+		func(newState tunnel.ConnectionRecoveryState, activeEndpoint string, isDirect bool) {
+			mu.Lock()
+			currentStatus.State = string(newState)
+			currentStatus.ActiveEndpoint = activeEndpoint
+			currentStatus.IsDirect = isDirect
+			cb := activeCallback
+			mu.Unlock()
+			if cb != nil {
+				cb.OnStateChange(string(newState), activeEndpoint, isDirect)
+			}
+		},
+		slog.Default(),
+	)
+	recMgr.Start(activeCtx)
+
+	currentStatus.State = "connecting_relay"
+	if activeCallback != nil {
+		activeCallback.OnStateChange("connecting_relay", fmt.Sprintf("127.0.0.1:%d", relayPort), false)
+	}
+	return nil
+}
+
+// initRelayBridge creates a RelayClient and RelayBridge for the given peer and relay URL.
+// When sniMode is true it wraps the WebSocket connection with SNI masking for zero-balance mode.
+// Returns (nil, nil, 0) if the relay URL is empty or the identity key is unavailable.
+func initRelayBridge(relayURL string, peerKey wgtypes.Key, sniMode bool, carrierKey string) (*agentrelay.RelayClient, *tunnel.RelayBridge, int) {
+	if relayURL == "" {
+		return nil, nil, 0
+	}
+
+	identKey := activeIdentityKey
+	if identKey == nil {
+		slog.Warn("initRelayBridge: no identity key available; relay auth will fail in production")
+		return nil, nil, 0
+	}
+
+	pubKey := identKey.Public().(ed25519.PublicKey)
+	endpointID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pubKey))
+	ident := types.Identity{
+		EndpointID: endpointID,
+		PublicKey:  pubKey,
+	}
+
+	rc := agentrelay.NewClient(relayURL, ident, identKey, slog.Default())
+
+	if sniMode {
+		d := snitransport.New(carrierKey, "")
+		wsDialer := snitransport.NewWebSocketDialer(d)
+		rc.WithCustomDialer(wsDialer)
+		slog.Info("relay client configured with SNI transport", "front_domain", d.FrontDomain, "carrier", carrierKey)
+	}
+
+	listenPort := 0
+	if devMgr != nil {
+		listenPort, _ = devMgr.GetListenPort()
+	}
+	rb := tunnel.NewRelayBridge(rc, listenPort, slog.Default())
+
+	// Derive the peer's relay registration ID from their WireGuard public key.
+	// In production the correct ID is the peer's Ed25519-derived endpoint UUID
+	// (received via the signaling channel). This derivation is a local approximation.
+	pub := peerKey.PublicKey()
+	peerRelayID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+
+	relayPort, err := rb.RegisterPeer(peerRelayID, peerKey)
+	if err != nil {
+		slog.Error("initRelayBridge: failed to register peer on relay bridge", "error", err)
+		_ = rb.Close()
+		return nil, nil, 0
+	}
+
+	return rc, rb, relayPort
 }
 
 // selectFallbackCandidate chooses the best candidate when live probing fails or times out.

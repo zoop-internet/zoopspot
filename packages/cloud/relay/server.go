@@ -3,6 +3,7 @@ package relay
 import (
 	"crypto/ed25519"
 	"encoding/base64"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -109,11 +110,14 @@ func (s *RelayServer) ActiveConnections() int {
 }
 
 // HandleWebSocket handles client WebSocket connections for relaying traffic.
-// Authentication uses the same Ed25519 signature scheme as the REST API:
+// Authentication uses the zoop-auth-v2 Ed25519 scheme:
 //
 //	X-Zoop-Identity  — endpoint UUID
-//	X-Zoop-Signature — base64 ed25519 signature of "zoop-auth|<timestamp>"
+//	X-Zoop-Signature — base64 ed25519 signature of canonical payload
 //	X-Zoop-Timestamp — RFC3339 timestamp (accepted within ±5 minutes)
+//	X-Zoop-Nonce     — UUID v4 replay-prevention nonce
+//
+// Canonical payload: "zoop-auth-v2|GET|/v1/relay|{timestamp}|{nonce}|"
 func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	identStr := r.Header.Get("X-Zoop-Identity")
 	if identStr == "" {
@@ -126,6 +130,7 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	sigStr := r.Header.Get("X-Zoop-Signature")
 	timestampStr := r.Header.Get("X-Zoop-Timestamp")
+	nonce := r.Header.Get("X-Zoop-Nonce")
 
 	senderID, err := types.ParseID(identStr)
 	if err != nil {
@@ -135,7 +140,7 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// --- Ed25519 Signature Verification ---
 	if s.store != nil && sigStr != "" && timestampStr != "" {
-		if err := s.verifySignature(r, senderID, sigStr, timestampStr); err != nil {
+		if err := s.verifySignature(r, senderID, sigStr, timestampStr, nonce); err != nil {
 			s.logger.Warn("relay auth failed", "sender_id", senderID, "error", err)
 			http.Error(w, "authentication failed: "+err.Error(), http.StatusUnauthorized)
 			return
@@ -213,8 +218,9 @@ func (s *RelayServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// verifySignature checks the Ed25519 signature on a relay WebSocket request.
-func (s *RelayServer) verifySignature(r *http.Request, senderID types.ID, sigStr, timestampStr string) error {
+// verifySignature checks the zoop-auth-v2 Ed25519 signature on a relay WebSocket request.
+// Canonical payload: "zoop-auth-v2|GET|/v1/relay|{timestamp}|{nonce}|"
+func (s *RelayServer) verifySignature(r *http.Request, senderID types.ID, sigStr, timestampStr, nonce string) error {
 	sigBytes, err := base64.StdEncoding.DecodeString(sigStr)
 	if err != nil || len(sigBytes) != ed25519.SignatureSize {
 		return errorf("invalid signature format")
@@ -228,12 +234,16 @@ func (s *RelayServer) verifySignature(r *http.Request, senderID types.ID, sigStr
 		return errorf("request timestamp expired")
 	}
 
+	if nonce == "" {
+		return errorf("missing X-Zoop-Nonce header")
+	}
+
 	identity, err := s.store.GetIdentity(r.Context(), senderID)
 	if err != nil {
 		return errorf("identity not found")
 	}
 
-	payload := []byte("zoop-auth|" + timestampStr)
+	payload := []byte(fmt.Sprintf("zoop-auth-v2|GET|/v1/relay|%s|%s|", timestampStr, nonce))
 	if !ed25519.Verify(identity.PublicKey, payload, sigBytes) {
 		return errorf("signature verification failed")
 	}
