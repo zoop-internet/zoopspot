@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -218,17 +217,9 @@ func AuthMiddleware(s store.Store, logger *slog.Logger) func(http.Handler) http.
 				bodyHash = hex.EncodeToString(hash[:])
 			}
 
-			// 6. Verify signature (v2 canonical required for mutating, v1 legacy fallback only for safe reads)
+			// 6. Verify v2 signature: zoop-auth-v2|METHOD|PATH|TIMESTAMP|NONCE|BODY_HASH
 			v2Payload := BuildCanonicalPayload(r.Method, r.URL.Path, timestampStr, nonce, bodyHash)
-			validV2 := ed25519.Verify(identity.PublicKey, v2Payload, sigBytes)
-
-			validV1 := false
-			if !isMutating {
-				v1Payload := []byte("zoop-auth|" + timestampStr)
-				validV1 = ed25519.Verify(identity.PublicKey, v1Payload, sigBytes)
-			}
-
-			if !validV2 && !validV1 {
+			if !ed25519.Verify(identity.PublicKey, v2Payload, sigBytes) {
 				WriteError(w, "unauthenticated", "signature verification failed", http.StatusUnauthorized)
 				return
 			}
@@ -267,32 +258,21 @@ func UserIDFromContext(ctx context.Context) types.ID {
 }
 
 // AdminMiddleware wraps AuthMiddleware and additionally requires the caller (or their user account)
-// to be in the configured admin allow-list.
+// to be in the configured admin allow-list (ZOOP_ADMIN_IDS env var).
+// If no admin IDs are configured, all callers are denied — there is no open-access fallback.
 func AdminMiddleware(auth func(http.Handler) http.Handler, adminIDs []string) func(http.Handler) http.Handler {
-	adminSet := make(map[string]bool, len(adminIDs)+4)
+	adminSet := make(map[string]bool, len(adminIDs))
 	for _, id := range adminIDs {
 		clean := strings.ToLower(strings.TrimSpace(id))
 		if clean != "" {
 			adminSet[clean] = true
 		}
 	}
-	// Built-in operator account identities
-	adminSet["admin"] = true
-	adminSet["zp-9uzu8c"] = true
-	adminSet["63699124-3da9-452c-9fd8-1325b95add0a"] = true
-
-	allowAll := len(adminIDs) == 0
-	isProd := os.Getenv("ZOOP_ENV") == "production" || os.Getenv("GO_ENV") == "production" || os.Getenv("ENV") == "production"
 
 	return func(next http.Handler) http.Handler {
 		return auth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			callerID := IdentityFromContext(r.Context())
 			userID := UserIDFromContext(r.Context())
-
-			if allowAll && !isProd {
-				next.ServeHTTP(w, r)
-				return
-			}
 
 			isAuthorized := adminSet[strings.ToLower(callerID.String())] ||
 				adminSet[strings.ToLower(userID.String())]

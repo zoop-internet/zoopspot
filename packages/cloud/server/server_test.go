@@ -153,15 +153,17 @@ func TestServer_AuthMiddleware(t *testing.T) {
 	// Make request
 	req := httptest.NewRequest(http.MethodGet, "/v1/devices/"+endpointID.String(), nil)
 
-	// Create signature with timestamp
+	// Create v2 signature
 	ts := time.Now().Format(time.RFC3339)
-	payload := []byte("zoop-auth|" + ts)
+	nonce := uuid.NewString()
+	payload := api.BuildCanonicalPayload(http.MethodGet, "/v1/devices/"+endpointID.String(), ts, nonce, "")
 	sig := ed25519.Sign(priv, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
 	req.Header.Set("X-Zoop-Identity", endpointID.String())
 	req.Header.Set("X-Zoop-Signature", sigStr)
 	req.Header.Set("X-Zoop-Timestamp", ts)
+	req.Header.Set("X-Zoop-Nonce", nonce)
 
 	w := httptest.NewRecorder()
 	srv.mux.ServeHTTP(w, req)
@@ -185,11 +187,14 @@ func TestServer_OrgAuthAndOwnership(t *testing.T) {
 	hub := services.NewSignalingHub()
 	cs := services.NewConnectionService(st, hub)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
 
-	// Register two devices (owner + member) with real Ed25519 keys.
-	register := func(name string) (types.ID, ed25519.PrivateKey) {
-		pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	// Pre-generate the owner key so its endpoint ID can be added to the admin set.
+	ownerPub, ownerPriv, _ := ed25519.GenerateKey(rand.Reader)
+	ownerAdminID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, ownerPub))
+	srv := NewServer(config.Config{AdminIDs: []string{ownerAdminID.String()}}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Register a device with an existing key pair.
+	registerWithKey := func(name string, pub ed25519.PublicKey) types.ID {
 		pubStr := base64.StdEncoding.EncodeToString(pub)
 		body, _ := json.Marshal(api.RegisterDeviceRequest{Name: name, PublicKey: pubStr})
 		req := httptest.NewRequest(http.MethodPost, "/v1/devices", bytes.NewReader(body))
@@ -200,7 +205,13 @@ func TestServer_OrgAuthAndOwnership(t *testing.T) {
 		}
 		var resp api.DeviceResponse
 		json.NewDecoder(w.Result().Body).Decode(&resp)
-		return resp.EndpointID, priv
+		return resp.EndpointID
+	}
+
+	// Register two devices (owner + member) with real Ed25519 keys.
+	register := func(name string) (types.ID, ed25519.PrivateKey) {
+		pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+		return registerWithKey(name, pub), priv
 	}
 
 	authReq := func(priv ed25519.PrivateKey, ident types.ID, method, path string, body string) *http.Request {
@@ -216,7 +227,7 @@ func TestServer_OrgAuthAndOwnership(t *testing.T) {
 		return r
 	}
 
-	ownerID, ownerPriv := register("Owner")
+	ownerID := registerWithKey("Owner", ownerPub)
 	memberID, memberPriv := register("Member")
 
 	// 1. Unauthenticated org list -> 401.
@@ -284,7 +295,7 @@ func TestServer_OrgAuthAndOwnership(t *testing.T) {
 		t.Fatalf("duplicate slug: expected 400, got %d", w.Result().StatusCode)
 	}
 
-	// 8. Admin endpoint (no ZOOP_ADMIN_IDS configured => allowAll) lists the org.
+	// 8. Admin endpoint with owner (who is in AdminIDs) lists the org.
 	w = httptest.NewRecorder()
 	srv.mux.ServeHTTP(w, authReq(ownerPriv, ownerID, http.MethodGet, "/v1/admin/organizations", ""))
 	var adm []api.OrgResponse
@@ -535,10 +546,13 @@ func TestServer_AdminDeviceSuspendRestore(t *testing.T) {
 	hub := services.NewSignalingHub()
 	cs := services.NewConnectionService(st, hub)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	srv := NewServer(config.Config{}, logger, st, ds, us, orgs, ss, cs, hub)
+
+	// Pre-generate admin key so its endpoint ID can be added to the admin set.
+	adminPub, adminPriv, _ := ed25519.GenerateKey(rand.Reader)
+	adminEndpointID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, adminPub))
+	srv := NewServer(config.Config{AdminIDs: []string{adminEndpointID.String()}}, logger, st, ds, us, orgs, ss, cs, hub)
 
 	// Admin and target devices: the admin caller manages the target device.
-	adminPub, adminPriv, _ := ed25519.GenerateKey(rand.Reader)
 	targetPub, _, _ := ed25519.GenerateKey(rand.Reader)
 
 	adminBody, _ := json.Marshal(api.RegisterDeviceRequest{Name: "Admin", PublicKey: base64.StdEncoding.EncodeToString(adminPub)})

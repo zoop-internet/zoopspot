@@ -95,7 +95,7 @@ func main() {
 	socketFlag := flag.String("socket", defaultSocketPath, "UNIX domain socket path")
 	doctorFlag := flag.Bool("doctor", false, "Run comprehensive diagnostics probe and exit")
 	mockTunFlag := flag.Bool("mock-tun", false, "Use an in-memory WireGuard device (no root required, for development/testing)")
-	nameFlag := flag.String("name", "Allan's PC (Airtel Ethernet)", "Custom display name for this node")
+	nameFlag := flag.String("name", "", "Custom display name for this node (defaults to system hostname)")
 	flag.Parse()
 
 	cfg := config.LoadConfig()

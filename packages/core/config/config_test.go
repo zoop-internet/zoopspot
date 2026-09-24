@@ -22,8 +22,8 @@ func TestLoadConfig(t *testing.T) {
 	if cfg.SignalingTimeout != 60*time.Second {
 		t.Errorf("Expected default SignalingTimeout to be 60s, got %v", cfg.SignalingTimeout)
 	}
-	if cfg.TURNSecret != "zoop-turn-secret" {
-		t.Errorf("Expected default TURNSecret to be zoop-turn-secret, got %s", cfg.TURNSecret)
+	if cfg.TURNSecret != "" {
+		t.Errorf("Expected default TURNSecret to be empty (must be set via ZOOP_TURN_SECRET), got %s", cfg.TURNSecret)
 	}
 	if cfg.TURNRealm != "zoop.network" {
 		t.Errorf("Expected default TURNRealm to be zoop.network, got %s", cfg.TURNRealm)

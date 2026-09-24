@@ -150,7 +150,7 @@ func NewServer(
 		MaxCapacity:  1000,
 	})
 
-	turnMgr := relay.NewTURNManager("zoop-turn-realm", "zoop-shared-secret-turn-2026")
+	turnMgr := relay.NewTURNManager(cfg.TURNRealm, cfg.TURNSecret)
 
 	var ps *payments.PaymentService
 	if len(paymentServices) > 0 && paymentServices[0] != nil {
@@ -170,7 +170,7 @@ func NewServer(
 		connections:   cs,
 		signaling:     sh,
 		events:        services.NewEventHub(),
-		audit:         services.NewAuditService([]byte("zoop-audit-hmac-key"), logger),
+		audit:         services.NewAuditService([]byte(cfg.AuditHMACKey), logger),
 		relayServer:   rs,
 		relayRegistry: reg,
 		turnManager:   turnMgr,

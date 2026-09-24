@@ -27,6 +27,7 @@ type Config struct {
 	PaymentAPISecret     string
 	PaymentWebhookSecret string
 	PaymentCurrency      string
+	AuditHMACKey         string
 }
 
 // LoadConfig returns a configuration loaded from environment variables, falling back to sane defaults.
@@ -40,7 +41,7 @@ func LoadConfig() Config {
 		RedisURL:         "",
 		SignalingTimeout: 60 * time.Second,
 		AllowedOrigins:   []string{},
-		TURNSecret:       "zoop-turn-secret",
+		TURNSecret:       "",
 		TURNRealm:        "zoop.network",
 		STUNServer:           "stun.l.google.com:19302",
 		AdminIDs:             []string{},
@@ -119,6 +120,9 @@ func LoadConfig() Config {
 	}
 	if curr := os.Getenv("ZOOP_PAYMENTS_CURRENCY"); curr != "" {
 		cfg.PaymentCurrency = curr
+	}
+	if key := os.Getenv("ZOOP_AUDIT_HMAC_KEY"); key != "" {
+		cfg.AuditHMACKey = key
 	}
 
 	return cfg

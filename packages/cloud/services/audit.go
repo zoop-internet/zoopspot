@@ -37,7 +37,8 @@ type AuditService struct {
 // NewAuditService creates an audit logger with an HMAC signing secret.
 func NewAuditService(secret []byte, logger *slog.Logger) *AuditService {
 	if len(secret) == 0 {
-		secret = []byte("zoop-default-audit-key")
+		logger.Warn("ZOOP_AUDIT_HMAC_KEY not set; audit log chain integrity is disabled")
+		secret = []byte("disabled")
 	}
 	return &AuditService{
 		secret:  secret,

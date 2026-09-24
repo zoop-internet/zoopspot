@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,8 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"encoding/json"
-
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
 	"github.com/allannuwamanya/zoop/packages/core/types"
@@ -103,7 +103,8 @@ func (s *SignalingClient) Connect(ctx context.Context) {
 
 func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	ts := time.Now().Format(time.RFC3339)
-	payload := []byte("zoop-auth|" + ts)
+	nonce := uuid.New().String()
+	payload := []byte(fmt.Sprintf("zoop-auth-v2|GET|/v1/signaling|%s|%s|", ts, nonce))
 
 	sig := ed25519.Sign(s.apiClient.PrivateKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
@@ -112,6 +113,7 @@ func (s *SignalingClient) dial(ctx context.Context, wsURL string) error {
 	headers.Set("X-Zoop-Identity", s.apiClient.Identity.EndpointID.String())
 	headers.Set("X-Zoop-Signature", sigStr)
 	headers.Set("X-Zoop-Timestamp", ts)
+	headers.Set("X-Zoop-Nonce", nonce)
 
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,

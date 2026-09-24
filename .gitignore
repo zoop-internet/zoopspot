@@ -50,8 +50,12 @@ mobile/ios/Flutter/Flutter.podspec
 # Local configuration & environment files
 .env
 .env.local
+.env.production
+*.env
 *.local
 test-data/
+test-config/
+core.25
 tools/dev-fixtures/
 web/public/*.json
 web/public/*.html

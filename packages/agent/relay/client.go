@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
 	"github.com/allannuwamanya/zoop/packages/core/types"
@@ -92,7 +93,8 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 	c.mu.RUnlock()
 
 	ts := time.Now().Format(time.RFC3339)
-	payload := []byte("zoop-auth|" + ts)
+	nonce := uuid.New().String()
+	payload := []byte(fmt.Sprintf("zoop-auth-v2|GET|/v1/relay|%s|%s|", ts, nonce))
 	sig := ed25519.Sign(c.privKey, payload)
 	sigStr := base64.StdEncoding.EncodeToString(sig)
 
@@ -100,6 +102,7 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 	headers.Set("X-Zoop-Identity", c.identity.EndpointID.String())
 	headers.Set("X-Zoop-Signature", sigStr)
 	headers.Set("X-Zoop-Timestamp", ts)
+	headers.Set("X-Zoop-Nonce", nonce)
 
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 5 * time.Second,
