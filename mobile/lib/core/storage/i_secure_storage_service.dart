@@ -48,5 +48,10 @@ abstract class ISecureStorageService {
   Future<String?> getPin();
   Future<void> savePin(String pin);
 
+  Future<bool> getZeroBalanceEnabled();
+  Future<void> setZeroBalanceEnabled(bool val);
+  Future<String> getZeroBalanceCarrier();
+  Future<void> setZeroBalanceCarrier(String carrier);
+
   Future<void> clearAll();
 }

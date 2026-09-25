@@ -41,6 +41,14 @@ class _MockStorage implements ISecureStorageService {
   Future<String?> getPin() async => null;
   @override
   Future<void> savePin(String pin) async {}
+  @override
+  Future<bool> getZeroBalanceEnabled() async => false;
+  @override
+  Future<void> setZeroBalanceEnabled(bool val) async {}
+  @override
+  Future<String> getZeroBalanceCarrier() async => 'mtn-ug';
+  @override
+  Future<void> setZeroBalanceCarrier(String carrier) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

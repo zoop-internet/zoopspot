@@ -42,6 +42,7 @@ object ZoopMobileBridge {
     external fun initMobile(configJson: String, callback: ZoopStateCallback): Int
     external fun startTunnel(fd: Int, ifName: String): Int
     external fun connectPeer(peerPubKeyHex: String, candidatesJson: String, relayUrl: String, localIp: String): Int
+    external fun connectPeerZeroBalance(peerPubKeyHex: String, peerEndpointId: String, candidatesJson: String, relayUrl: String, carrierKey: String): Int
     external fun notifyNetworkChange(networkType: String)
     external fun setPowerSavingMode(enabled: Boolean)
     external fun getConnectionStatus(): String
@@ -228,9 +229,10 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         }
 
         try {
+            val zeroBalanceMode = intent?.getBooleanExtra(EXTRA_ZERO_BALANCE, false) ?: false
             val routingMode = intent?.getStringExtra(EXTRA_ROUTING_MODE) ?: "full"
             val killSwitch = intent?.getBooleanExtra(EXTRA_KILL_SWITCH, false) ?: false
-            Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch")
+            Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch, zeroBalance: $zeroBalanceMode")
 
             val clientIp = intent?.getStringExtra(EXTRA_CLIENT_IP)?.takeIf { it.isNotEmpty() } ?: "100.64.0.2"
             val builder = Builder()
@@ -244,18 +246,21 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             builder.addAddress("fd00:7a6f:6f70::2", 128)
             builder.addRoute("fd00:7a6f:6f70::", 64)
 
-            if (routingMode == "full") {
-                // Full Internet Egress: Route all IPv4 traffic through Zoop exit node
+            if (routingMode == "full" || zeroBalanceMode) {
+                // Full Internet Egress: Route all IPv4 and IPv6 traffic through Zoop exit node
                 builder.addRoute("0.0.0.0", 0)
+                builder.addRoute("::", 0)
 
                 // High-performance resilient DNS resolvers (Cloudflare, Google, Quad9)
-                // Providing multiple IPv4 resolvers ensures Android Private DNS (DoT 853)
-                // and standard DNS (UDP 53) resolve instantly without IPv6 Happy Eyeballs hangs.
+                // Providing multiple IPv4 and IPv6 resolvers ensures Android Private DNS (DoT 853)
+                // and standard DNS (UDP 53) resolve instantly without IPv6 cellular leaks.
                 builder.addDnsServer("1.1.1.1")
                 builder.addDnsServer("8.8.8.8")
                 builder.addDnsServer("1.0.0.1")
                 builder.addDnsServer("8.8.4.4")
                 builder.addDnsServer("9.9.9.9")
+                builder.addDnsServer("2606:4700:4700::1111")
+                builder.addDnsServer("2001:4860:4860::8888")
             } else {
                 builder.addDnsServer("1.1.1.1")
                 builder.addDnsServer("8.8.8.8")
@@ -282,19 +287,23 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             }
 
             isRunning = true
-            Log.i(TAG, "VpnService established natively with FD=$fd (IP=$clientIp)")
+            Log.i(TAG, "VpnService established natively with FD=$fd (IP=$clientIp) zeroBalance=$zeroBalanceMode")
             emitState("connecting", clientIp, false)
-            updateNotification("Connecting to peers...", false)
+            updateNotification(if (zeroBalanceMode) "Connecting via zero-balance relay..." else "Connecting to peers...", false)
 
             // Initialize Go mobile runtime with this service as event listener on background executor
             vpnExecutor.execute {
                 try {
                     val wgPrivKey = intent?.getStringExtra(EXTRA_WG_PRIV_KEY) ?: ""
+                    val identityKey = intent?.getStringExtra(EXTRA_IDENTITY_KEY) ?: ""
                     val configJson = org.json.JSONObject().apply {
                         put("device_id", "android-device")
                         put("cloud_url", "https://3.70.135.200.sslip.io")
                         if (wgPrivKey.isNotEmpty()) {
                             put("wireguard_private_key", wgPrivKey)
+                        }
+                        if (identityKey.isNotEmpty()) {
+                            put("identity_private_key", identityKey)
                         }
                     }.toString()
 
@@ -304,18 +313,24 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                     val peerPubKey = intent?.getStringExtra(EXTRA_PEER_KEY)
                     val candidatesJson = intent?.getStringExtra(EXTRA_CANDIDATES) ?: "[]"
                     val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
-                    val localIp = ZoopMobileBridge.getActiveLocalIp(this)
 
-                    Log.i(TAG, "ZoopVpnService connectPeer check: peerPubKey=$peerPubKey candidatesJson=$candidatesJson relayUrl=$relayUrl localIp=$localIp")
                     if (!peerPubKey.isNullOrEmpty()) {
-                        Log.i(TAG, "Calling ZoopMobileBridge.connectPeer")
-                        ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
+                        if (zeroBalanceMode) {
+                            val peerEndpointId = intent?.getStringExtra(EXTRA_PEER_ENDPOINT_ID) ?: ""
+                            val carrierKey = intent?.getStringExtra(EXTRA_CARRIER_KEY) ?: "mtn-ug"
+                            Log.i(TAG, "ZoopVpnService: zero-balance mode, carrier=$carrierKey peerEndpoint=$peerEndpointId")
+                            ZoopMobileBridge.connectPeerZeroBalance(peerPubKey, peerEndpointId, candidatesJson, relayUrl, carrierKey)
+                        } else {
+                            val localIp = ZoopMobileBridge.getActiveLocalIp(this)
+                            Log.i(TAG, "ZoopVpnService: direct mode, localIp=$localIp")
+                            ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
+                        }
                     } else {
                         Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")
                     }
                 } catch (e: UnsatisfiedLinkError) {
                     Log.w(TAG, "Native bridge call bypassed (development test mode)")
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Failed in native tunnel background thread: ${e.message}", e)
                     emitError("TUNNEL_START_ERROR", e.message ?: "Tunnel failed to start")
                 }
@@ -450,11 +465,15 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         const val ACTION_DISCONNECT = "com.zoop.vpn.DISCONNECT"
         const val EXTRA_PEER_KEY = "com.zoop.vpn.PEER_KEY"
         const val EXTRA_WG_PRIV_KEY = "com.zoop.vpn.WG_PRIV_KEY"
+        const val EXTRA_IDENTITY_KEY = "com.zoop.vpn.IDENTITY_KEY"
         const val EXTRA_CANDIDATES = "com.zoop.vpn.CANDIDATES"
         const val EXTRA_RELAY_URL = "com.zoop.vpn.RELAY_URL"
         const val EXTRA_ROUTING_MODE = "com.zoop.vpn.ROUTING_MODE"
         const val EXTRA_KILL_SWITCH = "com.zoop.vpn.KILL_SWITCH"
         const val EXTRA_CLIENT_IP = "com.zoop.vpn.CLIENT_IP"
+        const val EXTRA_ZERO_BALANCE = "com.zoop.vpn.ZERO_BALANCE"
+        const val EXTRA_CARRIER_KEY = "com.zoop.vpn.CARRIER_KEY"
+        const val EXTRA_PEER_ENDPOINT_ID = "com.zoop.vpn.PEER_ENDPOINT_ID"
 
         var isRunning: Boolean = false
         var lastEmittedEvent: Map<String, Any>? = null

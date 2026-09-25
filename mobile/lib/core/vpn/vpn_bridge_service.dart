@@ -40,6 +40,7 @@ class VpnBridgeService implements IVpnBridgeService {
   Future<bool> startTunnel({
     String? peerKey,
     String? privateKey,
+    String? identityKey,
     String? candidatesJson,
     String? relayUrl,
     String routingMode = 'full',
@@ -52,8 +53,48 @@ class VpnBridgeService implements IVpnBridgeService {
           await _methodChannel.invokeMethod<bool>('startTunnel', {
         'peerKey': peerKey ?? '',
         'privateKey': privateKey ?? '',
+        'identityKey': identityKey ?? '',
         'candidates': candidatesJson ?? '[]',
         'relayUrl': relayUrl ?? '',
+        'routingMode': routingMode,
+        'clientIp': clientIp ?? '100.64.0.2',
+      });
+      return result ?? false;
+    } on MissingPluginException {
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isTransitioning = false;
+    }
+  }
+
+  /// Starts the native VPN using SNI-masked relay transport for zero-SIM-balance recipients.
+  /// The native side calls ConnectPeerZeroBalance in the Go bridge.
+  @override
+  Future<bool> startTunnelZeroBalance({
+    String? peerKey,
+    String? peerEndpointId,
+    String? privateKey,
+    String? identityKey,
+    String? candidatesJson,
+    String? relayUrl,
+    String carrierKey = 'mtn-ug',
+    String routingMode = 'full',
+    String? clientIp,
+  }) async {
+    if (_isTransitioning) return false;
+    _isTransitioning = true;
+    try {
+      final bool? result =
+          await _methodChannel.invokeMethod<bool>('startTunnelZeroBalance', {
+        'peerKey': peerKey ?? '',
+        'peerEndpointId': peerEndpointId ?? '',
+        'privateKey': privateKey ?? '',
+        'identityKey': identityKey ?? '',
+        'candidates': candidatesJson ?? '[]',
+        'relayUrl': relayUrl ?? '',
+        'carrierKey': carrierKey,
         'routingMode': routingMode,
         'clientIp': clientIp ?? '100.64.0.2',
       });

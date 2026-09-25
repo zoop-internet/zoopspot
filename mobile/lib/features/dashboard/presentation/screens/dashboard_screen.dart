@@ -19,6 +19,7 @@ import '../../../../core/widgets/zoop_offline_banner.dart';
 import '../../../pairing/presentation/widgets/pairing_sheet.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
+import '../../../settings/application/settings_notifier.dart';
 import '../../../sharing/application/sharing_notifier.dart';
 import '../../../wallet/application/wallet_notifier.dart';
 import '../../application/peers_notifier.dart';
@@ -229,19 +230,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       try {
         final storage = ref.read(secureStorageServiceProvider);
         final privKey = await storage.getWireGuardPrivateKeyBase64();
+        final identSeedBytes = await storage.getEd25519SeedBytes();
+        final identKey = identSeedBytes
+            ?.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
         final rawCloudUrl = await storage.getCloudUrl();
         final relayUrl = rawCloudUrl.startsWith('https://')
             ? '${rawCloudUrl.replaceFirst('https://', 'wss://')}/v1/relay'
             : '${rawCloudUrl.replaceFirst('http://', 'ws://')}/v1/relay';
 
-        await vpnBridge.startTunnel(
-          peerKey: peerKey,
-          privateKey: privKey,
-          candidatesJson: candidatesJson,
-          relayUrl: relayUrl,
-          routingMode: _routingMode.wireRouteParam,
-          clientIp: clientIp,
-        );
+        final appSettings = ref.read(settingsProvider);
+        if (appSettings.zeroBalanceEnabled) {
+          await vpnBridge.startTunnelZeroBalance(
+            peerKey: peerKey,
+            peerEndpointId: targetPeer.endpointId,
+            privateKey: privKey,
+            identityKey: identKey,
+            candidatesJson: candidatesJson,
+            relayUrl: relayUrl,
+            carrierKey: appSettings.zeroBalanceCarrier,
+            routingMode: _routingMode.wireRouteParam,
+            clientIp: clientIp,
+          );
+        } else {
+          await vpnBridge.startTunnel(
+            peerKey: peerKey,
+            privateKey: privKey,
+            identityKey: identKey,
+            candidatesJson: candidatesJson,
+            relayUrl: relayUrl,
+            routingMode: _routingMode.wireRouteParam,
+            clientIp: clientIp,
+          );
+        }
 
         // Tunnel service launched. The native VpnService event stream will
         // transition the status to connectedDirect or connectedRelay as soon as

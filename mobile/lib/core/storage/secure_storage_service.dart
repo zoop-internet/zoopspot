@@ -161,6 +161,29 @@ class SecureStorageService implements ISecureStorageService {
   @override
   Future<void> savePin(String pin) => _storage.write(key: _keyPin, value: pin);
 
+  static const _keyZeroBalanceEnabled = 'zoop_zero_balance_enabled';
+  static const _keyZeroBalanceCarrier = 'zoop_zero_balance_carrier';
+
+  @override
+  Future<bool> getZeroBalanceEnabled() async {
+    final val = await _storage.read(key: _keyZeroBalanceEnabled);
+    return val == 'true';
+  }
+
+  @override
+  Future<void> setZeroBalanceEnabled(bool val) =>
+      _storage.write(key: _keyZeroBalanceEnabled, value: val.toString());
+
+  @override
+  Future<String> getZeroBalanceCarrier() async {
+    final val = await _storage.read(key: _keyZeroBalanceCarrier);
+    return (val != null && val.isNotEmpty) ? val : 'mtn-ug';
+  }
+
+  @override
+  Future<void> setZeroBalanceCarrier(String carrier) =>
+      _storage.write(key: _keyZeroBalanceCarrier, value: carrier);
+
   @override
   Future<void> clearAll() async {
     await _storage.deleteAll();

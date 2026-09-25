@@ -11,6 +11,7 @@
 extern int goInitMobile(const char* configJSON);
 extern int goStartTunnel(int fd, const char* ifName);
 extern int goConnectPeer(const char* peerPubKey, const char* candidatesJSON, const char* relayURL, const char* localIP);
+extern int goConnectPeerZeroBalance(const char* peerPubKey, const char* peerEndpointId, const char* candidatesJSON, const char* relayURL, const char* carrierKey);
 extern void goNotifyNetworkChange(const char* networkType);
 extern void goSetPowerSavingMode(int enabled);
 extern char* goGetConnectionStatus(void);
@@ -213,6 +214,25 @@ JNIEXPORT jint JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_connectPeer(
     if (candidatesJson && cCand) (*env)->ReleaseStringUTFChars(env, candidatesJson, cCand);
     if (relayUrl && cRelay) (*env)->ReleaseStringUTFChars(env, relayUrl, cRelay);
     if (localIp && cLocal) (*env)->ReleaseStringUTFChars(env, localIp, cLocal);
+    return res;
+}
+
+JNIEXPORT jint JNICALL Java_network_zoop_app_vpn_ZoopMobileBridge_connectPeerZeroBalance(
+    JNIEnv* env, jobject thiz, jstring peerPubKeyHex, jstring peerEndpointId, jstring candidatesJson, jstring relayUrl, jstring carrierKey
+) {
+    const char* cKey = peerPubKeyHex ? (*env)->GetStringUTFChars(env, peerPubKeyHex, NULL) : NULL;
+    const char* cEndpoint = peerEndpointId ? (*env)->GetStringUTFChars(env, peerEndpointId, NULL) : NULL;
+    const char* cCand = candidatesJson ? (*env)->GetStringUTFChars(env, candidatesJson, NULL) : NULL;
+    const char* cRelay = relayUrl ? (*env)->GetStringUTFChars(env, relayUrl, NULL) : NULL;
+    const char* cCarrier = carrierKey ? (*env)->GetStringUTFChars(env, carrierKey, NULL) : NULL;
+
+    int res = goConnectPeerZeroBalance(cKey, cEndpoint, cCand, cRelay, cCarrier);
+
+    if (peerPubKeyHex && cKey) (*env)->ReleaseStringUTFChars(env, peerPubKeyHex, cKey);
+    if (peerEndpointId && cEndpoint) (*env)->ReleaseStringUTFChars(env, peerEndpointId, cEndpoint);
+    if (candidatesJson && cCand) (*env)->ReleaseStringUTFChars(env, candidatesJson, cCand);
+    if (relayUrl && cRelay) (*env)->ReleaseStringUTFChars(env, relayUrl, cRelay);
+    if (carrierKey && cCarrier) (*env)->ReleaseStringUTFChars(env, carrierKey, cCarrier);
     return res;
 }
 

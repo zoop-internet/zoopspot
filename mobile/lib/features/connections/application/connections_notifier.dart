@@ -254,8 +254,13 @@ class ConnectionsNotifier extends StateNotifier<ConnectionsState> {
     state = state.copyWith(activeConnections: updated);
   }
 
-  void connectToProvider(DiscoveredProvider provider) {
-    // Check if already connected
+  /// Connects to a provider. When [zeroBalance] is true, marks the connection as
+  /// a zero-balance relay path so the UI can display the correct status string.
+  void connectToProvider(
+    DiscoveredProvider provider, {
+    bool zeroBalance = false,
+    String carrierKey = 'mtn-ug',
+  }) {
     if (state.activeConnections.any((c) => c.peerId == provider.zoopId)) {
       return;
     }
@@ -264,7 +269,9 @@ class ConnectionsNotifier extends StateNotifier<ConnectionsState> {
       peerId: provider.zoopId,
       peerName: provider.name,
       platform: provider.platform,
-      routeType: ConnectionRouteType.directP2P,
+      routeType: zeroBalance
+          ? ConnectionRouteType.encryptedRelay
+          : ConnectionRouteType.directP2P,
       sessionDurationSeconds: 0,
       rxBytes: 12000,
       txBytes: 8400,

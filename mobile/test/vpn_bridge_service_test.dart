@@ -23,6 +23,8 @@ void main() {
               return true;
             case 'startTunnel':
               return true;
+            case 'startTunnelZeroBalance':
+              return true;
             case 'stopTunnel':
               return true;
             case 'getStatus':
@@ -60,6 +62,23 @@ void main() {
       expect(log.last.arguments['peerKey'], 'peer-pub-key-123');
       expect(log.last.arguments['candidates'], '[{"ip":"1.2.3.4"}]');
       expect(log.last.arguments['relayUrl'], 'wss://relay.zoop.network');
+    });
+
+    test('startTunnelZeroBalance sends zero-balance parameters to native service', () async {
+      final started = await vpnService.startTunnelZeroBalance(
+        peerKey: 'peer-pub-key-123',
+        peerEndpointId: 'ep-abc-123',
+        candidatesJson: '[{"ip":"1.2.3.4"}]',
+        relayUrl: 'wss://relay.zoop.network',
+        carrierKey: 'mtn-ug',
+        routingMode: 'full',
+      );
+      expect(started, isTrue);
+      expect(log.last.method, 'startTunnelZeroBalance');
+      expect(log.last.arguments['peerKey'], 'peer-pub-key-123');
+      expect(log.last.arguments['peerEndpointId'], 'ep-abc-123');
+      expect(log.last.arguments['carrierKey'], 'mtn-ug');
+      expect(log.last.arguments['routingMode'], 'full');
     });
 
     test('stopTunnel invokes native stop method', () async {

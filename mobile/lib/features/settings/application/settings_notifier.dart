@@ -13,7 +13,13 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   Future<void> _loadSettings() async {
     final pin = await _storage.getPin();
-    state = state.copyWith(hasPinSet: pin != null && pin.isNotEmpty);
+    final zbEnabled = await _storage.getZeroBalanceEnabled();
+    final zbCarrier = await _storage.getZeroBalanceCarrier();
+    state = state.copyWith(
+      hasPinSet: pin != null && pin.isNotEmpty,
+      zeroBalanceEnabled: zbEnabled,
+      zeroBalanceCarrier: zbCarrier,
+    );
   }
 
   void toggleKillSwitch() {
@@ -49,6 +55,17 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   void setRoutingMode(RoutingMode mode) {
     state = state.copyWith(defaultRoutingMode: mode);
+  }
+
+  void toggleZeroBalance() {
+    final newVal = !state.zeroBalanceEnabled;
+    state = state.copyWith(zeroBalanceEnabled: newVal);
+    _storage.setZeroBalanceEnabled(newVal);
+  }
+
+  void setZeroBalanceCarrier(String carrier) {
+    state = state.copyWith(zeroBalanceCarrier: carrier);
+    _storage.setZeroBalanceCarrier(carrier);
   }
 }
 

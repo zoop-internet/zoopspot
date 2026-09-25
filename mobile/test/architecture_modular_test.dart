@@ -30,8 +30,26 @@ class MockVpnBridge implements IVpnBridgeService {
   Future<bool> startTunnel({
     String? peerKey,
     String? privateKey,
+    String? identityKey,
     String? candidatesJson,
     String? relayUrl,
+    String routingMode = 'full',
+    String? clientIp,
+  }) async {
+    isTunnelActive = true;
+    lastStartedPeerKey = peerKey;
+    return true;
+  }
+
+  @override
+  Future<bool> startTunnelZeroBalance({
+    String? peerKey,
+    String? peerEndpointId,
+    String? privateKey,
+    String? identityKey,
+    String? candidatesJson,
+    String? relayUrl,
+    String carrierKey = 'mtn-ug',
     String routingMode = 'full',
     String? clientIp,
   }) async {
@@ -143,6 +161,14 @@ class MockStorage implements ISecureStorageService {
   Future<String?> getPin() async => pin;
   @override
   Future<void> savePin(String pin) async => this.pin = pin;
+  @override
+  Future<bool> getZeroBalanceEnabled() async => false;
+  @override
+  Future<void> setZeroBalanceEnabled(bool val) async {}
+  @override
+  Future<String> getZeroBalanceCarrier() async => 'mtn-ug';
+  @override
+  Future<void> setZeroBalanceCarrier(String carrier) async {}
   @override
   Future<void> clearAll() async {}
 }
@@ -344,6 +370,31 @@ void main() {
       await vpn.startTunnel(peerKey: 'peer-abc', routingMode: 'full');
       expect(await vpn.isTunnelRunning(), isTrue);
       expect(mockVpn.lastStartedPeerKey, 'peer-abc');
+
+      await vpn.stopTunnel();
+      expect(await vpn.isTunnelRunning(), isFalse);
+    });
+
+    test('IVpnBridgeService startTunnelZeroBalance initiates zero-balance tunnel cleanly', () async {
+      final mockVpn = MockVpnBridge();
+      final container = ProviderContainer(
+        overrides: [
+          vpnBridgeServiceProvider.overrideWithValue(mockVpn),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final vpn = container.read(vpnBridgeServiceProvider);
+      expect(await vpn.isTunnelRunning(), isFalse);
+
+      await vpn.startTunnelZeroBalance(
+        peerKey: 'peer-zero-balance',
+        peerEndpointId: 'ep-remote-gateway',
+        carrierKey: 'mtn-ug',
+        routingMode: 'full',
+      );
+      expect(await vpn.isTunnelRunning(), isTrue);
+      expect(mockVpn.lastStartedPeerKey, 'peer-zero-balance');
 
       await vpn.stopTunnel();
       expect(await vpn.isTunnelRunning(), isFalse);

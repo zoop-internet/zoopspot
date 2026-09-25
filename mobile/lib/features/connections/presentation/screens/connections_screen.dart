@@ -4,6 +4,7 @@ import '../../../../core/theme/zoop_colors.dart';
 import '../../../../core/widgets/zoop_shimmer.dart';
 import '../../../../core/widgets/zoop_empty_state.dart';
 import '../../../../core/widgets/zoop_error_banner.dart';
+import '../../../settings/application/settings_notifier.dart';
 import '../../application/connections_notifier.dart';
 import '../../domain/connection_models.dart';
 import '../widgets/connection_session_sheet.dart';
@@ -62,11 +63,21 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
       builder: (ctx) => ProviderProfileSheet(
         provider: prov,
         onConnect: () {
-          ref.read(connectionsProvider.notifier).connectToProvider(prov);
+          final settings = ref.read(settingsProvider);
+          ref.read(connectionsProvider.notifier).connectToProvider(
+            prov,
+            zeroBalance: settings.zeroBalanceEnabled,
+            carrierKey: settings.zeroBalanceCarrier,
+          );
+          final statusMsg = settings.zeroBalanceEnabled
+              ? 'Connecting via zero-balance relay (${settings.zeroBalanceCarrier})...'
+              : 'Connected to ${prov.name} via WireGuard P2P';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Connected to ${prov.name} via WireGuard P2P'),
-              backgroundColor: ZoopColors.accentGreen,
+              content: Text(statusMsg),
+              backgroundColor: settings.zeroBalanceEnabled
+                  ? ZoopColors.accentAmber
+                  : ZoopColors.accentGreen,
             ),
           );
           _tabController.animateTo(0);

@@ -1,0 +1,33 @@
+# Dependencies & package managers
+node_modules/
+.pnpm-store/
+vendor/
+
+# Flutter & Dart build artifacts
+.dart_tool/
+build/
+android/.gradle/
+android/app/build/
+ios/Pods/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Compiled binaries and libraries
+bin/
+*.so
+*.aar
+*.dylib
+*.dll
+*.exe
+core*
+
+# Lockfiles (huge token wasters when indexed)
+package-lock.json
+pnpm-lock.yaml
+pubspec.lock
+
+# System & IDE caches
+.git/
+.cache/
+tmp/
+*.log

@@ -1,19 +1,22 @@
 // Package sni implements Engine A of the Zoop pluggable transport:
-// SNI-masked WebSocket over TLS port 443 with optional domain fronting.
+// SNI-masked WebSocket over TLS port 443.
 //
 // How it works:
-//  1. A raw TCP connection is opened to the real relay IP (Cloudflare edge).
+//  1. A raw TCP connection is opened directly to the relay server IP.
 //  2. The TLS ClientHello sets ServerName = FrontDomain — a carrier-zero-rated
-//     hostname (e.g. "pass.mtn.co.ug"). The telecom DPI sees this SNI and
-//     permits the connection without deducting the SIM balance.
-//  3. The HTTP Host header is set to the real Zoop relay domain so Cloudflare
-//     routes the request to the correct backend (domain fronting).
+//     hostname (e.g. "pass.mtn.co.ug"). The carrier's DPI sees this SNI and
+//     permits the connection without deducting SIM balance.
+//  3. The relay presents its own TLS certificate (not for FrontDomain).
+//     In zero-balance mode we intentionally skip certificate verification
+//     because WireGuard — the inner protocol — provides the real security:
+//     Ed25519 peer authentication and ChaCha20-Poly1305 encryption ensure a
+//     MITM on the outer TLS layer only receives opaque WireGuard frames they
+//     cannot decrypt or forge.
 //  4. WireGuard relay frames flow inside the established WebSocket tunnel.
 //
-// For this to work in production the FrontDomain must be a hostname that:
-//   a) is zero-rated by the target carrier (e.g. MTN, Airtel), AND
-//   b) is hosted on the same Cloudflare network as the Zoop relay so that
-//      the TLS certificate presented by Cloudflare is valid for FrontDomain.
+// Domain fronting (SNI != Host header) is intentionally NOT used here because
+// Cloudflare blocked it in 2020. We do pure SNI masking: tell the carrier's
+// billing DPI one hostname, let TLS terminate at the actual relay IP.
 package sni
 
 import (
@@ -28,13 +31,15 @@ import (
 // These domains are zero-rated (free data) on each carrier's network.
 // Operators should verify current zero-rated lists before deployment —
 // carriers change these policies without notice.
+// KnownCarrierFronts maps carrier IDs to zero-rated SNI front domains — Uganda only.
+// WARNING: These domains must be verified against current carrier zero-rating policies
+// before each production release. Carriers change these lists without notice.
+// Domain fronting (SNI != Host) requires the relay to sit behind a CDN that serves
+// a valid certificate for the front domain; Cloudflare has blocked this since 2020
+// so the relay must use a different CDN or direct TLS with a matching cert.
 var KnownCarrierFronts = map[string]string{
-	"mtn-ug":       "pass.mtn.co.ug",         // MTN Uganda zero-rated education portal
-	"airtel-ug":    "selfcare.airtel.co.ug",   // Airtel Uganda self-care portal
-	"mtn-ke":       "social.mtn.co.ke",        // MTN Kenya zero-rated social pass
-	"safaricom-ke": "www.safaricom.co.ke",     // Safaricom Kenya self-care (zero-rated)
-	"mtn-gh":       "mtnplay.com.gh",          // MTN Ghana zero-rated entertainment
-	"mtn-ng":       "mtn.com.ng",              // MTN Nigeria zero-rated portal
+	"mtn-ug":    "pass.mtn.co.ug",        // MTN Uganda zero-rated education portal
+	"airtel-ug": "selfcare.airtel.co.ug", // Airtel Uganda self-care portal
 }
 
 // Dialer implements transport.Transport using SNI masking and optional domain

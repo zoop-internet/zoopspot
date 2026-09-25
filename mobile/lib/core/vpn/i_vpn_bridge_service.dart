@@ -9,8 +9,23 @@ abstract class IVpnBridgeService {
   Future<bool> startTunnel({
     String? peerKey,
     String? privateKey,
+    String? identityKey,
     String? candidatesJson,
     String? relayUrl,
+    String routingMode = 'full',
+    String? clientIp,
+  });
+
+  /// Starts the native VPN service using SNI-masked relay transport for zero-SIM-balance recipients.
+  /// Calls ConnectPeerZeroBalance in the Go bridge — skips direct UDP probing entirely.
+  Future<bool> startTunnelZeroBalance({
+    String? peerKey,
+    String? peerEndpointId,
+    String? privateKey,
+    String? identityKey,
+    String? candidatesJson,
+    String? relayUrl,
+    String carrierKey = 'mtn-ug',
     String routingMode = 'full',
     String? clientIp,
   });

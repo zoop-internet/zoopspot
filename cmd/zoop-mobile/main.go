@@ -115,6 +115,41 @@ func goConnectPeer(peerPubKeyHex, candidatesJSON, relayURL, localIP *C.char) (re
 	return 0
 }
 
+//export goConnectPeerZeroBalance
+func goConnectPeerZeroBalance(peerPubKeyHex, peerEndpointID, candidatesJSON, relayURL, carrierKey *C.char) (ret C.int) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("panic recovered in goConnectPeerZeroBalance", "recover", r)
+			ret = -1
+		}
+	}()
+	peerKey := ""
+	if peerPubKeyHex != nil {
+		peerKey = C.GoString(peerPubKeyHex)
+	}
+	endpointID := ""
+	if peerEndpointID != nil {
+		endpointID = C.GoString(peerEndpointID)
+	}
+	candidates := ""
+	if candidatesJSON != nil {
+		candidates = C.GoString(candidatesJSON)
+	}
+	relay := ""
+	if relayURL != nil {
+		relay = C.GoString(relayURL)
+	}
+	carrier := "mtn-ug"
+	if carrierKey != nil {
+		carrier = C.GoString(carrierKey)
+	}
+	err := mobile.ConnectPeerZeroBalance(peerKey, endpointID, candidates, relay, carrier)
+	if err != nil {
+		return -1
+	}
+	return 0
+}
+
 //export goNotifyNetworkChange
 func goNotifyNetworkChange(networkType *C.char) {
 	defer func() {

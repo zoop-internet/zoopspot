@@ -269,7 +269,9 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 	// The bridge is pre-connected so it's ready before DPD declares the peer dead.
 	var peerRelayPort int
 	if relayURL != "" {
-		rc, rb, relayPort := initRelayBridge(relayURL, peerKey, false, "")
+		pub := peerKey.PublicKey()
+		peerRelayID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+		rc, rb, relayPort := initRelayBridge(relayURL, peerKey, peerRelayID, false, "")
 		if rc != nil {
 			activeRelayClient = rc
 			activeRelayBridge = rb
@@ -494,8 +496,21 @@ func ConnectPeerZeroBalance(peerPubKeyHex, peerEndpointID, candidatesJSON, relay
 		_ = json.Unmarshal([]byte(candidatesJSON), &candidates)
 	}
 
+	var peerRelayID types.ID
+	if peerEndpointID != "" {
+		if id, err := types.ParseID(peerEndpointID); err == nil {
+			peerRelayID = id
+		} else {
+			slog.Warn("ConnectPeerZeroBalance: failed to parse peerEndpointID, falling back to key hash", "err", err, "raw", peerEndpointID)
+		}
+	}
+	if peerRelayID == (types.ID{}) {
+		pub := peerKey.PublicKey()
+		peerRelayID = types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+	}
+
 	// Create SNI-masked relay client and bridge — no direct probe.
-	rc, rb, relayPort := initRelayBridge(relayURL, peerKey, true, carrierKey)
+	rc, rb, relayPort := initRelayBridge(relayURL, peerKey, peerRelayID, true, carrierKey)
 	if rc == nil || rb == nil || relayPort == 0 {
 		return fmt.Errorf("failed to initialize relay bridge for zero-balance mode")
 	}
@@ -550,7 +565,7 @@ func ConnectPeerZeroBalance(peerPubKeyHex, peerEndpointID, candidatesJSON, relay
 // initRelayBridge creates a RelayClient and RelayBridge for the given peer and relay URL.
 // When sniMode is true it wraps the WebSocket connection with SNI masking for zero-balance mode.
 // Returns (nil, nil, 0) if the relay URL is empty or the identity key is unavailable.
-func initRelayBridge(relayURL string, peerKey wgtypes.Key, sniMode bool, carrierKey string) (*agentrelay.RelayClient, *tunnel.RelayBridge, int) {
+func initRelayBridge(relayURL string, peerKey wgtypes.Key, peerRelayID types.ID, sniMode bool, carrierKey string) (*agentrelay.RelayClient, *tunnel.RelayBridge, int) {
 	if relayURL == "" {
 		return nil, nil, 0
 	}
@@ -583,11 +598,11 @@ func initRelayBridge(relayURL string, peerKey wgtypes.Key, sniMode bool, carrier
 	}
 	rb := tunnel.NewRelayBridge(rc, listenPort, slog.Default())
 
-	// Derive the peer's relay registration ID from their WireGuard public key.
-	// In production the correct ID is the peer's Ed25519-derived endpoint UUID
-	// (received via the signaling channel). This derivation is a local approximation.
-	pub := peerKey.PublicKey()
-	peerRelayID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+	// Use provided peerRelayID (or fallback to public key hash if not provided)
+	if peerRelayID == (types.ID{}) {
+		pub := peerKey.PublicKey()
+		peerRelayID = types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+	}
 
 	relayPort, err := rb.RegisterPeer(peerRelayID, peerKey)
 	if err != nil {
