@@ -162,7 +162,7 @@ class MockStorage implements ISecureStorageService {
   @override
   Future<void> savePin(String pin) async => this.pin = pin;
   @override
-  Future<bool> getZeroBalanceEnabled() async => false;
+  Future<bool> getZeroBalanceEnabled() async => true;
   @override
   Future<void> setZeroBalanceEnabled(bool val) async {}
   @override

@@ -75,6 +75,7 @@ class MainActivity : FlutterActivity() {
                     val privateKey = call.argument<String>("privateKey") ?: ""
                     val identityKey = call.argument<String>("identityKey") ?: ""
                     val clientIp = call.argument<String>("clientIp") ?: "100.64.0.2"
+                    val carrierKey = detectCarrierKey()
 
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
                         action = ZoopVpnService.ACTION_CONNECT
@@ -84,7 +85,9 @@ class MainActivity : FlutterActivity() {
                         putExtra(ZoopVpnService.EXTRA_CANDIDATES, candidates)
                         putExtra(ZoopVpnService.EXTRA_RELAY_URL, relayUrl)
                         putExtra(ZoopVpnService.EXTRA_ROUTING_MODE, routingMode)
+                        putExtra(ZoopVpnService.EXTRA_CARRIER_KEY, carrierKey)
                         putExtra(ZoopVpnService.EXTRA_CLIENT_IP, clientIp)
+                        putExtra(ZoopVpnService.EXTRA_ZERO_BALANCE, true)
                     }
                     startService(intent)
                     result.success(true)
@@ -97,7 +100,8 @@ class MainActivity : FlutterActivity() {
                     val routingMode = call.argument<String>("routingMode") ?: "full"
                     val privateKey = call.argument<String>("privateKey") ?: ""
                     val identityKey = call.argument<String>("identityKey") ?: ""
-                    val carrierKey = call.argument<String>("carrierKey") ?: "mtn-ug"
+                    val rawCarrier = call.argument<String>("carrierKey") ?: ""
+                    val carrierKey = if (rawCarrier.isEmpty() || rawCarrier == "auto") detectCarrierKey() else rawCarrier
                     val clientIp = call.argument<String>("clientIp") ?: "100.64.0.2"
 
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
@@ -115,6 +119,9 @@ class MainActivity : FlutterActivity() {
                     }
                     startService(intent)
                     result.success(true)
+                }
+                "detectCarrier" -> {
+                    result.success(detectCarrierKey())
                 }
                 "stopTunnel" -> {
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
@@ -197,5 +204,26 @@ class MainActivity : FlutterActivity() {
             pendingAuthResult?.success(authorized)
             pendingAuthResult = null
         }
+    }
+
+    private fun detectCarrierKey(): String {
+        try {
+            val tm = getSystemService(android.content.Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+            if (tm != null) {
+                val simOp = tm.simOperator ?: ""
+                val netOp = tm.networkOperator ?: ""
+                val simName = (tm.simOperatorName ?: "").lowercase()
+                val netName = (tm.networkOperatorName ?: "").lowercase()
+                if (simOp.startsWith("64101") || netOp.startsWith("64101") || simName.contains("airtel") || netName.contains("airtel")) {
+                    return "airtel-ug"
+                }
+                if (simOp.startsWith("64110") || netOp.startsWith("64110") || simName.contains("mtn") || netName.contains("mtn")) {
+                    return "mtn-ug"
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to detect carrier via TelephonyManager: ${e.message}")
+        }
+        return "mtn-ug"
     }
 }

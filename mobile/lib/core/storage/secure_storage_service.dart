@@ -167,7 +167,7 @@ class SecureStorageService implements ISecureStorageService {
   @override
   Future<bool> getZeroBalanceEnabled() async {
     final val = await _storage.read(key: _keyZeroBalanceEnabled);
-    return val == 'true';
+    return val != 'false';
   }
 
   @override

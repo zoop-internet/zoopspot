@@ -229,7 +229,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         }
 
         try {
-            val zeroBalanceMode = intent?.getBooleanExtra(EXTRA_ZERO_BALANCE, false) ?: false
+            val zeroBalanceMode = intent?.getBooleanExtra(EXTRA_ZERO_BALANCE, true) ?: true
             val routingMode = intent?.getStringExtra(EXTRA_ROUTING_MODE) ?: "full"
             val killSwitch = intent?.getBooleanExtra(EXTRA_KILL_SWITCH, false) ?: false
             Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch, zeroBalance: $zeroBalanceMode")
@@ -289,7 +289,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             isRunning = true
             Log.i(TAG, "VpnService established natively with FD=$fd (IP=$clientIp) zeroBalance=$zeroBalanceMode")
             emitState("connecting", clientIp, false)
-            updateNotification(if (zeroBalanceMode) "Connecting via zero-balance relay..." else "Connecting to peers...", false)
+            updateNotification("Connecting to peers...", false)
 
             // Initialize Go mobile runtime with this service as event listener on background executor
             vpnExecutor.execute {

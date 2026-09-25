@@ -69,15 +69,11 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen>
             zeroBalance: settings.zeroBalanceEnabled,
             carrierKey: settings.zeroBalanceCarrier,
           );
-          final statusMsg = settings.zeroBalanceEnabled
-              ? 'Connecting via zero-balance relay (${settings.zeroBalanceCarrier})...'
-              : 'Connected to ${prov.name} via WireGuard P2P';
+          final statusMsg = 'Connecting to ${prov.name} via secure mesh tunnel...';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(statusMsg),
-              backgroundColor: settings.zeroBalanceEnabled
-                  ? ZoopColors.accentAmber
-                  : ZoopColors.accentGreen,
+              backgroundColor: ZoopColors.primaryCyan,
             ),
           );
           _tabController.animateTo(0);

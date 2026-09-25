@@ -7,7 +7,6 @@ import '../../../../core/utils/zoop_feedback.dart';
 import '../../../../core/widgets/zoop_confirm_dialog.dart';
 import '../../../identity/application/identity_notifier.dart';
 import '../../application/settings_notifier.dart';
-import '../../domain/settings_models.dart';
 import '../widgets/pin_change_dialog.dart';
 import '../widgets/privacy_disclosure_sheet.dart';
 
@@ -299,97 +298,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 4. Carrier Zero-Balance Mode
-              _buildSectionHeader('CARRIER BYPASS'),
-              Container(
-                decoration: BoxDecoration(
-                  color: ZoopColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: settings.zeroBalanceEnabled
-                        ? ZoopColors.accentAmber.withAlpha(128)
-                        : ZoopColors.surfaceBorder,
-                  ),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Column(
-                    children: [
-                      SwitchListTile(
-                        secondary: const Icon(Icons.signal_cellular_off, color: ZoopColors.accentAmber, size: 22),
-                        title: const Text('Carrier Zero-Balance Mode', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                        subtitle: const Text('Bypass carrier data gates via SNI relay — receive sharing with 0 MB balance', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                        value: settings.zeroBalanceEnabled,
-                        activeThumbColor: ZoopColors.accentAmber,
-                        onChanged: (_) {
-                          ZoopFeedback.selection();
-                          notifier.toggleZeroBalance();
-                        },
-                      ),
-                      if (settings.zeroBalanceEnabled) ...[
-                        const Divider(color: ZoopColors.surfaceBorder, height: 1),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.sim_card, color: ZoopColors.primaryCyan, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Your Carrier', style: TextStyle(fontSize: 13, color: ZoopColors.textPrimary)),
-                                    const Text('Select your SIM carrier for zero-rated domain matching', style: TextStyle(fontSize: 11, color: ZoopColors.textMuted)),
-                                  ],
-                                ),
-                              ),
-                              DropdownButton<String>(
-                                value: settings.zeroBalanceCarrier,
-                                dropdownColor: ZoopColors.surfaceElevated,
-                                underline: const SizedBox.shrink(),
-                                style: const TextStyle(color: ZoopColors.primaryCyan, fontSize: 12, fontWeight: FontWeight.bold),
-                                icon: const Icon(Icons.expand_more, color: ZoopColors.textSecondary, size: 18),
-                                items: kKnownCarriers.map((c) {
-                                  return DropdownMenuItem(
-                                    value: c.key,
-                                    child: Text(c.label, style: const TextStyle(color: ZoopColors.textPrimary, fontSize: 12)),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    ZoopFeedback.selection();
-                                    notifier.setZeroBalanceCarrier(val);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline, color: ZoopColors.textMuted, size: 14),
-                              SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'When enabled, connections use TLS port 443 with a zero-rated SNI domain. Direct WireGuard UDP probing is skipped.',
-                                  style: TextStyle(fontSize: 10, color: ZoopColors.textMuted),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // 5. Privacy & Data Governance
+              // 4. Privacy & Data Governance
               _buildSectionHeader('PRIVACY & TRANSPARENCY'),
               Container(
                 decoration: BoxDecoration(
@@ -435,7 +344,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 6. Notifications
+              // 5. Notifications
               _buildSectionHeader('NOTIFICATIONS'),
               Container(
                 decoration: BoxDecoration(
@@ -476,7 +385,7 @@ class SettingsScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // 7. About & Diagnostics
+              // 6. About & Diagnostics
               _buildSectionHeader('ABOUT ZOOP'),
               Container(
                 padding: const EdgeInsets.all(16),
