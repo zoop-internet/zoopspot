@@ -197,7 +197,7 @@ void main() {
           json.encode({
             'device_id': 'peer-1',
             'wireguard_public_key': 'test-wireguard-pubkey',
-            'endpoints': ['3.70.135.200:51820', '192.168.1.10:51820'],
+            'endpoints': ['1.2.3.4:51820', '192.168.1.10:51820'],
           }),
           200,
           headers: {'Content-Type': 'application/json'},

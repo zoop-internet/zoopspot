@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,8 +33,9 @@ type RelayClient struct {
 	mu           sync.RWMutex
 	conn         *websocket.Conn
 	handler      FrameHandler
-	stopCh       chan struct{}
-	customDialer *websocket.Dialer // nil = use default plain TLS dialer
+	stopCh          chan struct{}
+	customDialer    *websocket.Dialer // nil = use default plain TLS dialer
+	socketProtector func(fd int)
 }
 
 // NewClient creates a new RelayClient instance with a single relay URL.
@@ -67,6 +71,15 @@ func (c *RelayClient) WithCustomDialer(d websocket.Dialer) *RelayClient {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.customDialer = &d
+	return c
+}
+
+// WithSocketProtector sets a socket protector callback to protect the relay
+// connection socket from being routed into the VPN TUN on mobile OSs.
+func (c *RelayClient) WithSocketProtector(fn func(fd int)) *RelayClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.socketProtector = fn
 	return c
 }
 
@@ -119,10 +132,42 @@ func (c *RelayClient) Connect(ctx context.Context) error {
 
 	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
 	c.mu.RLock()
-	if c.customDialer != nil {
-		dialer = *c.customDialer
-	}
+	customDialer := c.customDialer
+	protector := c.socketProtector
 	c.mu.RUnlock()
+
+	if customDialer != nil {
+		dialer = *customDialer
+	} else if protector != nil {
+		resolver := &net.Resolver{
+			PreferGo: true,
+			Dial: func(dialCtx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: 3 * time.Second,
+					Control: func(netw, addr string, c syscall.RawConn) error {
+						return c.Control(func(fd uintptr) {
+							protector(int(fd))
+						})
+					},
+				}
+				targetDns := "1.1.1.1:53"
+				if address != "" && !strings.Contains(address, "::1") && !strings.Contains(address, "127.0.0.1") && !strings.Contains(address, "localhost") {
+					targetDns = address
+				}
+				return d.DialContext(dialCtx, "udp", targetDns)
+			},
+		}
+		netDialer := &net.Dialer{
+			Timeout:  5 * time.Second,
+			Resolver: resolver,
+			Control: func(network, address string, rawConn syscall.RawConn) error {
+				return rawConn.Control(func(fd uintptr) {
+					protector(int(fd))
+				})
+			},
+		}
+		dialer.NetDialContext = netDialer.DialContext
+	}
 
 	conn, _, err := dialer.DialContext(ctx, targetURL, headers)
 	if err != nil {

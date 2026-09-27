@@ -538,7 +538,7 @@ class _IdentityScreenState extends ConsumerState<IdentityScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Cloud Control Plane: 3.70.135.200 (Frankfurt)',
+                              'Cloud Control Plane: zoop-cloud.onrender.com',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: ZoopColors.textMuted),
                             ),
                           ),

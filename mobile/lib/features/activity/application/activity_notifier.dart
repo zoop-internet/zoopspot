@@ -83,7 +83,7 @@ class ActivityNotifier extends StateNotifier<ActivityState> {
         severity: ActivitySeverity.info,
         metadata: {
           'Cloud Status': 'Trusted',
-          'Endpoint': 'Frankfurt (3.70.135.200)',
+          'Endpoint': 'zoop-cloud.onrender.com',
           'Signature': 'Valid',
         },
       ),

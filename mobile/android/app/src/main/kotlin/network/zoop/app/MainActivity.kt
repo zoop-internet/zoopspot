@@ -69,6 +69,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "startTunnel" -> {
                     val peerKey = call.argument<String>("peerKey")
+                    val peerEndpointId = call.argument<String>("peerEndpointId") ?: ""
                     val candidates = call.argument<String>("candidates")
                     val relayUrl = call.argument<String>("relayUrl")
                     val routingMode = call.argument<String>("routingMode") ?: "full"
@@ -80,6 +81,7 @@ class MainActivity : FlutterActivity() {
                     val intent = Intent(this, ZoopVpnService::class.java).apply {
                         action = ZoopVpnService.ACTION_CONNECT
                         putExtra(ZoopVpnService.EXTRA_PEER_KEY, peerKey)
+                        putExtra(ZoopVpnService.EXTRA_PEER_ENDPOINT_ID, peerEndpointId)
                         putExtra(ZoopVpnService.EXTRA_WG_PRIV_KEY, privateKey)
                         putExtra(ZoopVpnService.EXTRA_IDENTITY_KEY, identityKey)
                         putExtra(ZoopVpnService.EXTRA_CANDIDATES, candidates)
@@ -87,7 +89,7 @@ class MainActivity : FlutterActivity() {
                         putExtra(ZoopVpnService.EXTRA_ROUTING_MODE, routingMode)
                         putExtra(ZoopVpnService.EXTRA_CARRIER_KEY, carrierKey)
                         putExtra(ZoopVpnService.EXTRA_CLIENT_IP, clientIp)
-                        putExtra(ZoopVpnService.EXTRA_ZERO_BALANCE, true)
+                        putExtra(ZoopVpnService.EXTRA_ZERO_BALANCE, false)
                     }
                     startService(intent)
                     result.success(true)

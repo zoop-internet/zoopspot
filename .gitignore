@@ -58,6 +58,7 @@ test-config/
 core.25
 tools/dev-fixtures/
 web/public/*.json
+scripts/nvidia_bridge.py
 web/public/*.html
 !web/public/index.html
 !web/public/404.html

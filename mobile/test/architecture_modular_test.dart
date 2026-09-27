@@ -29,6 +29,7 @@ class MockVpnBridge implements IVpnBridgeService {
   @override
   Future<bool> startTunnel({
     String? peerKey,
+    String? peerEndpointId,
     String? privateKey,
     String? identityKey,
     String? candidatesJson,

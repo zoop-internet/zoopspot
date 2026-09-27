@@ -24,9 +24,9 @@ class CloudApiClient implements ICloudApiClient {
     CryptoService? cryptoService,
     this.requestTimeout = const Duration(seconds: 15),
     this.maxRetries = 3,
-  })  : baseUrl = (baseUrl != null && baseUrl.isNotEmpty)
+  })  : baseUrl = (baseUrl != null && baseUrl.isNotEmpty && !baseUrl.contains('3.70.135.200'))
             ? baseUrl
-            : 'https://3.70.135.200.sslip.io',
+            : 'https://zoop-cloud.onrender.com',
         _client = client ?? http.Client(),
         _cryptoService = cryptoService ?? CryptoService();
 

@@ -41,7 +41,7 @@ object ZoopMobileBridge {
 
     external fun initMobile(configJson: String, callback: ZoopStateCallback): Int
     external fun startTunnel(fd: Int, ifName: String): Int
-    external fun connectPeer(peerPubKeyHex: String, candidatesJson: String, relayUrl: String, localIp: String): Int
+    external fun connectPeer(peerPubKeyHex: String, peerEndpointId: String, candidatesJson: String, relayUrl: String, localIp: String): Int
     external fun connectPeerZeroBalance(peerPubKeyHex: String, peerEndpointId: String, candidatesJson: String, relayUrl: String, carrierKey: String): Int
     external fun notifyNetworkChange(networkType: String)
     external fun setPowerSavingMode(enabled: Boolean)
@@ -229,7 +229,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
         }
 
         try {
-            val zeroBalanceMode = intent?.getBooleanExtra(EXTRA_ZERO_BALANCE, true) ?: true
+            val zeroBalanceMode = intent?.getBooleanExtra(EXTRA_ZERO_BALANCE, false) ?: false
             val routingMode = intent?.getStringExtra(EXTRA_ROUTING_MODE) ?: "full"
             val killSwitch = intent?.getBooleanExtra(EXTRA_KILL_SWITCH, false) ?: false
             Log.i(TAG, "Configuring VPN with routing mode: $routingMode, killSwitch: $killSwitch, zeroBalance: $zeroBalanceMode")
@@ -245,6 +245,14 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
             builder.addRoute("100.64.0.0", 10)
             builder.addAddress("fd00:7a6f:6f70::2", 128)
             builder.addRoute("fd00:7a6f:6f70::", 64)
+
+            // Exempt Zoop app itself from VPN routing to prevent self-routing loops for WireGuard UDP & relay sockets
+            try {
+                builder.addDisallowedApplication(packageName)
+                Log.i(TAG, "Exempted $packageName from VPN tunnel to prevent routing loops")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to addDisallowedApplication: ${e.message}")
+            }
 
             if (routingMode == "full" || zeroBalanceMode) {
                 // Full Internet Egress: Route all IPv4 and IPv6 traffic through Zoop exit node
@@ -298,7 +306,7 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                     val identityKey = intent?.getStringExtra(EXTRA_IDENTITY_KEY) ?: ""
                     val configJson = org.json.JSONObject().apply {
                         put("device_id", "android-device")
-                        put("cloud_url", "https://3.70.135.200.sslip.io")
+                        put("cloud_url", "https://zoop-cloud.onrender.com")
                         if (wgPrivKey.isNotEmpty()) {
                             put("wireguard_private_key", wgPrivKey)
                         }
@@ -315,15 +323,15 @@ class ZoopVpnService : VpnService(), ZoopStateCallback {
                     val relayUrl = intent?.getStringExtra(EXTRA_RELAY_URL) ?: ""
 
                     if (!peerPubKey.isNullOrEmpty()) {
+                        val peerEndpointId = intent?.getStringExtra(EXTRA_PEER_ENDPOINT_ID) ?: ""
                         if (zeroBalanceMode) {
-                            val peerEndpointId = intent?.getStringExtra(EXTRA_PEER_ENDPOINT_ID) ?: ""
                             val carrierKey = intent?.getStringExtra(EXTRA_CARRIER_KEY) ?: "mtn-ug"
                             Log.i(TAG, "ZoopVpnService: zero-balance mode, carrier=$carrierKey peerEndpoint=$peerEndpointId")
                             ZoopMobileBridge.connectPeerZeroBalance(peerPubKey, peerEndpointId, candidatesJson, relayUrl, carrierKey)
                         } else {
                             val localIp = ZoopMobileBridge.getActiveLocalIp(this)
-                            Log.i(TAG, "ZoopVpnService: direct mode, localIp=$localIp")
-                            ZoopMobileBridge.connectPeer(peerPubKey, candidatesJson, relayUrl, localIp)
+                            Log.i(TAG, "ZoopVpnService: direct mode, localIp=$localIp peerEndpoint=$peerEndpointId")
+                            ZoopMobileBridge.connectPeer(peerPubKey, peerEndpointId, candidatesJson, relayUrl, localIp)
                         }
                     } else {
                         Log.w(TAG, "ZoopVpnService: peerPubKey is null or empty, skipping connectPeer")

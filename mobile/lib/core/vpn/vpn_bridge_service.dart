@@ -39,6 +39,7 @@ class VpnBridgeService implements IVpnBridgeService {
   @override
   Future<bool> startTunnel({
     String? peerKey,
+    String? peerEndpointId,
     String? privateKey,
     String? identityKey,
     String? candidatesJson,
@@ -52,6 +53,7 @@ class VpnBridgeService implements IVpnBridgeService {
       final bool? result =
           await _methodChannel.invokeMethod<bool>('startTunnel', {
         'peerKey': peerKey ?? '',
+        'peerEndpointId': peerEndpointId ?? '',
         'privateKey': privateKey ?? '',
         'identityKey': identityKey ?? '',
         'candidates': candidatesJson ?? '[]',

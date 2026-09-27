@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: zoop-cloud
+    runtime: go
+    plan: free
+    region: frankfurt # eu-central (Frankfurt) - colocated with Neon Postgres
+    buildCommand: go build -ldflags="-s -w" -o bin/zoop-cloud ./cloud
+    startCommand: ./bin/zoop-cloud
+    healthCheckPath: /v1/health
+    envVars:
+      - key: ZOOP_ENV
+        value: production
+      - key: ZOOP_ALLOWED_ORIGINS
+        value: "https://zoopnetwork.app,https://zoopnetwork.pages.dev,https://*.pages.dev"
+      - key: ZOOP_DATABASE_URL
+        sync: false

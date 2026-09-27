@@ -185,12 +185,17 @@ func ConnectPeer(peerPubKeyHex string, candidatesJSON string, relayURL string) e
 	return ConnectPeerWithLocalIP(peerPubKeyHex, candidatesJSON, relayURL, "")
 }
 
-// ConnectPeerWithLocalIP initiates P2P WireGuard connection with explicit local IP subnet awareness.
+// ConnectPeerWithLocalIP initiates a connection using localIP for subnet matching.
 func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayURL string, localIP string) error {
+	return ConnectPeerFull(peerPubKeyHex, "", candidatesJSON, relayURL, localIP)
+}
+
+// ConnectPeerFull initiates a connection with explicit peerEndpointID for relay fallback.
+func ConnectPeerFull(peerPubKeyHex, peerEndpointID, candidatesJSON, relayURL, localIP string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	slog.Info("ConnectPeer called", "peerKey", peerPubKeyHex, "candidatesJSON", candidatesJSON, "relayURL", relayURL, "localIP", localIP)
+	slog.Info("ConnectPeer called", "peerKey", peerPubKeyHex, "peerEndpointID", peerEndpointID, "candidatesJSON", candidatesJSON, "relayURL", relayURL, "localIP", localIP)
 
 	if devMgr == nil {
 		err := fmt.Errorf("tunnel not started: call StartTunnel first")
@@ -269,8 +274,16 @@ func ConnectPeerWithLocalIP(peerPubKeyHex string, candidatesJSON string, relayUR
 	// The bridge is pre-connected so it's ready before DPD declares the peer dead.
 	var peerRelayPort int
 	if relayURL != "" {
-		pub := peerKey.PublicKey()
-		peerRelayID := types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+		var peerRelayID types.ID
+		if peerEndpointID != "" {
+			if id, err := types.ParseID(peerEndpointID); err == nil {
+				peerRelayID = id
+			}
+		}
+		if peerRelayID == (types.ID{}) {
+			pub := peerKey.PublicKey()
+			peerRelayID = types.ID(uuid.NewSHA1(uuid.NameSpaceOID, pub[:]))
+		}
 		rc, rb, relayPort := initRelayBridge(relayURL, peerKey, peerRelayID, false, "")
 		if rc != nil {
 			activeRelayClient = rc
@@ -584,6 +597,11 @@ func initRelayBridge(relayURL string, peerKey wgtypes.Key, peerRelayID types.ID,
 	}
 
 	rc := agentrelay.NewClient(relayURL, ident, identKey, slog.Default())
+	if activeCallback != nil {
+		rc.WithSocketProtector(func(fd int) {
+			activeCallback.OnProtectSocket(fd)
+		})
+	}
 
 	if sniMode {
 		d := snitransport.New(carrierKey, "")

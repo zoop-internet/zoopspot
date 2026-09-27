@@ -29,7 +29,7 @@ class AppSettings {
     this.notifyOnConnection = true,
     this.notifyOnPeerRequest = true,
     this.notifyOnSecurityAlert = true,
-    this.zeroBalanceEnabled = true,
+    this.zeroBalanceEnabled = false,
     this.zeroBalanceCarrier = 'mtn-ug',
   });
 

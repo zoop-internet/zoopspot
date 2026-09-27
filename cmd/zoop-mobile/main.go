@@ -85,7 +85,7 @@ func goStartTunnel(fd C.int, ifName *C.char) (ret C.int) {
 }
 
 //export goConnectPeer
-func goConnectPeer(peerPubKeyHex, candidatesJSON, relayURL, localIP *C.char) (ret C.int) {
+func goConnectPeer(peerPubKeyHex, peerEndpointID, candidatesJSON, relayURL, localIP *C.char) (ret C.int) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("panic recovered in goConnectPeer", "recover", r)
@@ -95,6 +95,10 @@ func goConnectPeer(peerPubKeyHex, candidatesJSON, relayURL, localIP *C.char) (re
 	peerKey := ""
 	if peerPubKeyHex != nil {
 		peerKey = C.GoString(peerPubKeyHex)
+	}
+	endpointID := ""
+	if peerEndpointID != nil {
+		endpointID = C.GoString(peerEndpointID)
 	}
 	candidates := ""
 	if candidatesJSON != nil {
@@ -108,7 +112,7 @@ func goConnectPeer(peerPubKeyHex, candidatesJSON, relayURL, localIP *C.char) (re
 	if localIP != nil {
 		locIP = C.GoString(localIP)
 	}
-	err := mobile.ConnectPeerWithLocalIP(peerKey, candidates, relay, locIP)
+	err := mobile.ConnectPeerFull(peerKey, endpointID, candidates, relay, locIP)
 	if err != nil {
 		return -1
 	}

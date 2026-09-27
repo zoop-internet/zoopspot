@@ -71,10 +71,10 @@ func (s *Server) handleCreatePairingToken() http.HandlerFunc {
 		}
 		s.pairingMu.Unlock()
 
-		cloudURL := "https://3.70.135.200.sslip.io"
+		cloudURL := "https://zoop-cloud.onrender.com"
 		if r.Host != "" {
 			scheme := "https"
-			if r.TLS == nil && !strings.Contains(r.Host, "sslip.io") {
+			if r.TLS == nil && !strings.Contains(r.Host, "onrender.com") && !strings.Contains(r.Host, "sslip.io") {
 				scheme = "http"
 			}
 			cloudURL = fmt.Sprintf("%s://%s", scheme, r.Host)

@@ -369,7 +369,9 @@ func (s *Server) Start(ctx context.Context) error {
 	)
 
 	addr := ":8080"
-	if s.cfg.ControlPlaneURL != "" {
+	if port := os.Getenv("PORT"); port != "" {
+		addr = ":" + port
+	} else if s.cfg.ControlPlaneURL != "" {
 		if u, err := url.Parse(s.cfg.ControlPlaneURL); err == nil && u.Port() != "" {
 			addr = ":" + u.Port()
 		}

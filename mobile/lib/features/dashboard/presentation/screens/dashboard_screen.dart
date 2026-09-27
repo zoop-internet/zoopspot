@@ -254,6 +254,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         } else {
           await vpnBridge.startTunnel(
             peerKey: peerKey,
+            peerEndpointId: targetPeer.endpointId,
             privateKey: privKey,
             identityKey: identKey,
             candidatesJson: candidatesJson,

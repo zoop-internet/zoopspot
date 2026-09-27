@@ -13,8 +13,8 @@ func TestLoadConfig(t *testing.T) {
 
 	// Test default values
 	cfg := LoadConfig()
-	if cfg.ControlPlaneURL != "https://3.70.135.200.sslip.io" {
-		t.Errorf("Expected default ControlPlaneURL to be https://3.70.135.200.sslip.io, got %s", cfg.ControlPlaneURL)
+	if cfg.ControlPlaneURL != "https://zoop-cloud.onrender.com" {
+		t.Errorf("Expected default ControlPlaneURL to be https://zoop-cloud.onrender.com, got %s", cfg.ControlPlaneURL)
 	}
 	if cfg.AgentListenAddr != "127.0.0.1:8080" {
 		t.Errorf("Expected default AgentListenAddr to be 127.0.0.1:8080, got %s", cfg.AgentListenAddr)

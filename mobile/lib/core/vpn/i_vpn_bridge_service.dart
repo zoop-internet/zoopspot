@@ -8,6 +8,7 @@ abstract class IVpnBridgeService {
   /// Starts the native VPN service with peer connection parameters and routing policy.
   Future<bool> startTunnel({
     String? peerKey,
+    String? peerEndpointId,
     String? privateKey,
     String? identityKey,
     String? candidatesJson,

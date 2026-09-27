@@ -31,7 +31,7 @@ class SecureStorageService implements ISecureStorageService {
   static const _keyIsRegistered = 'zoop_is_registered';
   static const _keyIsBackedUp = 'zoop_is_backed_up';
 
-  static const String defaultCloudUrl = 'https://3.70.135.200.sslip.io';
+  static const String defaultCloudUrl = 'https://zoop-cloud.onrender.com';
 
   /// Persists full cryptographic identity bundle locally.
   @override
@@ -88,7 +88,10 @@ class SecureStorageService implements ISecureStorageService {
   @override
   Future<String> getCloudUrl() async {
     final url = await _storage.read(key: _keyCloudUrl);
-    return (url != null && url.isNotEmpty) ? url : defaultCloudUrl;
+    if (url == null || url.isEmpty || url.contains('3.70.135.200')) {
+      return defaultCloudUrl;
+    }
+    return url;
   }
 
   @override
@@ -167,7 +170,7 @@ class SecureStorageService implements ISecureStorageService {
   @override
   Future<bool> getZeroBalanceEnabled() async {
     final val = await _storage.read(key: _keyZeroBalanceEnabled);
-    return val != 'false';
+    return val == 'true';
   }
 
   @override

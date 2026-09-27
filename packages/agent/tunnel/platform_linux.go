@@ -240,6 +240,12 @@ func platformEnableForwarding(ifName string) error {
 	_ = exec.Command(iptablesBin, "-I", "DOCKER-USER", "1", "-i", ifName, "-j", "ACCEPT").Run()
 	_ = exec.Command(iptablesBin, "-I", "DOCKER-USER", "2", "-o", ifName, "-j", "ACCEPT").Run()
 
+	// 8. Ingress TTL normalization: Some African / cellular ISPs deliver return packets with TTL=1.
+	// Normalizing incoming TTL ensures the Linux routing engine does not drop return packets with ICMP Time Exceeded.
+	if err := exec.Command(iptablesBin, "-t", "mangle", "-C", "PREROUTING", "!", "-i", ifName, "-j", "TTL", "--ttl-set", "64").Run(); err != nil {
+		_ = exec.Command(iptablesBin, "-t", "mangle", "-A", "PREROUTING", "!", "-i", ifName, "-j", "TTL", "--ttl-set", "64").Run()
+	}
+
 	return nil
 }
 
@@ -264,6 +270,9 @@ func platformDisableForwarding(ifName string) error {
 	_ = exec.Command(ip6tablesBin, "-D", "FORWARD", "-o", ifName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	_ = exec.Command(ip6tablesBin, "-D", "FORWARD", "-o", ifName, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT").Run()
 	_ = exec.Command(ip6tablesBin, "-D", "FORWARD", "-p", "tcp", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--clamp-mss-to-pmtu").Run()
+
+	// Clean up TTL rule
+	_ = exec.Command(iptablesBin, "-t", "mangle", "-D", "PREROUTING", "!", "-i", ifName, "-j", "TTL", "--ttl-set", "64").Run()
 
 	return nil
 }

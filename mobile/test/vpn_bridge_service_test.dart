@@ -54,12 +54,14 @@ void main() {
     test('startTunnel sends peer arguments to native service', () async {
       final started = await vpnService.startTunnel(
         peerKey: 'peer-pub-key-123',
+        peerEndpointId: 'ep-xyz-456',
         candidatesJson: '[{"ip":"1.2.3.4"}]',
         relayUrl: 'wss://relay.zoop.network',
       );
       expect(started, isTrue);
       expect(log.last.method, 'startTunnel');
       expect(log.last.arguments['peerKey'], 'peer-pub-key-123');
+      expect(log.last.arguments['peerEndpointId'], 'ep-xyz-456');
       expect(log.last.arguments['candidates'], '[{"ip":"1.2.3.4"}]');
       expect(log.last.arguments['relayUrl'], 'wss://relay.zoop.network');
     });

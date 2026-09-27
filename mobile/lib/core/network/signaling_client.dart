@@ -70,7 +70,9 @@ class SignalingClient {
     this.maxDelay = const Duration(seconds: 60),
     this.multiplier = 1.5,
     this.jitterFactor = 0.5,
-  })  : wsBaseUrl = wsBaseUrl ?? 'wss://3.70.135.200.sslip.io',
+  })  : wsBaseUrl = (wsBaseUrl != null && wsBaseUrl.isNotEmpty && !wsBaseUrl.contains('3.70.135.200'))
+            ? wsBaseUrl
+            : 'wss://zoop-cloud.onrender.com',
         _cryptoService = cryptoService ?? CryptoService(),
         _random = random ?? math.Random();
 
