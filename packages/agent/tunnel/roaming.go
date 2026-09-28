@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // NetworkChangeEvent describes an OS network transition event.

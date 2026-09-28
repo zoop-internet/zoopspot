@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func (s *Server) handleSignaling() http.HandlerFunc {

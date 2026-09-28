@@ -1,4 +1,4 @@
-module github.com/allannuwamanya/zoop
+module github.com/zoop-internet/zoopspot
 
 go 1.25.0
 

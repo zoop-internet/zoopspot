@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
 )
 
 type mockHealthChecker struct {

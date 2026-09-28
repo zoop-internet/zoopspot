@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func TestNewID(t *testing.T) {

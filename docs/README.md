@@ -59,3 +59,14 @@ Welcome to the technical documentation library for **Zoop Internet**. This direc
 - **[Google Play VPN Policy Compliance](compliance/google_play_vpn_policy.md)**: Justifications and declarations for Android `BIND_VPN_SERVICE`.
 - **[Apple NetworkExtension Review](compliance/apple_network_extension_review.md)**: App Store review documentation for iOS `PacketTunnelProvider`.
 - **[Privacy Policy Specification](compliance/privacy_policy.md)**: Zero-logging disclosure and end-to-end encryption privacy commitments.
+
+---
+
+## 6. ZoopSpot Wi-Fi Hotspot Billing & MikroTik RouterOS v7
+
+| Document | Description |
+|---|---|
+| **[Captive Portal & Hotspot API](api.md#14-zoopspot-hotspots--captive-portal-api)** | Specification of unauthenticated captive checkout `/v1/portal/*` and operator fleet endpoints `/v1/hotspots/*`. |
+| **[MikroTik RouterOS v7 Integration](../README.md#mikrotik-routeros-v7-one-click-setup)** | One-click auto-provisioning script, WireGuard management overlay (`100.64.0.0/10`), and Walled Garden rules. |
+| **[Automated Mobile Money STK](../README.md#captive-portal-experience)** | Instant MTN and Airtel Mobile Money USSD prompt flow with automatic router IP-binding bypass. |
+

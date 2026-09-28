@@ -14,12 +14,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/allannuwamanya/zoop/packages/cloud/relay"
-	"github.com/allannuwamanya/zoop/packages/cloud/server"
-	"github.com/allannuwamanya/zoop/packages/cloud/services"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
-	"github.com/allannuwamanya/zoop/packages/core/config"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/relay"
+	"github.com/zoop-internet/zoopspot/packages/cloud/server"
+	"github.com/zoop-internet/zoopspot/packages/cloud/services"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/core/config"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 type seededDevice struct {

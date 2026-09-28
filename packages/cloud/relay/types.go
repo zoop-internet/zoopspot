@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 var (

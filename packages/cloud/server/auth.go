@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // Brute force protection: tracks failed login attempts per account identifier.

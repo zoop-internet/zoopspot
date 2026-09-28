@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 	"golang.org/x/crypto/pbkdf2"
 )
 

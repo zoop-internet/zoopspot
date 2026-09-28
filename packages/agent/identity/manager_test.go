@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/allannuwamanya/zoop/packages/agent/identity"
+	"github.com/zoop-internet/zoopspot/packages/agent/identity"
 )
 
 func TestLoadOrGenerate(t *testing.T) {

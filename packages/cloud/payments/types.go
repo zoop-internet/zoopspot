@@ -1,7 +1,7 @@
 package payments
 
 import (
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // Re-export domain types from core/types for seamless convenience

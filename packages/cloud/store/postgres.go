@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 //go:embed migrations/001_initial_schema.sql
@@ -25,6 +26,9 @@ var paymentsAndWalletsSQL string
 
 //go:embed migrations/004_auth_updates.sql
 var authUpdatesSQL string
+
+//go:embed migrations/005_hotspot_billing.sql
+var hotspotBillingSQL string
 
 // CleanPostgresURL sanitizes PostgreSQL connection strings for lib/pq compatibility.
 // Drivers like lib/pq do not support parameters like channel_binding, which modern
@@ -91,6 +95,9 @@ func (s *PostgresStore) Migrate(ctx context.Context) error {
 	}
 	if _, err := s.db.ExecContext(ctx, authUpdatesSQL); err != nil {
 		return fmt.Errorf("migration 004_auth_updates: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, hotspotBillingSQL); err != nil {
+		return fmt.Errorf("migration 005_hotspot_billing: %w", err)
 	}
 	return nil
 }
@@ -1382,5 +1389,436 @@ func (s *PostgresStore) GetBillingOverview(ctx context.Context) (*types.BillingO
 	}
 
 	return overview, nil
+}
+
+// ─── Hotspots & Billing ───────────────────────────────────────
+
+func (s *PostgresStore) SaveHotspot(ctx context.Context, h *types.Hotspot) error {
+	query := `
+		INSERT INTO hotspots (
+			id, owner_id, name, slug, location, router_type, router_ip,
+			router_api_user, router_api_password, wireguard_pubkey, currency,
+			is_online, last_heartbeat, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			slug = EXCLUDED.slug,
+			location = EXCLUDED.location,
+			router_type = EXCLUDED.router_type,
+			router_ip = EXCLUDED.router_ip,
+			router_api_user = EXCLUDED.router_api_user,
+			router_api_password = EXCLUDED.router_api_password,
+			wireguard_pubkey = EXCLUDED.wireguard_pubkey,
+			currency = EXCLUDED.currency,
+			is_online = EXCLUDED.is_online,
+			last_heartbeat = EXCLUDED.last_heartbeat,
+			updated_at = NOW();
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		h.ID, h.OwnerID, h.Name, h.Slug, h.Location, string(h.RouterType), h.RouterIP,
+		h.RouterAPIUser, h.RouterAPIPassword, h.WireGuardPubKey, h.Currency,
+		h.IsOnline, h.LastHeartbeat,
+	)
+	return err
+}
+
+func (s *PostgresStore) scanHotspot(row interface{ Scan(...any) error }) (*types.Hotspot, error) {
+	var h types.Hotspot
+	var routerType string
+	err := row.Scan(
+		&h.ID, &h.OwnerID, &h.Name, &h.Slug, &h.Location, &routerType, &h.RouterIP,
+		&h.RouterAPIUser, &h.RouterAPIPassword, &h.WireGuardPubKey, &h.Currency,
+		&h.IsOnline, &h.LastHeartbeat, &h.CreatedAt, &h.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	h.RouterType = types.HotspotRouterType(routerType)
+	return &h, nil
+}
+
+func (s *PostgresStore) GetHotspot(ctx context.Context, id types.ID) (*types.Hotspot, error) {
+	query := `
+		SELECT id, owner_id, name, slug, location, router_type, router_ip,
+		       router_api_user, router_api_password, wireguard_pubkey, currency,
+		       is_online, last_heartbeat, created_at, updated_at
+		FROM hotspots WHERE id = $1;
+	`
+	return s.scanHotspot(s.db.QueryRowContext(ctx, query, id))
+}
+
+func (s *PostgresStore) GetHotspotBySlug(ctx context.Context, slug string) (*types.Hotspot, error) {
+	query := `
+		SELECT id, owner_id, name, slug, location, router_type, router_ip,
+		       router_api_user, router_api_password, wireguard_pubkey, currency,
+		       is_online, last_heartbeat, created_at, updated_at
+		FROM hotspots WHERE slug = $1;
+	`
+	return s.scanHotspot(s.db.QueryRowContext(ctx, query, slug))
+}
+
+func (s *PostgresStore) ListHotspots(ctx context.Context, ownerID types.ID) ([]*types.Hotspot, error) {
+	query := `
+		SELECT id, owner_id, name, slug, location, router_type, router_ip,
+		       router_api_user, router_api_password, wireguard_pubkey, currency,
+		       is_online, last_heartbeat, created_at, updated_at
+		FROM hotspots WHERE owner_id = $1 ORDER BY created_at DESC;
+	`
+	rows, err := s.db.QueryContext(ctx, query, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*types.Hotspot
+	for rows.Next() {
+		h, err := s.scanHotspot(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, h)
+	}
+	if list == nil {
+		list = []*types.Hotspot{}
+	}
+	return list, nil
+}
+
+func (s *PostgresStore) ListAllHotspots(ctx context.Context) ([]*types.Hotspot, error) {
+	query := `
+		SELECT id, owner_id, name, slug, location, router_type, router_ip,
+		       router_api_user, router_api_password, wireguard_pubkey, currency,
+		       is_online, last_heartbeat, created_at, updated_at
+		FROM hotspots ORDER BY created_at DESC;
+	`
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*types.Hotspot
+	for rows.Next() {
+		h, err := s.scanHotspot(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, h)
+	}
+	if list == nil {
+		list = []*types.Hotspot{}
+	}
+	return list, nil
+}
+
+func (s *PostgresStore) DeleteHotspot(ctx context.Context, id types.ID) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM hotspots WHERE id = $1;", id)
+	return err
+}
+
+func (s *PostgresStore) SaveHotspotPackage(ctx context.Context, pkg *types.HotspotPackage) error {
+	query := `
+		INSERT INTO hotspot_packages (
+			id, hotspot_id, name, price, duration_minutes,
+			data_limit_bytes, rate_limit_down_kbps, rate_limit_up_kbps,
+			is_active, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			name = EXCLUDED.name,
+			price = EXCLUDED.price,
+			duration_minutes = EXCLUDED.duration_minutes,
+			data_limit_bytes = EXCLUDED.data_limit_bytes,
+			rate_limit_down_kbps = EXCLUDED.rate_limit_down_kbps,
+			rate_limit_up_kbps = EXCLUDED.rate_limit_up_kbps,
+			is_active = EXCLUDED.is_active;
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		pkg.ID, pkg.HotspotID, pkg.Name, pkg.Price, pkg.DurationMinutes,
+		pkg.DataLimitBytes, pkg.RateLimitDownKbps, pkg.RateLimitUpKbps,
+		pkg.IsActive,
+	)
+	return err
+}
+
+func (s *PostgresStore) scanPackage(row interface{ Scan(...any) error }) (*types.HotspotPackage, error) {
+	var p types.HotspotPackage
+	err := row.Scan(
+		&p.ID, &p.HotspotID, &p.Name, &p.Price, &p.DurationMinutes,
+		&p.DataLimitBytes, &p.RateLimitDownKbps, &p.RateLimitUpKbps,
+		&p.IsActive, &p.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (s *PostgresStore) GetHotspotPackage(ctx context.Context, id types.ID) (*types.HotspotPackage, error) {
+	query := `
+		SELECT id, hotspot_id, name, price, duration_minutes,
+		       data_limit_bytes, rate_limit_down_kbps, rate_limit_up_kbps,
+		       is_active, created_at
+		FROM hotspot_packages WHERE id = $1;
+	`
+	return s.scanPackage(s.db.QueryRowContext(ctx, query, id))
+}
+
+func (s *PostgresStore) ListHotspotPackages(ctx context.Context, hotspotID types.ID) ([]*types.HotspotPackage, error) {
+	query := `
+		SELECT id, hotspot_id, name, price, duration_minutes,
+		       data_limit_bytes, rate_limit_down_kbps, rate_limit_up_kbps,
+		       is_active, created_at
+		FROM hotspot_packages WHERE hotspot_id = $1 ORDER BY price ASC;
+	`
+	rows, err := s.db.QueryContext(ctx, query, hotspotID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []*types.HotspotPackage
+	for rows.Next() {
+		p, err := s.scanPackage(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, p)
+	}
+	if list == nil {
+		list = []*types.HotspotPackage{}
+	}
+	return list, nil
+}
+
+func (s *PostgresStore) DeleteHotspotPackage(ctx context.Context, id types.ID) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM hotspot_packages WHERE id = $1;", id)
+	return err
+}
+
+func (s *PostgresStore) SaveHotspotSession(ctx context.Context, session *types.HotspotSession) error {
+	query := `
+		INSERT INTO hotspot_sessions (
+			id, hotspot_id, package_id, phone_number, mac_address, client_ip,
+			status, transaction_id, voucher_code, bytes_downloaded, bytes_uploaded,
+			started_at, expires_at, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			status = EXCLUDED.status,
+			transaction_id = EXCLUDED.transaction_id,
+			voucher_code = EXCLUDED.voucher_code,
+			bytes_downloaded = EXCLUDED.bytes_downloaded,
+			bytes_uploaded = EXCLUDED.bytes_uploaded,
+			started_at = EXCLUDED.started_at,
+			expires_at = EXCLUDED.expires_at;
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		session.ID, session.HotspotID, session.PackageID, session.PhoneNumber,
+		session.MACAddress, session.ClientIP, string(session.Status),
+		session.TransactionID, session.VoucherCode, session.BytesDownloaded,
+		session.BytesUploaded, session.StartedAt, session.ExpiresAt,
+	)
+	return err
+}
+
+func (s *PostgresStore) scanSession(row interface{ Scan(...any) error }) (*types.HotspotSession, error) {
+	var sess types.HotspotSession
+	var status string
+	err := row.Scan(
+		&sess.ID, &sess.HotspotID, &sess.PackageID, &sess.PhoneNumber,
+		&sess.MACAddress, &sess.ClientIP, &status, &sess.TransactionID,
+		&sess.VoucherCode, &sess.BytesDownloaded, &sess.BytesUploaded,
+		&sess.StartedAt, &sess.ExpiresAt, &sess.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	sess.Status = types.SessionStatus(status)
+	return &sess, nil
+}
+
+func (s *PostgresStore) GetHotspotSession(ctx context.Context, id types.ID) (*types.HotspotSession, error) {
+	query := `
+		SELECT id, hotspot_id, package_id, phone_number, mac_address, client_ip,
+		       status, transaction_id, voucher_code, bytes_downloaded, bytes_uploaded,
+		       started_at, expires_at, created_at
+		FROM hotspot_sessions WHERE id = $1;
+	`
+	return s.scanSession(s.db.QueryRowContext(ctx, query, id))
+}
+
+func (s *PostgresStore) GetActiveSessionByMAC(ctx context.Context, hotspotID types.ID, mac string) (*types.HotspotSession, error) {
+	query := `
+		SELECT id, hotspot_id, package_id, phone_number, mac_address, client_ip,
+		       status, transaction_id, voucher_code, bytes_downloaded, bytes_uploaded,
+		       started_at, expires_at, created_at
+		FROM hotspot_sessions
+		WHERE hotspot_id = $1 AND mac_address = $2 AND status = 'active'
+		  AND (expires_at IS NULL OR expires_at > NOW())
+		ORDER BY created_at DESC LIMIT 1;
+	`
+	return s.scanSession(s.db.QueryRowContext(ctx, query, hotspotID, mac))
+}
+
+func (s *PostgresStore) ListHotspotSessions(ctx context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotSession, int, error) {
+	var total int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM hotspot_sessions WHERE hotspot_id = $1;", hotspotID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, hotspot_id, package_id, phone_number, mac_address, client_ip,
+		       status, transaction_id, voucher_code, bytes_downloaded, bytes_uploaded,
+		       started_at, expires_at, created_at
+		FROM hotspot_sessions
+		WHERE hotspot_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3;
+	`
+	rows, err := s.db.QueryContext(ctx, query, hotspotID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var list []*types.HotspotSession
+	for rows.Next() {
+		sess, err := s.scanSession(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		list = append(list, sess)
+	}
+	if list == nil {
+		list = []*types.HotspotSession{}
+	}
+	return list, total, nil
+}
+
+func (s *PostgresStore) SaveHotspotVoucher(ctx context.Context, v *types.HotspotVoucher) error {
+	query := `
+		INSERT INTO hotspot_vouchers (
+			id, hotspot_id, package_id, code, batch_tag, is_claimed,
+			claimed_by_mac, claimed_at, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			is_claimed = EXCLUDED.is_claimed,
+			claimed_by_mac = EXCLUDED.claimed_by_mac,
+			claimed_at = EXCLUDED.claimed_at;
+	`
+	_, err := s.db.ExecContext(ctx, query,
+		v.ID, v.HotspotID, v.PackageID, v.Code, v.BatchTag,
+		v.IsClaimed, v.ClaimedByMAC, v.ClaimedAt,
+	)
+	return err
+}
+
+func (s *PostgresStore) scanVoucher(row interface{ Scan(...any) error }) (*types.HotspotVoucher, error) {
+	var v types.HotspotVoucher
+	err := row.Scan(
+		&v.ID, &v.HotspotID, &v.PackageID, &v.Code, &v.BatchTag,
+		&v.IsClaimed, &v.ClaimedByMAC, &v.ClaimedAt, &v.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (s *PostgresStore) GetHotspotVoucher(ctx context.Context, hotspotID types.ID, code string) (*types.HotspotVoucher, error) {
+	query := `
+		SELECT id, hotspot_id, package_id, code, batch_tag, is_claimed,
+		       claimed_by_mac, claimed_at, created_at
+		FROM hotspot_vouchers
+		WHERE hotspot_id = $1 AND code = $2;
+	`
+	return s.scanVoucher(s.db.QueryRowContext(ctx, query, hotspotID, code))
+}
+
+func (s *PostgresStore) ListHotspotVouchers(ctx context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotVoucher, int, error) {
+	var total int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM hotspot_vouchers WHERE hotspot_id = $1;", hotspotID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, hotspot_id, package_id, code, batch_tag, is_claimed,
+		       claimed_by_mac, claimed_at, created_at
+		FROM hotspot_vouchers
+		WHERE hotspot_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3;
+	`
+	rows, err := s.db.QueryContext(ctx, query, hotspotID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var list []*types.HotspotVoucher
+	for rows.Next() {
+		v, err := s.scanVoucher(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		list = append(list, v)
+	}
+	if list == nil {
+		list = []*types.HotspotVoucher{}
+	}
+	return list, total, nil
+}
+
+func (s *PostgresStore) ClaimHotspotVoucher(ctx context.Context, hotspotID types.ID, code, mac string) (*types.HotspotVoucher, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	query := `
+		SELECT id, hotspot_id, package_id, code, batch_tag, is_claimed,
+		       claimed_by_mac, claimed_at, created_at
+		FROM hotspot_vouchers
+		WHERE hotspot_id = $1 AND code = $2
+		FOR UPDATE;
+	`
+	v, err := s.scanVoucher(tx.QueryRowContext(ctx, query, hotspotID, code))
+	if err != nil {
+		return nil, err
+	}
+	if v.IsClaimed {
+		return nil, fmt.Errorf("voucher already claimed")
+	}
+
+	updateQuery := `
+		UPDATE hotspot_vouchers
+		SET is_claimed = TRUE, claimed_by_mac = $1, claimed_at = NOW()
+		WHERE id = $2;
+	`
+	if _, err := tx.ExecContext(ctx, updateQuery, mac, v.ID); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	v.IsClaimed = true
+	v.ClaimedByMAC = mac
+	v.ClaimedAt = &now
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 

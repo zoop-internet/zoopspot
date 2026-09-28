@@ -441,10 +441,12 @@ const SPA_ROUTES = [
   { route: '/app', title: 'Zoop App — Overview' },
   { route: '/app/overview', title: 'Overview — Zoop App' },
   { route: '/app/devices', title: 'Devices — Zoop App' },
+  { route: '/app/hotspots', title: 'Hotspots & Routers — ZoopSpot' },
   { route: '/app/connections', title: 'Connections — Zoop App' },
   { route: '/app/sharing', title: 'Sharing — Zoop App' },
   { route: '/app/wallet', title: 'Wallet & Earnings — Zoop App' },
   { route: '/app/settings', title: 'Settings — Zoop App' },
+  { route: '/portal', title: 'Wi-Fi Portal — ZoopSpot' },
 
   // Org dashboard
   { route: '/org', title: 'Organization — Zoop' },

@@ -14,13 +14,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/payments"
-	"github.com/allannuwamanya/zoop/packages/cloud/relay"
-	"github.com/allannuwamanya/zoop/packages/cloud/services"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
-	"github.com/allannuwamanya/zoop/packages/core/config"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/hotspot"
+	"github.com/zoop-internet/zoopspot/packages/cloud/payments"
+	"github.com/zoop-internet/zoopspot/packages/cloud/relay"
+	"github.com/zoop-internet/zoopspot/packages/cloud/services"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/core/config"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func isValidationError(msg string) bool {
@@ -84,6 +85,7 @@ type Server struct {
 	diagnosticsMu     sync.RWMutex
 	diagnosticReports map[types.ID][]api.DiagnosticReportRequest
 	payments          *payments.PaymentService
+	hotspots          *hotspot.HotspotService
 }
 
 type pairingEntry struct {
@@ -159,6 +161,8 @@ func NewServer(
 		ps = payments.NewPaymentService(st, payments.NewMockGateway(), logger)
 	}
 
+	hs := hotspot.NewHotspotService(st, ps, hotspot.NewMockRouterController(), logger, "", "", "")
+
 	s := &Server{
 		cfg:           cfg,
 		logger:        logger,
@@ -184,9 +188,15 @@ func NewServer(
 		pairingTokens:     make(map[string]pairingEntry),
 		diagnosticReports: make(map[types.ID][]api.DiagnosticReportRequest),
 		payments:          ps,
+		hotspots:          hs,
 	}
 	s.routes()
 	return s
+}
+
+// SetHotspotService overrides the default hotspot service.
+func (s *Server) SetHotspotService(hs *hotspot.HotspotService) {
+	s.hotspots = hs
 }
 
 // RelayRegistry returns the server's cluster relay registry.
@@ -262,6 +272,25 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /v1/wallet/transactions", authMw(http.HandlerFunc(s.handleListTransactions())))
 	s.mux.Handle("GET /v1/wallet/earnings", authMw(http.HandlerFunc(s.handleListEarnings())))
 	s.mux.HandleFunc("POST /v1/payments/webhook", s.handlePaymentWebhook())
+
+	// Hotspots & Hotspot Billing (Operator API)
+	s.mux.Handle("POST /v1/hotspots", authMw(http.HandlerFunc(s.handleCreateHotspot())))
+	s.mux.Handle("GET /v1/hotspots", authMw(http.HandlerFunc(s.handleListHotspots())))
+	s.mux.Handle("GET /v1/hotspots/{id}", authMw(http.HandlerFunc(s.handleGetHotspot())))
+	s.mux.Handle("DELETE /v1/hotspots/{id}", authMw(http.HandlerFunc(s.handleDeleteHotspot())))
+	s.mux.Handle("GET /v1/hotspots/{id}/script", authMw(http.HandlerFunc(s.handleGetHotspotScript())))
+	s.mux.Handle("POST /v1/hotspots/{id}/packages", authMw(http.HandlerFunc(s.handleCreateHotspotPackage())))
+	s.mux.Handle("GET /v1/hotspots/{id}/packages", authMw(http.HandlerFunc(s.handleListHotspotPackages())))
+	s.mux.Handle("POST /v1/hotspots/{id}/vouchers", authMw(http.HandlerFunc(s.handleGenerateVouchers())))
+	s.mux.Handle("GET /v1/hotspots/{id}/vouchers", authMw(http.HandlerFunc(s.handleListHotspotVouchers())))
+	s.mux.Handle("GET /v1/hotspots/{id}/stats", authMw(http.HandlerFunc(s.handleGetHotspotStats())))
+
+	// Public Captive Portal Endpoints (Unauthenticated for customer Wi-Fi devices)
+	s.mux.HandleFunc("GET /v1/portal/hotspot/{slug}", s.handlePortalGetHotspot())
+	s.mux.HandleFunc("POST /v1/portal/checkout", s.handlePortalCheckout())
+	s.mux.HandleFunc("POST /v1/portal/voucher", s.handlePortalVoucher())
+	s.mux.HandleFunc("POST /v1/portal/lifeline", s.handlePortalLifeline())
+	s.mux.HandleFunc("GET /v1/portal/session/{id}", s.handlePortalGetSession())
 
 	// Admin endpoints (operator console)
 	adminMw := api.AdminMiddleware(authMw, s.cfg.AdminIDs)

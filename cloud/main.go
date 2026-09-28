@@ -7,12 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/payments"
-	"github.com/allannuwamanya/zoop/packages/cloud/server"
-	"github.com/allannuwamanya/zoop/packages/cloud/services"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
-	"github.com/allannuwamanya/zoop/packages/core"
-	"github.com/allannuwamanya/zoop/packages/core/config"
+	"github.com/zoop-internet/zoopspot/packages/cloud/hotspot"
+	"github.com/zoop-internet/zoopspot/packages/cloud/payments"
+	"github.com/zoop-internet/zoopspot/packages/cloud/server"
+	"github.com/zoop-internet/zoopspot/packages/cloud/services"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/core"
+	"github.com/zoop-internet/zoopspot/packages/core/config"
 )
 
 func main() {
@@ -58,6 +59,11 @@ func main() {
 
 	// Initialize server (relay server shares the store for auth).
 	srv := server.NewServer(cfg, logger, st, deviceService, userService, orgService, shareService, connService, hub, paymentService)
+
+	// Initialize Hotspot billing service & MikroTik router controller
+	routerCtrl := hotspot.NewMikroTikRESTController(logger)
+	hotspotService := hotspot.NewHotspotService(st, paymentService, routerCtrl, logger, "", "", "")
+	srv.SetHotspotService(hotspotService)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/allannuwamanya/zoop/packages/agent/health"
-	"github.com/allannuwamanya/zoop/packages/agent/state"
-	"github.com/allannuwamanya/zoop/packages/agent/telemetry"
+	"github.com/zoop-internet/zoopspot/packages/agent/health"
+	"github.com/zoop-internet/zoopspot/packages/agent/state"
+	"github.com/zoop-internet/zoopspot/packages/agent/telemetry"
 )
 
 func TestGenerateBundle_PrivacyAndSanitization(t *testing.T) {

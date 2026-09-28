@@ -3,8 +3,9 @@ package store
 import (
 	"context"
 	"testing"
+	"time"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func TestInMemoryStore_Device(t *testing.T) {
@@ -365,6 +366,111 @@ func TestInMemoryStore_Payments(t *testing.T) {
 	}
 	if totalEarn != 1 || len(earnings) != 1 {
 		t.Errorf("expected 1 earning record, got total %d, count %d", totalEarn, len(earnings))
+	}
+}
+
+func TestInMemoryStore_Hotspots(t *testing.T) {
+	s := NewInMemoryStore()
+	ctx := context.Background()
+	ownerID := types.NewID()
+	hotspotID := types.NewID()
+
+	// 1. Hotspot CRUD
+	h := &types.Hotspot{
+		ID:         hotspotID,
+		OwnerID:    ownerID,
+		Name:       "Makerere Hostel Hub",
+		Slug:       "mak-hostel",
+		Location:   "Makerere Kikoni, Kampala",
+		RouterType: types.RouterMikroTik,
+		RouterIP:   "100.64.0.5",
+		Currency:   "UGX",
+		IsOnline:   true,
+	}
+	if err := s.SaveHotspot(ctx, h); err != nil {
+		t.Fatalf("SaveHotspot failed: %v", err)
+	}
+
+	bySlug, err := s.GetHotspotBySlug(ctx, "mak-hostel")
+	if err != nil {
+		t.Fatalf("GetHotspotBySlug failed: %v", err)
+	}
+	if bySlug.ID != hotspotID || bySlug.Name != "Makerere Hostel Hub" {
+		t.Errorf("hotspot mismatch: %+v", bySlug)
+	}
+
+	hotspots, err := s.ListHotspots(ctx, ownerID)
+	if err != nil || len(hotspots) != 1 {
+		t.Fatalf("ListHotspots failed: %v, count %d", err, len(hotspots))
+	}
+
+	// 2. Packages
+	pkgID := types.NewID()
+	pkg := &types.HotspotPackage{
+		ID:                pkgID,
+		HotspotID:         hotspotID,
+		Name:              "1 Hour Unlimited",
+		Price:             500,
+		DurationMinutes:   60,
+		RateLimitDownKbps: 5120,
+		RateLimitUpKbps:   2048,
+		IsActive:          true,
+	}
+	if err := s.SaveHotspotPackage(ctx, pkg); err != nil {
+		t.Fatalf("SaveHotspotPackage failed: %v", err)
+	}
+
+	pkgs, err := s.ListHotspotPackages(ctx, hotspotID)
+	if err != nil || len(pkgs) != 1 {
+		t.Fatalf("ListHotspotPackages failed: %v, count %d", err, len(pkgs))
+	}
+
+	// 3. Sessions
+	sessID := types.NewID()
+	now := time.Now().UTC()
+	exp := now.Add(time.Hour)
+	sess := &types.HotspotSession{
+		ID:          sessID,
+		HotspotID:   hotspotID,
+		PackageID:   &pkgID,
+		PhoneNumber: "+256770123456",
+		MACAddress:  "DC:A6:32:12:34:56",
+		ClientIP:    "192.168.88.20",
+		Status:      types.SessionActive,
+		StartedAt:   &now,
+		ExpiresAt:   &exp,
+	}
+	if err := s.SaveHotspotSession(ctx, sess); err != nil {
+		t.Fatalf("SaveHotspotSession failed: %v", err)
+	}
+
+	activeSess, err := s.GetActiveSessionByMAC(ctx, hotspotID, "DC:A6:32:12:34:56")
+	if err != nil || activeSess.ID != sessID {
+		t.Fatalf("GetActiveSessionByMAC failed: %v", err)
+	}
+
+	// 4. Vouchers
+	vID := types.NewID()
+	v := &types.HotspotVoucher{
+		ID:        vID,
+		HotspotID: hotspotID,
+		PackageID: pkgID,
+		Code:      "ZP-9876",
+		BatchTag:  "test-batch",
+	}
+	if err := s.SaveHotspotVoucher(ctx, v); err != nil {
+		t.Fatalf("SaveHotspotVoucher failed: %v", err)
+	}
+
+	claimedV, err := s.ClaimHotspotVoucher(ctx, hotspotID, "ZP-9876", "AA:BB:CC:DD:EE:FF")
+	if err != nil || !claimedV.IsClaimed || claimedV.ClaimedByMAC != "AA:BB:CC:DD:EE:FF" {
+		t.Fatalf("ClaimHotspotVoucher failed: %v", err)
+	}
+
+	// Claiming again should fail
+	_, err = s.ClaimHotspotVoucher(ctx, hotspotID, "ZP-9876", "11:22:33:44:55:66")
+	if err == nil {
+		t.Errorf("expected error on re-claiming already claimed voucher")
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
 )
 
 func TestMetricsMiddleware(t *testing.T) {

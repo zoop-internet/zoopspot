@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // ServerEvent is a real-time notification pushed to authenticated web clients

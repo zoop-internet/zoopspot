@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
+	"github.com/zoop-internet/zoopspot/packages/agent/tunnel"
 )
 
 func TestDeadPeerDetector_LivelinessFlow(t *testing.T) {

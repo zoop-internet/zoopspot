@@ -15,15 +15,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/agent/client"
-	"github.com/allannuwamanya/zoop/packages/agent/identity"
-	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/server"
-	"github.com/allannuwamanya/zoop/packages/cloud/services"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
-	"github.com/allannuwamanya/zoop/packages/core/config"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/agent/client"
+	"github.com/zoop-internet/zoopspot/packages/agent/identity"
+	"github.com/zoop-internet/zoopspot/packages/agent/tunnel"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/server"
+	"github.com/zoop-internet/zoopspot/packages/cloud/services"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/core/config"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func loadIdentity(path string) (types.Identity, ed25519.PrivateKey, error) {

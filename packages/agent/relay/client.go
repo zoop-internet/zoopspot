@@ -15,8 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	cloudrelay "github.com/allannuwamanya/zoop/packages/cloud/relay"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	cloudrelay "github.com/zoop-internet/zoopspot/packages/cloud/relay"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // FrameHandler receives inbound frames from the relay client.

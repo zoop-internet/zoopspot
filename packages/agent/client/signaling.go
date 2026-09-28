@@ -14,8 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/agent/tunnel"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 

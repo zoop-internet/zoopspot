@@ -1,6 +1,6 @@
 package api
 
-import "github.com/allannuwamanya/zoop/packages/core/types"
+import "github.com/zoop-internet/zoopspot/packages/core/types"
 
 // ErrorResponse represents the standardized JSON error model.
 type ErrorResponse struct {

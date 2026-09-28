@@ -835,3 +835,230 @@ export async function adminTestIntegration(
   const authHeaders = await buildSignedAuthHeaders('POST', path);
   return apiFetch<IntegrationTestResult>(path, { method: 'POST', headers: authHeaders });
 }
+
+// ─── Hotspot & Captive Portal Types ───────────────────────────
+
+export interface ApiHotspot {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  location: string;
+  router_type: 'mikrotik' | 'openwrt' | 'linux';
+  router_ip: string;
+  tunnel_ip?: string;
+  currency: string;
+  is_online: boolean;
+  last_heartbeat?: string;
+  created_at: string;
+}
+
+export interface ApiHotspotPackage {
+  id: string;
+  hotspot_id: string;
+  name: string;
+  price: number;
+  currency?: string;
+  duration_minutes: number;
+  data_limit_bytes: number;
+  rate_limit_down_kbps: number;
+  rate_limit_up_kbps: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ApiHotspotSession {
+  id: string;
+  hotspot_id: string;
+  package_id?: string;
+  phone_number?: string;
+  mac_address: string;
+  client_ip: string;
+  status: 'pending' | 'active' | 'expired' | 'terminated';
+  transaction_id?: string;
+  voucher_code?: string;
+  bytes_downloaded: number;
+  bytes_uploaded: number;
+  started_at?: string;
+  expires_at?: string;
+  created_at: string;
+}
+
+export interface ApiHotspotVoucher {
+  id: string;
+  hotspot_id: string;
+  package_id: string;
+  code: string;
+  batch_tag: string;
+  is_claimed: boolean;
+  claimed_by_mac?: string;
+  claimed_at?: string;
+  created_at: string;
+}
+
+export interface ApiHotspotStats {
+  hotspot_id: string;
+  active_sessions: number;
+  total_sessions: number;
+  revenue_today_ugx: number;
+  total_revenue_ugx: number;
+  bytes_today: number;
+  total_vouchers: number;
+  claimed_vouchers: number;
+  total_bytes_down: number;
+  total_bytes_up: number;
+}
+
+export interface PortalCheckoutPayload {
+  hotspot_slug: string;
+  package_id: string;
+  phone_number: string;
+  mac_address: string;
+  client_ip?: string;
+}
+
+export interface PortalCheckoutResponse {
+  session_id: string;
+  transaction_id: string;
+  status: 'pending' | 'active';
+  amount: number;
+  currency: string;
+  message: string;
+}
+
+// ─── Public Captive Portal API ────────────────────────────────
+
+export async function getPortalHotspot(slug: string): Promise<{
+  hotspot: { id: string; name: string; slug: string; location: string; currency: string; is_online: boolean };
+  packages: ApiHotspotPackage[];
+}> {
+  return apiFetch(`/v1/portal/hotspot/${encodeURIComponent(slug)}`);
+}
+
+export async function portalCheckout(data: PortalCheckoutPayload): Promise<PortalCheckoutResponse> {
+  return apiFetch('/v1/portal/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function portalVoucher(data: {
+  hotspot_slug: string;
+  code: string;
+  mac_address: string;
+  client_ip?: string;
+}): Promise<ApiHotspotSession> {
+  return apiFetch('/v1/portal/voucher', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function portalLifeline(data: {
+  hotspot_slug: string;
+  mac_address: string;
+  client_ip?: string;
+}): Promise<ApiHotspotSession> {
+  return apiFetch('/v1/portal/lifeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getPortalSession(id: string): Promise<ApiHotspotSession> {
+  return apiFetch(`/v1/portal/session/${encodeURIComponent(id)}`);
+}
+
+// ─── Operator Hotspot Fleet API ───────────────────────────────
+
+export async function createHotspot(data: {
+  name: string;
+  slug?: string;
+  location?: string;
+  router_type?: string;
+}): Promise<ApiHotspot> {
+  const path = '/v1/hotspots';
+  const body = JSON.stringify(data);
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiHotspot>(path, { method: 'POST', headers: authHeaders, body });
+}
+
+export async function listHotspots(): Promise<{ hotspots: ApiHotspot[]; total: number }> {
+  const path = '/v1/hotspots';
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<{ hotspots: ApiHotspot[]; total: number }>(path, { headers: authHeaders });
+}
+
+export async function getHotspot(id: string): Promise<ApiHotspot> {
+  const path = `/v1/hotspots/${encodeURIComponent(id)}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiHotspot>(path, { headers: authHeaders });
+}
+
+export async function deleteHotspot(id: string): Promise<{ status: string }> {
+  const path = `/v1/hotspots/${encodeURIComponent(id)}`;
+  const authHeaders = await buildSignedAuthHeaders('DELETE', path);
+  return apiFetch<{ status: string }>(path, { method: 'DELETE', headers: authHeaders });
+}
+
+export async function getHotspotScript(id: string): Promise<string> {
+  const path = `/v1/hotspots/${encodeURIComponent(id)}/script`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders });
+  if (!res.ok) throw new Error(`Failed to fetch script: ${res.statusText}`);
+  return res.text();
+}
+
+export async function createHotspotPackage(
+  hotspotId: string,
+  data: {
+    name: string;
+    price: number;
+    duration_minutes: number;
+    rate_down_kbps?: number;
+    rate_up_kbps?: number;
+  }
+): Promise<ApiHotspotPackage> {
+  const path = `/v1/hotspots/${encodeURIComponent(hotspotId)}/packages`;
+  const body = JSON.stringify(data);
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<ApiHotspotPackage>(path, { method: 'POST', headers: authHeaders, body });
+}
+
+export async function listHotspotPackages(
+  hotspotId: string
+): Promise<{ packages: ApiHotspotPackage[]; total: number }> {
+  const path = `/v1/hotspots/${encodeURIComponent(hotspotId)}/packages`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<{ packages: ApiHotspotPackage[]; total: number }>(path, { headers: authHeaders });
+}
+
+export async function generateVouchers(
+  hotspotId: string,
+  data: { package_id: string; count: number; batch_tag?: string }
+): Promise<{ vouchers: ApiHotspotVoucher[]; total: number }> {
+  const path = `/v1/hotspots/${encodeURIComponent(hotspotId)}/vouchers`;
+  const body = JSON.stringify(data);
+  const authHeaders = await buildSignedAuthHeaders('POST', path, body);
+  return apiFetch<{ vouchers: ApiHotspotVoucher[]; total: number }>(path, { method: 'POST', headers: authHeaders, body });
+}
+
+export async function listHotspotVouchers(
+  hotspotId: string,
+  limit = 50,
+  offset = 0
+): Promise<{ vouchers: ApiHotspotVoucher[]; total: number; limit: number; offset: number }> {
+  const path = `/v1/hotspots/${encodeURIComponent(hotspotId)}/vouchers?limit=${limit}&offset=${offset}`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch(path, { headers: authHeaders });
+}
+
+export async function getHotspotStats(hotspotId: string): Promise<ApiHotspotStats> {
+  const path = `/v1/hotspots/${encodeURIComponent(hotspotId)}/stats`;
+  const authHeaders = await buildSignedAuthHeaders('GET', path);
+  return apiFetch<ApiHotspotStats>(path, { headers: authHeaders });
+}
+

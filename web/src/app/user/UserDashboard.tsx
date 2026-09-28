@@ -16,6 +16,7 @@ import {
 
 import { Icons } from '../../components/iconDefs';
 import { AwsSpinner } from '../../components/AwsSpinner';
+import { HotspotsTab } from './HotspotsTab';
 
 /* ─── Icon helpers ───────────────────────────────────────────── */
 const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size = 15 }) =>
@@ -26,15 +27,16 @@ const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size
 const I = Icons;
 
 /* ─── Tab types ───────────────────────────────────────────────── */
-type UserTab = 'overview' | 'devices' | 'connections' | 'sharing' | 'wallet' | 'settings';
+type UserTab = 'overview' | 'devices' | 'hotspots' | 'connections' | 'sharing' | 'wallet' | 'settings';
 
 const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',    label: 'Overview',          icon: <Ico d={I.home}       /> },
-  { id: 'devices',     label: 'Devices',           icon: <Ico d={I.monitor}    /> },
-  { id: 'connections', label: 'Connections',       icon: <Ico d={I.link}       /> },
-  { id: 'sharing',     label: 'Sharing',           icon: <Ico d={I.share}      /> },
-  { id: 'wallet',      label: 'Wallet & Earnings', icon: <Ico d={I.wallet}     /> },
-  { id: 'settings',    label: 'Settings',          icon: <Ico d={I.settings}   /> },
+  { id: 'overview',    label: 'Overview',           icon: <Ico d={I.home}       /> },
+  { id: 'devices',     label: 'Devices',            icon: <Ico d={I.monitor}    /> },
+  { id: 'hotspots',    label: 'Hotspots & Routers', icon: <Ico d={I.wifi}       /> },
+  { id: 'connections', label: 'Connections',        icon: <Ico d={I.link}       /> },
+  { id: 'sharing',     label: 'Sharing',            icon: <Ico d={I.share}      /> },
+  { id: 'wallet',      label: 'Wallet & Earnings',  icon: <Ico d={I.wallet}     /> },
+  { id: 'settings',    label: 'Settings',           icon: <Ico d={I.settings}   /> },
 ];
 
 /* ─── Toast ───────────────────────────────────────────────────── */
@@ -1643,11 +1645,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   const getTabFromPath = (path?: string): UserTab => {
     const p = (path || window.location.pathname).replace(/\/+$/, '');
     const seg = p.split('/').pop()?.toLowerCase();
-    if (seg && ['overview', 'devices', 'connections', 'sharing', 'wallet', 'settings'].includes(seg)) {
+    if (seg && ['overview', 'devices', 'hotspots', 'connections', 'sharing', 'wallet', 'settings'].includes(seg)) {
       return seg as UserTab;
     }
     const h = window.location.hash.replace(/^#/, '').toLowerCase();
-    if (['overview', 'devices', 'connections', 'sharing', 'wallet', 'settings'].includes(h)) {
+    if (['overview', 'devices', 'hotspots', 'connections', 'sharing', 'wallet', 'settings'].includes(h)) {
       return h as UserTab;
     }
     return 'overview';
@@ -1685,6 +1687,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   const navCounts: Record<UserTab, number | null> = {
     overview: null,
     devices: allDevices.length || null,
+    hotspots: null,
     connections: connections.filter(c => ['REQUESTED','CONNECTING','CONNECTED','AUTHORIZED'].includes(c.state)).length || null,
     sharing: null,
     wallet: null,
@@ -1711,6 +1714,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   const TAB_TITLES: Record<UserTab, string> = {
     overview:    'Overview',
     devices:     'Devices',
+    hotspots:    'Hotspots & Routers',
     connections: 'Connections',
     sharing:     'Sharing',
     wallet:      'Wallet & Earnings',
@@ -1719,6 +1723,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   const TAB_SUBS: Record<UserTab, string> = {
     overview:    'Your device mesh at a glance',
     devices:     'Fleet inventory — click ID to copy',
+    hotspots:    'MikroTik & OpenWrt fleet, packages, vouchers, and live revenue',
     connections: 'Borrow internet — you are recipient → provider approves',
     sharing:     'Lend internet — you are provider → authorize recipients',
     wallet:      'Mobile Money + bandwidth earnings (UGX)',
@@ -1854,6 +1859,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
         <main id="main-content" className="page-body" tabIndex={-1} aria-labelledby="page-title">
           {tab === 'overview'    && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
           {tab === 'devices'     && <DevicesTab  onRegister={handleRegisterDirect} onToast={addToast} />}
+          {tab === 'hotspots'    && <HotspotsTab onToast={addToast} />}
           {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => handleTabChange('sharing')} />}
           {tab === 'sharing'     && <SharingTab onToast={addToast} />}
           {tab === 'wallet'      && <WalletTab onToast={addToast} />}

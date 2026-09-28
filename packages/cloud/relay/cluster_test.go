@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
-	"github.com/allannuwamanya/zoop/packages/cloud/relay"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	agentrelay "github.com/zoop-internet/zoopspot/packages/agent/relay"
+	"github.com/zoop-internet/zoopspot/packages/cloud/relay"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func TestRelayRegistry_MultiRegionSelection(t *testing.T) {

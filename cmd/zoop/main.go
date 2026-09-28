@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/agent/health"
-	"github.com/allannuwamanya/zoop/packages/agent/state"
-	"github.com/allannuwamanya/zoop/packages/core/config"
+	"github.com/zoop-internet/zoopspot/packages/agent/health"
+	"github.com/zoop-internet/zoopspot/packages/agent/state"
+	"github.com/zoop-internet/zoopspot/packages/core/config"
 )
 
 var defaultSocketPath = "/var/run/zoopd.sock"

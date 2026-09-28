@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	agentrelay "github.com/allannuwamanya/zoop/packages/agent/relay"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	agentrelay "github.com/zoop-internet/zoopspot/packages/agent/relay"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 

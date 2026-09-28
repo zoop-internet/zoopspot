@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/payments"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/payments"
 )
 
 // maskSecret masks a secret string so only the last 4 chars show: "••••••••abcd"

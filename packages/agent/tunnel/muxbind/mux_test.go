@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/agent/tunnel/muxbind"
+	"github.com/zoop-internet/zoopspot/packages/agent/tunnel/muxbind"
 	"golang.zx2c4.com/wireguard/conn"
 )
 

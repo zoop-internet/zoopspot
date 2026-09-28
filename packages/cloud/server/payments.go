@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/payments"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/payments"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 
@@ -155,6 +155,17 @@ func (s *Server) handlePaymentWebhook() http.HandlerFunc {
 			api.WriteError(w, "internal_error", "webhook processing failed", http.StatusInternalServerError)
 			return
 		}
+
+		// Trigger hotspot session unlock if this transaction is linked to a captive portal checkout
+		var payload payments.GatewayWebhookPayload
+		if err := json.Unmarshal(body, &payload); err == nil && (payload.Status == "success" || payload.Status == "completed") {
+			if txn, err := s.store.GetTransactionByReference(r.Context(), payload.Reference); err == nil && txn != nil {
+				if s.hotspots != nil {
+					_, _ = s.hotspots.UnlockSessionOnPayment(r.Context(), txn.ID)
+				}
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"success","received":true}`))

@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/store"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/store"
 )
 
 func (s *Server) handleGetUserByZoopID() http.HandlerFunc {

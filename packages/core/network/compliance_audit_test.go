@@ -7,8 +7,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/allannuwamanya/zoop/packages/agent/tunnel"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/agent/tunnel"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 func TestSecurityAndLeakCompliance_IPv6LeakProtection(t *testing.T) {

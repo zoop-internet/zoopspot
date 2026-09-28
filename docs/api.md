@@ -960,3 +960,107 @@ It should never become the default path for the Internet traffic that Zoop is de
 **Control Plane coordinates.**
 
 **Data Plane transports.**
+
+---
+
+# 14. ZoopSpot Hotspots & Captive Portal API
+
+ZoopSpot introduces specialized endpoints for operator fleet management and customer captive portal monetization.
+
+## 14.1 Operator Fleet Endpoints
+
+All operator endpoints require authenticated device/user headers (`X-Zoop-Device-ID`, `X-Zoop-Timestamp`, `X-Zoop-Signature`).
+
+### `POST /v1/hotspots`
+Creates a new hotspot venue.
+```json
+{
+  "name": "Acacia Cyber Hub",
+  "slug": "acacia-hub",
+  "location": "Acacia Mall, Level 2, Kampala",
+  "router_type": "mikrotik"
+}
+```
+
+### `GET /v1/hotspots`
+Lists all hotspots managed by the caller.
+
+### `GET /v1/hotspots/{id}`
+Returns full configuration and status for a specific hotspot.
+
+### `DELETE /v1/hotspots/{id}`
+Deletes a hotspot venue.
+
+### `GET /v1/hotspots/{id}/script`
+Auto-generates a ready-to-paste MikroTik RouterOS v7 provisioning script, configuring the WireGuard management interface, `/30` overlay IP (`100.64.x.x`), REST API credentials, and Walled Garden rules.
+
+### `POST /v1/hotspots/{id}/packages`
+Creates an internet package tier.
+```json
+{
+  "name": "1 Hour Fast Access",
+  "price": 1000,
+  "duration_minutes": 60,
+  "rate_down_kbps": 5120,
+  "rate_up_kbps": 2048
+}
+```
+
+### `GET /v1/hotspots/{id}/packages`
+Returns all packages configured for a venue.
+
+### `POST /v1/hotspots/{id}/vouchers`
+Batch-generates 8-character cryptographic offline vouchers for retail cash sales.
+```json
+{
+  "package_id": "pkg_123",
+  "count": 50,
+  "batch_tag": "march-batch-1"
+}
+```
+
+### `GET /v1/hotspots/{id}/vouchers`
+Lists generated vouchers with claimed status and customer MAC.
+
+### `GET /v1/hotspots/{id}/stats`
+Returns live operational metrics: active sessions, total sessions, claimed vs total vouchers, and total bandwidth served.
+
+---
+
+## 14.2 Public Captive Portal Endpoints
+
+These endpoints are **unauthenticated** because venue Wi-Fi clients are not yet logged into the network.
+
+### `GET /v1/portal/hotspot/{slug}`
+Returns venue details, online status, and available packages for display on the captive landing page.
+
+### `POST /v1/portal/checkout`
+Initiates an automated MTN or Airtel Mobile Money STK prompt.
+```json
+{
+  "hotspot_slug": "acacia-hub",
+  "package_id": "pkg_123",
+  "phone_number": "0771234567",
+  "mac_address": "AA:BB:CC:DD:EE:FF",
+  "client_ip": "192.168.88.254"
+}
+```
+Returns a `session_id` and `transaction_id`. The client immediately receives a USSD PIN prompt on their phone.
+
+### `POST /v1/portal/voucher`
+Redeems an offline scratch voucher code.
+```json
+{
+  "hotspot_slug": "acacia-hub",
+  "code": "A8K9M3X2",
+  "mac_address": "AA:BB:CC:DD:EE:FF"
+}
+```
+Returns the activated session and instructs the router to bypass the client MAC.
+
+### `POST /v1/portal/lifeline`
+Awards a 10-minute free emergency lifeline (capped at 2 Mbps) once per 24 hours per client MAC.
+
+### `GET /v1/portal/session/{id}`
+Polled by the captive portal front-end to verify when Mobile Money payment is confirmed and the session status changes to `active`.
+

@@ -11,11 +11,13 @@ const UserDashboard = lazy(() => import('./app/user/UserDashboard').then(m => ({
 const OrgDashboard = lazy(() => import('./app/org/OrgDashboard').then(m => ({ default: m.OrgDashboard })));
 const AdminConsole = lazy(() => import('./admin/AdminConsole').then(m => ({ default: m.AdminConsole })));
 const AuthPage = lazy(() => import('./auth/AuthPage').then(m => ({ default: m.AuthPage })));
+const CaptivePortal = lazy(() => import('./portal/CaptivePortal').then(m => ({ default: m.CaptivePortal })));
 import { AwsSpinner } from './components/AwsSpinner';
 import { getSharedSessionPayload, utf8ToBase64 } from './api/identity';
 
 // Route-specific meta for SEO (S4-05) — keep in sync with scripts/prerender.mjs
 const ROUTE_META: Record<string, { title: string; desc: string }> = {
+  '/portal': { title: 'Wi-Fi Captive Portal — ZoopSpot | Mobile Money & Vouchers', desc: 'Connect to high-speed venue Wi-Fi with automated MTN/Airtel Mobile Money payment or offline voucher.' },
   '/': { title: 'Zoop — Secure Direct Device-to-Device Sharing | Private Mesh', desc: 'Share your home or phone internet directly with trusted devices — no VPN bottlenecks. WireGuard-encrypted, NAT-traversal, open-source & free. Install Zoop in 30 seconds.' },
   '/how-it-works': { title: 'How Zoop Works — Direct Encrypted Mesh Without VPN Bottlenecks', desc: 'Learn how Zoop creates direct WireGuard tunnels device-to-device, with STUN/TURN NAT traversal and zero-knowledge relays. No centralized payload routing.' },
   '/products': { title: 'Products — Zoop for Desktop, Mobile & Routers | One Ecosystem', desc: 'Zoop for Linux, macOS, Windows, Android, iOS & OpenWrt. One mesh across your computers, phones and home routers.' },
@@ -61,11 +63,11 @@ function normalizePath(raw: string): string {
 
 const VALID_ROUTES = new Set([
   '/', '/how-it-works', '/products', '/downloads', '/security', '/pricing', '/docs',
-  '/blog',
+  '/blog', '/portal',
   '/privacy', '/privacy-policy', '/terms', '/terms-of-service', '/eula',
   '/auth', '/login', '/signin', '/sign-in', '/signup', '/sign-up', '/register',
   '/app', '/user', '/org', '/admin',
-  '/overview', '/devices', '/connections', '/sharing', '/wallet', '/settings',
+  '/overview', '/devices', '/hotspots', '/connections', '/sharing', '/wallet', '/settings',
 ]);
 
 const AppContent: React.FC = () => {
@@ -166,7 +168,7 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const DASH_ROUTES = new Set(['/overview', '/devices', '/connections', '/sharing', '/wallet', '/settings']);
+  const DASH_ROUTES = new Set(['/overview', '/devices', '/hotspots', '/connections', '/sharing', '/wallet', '/settings']);
 
   // Subdomain routing rules
   useEffect(() => {
@@ -229,6 +231,7 @@ const AppContent: React.FC = () => {
     VALID_ROUTES.has(normalized) ||
     normalized.startsWith('/docs') ||
     normalized.startsWith('/blog') ||
+    normalized.startsWith('/portal') ||
     normalized.startsWith('/app') ||
     normalized.startsWith('/user') ||
     normalized.startsWith('/org') ||
@@ -258,6 +261,8 @@ const AppContent: React.FC = () => {
   const isAdmin = normalized === '/admin' || normalized.startsWith('/admin/');
   const isAuthorizedAdmin = isAuthenticated && (user?.role === 'admin' || user?.role === 'operator');
 
+  const isPortal = normalized === '/portal' || normalized.startsWith('/portal');
+
   // Per-route title/description/canonical/robots sync for SEO
   useEffect(() => {
     const key = ROUTE_META[normalized]
@@ -284,28 +289,30 @@ const AppContent: React.FC = () => {
     // Subdomains and private app routes MUST NOT be indexed by search engines
     const robotsTag = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
     if (robotsTag) {
-      const isPrivate = isDashHost || isAdminHost || isApp || isOrg || isAdmin || !isValidRoute;
+      const isPrivate = isDashHost || isAdminHost || isApp || isOrg || isAdmin || isPortal || !isValidRoute;
       robotsTag.content = isPrivate ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
     }
-  }, [normalized, isValidRoute, isDashHost, isAdminHost, isApp, isOrg, isAdmin]);
+  }, [normalized, isValidRoute, isDashHost, isAdminHost, isApp, isOrg, isAdmin, isPortal]);
 
-  const initialAuthTab =
-    normalized.includes('signup') ||
-    normalized.includes('sign-up') ||
-    normalized.includes('register') ||
-    searchParams.get('tab') === 'signup'
-      ? 'signup'
-      : 'signin';
+const initialAuthTab =
+  normalized.includes('signup') ||
+  normalized.includes('sign-up') ||
+  normalized.includes('register') ||
+  searchParams.get('tab') === 'signup'
+    ? 'signup'
+    : 'signin';
 
-  const redirectUrl = searchParams.get('redirect_url') || (isDashHost ? '/' : '/app');
+const redirectUrl = searchParams.get('redirect_url') || (isDashHost ? '/' : '/app');
 
-  return (
-    <ErrorBoundary>
-      <Suspense fallback={<Fallback />}>
-        {!isValidRoute ? (
-          <NotFound path={pathname} onNavigate={navigateTo} />
-        ) : isAuth ? (
-          <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
+return (
+  <ErrorBoundary>
+    <Suspense fallback={<Fallback />}>
+      {!isValidRoute ? (
+        <NotFound path={pathname} onNavigate={navigateTo} />
+      ) : isPortal ? (
+        <ErrorBoundary><CaptivePortal /></ErrorBoundary>
+      ) : isAuth ? (
+        <AuthPage initialTab={initialAuthTab} redirectUrl={redirectUrl} onNavigate={navigateTo} />
         ) : isApp ? (
           <ErrorBoundary><UserDashboard mode="user" onSwitch={handleSwitchMode} currentPath={pathname} onNavigate={navigateTo} /></ErrorBoundary>
         ) : isOrg ? (

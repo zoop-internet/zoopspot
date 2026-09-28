@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 

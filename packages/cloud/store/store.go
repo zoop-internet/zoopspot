@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 var (
@@ -79,6 +79,29 @@ type Store interface {
 
 	// IPAMUsage returns the number of allocated /30 pairs and the pool capacity.
 	IPAMUsage(ctx context.Context) (allocated, capacity uint32, err error)
+
+	// Hotspots & Hotspot Billing
+	SaveHotspot(ctx context.Context, h *types.Hotspot) error
+	GetHotspot(ctx context.Context, id types.ID) (*types.Hotspot, error)
+	GetHotspotBySlug(ctx context.Context, slug string) (*types.Hotspot, error)
+	ListHotspots(ctx context.Context, ownerID types.ID) ([]*types.Hotspot, error)
+	ListAllHotspots(ctx context.Context) ([]*types.Hotspot, error)
+	DeleteHotspot(ctx context.Context, id types.ID) error
+
+	SaveHotspotPackage(ctx context.Context, pkg *types.HotspotPackage) error
+	GetHotspotPackage(ctx context.Context, id types.ID) (*types.HotspotPackage, error)
+	ListHotspotPackages(ctx context.Context, hotspotID types.ID) ([]*types.HotspotPackage, error)
+	DeleteHotspotPackage(ctx context.Context, id types.ID) error
+
+	SaveHotspotSession(ctx context.Context, session *types.HotspotSession) error
+	GetHotspotSession(ctx context.Context, id types.ID) (*types.HotspotSession, error)
+	GetActiveSessionByMAC(ctx context.Context, hotspotID types.ID, mac string) (*types.HotspotSession, error)
+	ListHotspotSessions(ctx context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotSession, int, error)
+
+	SaveHotspotVoucher(ctx context.Context, v *types.HotspotVoucher) error
+	GetHotspotVoucher(ctx context.Context, hotspotID types.ID, code string) (*types.HotspotVoucher, error)
+	ListHotspotVouchers(ctx context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotVoucher, int, error)
+	ClaimHotspotVoucher(ctx context.Context, hotspotID types.ID, code, mac string) (*types.HotspotVoucher, error)
 }
 
 // ipamAllocator hands out sequential IP pairs from 100.64.0.0/10 (RFC 6598).
@@ -159,6 +182,11 @@ type InMemoryStore struct {
 	transactions      map[types.ID]*types.PaymentTransaction
 	transactionsByRef map[string]types.ID
 	earnings          map[types.ID][]*types.EarningRecord
+	hotspots          map[types.ID]*types.Hotspot
+	hotspotsBySlug    map[string]types.ID
+	hotspotPackages   map[types.ID]*types.HotspotPackage
+	hotspotSessions   map[types.ID]*types.HotspotSession
+	hotspotVouchers   map[types.ID]*types.HotspotVoucher
 	ipam              *ipamAllocator
 }
 
@@ -178,6 +206,11 @@ func NewInMemoryStore() *InMemoryStore {
 		transactions:      make(map[types.ID]*types.PaymentTransaction),
 		transactionsByRef: make(map[string]types.ID),
 		earnings:          make(map[types.ID][]*types.EarningRecord),
+		hotspots:          make(map[types.ID]*types.Hotspot),
+		hotspotsBySlug:    make(map[string]types.ID),
+		hotspotPackages:   make(map[types.ID]*types.HotspotPackage),
+		hotspotSessions:   make(map[types.ID]*types.HotspotSession),
+		hotspotVouchers:   make(map[types.ID]*types.HotspotVoucher),
 		ipam:              &ipamAllocator{},
 	}
 }
@@ -796,6 +829,243 @@ func (s *InMemoryStore) GetBillingOverview(_ context.Context) (*types.BillingOve
 	}
 
 	return overview, nil
+}
+
+// ─── Hotspots & Billing ───────────────────────────────────────
+
+func (s *InMemoryStore) SaveHotspot(_ context.Context, h *types.Hotspot) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if h.CreatedAt.IsZero() {
+		h.CreatedAt = time.Now().UTC()
+	}
+	h.UpdatedAt = time.Now().UTC()
+	cp := *h
+	s.hotspots[h.ID] = &cp
+	if h.Slug != "" {
+		s.hotspotsBySlug[h.Slug] = h.ID
+	}
+	return nil
+}
+
+func (s *InMemoryStore) GetHotspot(_ context.Context, id types.ID) (*types.Hotspot, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	h, ok := s.hotspots[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *h
+	return &cp, nil
+}
+
+func (s *InMemoryStore) GetHotspotBySlug(_ context.Context, slug string) (*types.Hotspot, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	id, ok := s.hotspotsBySlug[slug]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	h, ok := s.hotspots[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *h
+	return &cp, nil
+}
+
+func (s *InMemoryStore) ListHotspots(_ context.Context, ownerID types.ID) ([]*types.Hotspot, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*types.Hotspot
+	for _, h := range s.hotspots {
+		if h.OwnerID == ownerID {
+			cp := *h
+			list = append(list, &cp)
+		}
+	}
+	return list, nil
+}
+
+func (s *InMemoryStore) ListAllHotspots(_ context.Context) ([]*types.Hotspot, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*types.Hotspot
+	for _, h := range s.hotspots {
+		cp := *h
+		list = append(list, &cp)
+	}
+	return list, nil
+}
+
+func (s *InMemoryStore) DeleteHotspot(_ context.Context, id types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if h, ok := s.hotspots[id]; ok {
+		delete(s.hotspotsBySlug, h.Slug)
+		delete(s.hotspots, id)
+	}
+	return nil
+}
+
+func (s *InMemoryStore) SaveHotspotPackage(_ context.Context, pkg *types.HotspotPackage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if pkg.CreatedAt.IsZero() {
+		pkg.CreatedAt = time.Now().UTC()
+	}
+	cp := *pkg
+	s.hotspotPackages[pkg.ID] = &cp
+	return nil
+}
+
+func (s *InMemoryStore) GetHotspotPackage(_ context.Context, id types.ID) (*types.HotspotPackage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	pkg, ok := s.hotspotPackages[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *pkg
+	return &cp, nil
+}
+
+func (s *InMemoryStore) ListHotspotPackages(_ context.Context, hotspotID types.ID) ([]*types.HotspotPackage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*types.HotspotPackage
+	for _, p := range s.hotspotPackages {
+		if p.HotspotID == hotspotID {
+			cp := *p
+			list = append(list, &cp)
+		}
+	}
+	return list, nil
+}
+
+func (s *InMemoryStore) DeleteHotspotPackage(_ context.Context, id types.ID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.hotspotPackages, id)
+	return nil
+}
+
+func (s *InMemoryStore) SaveHotspotSession(_ context.Context, session *types.HotspotSession) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now().UTC()
+	}
+	cp := *session
+	s.hotspotSessions[session.ID] = &cp
+	return nil
+}
+
+func (s *InMemoryStore) GetHotspotSession(_ context.Context, id types.ID) (*types.HotspotSession, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	sess, ok := s.hotspotSessions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := *sess
+	return &cp, nil
+}
+
+func (s *InMemoryStore) GetActiveSessionByMAC(_ context.Context, hotspotID types.ID, mac string) (*types.HotspotSession, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, sess := range s.hotspotSessions {
+		if sess.HotspotID == hotspotID && sess.MACAddress == mac && sess.Status == types.SessionActive {
+			cp := *sess
+			return &cp, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *InMemoryStore) ListHotspotSessions(_ context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotSession, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*types.HotspotSession
+	for _, sess := range s.hotspotSessions {
+		if sess.HotspotID == hotspotID {
+			cp := *sess
+			list = append(list, &cp)
+		}
+	}
+	total := len(list)
+	if offset >= total {
+		return []*types.HotspotSession{}, total, nil
+	}
+	end := offset + limit
+	if end > total || limit <= 0 {
+		end = total
+	}
+	return list[offset:end], total, nil
+}
+
+func (s *InMemoryStore) SaveHotspotVoucher(_ context.Context, v *types.HotspotVoucher) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if v.CreatedAt.IsZero() {
+		v.CreatedAt = time.Now().UTC()
+	}
+	cp := *v
+	s.hotspotVouchers[v.ID] = &cp
+	return nil
+}
+
+func (s *InMemoryStore) GetHotspotVoucher(_ context.Context, hotspotID types.ID, code string) (*types.HotspotVoucher, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, v := range s.hotspotVouchers {
+		if v.HotspotID == hotspotID && v.Code == code {
+			cp := *v
+			return &cp, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *InMemoryStore) ListHotspotVouchers(_ context.Context, hotspotID types.ID, limit, offset int) ([]*types.HotspotVoucher, int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*types.HotspotVoucher
+	for _, v := range s.hotspotVouchers {
+		if v.HotspotID == hotspotID {
+			cp := *v
+			list = append(list, &cp)
+		}
+	}
+	total := len(list)
+	if offset >= total {
+		return []*types.HotspotVoucher{}, total, nil
+	}
+	end := offset + limit
+	if end > total || limit <= 0 {
+		end = total
+	}
+	return list[offset:end], total, nil
+}
+
+func (s *InMemoryStore) ClaimHotspotVoucher(_ context.Context, hotspotID types.ID, code, mac string) (*types.HotspotVoucher, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, v := range s.hotspotVouchers {
+		if v.HotspotID == hotspotID && v.Code == code {
+			if v.IsClaimed {
+				return nil, fmt.Errorf("voucher already claimed")
+			}
+			now := time.Now().UTC()
+			v.IsClaimed = true
+			v.ClaimedByMAC = mac
+			v.ClaimedAt = &now
+			cp := *v
+			return &cp, nil
+		}
+	}
+	return nil, ErrNotFound
 }
 
 

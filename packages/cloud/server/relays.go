@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/allannuwamanya/zoop/packages/cloud/api"
-	"github.com/allannuwamanya/zoop/packages/cloud/relay"
-	"github.com/allannuwamanya/zoop/packages/core/types"
+	"github.com/zoop-internet/zoopspot/packages/cloud/api"
+	"github.com/zoop-internet/zoopspot/packages/cloud/relay"
+	"github.com/zoop-internet/zoopspot/packages/core/types"
 )
 
 // handleAdminRelays lists the relay registry nodes.
