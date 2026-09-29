@@ -64,12 +64,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     <>
       {/* ─── Topbar — distinct on docs (solid, not glass) ─────────────────── */}
       <header className={`lp-topbar ${scrolled ? 'scrolled' : ''} ${isDocs ? 'docs-topbar' : ''}`} role="banner">
-        <a href="/" className="lp-brand" onClick={(e) => { e.preventDefault(); handleNav('/'); }} aria-label="Zoop Internet — go to homepage">
+        <a href="/" className="lp-brand" onClick={(e) => { e.preventDefault(); handleNav('/'); }} aria-label="ZoopSpot — go to homepage">
           <div className="lp-brand-icon">
-            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="Zoop Internet" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
+            <img src="/zoopicon-32.webp" srcSet="/zoopicon-32.webp 1x, /zoopicon-192.webp 2x" alt="ZoopSpot" width={28} height={28} loading="eager" decoding="async" fetchPriority="high" />
           </div>
-          <span className="lp-brand-text">Zoop</span>
-          <span className="lp-brand-badge">Internet</span>
+          <span className="lp-brand-text">ZoopSpot</span>
+          <span className="lp-brand-badge">Hotspot Billing</span>
         </a>
 
         <nav className="lp-nav-pill" aria-label="Main Navigation">
@@ -79,23 +79,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a href="/how-it-works" className={activeRoute === '/how-it-works' || activeRoute === '/architecture' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); }}>
             How It Works
           </a>
-          <a href="/products" className={activeRoute === '/products' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/products'); }}>
-            Products
-          </a>
-          <a href="/docs" className={activeRoute === '/docs' || activeRoute.startsWith('/docs/') || activeRoute === '/documentation' || activeRoute.startsWith('/documentation/') ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/docs'); }}>
-            Docs
+          <a href="/portal?hotspot=demo&mac=AA:BB:CC:11:22:33" className={activeRoute.startsWith('/portal') ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/portal?hotspot=demo&mac=AA:BB:CC:11:22:33'); }}>
+            Captive Portal
           </a>
           <a href="/pricing" className={activeRoute === '/pricing' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/pricing'); }}>
             Pricing
           </a>
-          <a href="/downloads" className={activeRoute === '/downloads' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/downloads'); }}>
-            Downloads
+          <a href="/docs" className={activeRoute === '/docs' || activeRoute.startsWith('/docs/') ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/docs'); }}>
+            Docs
           </a>
           <a href="/security" className={activeRoute === '/security' ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/security'); }}>
             Security
-          </a>
-          <a href="/blog" className={activeRoute === '/blog' || activeRoute.startsWith('/blog/') ? 'active' : ''} onClick={(e) => { e.preventDefault(); handleNav('/blog'); }}>
-            Blog
           </a>
         </nav>
 
@@ -148,14 +142,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <a href="/" onClick={(e) => { e.preventDefault(); handleNav('/'); setMenuOpen(false); }}>Overview</a>
             <a href="/how-it-works" onClick={(e) => { e.preventDefault(); handleNav('/how-it-works'); setMenuOpen(false); }}>How It Works</a>
-            <a href="/products" onClick={(e) => { e.preventDefault(); handleNav('/products'); setMenuOpen(false); }}>Products</a>
-            <a href="/docs" onClick={(e) => { e.preventDefault(); handleNav('/docs'); setMenuOpen(false); }}>Docs</a>
+            <a href="/portal?hotspot=demo&mac=AA:BB:CC:11:22:33" onClick={(e) => { e.preventDefault(); handleNav('/portal?hotspot=demo&mac=AA:BB:CC:11:22:33'); setMenuOpen(false); }}>Captive Portal</a>
             <a href="/pricing" onClick={(e) => { e.preventDefault(); handleNav('/pricing'); setMenuOpen(false); }}>Pricing</a>
-            <a href="/downloads" onClick={(e) => { e.preventDefault(); handleNav('/downloads'); setMenuOpen(false); }}>Downloads</a>
+            <a href="/docs" onClick={(e) => { e.preventDefault(); handleNav('/docs'); setMenuOpen(false); }}>Docs</a>
             <a href="/security" onClick={(e) => { e.preventDefault(); handleNav('/security'); setMenuOpen(false); }}>Security</a>
-            <a href="/blog" onClick={(e) => { e.preventDefault(); handleNav('/blog'); setMenuOpen(false); }}>Blog</a>
             <div className="lp-mobile-drawer-divider" />
-            <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Open Console</button>
+            <button className="primary" onClick={() => { onLaunchConsole('user'); setMenuOpen(false); }}>Operator Dashboard</button>
             <a href="/auth?tab=signin" rel="nofollow" onClick={(e) => { e.preventDefault(); onLaunchConsole('auth'); setMenuOpen(false); }}>Sign In</a>
           </div>
         </>

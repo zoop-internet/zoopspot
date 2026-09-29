@@ -27,16 +27,13 @@ const Ico: React.FC<{ d: string | React.ReactNode; size?: number }> = ({ d, size
 const I = Icons;
 
 /* ─── Tab types ───────────────────────────────────────────────── */
-type UserTab = 'overview' | 'devices' | 'hotspots' | 'connections' | 'sharing' | 'wallet' | 'settings';
+type UserTab = 'hotspots' | 'overview' | 'wallet' | 'settings';
 
 const NAV: { id: UserTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',    label: 'Overview',           icon: <Ico d={I.home}       /> },
-  { id: 'devices',     label: 'Devices',            icon: <Ico d={I.monitor}    /> },
-  { id: 'hotspots',    label: 'Hotspots & Routers', icon: <Ico d={I.wifi}       /> },
-  { id: 'connections', label: 'Connections',        icon: <Ico d={I.link}       /> },
-  { id: 'sharing',     label: 'Sharing',            icon: <Ico d={I.share}      /> },
-  { id: 'wallet',      label: 'Wallet & Earnings',  icon: <Ico d={I.wallet}     /> },
-  { id: 'settings',    label: 'Settings',           icon: <Ico d={I.settings}   /> },
+  { id: 'hotspots', label: 'Hotspots & Routers', icon: <Ico d={I.wifi} /> },
+  { id: 'overview', label: 'Network Overview',   icon: <Ico d={I.home} /> },
+  { id: 'wallet',   label: 'Wallet & Payouts',   icon: <Ico d={I.wallet} /> },
+  { id: 'settings', label: 'Settings',           icon: <Ico d={I.settings} /> },
 ];
 
 /* ─── Toast ───────────────────────────────────────────────────── */
@@ -311,572 +308,6 @@ const OverviewTab: React.FC<{ onRegister: () => void; onToast: (msg: string, typ
   );
 };
 
-/* ─── Devices tab ─────────────────────────────────────────────── */
-const DevicesTab: React.FC<{ onRegister: () => void; onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onRegister, onToast }) => {
-  const { deviceId, deviceName, deviceInfo, allDevices, devicesLoading, refreshAllDevices } = useApp();
-  const [filter, setFilter] = useState('');
-  // skeletons handled via inline shimmer (S2-02)
-
-  const filteredDevices = allDevices.filter(d =>
-    (d.name || '').toLowerCase().includes(filter.toLowerCase()) ||
-    d.id.toString().toLowerCase().includes(filter.toLowerCase()) ||
-    (d.platform || '').toLowerCase().includes(filter.toLowerCase())
-  );
-
-  return (
-    <>
-      {deviceId && (
-        <div className="section" style={{ marginBottom: 4 }}>
-          <div className="section-header"><span className="section-title">This device session</span></div>
-          <div className="info-row">
-            <span className="info-key">Device name</span>
-            <span className="info-val">{deviceName}</span>
-            <span />
-          </div>
-          <div className="info-row">
-            <span className="info-key">Device ID</span>
-            <span className="info-val" style={{ fontSize: '0.75rem' }}>{deviceId}</span>
-            <button className="btn btn-ghost btn-xs" onClick={() => {
-              navigator.clipboard.writeText(deviceId);
-              onToast('Device ID copied');
-            }}>
-              <Ico d={I.copy} size={11} />Copy
-            </button>
-          </div>
-          <div className="info-row">
-            <span className="info-key">Platform</span>
-            <span className="info-val">{deviceInfo?.platform ?? '—'}</span>
-            <span />
-          </div>
-        </div>
-      )}
-
-      <div className="section">
-        <div className="section-header" style={{ flexWrap: 'wrap', gap: 10 }}>
-          <span className="section-title">Fleet devices ({allDevices.length})</span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="Search…"
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-              style={{
-                padding: '5px 10px', fontSize: '0.8125rem', borderRadius: 'var(--r-md)',
-                border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)',
-                outline: 'none', width: 160,
-              }}
-            />
-            <button className="btn btn-ghost btn-xs" onClick={refreshAllDevices}>
-              {devicesLoading ? <AwsSpinner size={13} /> : 'Refresh'}
-            </button>
-            <button className="btn btn-primary btn-xs" onClick={onRegister}>
-              <Ico d={I.plus} />Register new
-            </button>
-          </div>
-        </div>
-        {devicesLoading && allDevices.length === 0 ? (
-          <div style={{ padding: '16px' }}>
-            <div className="skeleton skeleton-line" style={{ height: 14, width: '40%', marginBottom: 12 }} />
-            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
-            <div className="skeleton-table-row"><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /><span className="skeleton skeleton-line" /></div>
-          </div>
-        ) : allDevices.length === 0 ? (
-          <div className="empty-state" style={{ padding: '40px 24px' }}>
-            <div className="empty-icon"><Ico d={I.monitor} size={22} /></div>
-            <h3>No devices registered</h3>
-            <p>Register a device to add it to the control plane registry.</p>
-            <button className="btn btn-primary btn-sm" onClick={onRegister} style={{ marginTop: 8 }}>
-              <Ico d={I.plus} />Register device
-            </button>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Fleet — {filteredDevices.length} device{filteredDevices.length===1?'':'s'} · Click ID to copy</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Device ID</th>
-                  <th scope="col">Platform</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDevices.map(d => (
-                  <tr key={d.id.toString()}>
-                    <td>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.name || 'Unnamed device'}</span>
-                      {d.id.toString() === deviceId && <span className="badge badge-info" style={{ marginLeft: 8 }}>Current</span>}
-                    </td>
-                    <td
-                      style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', cursor: 'pointer' }}
-                      title="Click to copy device ID"
-                      onClick={() => {
-                        navigator.clipboard.writeText(d.id.toString());
-                        onToast(`Copied ${d.name || 'device'} ID`);
-                      }}
-                    >
-                      {d.id.toString()}
-                    </td>
-                    <td>{d.os || d.platform || '—'}</td>
-                    <td>
-                      <span className={`badge ${d.status === 'trusted' || d.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-                        {d.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
-
-/* ─── Connections tab ─────────────────────────────────────────── */
-const stateBadge = (s: string) => {
-  switch (s) {
-    case 'CONNECTED':   return <span className="badge badge-success">{s}</span>;
-    case 'REQUESTED':   return <span className="badge badge-warning">{s}</span>;
-    case 'AUTHORIZED':
-    case 'CONNECTING':  return <span className="badge badge-info">{s}</span>;
-    default:            return <span className="badge badge-neutral">{s}</span>;
-  }
-};
-
-const ConnectionsTab: React.FC<{
-  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
-  onGoToSharing: () => void;
-}> = ({ onToast, onGoToSharing }) => {
-  const {
-    deviceId, connections, connectionsLoading, connectionsError, allDevices, shares,
-    doConnect, doDisconnect, doAcceptConnection, refreshConnections,
-  } = useApp();
-  const [providerId, setProviderId] = useState('');
-  const [connecting, setConnecting] = useState(false);
-  const [connectError, setConnectError] = useState<string | null>(null);
-  const [busyConn, setBusyConn] = useState<string | null>(null);
-  const [confirmingDecline, setConfirmingDecline] = useState<string | null>(null);
-
-  const nameOf = useMemo(() => {
-    const byId = new Map(allDevices.map(d => [d.id.toString(), d.name || 'Unnamed device']));
-    return (id: string): string | null => byId.get(id) ?? null;
-  }, [allDevices]);
-
-  const providerIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (!deviceId) return ids;
-    for (const s of shares) {
-      const active = s.is_active === true || s.status === 'active' || (s.is_active === undefined && s.status === undefined);
-      if (s.recipient_id && s.recipient_id.toString() === deviceId && active && s.provider_id) {
-        ids.add(s.provider_id.toString());
-      }
-    }
-    return ids;
-  }, [shares, deviceId]);
-
-  const providers = useMemo(
-    () => allDevices.filter(d => providerIds.has(d.id.toString())),
-    [allDevices, providerIds],
-  );
-
-  const pending = connections.filter(c => c.state === 'REQUESTED');
-  const active = connections.filter(c => ['CONNECTED', 'CONNECTING', 'AUTHORIZED'].includes(c.state));
-  const isLoading = connectionsLoading && connections.length === 0;
-
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!providerId.trim()) return;
-    setConnecting(true);
-    setConnectError(null);
-    try {
-      await doConnect(providerId.trim());
-      onToast('Connection request sent to provider', 'success');
-      setProviderId('');
-      refreshConnections();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Connection failed';
-      setConnectError(msg);
-      onToast(msg, 'error');
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const runDisconnect = async (id: string, successMsg: string) => {
-    setBusyConn(id);
-    try {
-      await doDisconnect(id);
-      setConfirmingDecline(null);
-      refreshConnections();
-      onToast(successMsg, 'info');
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Action failed', 'error');
-    } finally {
-      setBusyConn(null);
-    }
-  };
-
-  const runAccept = async (id: string) => {
-    setBusyConn(id);
-    try {
-      await doAcceptConnection(id);
-      onToast('Connection request approved', 'success');
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Failed to approve request', 'error');
-    } finally {
-      setBusyConn(null);
-    }
-  };
-
-  const PeerCell: React.FC<{ id: string; name: string | null }> = ({ id, name }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{name ?? 'Unnamed device'}</span>
-      <span
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-        title="Click to copy Device ID"
-        onClick={() => { navigator.clipboard.writeText(id); onToast(`Copied device ID`); }}
-      >
-        {id.slice(0, 8)}… <Ico d={I.copy} size={9} />
-      </span>
-    </div>
-  );
-
-  const Spin = () => <AwsSpinner size={12} />;
-
-  if (!deviceId) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon"><Ico d={I.zap} size={22} /></div>
-        <h3>Not registered</h3>
-        <p>Register this device first to manage connections.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {connectError && (
-        <div className="error-banner" role="alert">
-          <Ico d={I.alert} />
-          <span style={{ flex: 1 }}>{connectError}</span>
-          <button className="btn btn-ghost btn-xs" onClick={() => setConnectError(null)} aria-label="Dismiss">✕</button>
-        </div>
-      )}
-      {connectionsError && (
-        <div className="error-banner" role="alert">
-          <Ico d={I.alert} />
-          <span style={{ flex: 1 }}>Could not load connections from the control plane.</span>
-          <button className="btn btn-secondary btn-xs" onClick={refreshConnections}>Retry</button>
-        </div>
-      )}
-
-      {/* Initiate connection — you are RECIPIENT borrowing provider's internet */}
-      <div className="section">
-        <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-          <span className="section-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Ico d={I.zap} size={14} /> Initiate connection
-            <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>You are recipient</span>
-          </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-            Borrow internet from a trusted provider. Your traffic exits via the provider's device — <strong style={{ color: 'var(--text-secondary)' }}>you connect → they approve</strong>.
-          </span>
-        </div>
-        {providers.length > 0 ? (
-          <>
-            <form onSubmit={handleConnect} className="conn-form">
-              <div className="field">
-                <label htmlFor="conn-provider-id">Provider device <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(provides internet to you)</span></label>
-                <select id="conn-provider-id" value={providerId} onChange={e => setProviderId(e.target.value)} required>
-                  <option value="" disabled>Select a provider that authorized you…</option>
-                  {providers.map(d => (
-                    <option key={d.id.toString()} value={d.id.toString()}>
-                      {d.name || 'Unnamed device'} — {d.id.toString().slice(0, 8)}…
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button type="submit" className="btn btn-primary btn-sm" id="connect-btn" disabled={connecting || !providerId}>
-                {connecting ? <><Spin />Connecting…</> : <><Ico d={I.zap} />Connect via provider</>}
-              </button>
-            </form>
-            <div className="conn-hint" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.18)', padding: '3px 8px', borderRadius: 999 }}><Ico d={I.link} size={10} /> Direct WireGuard</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Only devices that already authorized you appear. Ask provider to <strong style={{ color: 'var(--text-secondary)' }}>Sharing → Authorize recipient</strong> with your Device ID.</span>
-            </div>
-          </>
-        ) : (
-          <div className="conn-empty-providers">
-            <div className="empty-icon" style={{ width: 40, height: 40, flexShrink: 0 }}><Ico d={I.share} size={18} /></div>
-            <div>
-              <h3>No providers authorized you yet</h3>
-              <p>No device has shared to this device. A provider must open <strong>Sharing</strong> and authorize your Device ID before you can connect.</p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={onGoToSharing}>
-                  <Ico d={I.share} />Go to Sharing (see how)
-                </button>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Tip: copy your Device ID from Devices → Current</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Pending requests */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Pending requests ({pending.length})</span>
-          <span className="section-note">Awaiting action</span>
-        </div>
-        {isLoading ? (
-          <div className="inline-empty"><span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={14} /></span>Loading connections…</div>
-        ) : pending.length === 0 ? (
-          <div className="inline-empty">No pending connection requests.</div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Pending — awaiting provider approval</caption>
-              <thead><tr><th scope="col">Peer</th><th scope="col">Direction</th><th scope="col">State</th><th scope="col" style={{ textAlign: 'right' }}>Actions</th></tr></thead>
-              <tbody>
-                {pending.map(c => {
-                  const isProvider = c.provider_id.toString() === deviceId;
-                  const peerId = isProvider ? c.recipient_id.toString() : c.provider_id.toString();
-                  const peerName = nameOf(peerId);
-                  const isBusy = busyConn === c.id.toString();
-                  const confirming = confirmingDecline === c.id.toString();
-                  return (
-                    <tr key={c.id.toString()}>
-                      <td><PeerCell id={peerId} name={peerName} /></td>
-                      <td>
-                        {isProvider
-                          ? <span className="badge badge-warning">Incoming</span>
-                          : <span className="badge badge-info">Awaiting approval</span>}
-                      </td>
-                      <td>{stateBadge(c.state)}</td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {isProvider ? (
-                          <>
-                            <button className="btn btn-primary btn-xs" style={{ marginRight: 6 }}
-                              disabled={isBusy} onClick={() => runAccept(c.id.toString())}
-                              aria-label={`Accept connection from ${peerName ?? peerId}`}>
-                              {isBusy ? <><Spin />Accepting…</> : <><Ico d={I.check} size={11} />Accept</>}
-                            </button>
-                            {confirming ? (
-                              <>
-                                <button className="btn btn-danger btn-xs" style={{ marginRight: 6 }}
-                                  disabled={isBusy} onClick={() => runDisconnect(c.id.toString(), 'Request declined')}
-                                  aria-label="Confirm decline">
-                                  {isBusy ? <><Spin />Declining…</> : 'Confirm'}
-                                </button>
-                                <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={() => setConfirmingDecline(null)}>Cancel</button>
-                              </>
-                            ) : (
-                              <button className="btn btn-danger btn-xs btn-outline" onClick={() => setConfirmingDecline(c.id.toString())}
-                                aria-label={`Decline connection from ${peerName ?? peerId}`}>
-                                <Ico d={I.wifiOff} size={11} />Decline
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <button className="btn btn-ghost btn-xs" disabled={isBusy}
-                            onClick={() => runDisconnect(c.id.toString(), 'Request cancelled')}
-                            aria-label={`Cancel request to ${peerName ?? peerId}`}>
-                            {isBusy ? <><Spin />Cancelling…</> : 'Cancel'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Active connections */}
-      <div className="section">
-        <div className="section-header">
-          <span className="section-title">Active connections ({active.length})</span>
-          <button className="btn btn-ghost btn-xs" id="refresh-connections-btn" onClick={refreshConnections}>
-            {connectionsLoading ? <AwsSpinner size={13} /> : 'Refresh'}
-          </button>
-        </div>
-        {isLoading ? (
-          <div className="inline-empty"><span style={{ marginRight: 8, display: 'inline-flex' }}><AwsSpinner size={14} /></span>Loading connections…</div>
-        ) : active.length === 0 ? (
-          <div className="inline-empty">No active connections. Initiate a connection above to start routing traffic.</div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Active tunnels — encrypted, direct or relay fallback</caption>
-              <thead><tr><th scope="col">Peer</th><th scope="col">Direction</th><th scope="col">State</th><th scope="col">Tunnel IP</th><th scope="col" /></tr></thead>
-              <tbody>
-                {active.map(c => {
-                  const isProvider = c.provider_id.toString() === deviceId;
-                  const peerId = isProvider ? c.recipient_id.toString() : c.provider_id.toString();
-                  const peerName = nameOf(peerId);
-                  const isBusy = busyConn === c.id.toString();
-                  return (
-                    <tr key={c.id.toString()}>
-                      <td><PeerCell id={peerId} name={peerName} /></td>
-                      <td>
-                        {isProvider
-                          ? <span className="badge badge-info">Providing</span>
-                          : <span className="badge badge-neutral">Receiving</span>}
-                      </td>
-                      <td>{stateBadge(c.state)}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                        {isProvider ? c.recipient_ip ?? '—' : c.provider_ip ?? '—'}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button className="btn btn-danger btn-xs" disabled={isBusy}
-                          onClick={() => runDisconnect(c.id.toString(), 'Disconnected')}
-                          aria-label={`Disconnect from ${peerName ?? peerId}`}>
-                          {isBusy ? <><Spin />Disconnecting…</> : <><Ico d={I.wifiOff} size={11} />Disconnect</>}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
-
-/* ─── Sharing tab ─────────────────────────────────────────────── */
-const SharingTab: React.FC<{ onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }> = ({ onToast }) => {
-  const { deviceId, shares, allDevices, doCreateShare, doDeleteShare } = useApp();
-  const [recipientId, setRecipientId] = useState('');
-  const [sharing, setSharing] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
-  const [busyShare, setBusyShare] = useState<string | null>(null);
-  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
-
-  const candidates = allDevices.filter(d => d.id.toString() !== deviceId);
-
-  const handleShare = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recipientId.trim()) return;
-    setSharing(true);
-    setShareError(null);
-    try {
-      await doCreateShare(recipientId.trim());
-      onToast('Share relationship authorized', 'success');
-      setRecipientId('');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create share';
-      setShareError(msg);
-      onToast(msg, 'error');
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  if (!deviceId) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon"><Ico d={I.share} size={22} /></div>
-        <h3>Not registered</h3>
-        <p>Register this device to manage sharing relationships.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {shareError && <div className="error-banner" role="alert" aria-live="assertive"><Ico d={I.alert} />{shareError}</div>}
-
-      <div className="section">
-        <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-          <span className="section-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Ico d={I.share} size={14} /> Authorize recipient
-            <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>You are provider</span>
-          </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-            Share <strong style={{ color: 'var(--text-secondary)' }}>your</strong> internet with a trusted device. You provide → they route via you. Recipient must later go to <strong style={{ color: '#38bdf8' }}>Connections → Connect</strong>.
-          </span>
-        </div>
-        <form onSubmit={handleShare} style={{ padding: '18px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="field" style={{ flex: 1, minWidth: 200 }}>
-            <label htmlFor="share-recipient-id">Recipient device <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(gets your internet)</span></label>
-            {candidates.length > 0 ? (
-              <select id="share-recipient-id" value={recipientId} onChange={e => setRecipientId(e.target.value)} required>
-                <option value="" disabled>Select who can use your internet…</option>
-                {candidates.map(d => (
-                  <option key={d.id.toString()} value={d.id.toString()}>
-                    {d.name || 'Unnamed device'} — {d.id.toString().slice(0, 8)}…
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input id="share-recipient-id" type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)}
-                placeholder="Recipient's device ID" required />
-            )}
-          </div>
-          <button type="submit" className="btn btn-primary btn-sm" id="share-create-btn" disabled={sharing}>
-            {sharing ? <AwsSpinner size={13} variant="inverted" /> : <Ico d={I.plus} />}
-            Authorize sharing
-          </button>
-        </form>
-        <div className="conn-hint" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.18)', padding: '3px 8px', borderRadius: 999 }}><Ico d={I.shield} size={10} /> You control</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Revoke anytime in Active shares below. After you authorize, recipient sees you in <strong style={{ color: 'var(--text-secondary)' }}>Connections</strong>.</span>
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="section-header"><span className="section-title">Active shares ({shares.length})</span></div>
-        {shares.length === 0 ? (
-          <div className="inline-empty">No sharing relationships yet. Authorize a recipient above.</div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <caption style={{ captionSide:'top', textAlign:'left', padding:'8px 18px', fontSize:'0.75rem', color:'var(--text-muted)', fontWeight:600 }}>Sharing relationships — provider authorizes recipient · Revoke to stop access</caption>
-              <thead><tr><th scope="col">Direction</th><th scope="col">Peer</th><th scope="col">Status</th><th scope="col" style={{ textAlign:'right' }}>Action</th></tr></thead>
-              <tbody>
-                {shares.map(s => {
-                  const isProvider = s.provider_id.toString() === deviceId;
-                  const isBusy = busyShare === s.id.toString();
-                  const confirming = confirmRevoke === s.id.toString();
-                  return (
-                    <tr key={s.id.toString()}>
-                      <td>{isProvider ? <span className="badge badge-info">Provider</span> : <span className="badge badge-neutral">Recipient</span>}</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                        {isProvider ? s.recipient_id.toString() : s.provider_id.toString()}
-                      </td>
-                      <td>
-                        {s.is_active
-                          ? <span className="badge badge-success">Active</span>
-                          : <span className="badge badge-neutral">Inactive</span>}
-                      </td>
-                      <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>
-                        {confirming ? (
-                          <>
-                            <button className="btn btn-danger btn-xs" style={{ marginRight:6 }} disabled={isBusy} onClick={async()=>{ setBusyShare(s.id.toString()); try{ await doDeleteShare(s.id.toString()); onToast('Share revoked','info'); setConfirmRevoke(null);} catch(e){ onToast(e instanceof Error?e.message:'Revoke failed','error');} finally{ setBusyShare(null);} }} aria-label="Confirm revoke share">{isBusy ? <AwsSpinner size={12} variant="inverted" /> : 'Confirm'}</button>
-                            <button className="btn btn-ghost btn-xs" disabled={isBusy} onClick={()=>setConfirmRevoke(null)}>Cancel</button>
-                          </>
-                        ) : (
-                          <button className="btn btn-ghost btn-xs" style={{ color:'var(--red)' }} disabled={isBusy} onClick={()=>setConfirmRevoke(s.id.toString())} aria-label="Revoke share"><Ico d={I.wifiOff} size={11}/> Revoke</button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
 
 /* ─── Settings tab ────────────────────────────────────────────── */
 const SettingsTab: React.FC<{
@@ -1640,19 +1071,19 @@ export interface UserDashboardProps {
 
 /* ─── Main UserDashboard — modern nav ─────────────────────────── */
 export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, currentPath, onNavigate }) => {
-  const { user, deviceId, deviceName, allDevices, connections, register, isRegistering } = useApp();
+  const { user, deviceId, deviceName, connections, register, isRegistering } = useApp();
 
   const getTabFromPath = (path?: string): UserTab => {
     const p = (path || window.location.pathname).replace(/\/+$/, '');
     const seg = p.split('/').pop()?.toLowerCase();
-    if (seg && ['overview', 'devices', 'hotspots', 'connections', 'sharing', 'wallet', 'settings'].includes(seg)) {
+    if (seg && ['hotspots', 'overview', 'wallet', 'settings'].includes(seg)) {
       return seg as UserTab;
     }
     const h = window.location.hash.replace(/^#/, '').toLowerCase();
-    if (['overview', 'devices', 'hotspots', 'connections', 'sharing', 'wallet', 'settings'].includes(h)) {
+    if (['hotspots', 'overview', 'wallet', 'settings'].includes(h)) {
       return h as UserTab;
     }
-    return 'overview';
+    return 'hotspots';
   };
 
   const [tab, setTab] = useState<UserTab>(() => getTabFromPath(currentPath));
@@ -1671,8 +1102,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
       window.location.hostname.startsWith('app.')
     );
     const targetPath = isDashHost
-      ? (newTab === 'overview' ? '/' : `/${newTab}`)
-      : (newTab === 'overview' ? '/app' : `/app/${newTab}`);
+      ? (newTab === 'hotspots' ? '/' : `/${newTab}`)
+      : (newTab === 'hotspots' ? '/app' : `/app/${newTab}`);
 
     if (onNavigate) {
       onNavigate(targetPath);
@@ -1685,11 +1116,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   };
 
   const navCounts: Record<UserTab, number | null> = {
-    overview: null,
-    devices: allDevices.length || null,
     hotspots: null,
-    connections: connections.filter(c => ['REQUESTED','CONNECTING','CONNECTED','AUTHORIZED'].includes(c.state)).length || null,
-    sharing: null,
+    overview: null,
     wallet: null,
     settings: null,
   };
@@ -1712,22 +1140,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
   React.useEffect(() => () => { toastTimers.current.forEach(t => clearTimeout(t)); }, []);
 
   const TAB_TITLES: Record<UserTab, string> = {
-    overview:    'Overview',
-    devices:     'Devices',
-    hotspots:    'Hotspots & Routers',
-    connections: 'Connections',
-    sharing:     'Sharing',
-    wallet:      'Wallet & Earnings',
-    settings:    'Settings',
+    hotspots: 'Hotspots & Routers',
+    overview: 'Network Overview',
+    wallet:   'Wallet & Payouts',
+    settings: 'Settings & API Credentials',
   };
   const TAB_SUBS: Record<UserTab, string> = {
-    overview:    'Your device mesh at a glance',
-    devices:     'Fleet inventory — click ID to copy',
-    hotspots:    'MikroTik & OpenWrt fleet, packages, vouchers, and live revenue',
-    connections: 'Borrow internet — you are recipient → provider approves',
-    sharing:     'Lend internet — you are provider → authorize recipients',
-    wallet:      'Mobile Money + bandwidth earnings (UGX)',
-    settings:    'Identity, device credential, sign out',
+    hotspots: 'MikroTik RouterOS v7 & OpenWrt fleet, packages, vouchers, and live revenue',
+    overview: 'Your network mesh and gateway status at a glance',
+    wallet:   'Mobile Money (MTN & Airtel UGX) collections and instant withdrawals',
+    settings: 'Identity, device credential, and API keys',
   };
 
   const handleRegisterDirect = () => {
@@ -1857,13 +1279,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ mode, onSwitch, cu
         </header>
 
         <main id="main-content" className="page-body" tabIndex={-1} aria-labelledby="page-title">
-          {tab === 'overview'    && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
-          {tab === 'devices'     && <DevicesTab  onRegister={handleRegisterDirect} onToast={addToast} />}
-          {tab === 'hotspots'    && <HotspotsTab onToast={addToast} />}
-          {tab === 'connections' && <ConnectionsTab onToast={addToast} onGoToSharing={() => handleTabChange('sharing')} />}
-          {tab === 'sharing'     && <SharingTab onToast={addToast} />}
-          {tab === 'wallet'      && <WalletTab onToast={addToast} />}
-          {tab === 'settings'    && <SettingsTab onSwitch={onSwitch} onToast={addToast} />}
+          {tab === 'hotspots' && <HotspotsTab onToast={addToast} />}
+          {tab === 'overview' && <OverviewTab onRegister={handleRegisterDirect} onToast={addToast} />}
+          {tab === 'wallet'   && <WalletTab onToast={addToast} />}
+          {tab === 'settings' && <SettingsTab onSwitch={onSwitch} onToast={addToast} />}
         </main>
         <MobileBottomNav items={NAV.map(n=>({ id:n.id, label:n.label, icon: n.icon }))} activeId={tab} onChange={v=>handleTabChange(v as UserTab)} />
       </div>

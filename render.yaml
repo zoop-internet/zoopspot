@@ -4,8 +4,8 @@ services:
     runtime: go
     plan: free
     region: frankfurt # eu-central (Frankfurt) - colocated with Neon Postgres
-    buildCommand: go build -ldflags="-s -w" -o bin/zoop-cloud ./cloud
-    startCommand: ./bin/zoop-cloud
+    buildCommand: go build -ldflags="-s -w" -o bin/zoopspot-cloud ./cmd/zoopspot-cloud
+    startCommand: ./bin/zoopspot-cloud
     healthCheckPath: /v1/health
     envVars:
       - key: ZOOP_ENV

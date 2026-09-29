@@ -1,7 +1,8 @@
+import React from 'react';
 import { Ico } from '../components/Icons';
 import { Icons } from '../components/iconConstants';
 
-/* ─── Downloads Matrix Data ────────────────────────────────────────────── */
+/* ─── Downloads Matrix Data for ZoopSpot ───────────────────────────────── */
 export interface DownloadItem {
   id: string;
   name: string;
@@ -14,51 +15,50 @@ export interface DownloadItem {
 
 export const DOWNLOAD_DATA: DownloadItem[] = [
   {
-    id: 'linux',
-    name: 'Linux',
-    sub: 'Lightweight background service for Ubuntu, Debian, Fedora & servers.',
+    id: 'mikrotik',
+    name: 'MikroTik RouterOS v7',
+    sub: 'Native 1-click provisioning script for RouterOS v7.12+. Zero custom binary needed on router.',
     icon: <Ico d={Icons.server} size={22} />,
-    primaryAction: { label: 'Download .deb', file: 'zoop_linux_amd64.deb' },
+    primaryAction: { label: 'Download .rsc Script', file: 'zoopspot-mikrotik-provision.rsc' },
     secondaryActions: [
-      { label: '.tar.gz binary', file: 'zoop_linux_amd64.tar.gz' },
-      { label: 'ARM64 (.deb)', file: 'zoop_linux_arm64.deb' },
+      { label: 'View Script Source', file: 'https://github.com/zoop-internet/zoopspot' },
     ],
-    installCommand: 'curl -fsSL https://get.zoop.dev | sh',
+    installCommand: '/tool fetch url="https://cloud.zoopspot.io/provision/mikrotik.rsc" dst-path=zoopspot.rsc; /import zoopspot.rsc',
   },
   {
-    id: 'macos',
-    name: 'macOS',
-    sub: 'One-click installer for Apple Silicon (M1/M2/M3/M4) & Intel Macs.',
-    icon: <Ico d={Icons.apple} size={22} />,
-    primaryAction: { label: 'Download Installer (.pkg)', file: 'Zoop-macOS-universal.pkg' },
+    id: 'openwrt',
+    name: 'OpenWrt Router Client',
+    sub: 'Lightweight zoopspot-router daemon for OpenWrt 21.02+ (MIPS, ARM, x86_64).',
+    icon: <Ico d={Icons.terminal} size={22} />,
+    primaryAction: { label: 'Download MIPS .ipk', file: 'zoopspot-router_mips.ipk' },
     secondaryActions: [
-      { label: 'Apple Silicon .dmg', file: 'Zoop-macOS-arm64.dmg' },
-      { label: 'Intel .dmg', file: 'Zoop-macOS-x64.dmg' },
+      { label: 'ARM64 (.ipk)', file: 'zoopspot-router_arm64.ipk' },
+      { label: 'x86_64 (.tar.gz)', file: 'zoopspot-router_amd64.tar.gz' },
     ],
-    installCommand: 'brew install zoop-internet/tap/zoop',
+    installCommand: 'opkg install https://cloud.zoopspot.io/downloads/zoopspot-router_mips.ipk',
   },
   {
-    id: 'windows',
-    name: 'Windows',
-    sub: 'Fast Windows installer with seamless background tray support.',
+    id: 'cloud',
+    name: 'ZoopSpot Cloud (Self-Hosted)',
+    sub: 'Full REST API, payment webhook processor, and WireGuard controller binary.',
     icon: <Ico d={Icons.laptop} size={22} />,
-    primaryAction: { label: 'Download Installer (.msi)', file: 'Zoop-Windows-x64-Setup.msi' },
+    primaryAction: { label: 'Linux amd64 Binary', file: 'zoopspot-cloud-linux-amd64' },
     secondaryActions: [
-      { label: 'Standalone .zip', file: 'zoop_windows_x64.zip' },
-      { label: 'ARM64 Installer', file: 'Zoop-Windows-arm64.msi' },
+      { label: 'Linux ARM64', file: 'zoopspot-cloud-linux-arm64' },
+      { label: 'Docker Container', file: 'docker pull ghcr.io/zoop-internet/zoopspot-cloud:latest' },
     ],
-    installCommand: 'winget install zoop-internet.zoop',
+    installCommand: 'docker run -d -p 8080:8080 -p 51820:51820/udp ghcr.io/zoop-internet/zoopspot-cloud:latest',
   },
   {
-    id: 'mobile',
-    name: 'Phones & Routers',
-    sub: 'One-tap apps for Android phones, iPhones, and home Wi-Fi routers.',
-    icon: <Ico d={Icons.smartphone} size={22} />,
-    primaryAction: { label: 'Android App (APK)', file: 'zoop-android-release.apk' },
+    id: 'voucher-cli',
+    name: 'Voucher Printer & CLI',
+    sub: 'Command-line tool to generate batches of 8-digit scratch vouchers and export printable A4 PDFs.',
+    icon: <Ico d={Icons.download} size={22} />,
+    primaryAction: { label: 'Download CLI (Linux)', file: 'zoopspot-voucher-linux-amd64' },
     secondaryActions: [
-      { label: 'iOS App Store / TestFlight', file: 'https://testflight.apple.com/join/zoop' },
-      { label: 'Home Router (.ipk)', file: 'zoop-router_mipsel.ipk' },
+      { label: 'macOS CLI', file: 'zoopspot-voucher-darwin-universal' },
+      { label: 'Windows CLI (.exe)', file: 'zoopspot-voucher-windows-amd64.exe' },
     ],
-    installCommand: 'opkg install zoop-router',
+    installCommand: 'curl -fsSL https://get.zoopspot.io/voucher | sh',
   },
 ];

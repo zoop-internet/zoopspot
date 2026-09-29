@@ -19,10 +19,8 @@ RUN go mod download
 
 # Copy source tree and compile binaries
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoop-cloud ./cloud && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoop-router ./router && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoop ./cmd/zoop && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoopd ./cmd/zoopd
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoopspot-cloud ./cmd/zoopspot-cloud && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/zoopspot-router ./cmd/zoopspot-router
 
 # ------------------------------------------------------------------------------
 # Stage 2: Minimal Runtime Image
@@ -33,12 +31,10 @@ FROM alpine:3.21
 RUN apk add --no-cache iproute2 iptables ip6tables ca-certificates tzdata curl
 
 # Copy compiled binaries from builder stage
-COPY --from=builder /out/zoop-cloud /usr/local/bin/zoop-cloud
-COPY --from=builder /out/zoop-router /usr/local/bin/zoop-router
-COPY --from=builder /out/zoopd /usr/local/bin/zoopd
-COPY --from=builder /out/zoop /usr/local/bin/zoop
+COPY --from=builder /out/zoopspot-cloud /usr/local/bin/zoopspot-cloud
+COPY --from=builder /out/zoopspot-router /usr/local/bin/zoopspot-router
 
 WORKDIR /data
 
 # Default entrypoint
-CMD ["/usr/local/bin/zoop", "help"]
+CMD ["/usr/local/bin/zoopspot-cloud"]

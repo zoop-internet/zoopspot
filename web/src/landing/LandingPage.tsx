@@ -288,8 +288,9 @@ export const LandingPage: React.FC<{
       {/* ─── Sticky Bottom CTA — after 60% scroll, dismiss persists */}
       {activeRoute === '/' && showStickyCta && (
         <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 80, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px 10px 16px', borderRadius: 999, background: 'rgba(12,14,20,0.92)', border: '1px solid rgba(8,242,255,0.28)', boxShadow: '0 12px 32px rgba(0,0,0,0.6), 0 0 20px rgba(8,242,255,0.15)', backdropFilter: 'blur(16px)' }} role="region" aria-label="Quick actions">
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f7fbff', whiteSpace: 'nowrap' }}>Ready to share?</span>
-          <a href="/auth?tab=signup" className="lp-btn-primary" style={{ minHeight: 36, padding: '0 16px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }}>Get Zoop Free <Ico d={Icons.arrowRight} size={14} /></a>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f7fbff', whiteSpace: 'nowrap' }}>Ready to monetize?</span>
+          <a href="/portal?hotspot=demo&mac=AA:BB:CC:11:22:33" className="lp-btn-secondary" style={{ minHeight: 36, padding: '0 12px', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={(e) => { e.preventDefault(); handleNav('/portal?hotspot=demo&mac=AA:BB:CC:11:22:33'); }}>Try Captive Portal</a>
+          <a href="/auth?tab=signup" className="lp-btn-primary" style={{ minHeight: 36, padding: '0 16px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={(e) => { e.preventDefault(); handleNav('/auth?tab=signup'); }}>Start ZoopSpot Free <Ico d={Icons.arrowRight} size={14} /></a>
           <button onClick={() => { setShowStickyCta(false); try { sessionStorage.setItem('zoop_sticky_dismissed', '1'); } catch {} }} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 4, display: 'flex', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Ico d={Icons.close} size={14} /></button>
         </div>
       )}

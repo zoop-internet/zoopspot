@@ -17,27 +17,23 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
   copiedCmd,
 }) => {
   const detectedOs = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes('mac')) return 'macos';
-    if (ua.includes('win')) return 'windows';
-    if (ua.includes('android')) return 'mobile';
-    if (ua.includes('linux')) return 'linux';
-    if (ua.includes('iphone') || ua.includes('ipad')) return 'mobile';
-    return null;
+    if (typeof window === 'undefined') return 'mikrotik';
+    return 'mikrotik';
   }, []);
 
   return (
     <div className="lp-page-wrapper">
       <div className="lp-page-header">
-        <p className="lp-eyebrow">Get Started in Seconds</p>
-        <h1>Download Zoop for your devices.</h1>
+        <p className="lp-eyebrow">Router &amp; Cloud Downloads</p>
+        <h1>Get ZoopSpot for your network hardware.</h1>
         <p>
-          Available for Linux, macOS, Windows, Android, iOS, and home Wi-Fi routers. Fast, lightweight, and completely free.
+          Automated provisioning scripts for MikroTik RouterOS v7, packages for OpenWrt, and self-hosted cloud binaries.
         </p>
       </div>
 
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 24px', textAlign: 'center', color: 'var(--ink)' }}>Choose Your Operating System</h2>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 24px', textAlign: 'center', color: 'var(--ink)' }}>
+        Choose Your Platform
+      </h2>
 
       <div className="lp-downloads-grid">
         {DOWNLOAD_DATA.map((item) => (
@@ -50,7 +46,7 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
                     <Ico d={Icons.check} size={11} /> Recommended
                   </span>
                 )}
-                <span className="lp-brand-badge">Free</span>
+                <span className="lp-brand-badge">Free / MIT</span>
               </div>
             </div>
             <h3>{item.name}</h3>
@@ -98,14 +94,14 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
 
       <div style={{ marginTop: 28, background: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 12, padding: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: '0.8125rem', color: 'var(--ink-secondary)' }}>
-          <strong style={{ color: 'var(--ink)' }}>Verify downloads:</strong> All binaries are signed; checksums at <a href="https://github.com/zoop-internet/zoop/releases" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>GitHub Releases</a> · <code style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--line)', padding: '1px 6px', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>sha256sum -c zoop*.sha256</code>
+          Need custom firmware images or embedded packages for bulk router deployments?
         </div>
-        <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
-          Need help? <a href="https://github.com/zoop-internet/zoop/issues" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>Open an issue →</a>
-        </div>
+        <a href="/docs" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/docs'); }} style={{ minHeight: 34, fontSize: '0.8125rem' }}>
+          Explore Documentation →
+        </a>
       </div>
 
-      <div style={{ marginTop: 32, textAlign: 'center' }}>
+      <div style={{ marginTop: 48, textAlign: 'center' }}>
         <a href="/" className="lp-btn-secondary" onClick={(e) => { e.preventDefault(); handleNav('/'); }}>
           ← Back to Overview
         </a>
